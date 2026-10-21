@@ -24,6 +24,8 @@ public class DisplacedBlockRecord {
     public final Vector3f targetScale;
     public final boolean isFullCube;
     public boolean transformed;
+    public int animationStage; // 0 = SPAWN, 1 = BURST, 2 = SETTLE, 3 = RETURNING
+    public float hoverYaw;
 
     public DisplacedBlockRecord(BlockPos pos, RegistryKey<World> worldKey, BlockState state, NbtCompound nbt,
                                 Vector3f targetDisplacement, Quaternionf targetRotation, Vector3f targetScale,
@@ -42,6 +44,8 @@ public class DisplacedBlockRecord {
         this.targetScale = targetScale != null ? targetScale : new Vector3f(1.0f, 1.0f, 1.0f);
         this.isFullCube = isFullCube;
         this.transformed = false;
+        this.animationStage = 0;
+        this.hoverYaw = 0.0f;
     }
 
     public DisplacedBlockRecord(BlockPos pos, RegistryKey<World> worldKey, BlockState state, NbtCompound nbt,

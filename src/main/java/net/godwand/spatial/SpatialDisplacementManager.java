@@ -13,8 +13,13 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.entity.decoration.Brightness;
 import net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.particle.BlockStateParticleEffect;
+import net.minecraft.particle.DustParticleEffect;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Clearable;
 import net.minecraft.util.math.AffineTransformation;
 import net.minecraft.util.math.BlockPos;
@@ -66,7 +71,10 @@ public class SpatialDisplacementManager {
     public static void refreshDisplacement(RegistryKey<World> worldKey, BlockPos pos, int lifetime) {
         DisplacedBlockRecord record = ACTIVE_RECORDS.get(new DimensionPos(worldKey, pos));
         if (record != null) {
-            record.ageTicks = 0;
+            // Keep block in hovering/tumbling stage while player stays in the corridor
+            if (record.ageTicks > 8) {
+                record.ageTicks = 9;
+            }
             record.maxLifetimeTicks = lifetime;
         }
     }
@@ -152,9 +160,8 @@ public class SpatialDisplacementManager {
             display.addCommandTag("godwand_displaced");
             display.setPosition(immutablePos.getX(), immutablePos.getY(), immutablePos.getZ());
             display.setBlockState(state);
-            display.setGlowing(true);
-            display.setGlowColorOverride(glowColor);
-            display.setBrightness(new Brightness(15, 15));
+            display.setGlowing(false); // Clean visual: no obstructive spectral outline
+            display.setBrightness(new Brightness(15, 15)); // Vibrant texture even inside mountains
             display.setStartInterpolation(0);
             display.setInterpolationDuration(0);
             display.setTransformation(AffineTransformation.identity());
@@ -162,6 +169,19 @@ public class SpatialDisplacementManager {
             world.spawnEntity(display);
             record.displayEntityUuid = display.getUuid();
             ACTIVE_ENTITIES.put(display.getUuid(), display);
+
+            // Kinetic physical impact: Shatter particles matching block texture & dust puff!
+            world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, state),
+                    immutablePos.getX() + 0.5, immutablePos.getY() + 0.5, immutablePos.getZ() + 0.5,
+                    14, 0.25, 0.25, 0.25, 0.15);
+            world.spawnParticles(ParticleTypes.POOF,
+                    immutablePos.getX() + 0.5, immutablePos.getY() + 0.5, immutablePos.getZ() + 0.5,
+                    2, 0.1, 0.1, 0.1, 0.02);
+
+            // Crunchy stone crack sound (throttled by position hash so sound is weighty and pleasant)
+            if ((immutablePos.asLong() & 3) == 0) {
+                world.playSound(null, immutablePos, SoundEvents.BLOCK_BASALT_BREAK, SoundCategory.BLOCKS, 0.7f, 0.85f + 0.3f * (float)Math.random());
+            }
         }
 
         ACTIVE_RECORDS.put(new DimensionPos(world.getRegistryKey(), immutablePos), record);
@@ -184,20 +204,74 @@ public class SpatialDisplacementManager {
             record.ageTicks++;
             BlockDisplayEntity display = record.displayEntityUuid != null ? ACTIVE_ENTITIES.get(record.displayEntityUuid) : null;
 
-            // Tick T1 Handshake: Apply transformation on second tick
+            // Phase 1: Tick T1 Handshake - Explosive Kinetic Burst (Kick, Overshoot, Dynamic Arc)
             if (record.spawnTickDelay > 0) {
                 record.spawnTickDelay--;
                 if (record.spawnTickDelay == 0 && display != null && display.isAlive()) {
+                    // Kinetic burst: 1.25x overshoot + 0.35m upward kick + sudden impulse rotation
+                    Vector3f burstDisp = new Vector3f(
+                            record.targetDisplacement.x * 1.25f,
+                            record.targetDisplacement.y * 1.25f + 0.35f,
+                            record.targetDisplacement.z * 1.25f
+                    );
+                    float impulseAngle = (float) Math.toRadians(14.0 * (Math.signum(record.targetDisplacement.x) != 0 ? Math.signum(record.targetDisplacement.x) : 1.0));
+                    Quaternionf burstRot = new Quaternionf(record.targetRotation).rotateY(impulseAngle).rotateZ(impulseAngle * 0.7f);
+                    Vector3f burstScale = new Vector3f(record.targetScale.x * 1.08f, record.targetScale.y * 1.08f, record.targetScale.z * 1.08f);
+
+                    Vector3f comp = SpatialMath.compensatePivot(burstDisp, burstRot);
                     display.setStartInterpolation(0);
-                    display.setInterpolationDuration(12);
-                    Vector3f comp = SpatialMath.compensatePivot(record.targetDisplacement, record.targetRotation);
-                    display.setTransformation(new AffineTransformation(
-                            comp, record.targetRotation, record.targetScale, null));
+                    display.setInterpolationDuration(3); // 3 ticks (150ms) explosive burst!
+                    display.setTransformation(new AffineTransformation(comp, burstRot, burstScale, null));
+                    record.animationStage = 1;
                     record.transformed = true;
                 }
             } else if (display != null && display.isAlive()) {
-                // Tether Trail & Particles: Magical energy strands connecting home block socket to floating display entity
-                if (record.transformed && record.ageTicks % 3 == 0) {
+                // Phase 2: Damped Gravity Settle (Tick 4 -> 9)
+                if (record.animationStage == 1 && record.ageTicks >= 4) {
+                    Vector3f comp = SpatialMath.compensatePivot(record.targetDisplacement, record.targetRotation);
+                    display.setStartInterpolation(0);
+                    display.setInterpolationDuration(5); // 5 ticks (250ms) deceleration settling into equilibrium
+                    display.setTransformation(new AffineTransformation(
+                            comp, record.targetRotation, record.targetScale, null));
+                    record.animationStage = 2;
+                }
+                // Phase 3: Zero-G Orbital Rotation & Micro-Tremor (Tick 9 to maxLifetime - 8)
+                else if (record.animationStage == 2 && record.ageTicks < record.maxLifetimeTicks - 8) {
+                    // Every 8 ticks: advance gentle orbital rotation and apply organic micro-tremor
+                    if ((record.ageTicks - 9) % 8 == 0) {
+                        record.hoverYaw += 0.16f; // slow continuous tumble
+                        float phase = (float) (SpatialMath.hashCoordinateToPhase(record.pos.asLong()) + (record.ageTicks / 8.0));
+                        float tremorY = (float) (Math.sin(phase) * 0.14 + Math.cos(phase * 2.3) * 0.05);
+                        float tremorX = (float) (Math.cos(phase * 1.7) * 0.06);
+                        float tremorZ = (float) (Math.sin(phase * 1.4) * 0.06);
+
+                        Vector3f hoverDisp = new Vector3f(
+                                record.targetDisplacement.x + tremorX,
+                                record.targetDisplacement.y + tremorY,
+                                record.targetDisplacement.z + tremorZ
+                        );
+                        Quaternionf hoverRot = new Quaternionf(record.targetRotation)
+                                .rotateY(record.hoverYaw)
+                                .rotateX((float) Math.toRadians(4.0 * Math.sin(phase * 1.9)))
+                                .rotateZ((float) Math.toRadians(4.0 * Math.cos(phase * 1.5)));
+
+                        Vector3f comp = SpatialMath.compensatePivot(hoverDisp, hoverRot);
+                        display.setStartInterpolation(0);
+                        display.setInterpolationDuration(8); // exactly matches 8-tick interval for seamless 60/144fps interpolation
+                        display.setTransformation(new AffineTransformation(comp, hoverRot, record.targetScale, null));
+                    }
+                }
+                // Phase 4: Gravitational Snapback (Last 8 ticks)
+                else if (record.ageTicks == record.maxLifetimeTicks - 8) {
+                    display.setStartInterpolation(0);
+                    display.setInterpolationDuration(8); // Accelerates back into socket
+                    display.setTransformation(new AffineTransformation(
+                            new Vector3f(0, 0, 0), new Quaternionf(), new Vector3f(1.0f, 1.0f, 1.0f), null));
+                    record.animationStage = 3;
+                }
+
+                // Tether Trail: Razor-thin, pinpoint-accurate arcane filament connecting home socket to hovering block
+                if (record.transformed && record.ageTicks % 2 == 0 && record.animationStage < 3) {
                     double homeX = record.pos.getX() + 0.5;
                     double homeY = record.pos.getY() + 0.5;
                     double homeZ = record.pos.getZ() + 0.5;
@@ -207,42 +281,25 @@ public class SpatialDisplacementManager {
                     double floatY = homeY + comp.y;
                     double floatZ = homeZ + comp.z;
 
-                    // 2 points along the tether vector
-                    double px1 = homeX + (floatX - homeX) * 0.35;
-                    double py1 = homeY + (floatY - homeY) * 0.35;
-                    double pz1 = homeZ + (floatZ - homeZ) * 0.35;
-                    world.spawnParticles(net.minecraft.particle.ParticleTypes.REVERSE_PORTAL, px1, py1, pz1, 1, 0.02, 0.02, 0.02, 0.01);
+                    double dx = floatX - homeX;
+                    double dy = floatY - homeY;
+                    double dz = floatZ - homeZ;
+                    double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-                    double px2 = homeX + (floatX - homeX) * 0.70;
-                    double py2 = homeY + (floatY - homeY) * 0.70;
-                    double pz2 = homeZ + (floatZ - homeZ) * 0.70;
-                    world.spawnParticles(net.minecraft.particle.ParticleTypes.REVERSE_PORTAL, px2, py2, pz2, 1, 0.02, 0.02, 0.02, 0.01);
-
-                    // Gentle spark at hovering block
-                    if (record.ageTicks % 6 == 0) {
-                        world.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, floatX, floatY, floatZ, 1, 0.08, 0.08, 0.08, 0.01);
-                    }
-                }
-
-                // Return animation: interpolate smoothly back to identity (0,0,0) 12 ticks before expiration
-                if (record.ageTicks == record.maxLifetimeTicks - 12) {
-                    display.setStartInterpolation(0);
-                    display.setInterpolationDuration(12);
-                    display.setTransformation(new AffineTransformation(
-                            new Vector3f(0, 0, 0), new Quaternionf(), new Vector3f(1.0f, 1.0f, 1.0f), null));
-                } else if (record.transformed && record.ageTicks < record.maxLifetimeTicks - 14) {
-                    // Gentle zero-gravity idle sway every 20 ticks (1s) with 20-tick interpolation duration
-                    if (record.ageTicks > 14 && record.ageTicks % 20 == 0) {
-                        float phase = (float) (SpatialMath.hashCoordinateToPhase(record.pos.asLong()) + (record.ageTicks / 20.0));
-                        float bobY = (float) Math.sin(phase) * 0.22f;
-                        Vector3f bobbedDisp = new Vector3f(record.targetDisplacement.x, record.targetDisplacement.y + bobY, record.targetDisplacement.z);
-                        Quaternionf swayRot = new Quaternionf(record.targetRotation).rotateY((float) Math.toRadians(6.0 * Math.sin(phase)));
-                        Vector3f comp = SpatialMath.compensatePivot(bobbedDisp, swayRot);
-
-                        display.setStartInterpolation(0);
-                        display.setInterpolationDuration(20);
-                        display.setTransformation(new AffineTransformation(
-                                comp, swayRot, record.targetScale, null));
+                    if (dist > 0.4) {
+                        // Fine-grained starlight filament (0.35m steps, 0.32f scale micro-particles)
+                        for (double d = 0.35; d < dist - 0.2; d += 0.40) {
+                            double t = d / dist;
+                            double px = homeX + dx * t;
+                            double py = homeY + dy * t;
+                            double pz = homeZ + dz * t;
+                            world.spawnParticles(new DustParticleEffect(new Vector3f(0.28f, 0.90f, 1.0f), 0.32f),
+                                    px, py, pz, 1, 0.0, 0.0, 0.0, 0.0);
+                        }
+                        // Gentle anchor spark at socket
+                        if (record.ageTicks % 4 == 0) {
+                            world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, homeX, homeY, homeZ, 1, 0.01, 0.01, 0.01, 0.0);
+                        }
                     }
                 }
             }
@@ -292,8 +349,15 @@ public class SpatialDisplacementManager {
             if (display != null) {
                 display.discard();
             }
+            // Crisp stone impact sound and dust on re-solidification
+            world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, r.state),
+                    r.pos.getX() + 0.5, r.pos.getY() + 0.5, r.pos.getZ() + 0.5, 6, 0.2, 0.2, 0.2, 0.05);
+            world.spawnParticles(ParticleTypes.POOF,
+                    r.pos.getX() + 0.5, r.pos.getY() + 0.5, r.pos.getZ() + 0.5, 1, 0.05, 0.05, 0.05, 0.01);
+            if ((r.pos.asLong() & 3) == 0) {
+                world.playSound(null, r.pos, SoundEvents.BLOCK_STONE_PLACE, SoundCategory.BLOCKS, 0.75f, 1.0f);
+            }
         }
-        world.spawnParticles(net.minecraft.particle.ParticleTypes.WAX_OFF, r.pos.getX() + 0.5, r.pos.getY() + 0.5, r.pos.getZ() + 0.5, 1, 0.1, 0.1, 0.1, 0.01);
         ACTIVE_RECORDS.remove(new DimensionPos(r.worldKey, r.pos));
         DisplacementPersistentState.getServerState(world).markDirty();
     }
