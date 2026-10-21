@@ -5,9 +5,11 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.godwand.entity.ArcaneOrbEntity;
 import net.godwand.item.GodWandItem;
+import net.godwand.network.ImpactFxPayload;
 import net.godwand.skill.ShockwaveSlicer;
 import net.godwand.skill.SpatialPathWalker;
 import net.godwand.spatial.DisplacementPersistentState;
@@ -46,6 +48,8 @@ public class GodWandMod implements ModInitializer {
                 Identifier.of(MOD_ID, "god_wand"),
                 new GodWandItem(new Item.Settings())
         );
+
+        PayloadTypeRegistry.playS2C().register(ImpactFxPayload.ID, ImpactFxPayload.CODEC);
 
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.COMBAT).register(entries -> entries.add(GOD_WAND_ITEM));
 

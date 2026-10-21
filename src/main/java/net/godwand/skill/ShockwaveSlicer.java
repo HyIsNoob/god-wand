@@ -1,5 +1,8 @@
 package net.godwand.skill;
 
+import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.godwand.network.ImpactFxPayload;
 import net.godwand.spatial.SpatialDisplacementManager;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -7,6 +10,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.particle.BlockStateParticleEffect;
 import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
@@ -90,6 +94,15 @@ public class ShockwaveSlicer {
                 e.addVelocity(push.x, push.y, push.z);
                 e.velocityModified = true;
             }
+        }
+
+        // Trigger Client Post-Processing Shader FX (Impact Frame + Shockwave Distortion)
+        ImpactFxPayload detPayload = new ImpactFxPayload(
+                center.getX() + 0.5, center.getY() + 0.5, center.getZ() + 0.5,
+                ImpactFxPayload.TYPE_DETONATION, 15, (float) Math.max(1.0, maxRadius / 10.0)
+        );
+        for (ServerPlayerEntity p : PlayerLookup.around(world, center.toCenterPos(), 96.0)) {
+            ServerPlayNetworking.send(p, detPayload);
         }
     }
 
@@ -256,6 +269,15 @@ public class ShockwaveSlicer {
                 for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, tremorBox, ent -> true)) {
                     e.addVelocity(0, 0.52, 0);
                     e.velocityModified = true;
+                }
+
+                // Trigger Epicenter Implosion Post-FX
+                ImpactFxPayload impPayload = new ImpactFxPayload(
+                        cTask.center.getX() + 0.5, cTask.center.getY() + 0.5, cTask.center.getZ() + 0.5,
+                        ImpactFxPayload.TYPE_IMPLOSION, 12, 1.25f
+                );
+                for (ServerPlayerEntity p : PlayerLookup.around(world, cTask.center.toCenterPos(), 96.0)) {
+                    ServerPlayNetworking.send(p, impPayload);
                 }
 
                 colIt.remove();

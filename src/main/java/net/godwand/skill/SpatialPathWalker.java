@@ -1,5 +1,8 @@
 package net.godwand.skill;
 
+import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.godwand.network.ImpactFxPayload;
 import net.godwand.spatial.SpatialDisplacementManager;
 import net.godwand.spatial.SpatialMath;
 import net.minecraft.block.BlockState;
@@ -60,6 +63,15 @@ public class SpatialPathWalker {
 
             // Immediately collapse all currently displaced blocks in the vicinity with heavy snap
             SpatialDisplacementManager.collapseNearbyDisplacements(world.getRegistryKey(), player.getBlockPos(), 14.0);
+
+            // Trigger Tactical Collapse Post-FX
+            ImpactFxPayload colPayload = new ImpactFxPayload(
+                    player.getX(), player.getEyeY(), player.getZ(),
+                    ImpactFxPayload.TYPE_COLLAPSE, 8, 1.0f
+            );
+            for (ServerPlayerEntity p : PlayerLookup.around(world, player.getPos(), 48.0)) {
+                ServerPlayNetworking.send(p, colPayload);
+            }
         } else {
             ACTIVE_PLAYERS.add(player.getUuid());
             player.sendMessage(Text.literal("§d§l[✦ SPATIAL PATH: §aACTIVE §d§l✦]"), true);
