@@ -29,6 +29,7 @@ public class SpatialPathWalker {
     private static final Set<UUID> ACTIVE_PLAYERS = ConcurrentHashMap.newKeySet();
     private static final java.util.Map<UUID, Double> LAST_GROUND_Y = new ConcurrentHashMap<>();
     private static final java.util.Map<UUID, Vec3d> LAST_PLAYER_POS = new ConcurrentHashMap<>();
+    private static final java.util.Map<UUID, Double> CURRENT_FORWARD_LEAD = new ConcurrentHashMap<>();
 
     public static boolean isActive(PlayerEntity player) {
         return ACTIVE_PLAYERS.contains(player.getUuid());
@@ -40,6 +41,7 @@ public class SpatialPathWalker {
             ACTIVE_PLAYERS.remove(player.getUuid());
             LAST_GROUND_Y.remove(player.getUuid());
             LAST_PLAYER_POS.remove(player.getUuid());
+            CURRENT_FORWARD_LEAD.remove(player.getUuid());
             player.sendMessage(Text.literal("§c§l[✦ SPATIAL PATH: COLLAPSED ✦]"), true);
 
             // Explosive Deactivation Impact
@@ -93,12 +95,15 @@ public class SpatialPathWalker {
         ACTIVE_PLAYERS.remove(player.getUuid());
         LAST_GROUND_Y.remove(player.getUuid());
         LAST_PLAYER_POS.remove(player.getUuid());
+        CURRENT_FORWARD_LEAD.remove(player.getUuid());
         SpatialDisplacementManager.collapsePlayerAura(player.getUuid());
     }
 
-    public static double getPlayerForwardLead(ServerPlayerEntity player) {
+    public static double updatePlayerForwardLead(ServerPlayerEntity player) {
         Vec3d currentPos = player.getPos();
         Vec3d lastPos = LAST_PLAYER_POS.getOrDefault(player.getUuid(), currentPos);
+        LAST_PLAYER_POS.put(player.getUuid(), currentPos);
+
         Vec3d deltaHoriz = new Vec3d(currentPos.x - lastPos.x, 0, currentPos.z - lastPos.z);
         double speed = deltaHoriz.length();
         // Nếu tốc độ dịch chuyển hợp lệ (< 4.0 blocks/tick để loại trừ teleport)
@@ -106,7 +111,13 @@ public class SpatialPathWalker {
         if (player.isSprinting() && boost < 1.2) {
             boost = 1.2;
         }
-        return 1.0 + boost;
+        double lead = 1.0 + boost;
+        CURRENT_FORWARD_LEAD.put(player.getUuid(), lead);
+        return lead;
+    }
+
+    public static double getPlayerForwardLead(ServerPlayerEntity player) {
+        return CURRENT_FORWARD_LEAD.getOrDefault(player.getUuid(), 1.0);
     }
 
     public static void tickPlayer(ServerPlayerEntity player) {
@@ -131,7 +142,7 @@ public class SpatialPathWalker {
         double baseGroundY = player.isOnGround() ? player.getY() : LAST_GROUND_Y.getOrDefault(player.getUuid(), player.getY());
         int floorY = (int) Math.floor(baseGroundY);
 
-        double forwardLead = getPlayerForwardLead(player);
+        double forwardLead = updatePlayerForwardLead(player);
         double auraRadius = 2.1;
         double maxRange = auraRadius + forwardLead + 0.8;
 
@@ -220,7 +231,5 @@ public class SpatialPathWalker {
             world.spawnParticles(ParticleTypes.END_ROD, playerPos.x + rx, playerPos.y + 0.2, playerPos.z + rz, 1, 0, 0.05, 0, 0.0);
             world.spawnParticles(ParticleTypes.ENCHANT, playerPos.x - rx, playerPos.y + 0.3, playerPos.z - rz, 2, 0.1, 0.1, 0.1, 0.05);
         }
-
-        LAST_PLAYER_POS.put(player.getUuid(), player.getPos());
     }
 }
