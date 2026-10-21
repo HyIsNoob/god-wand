@@ -10,6 +10,9 @@
   "entrypoints": {
     "main": [
       "net.godwand.GodWandMod"
+    ],
+    "client": [
+      "net.godwand.client.GodWandClientMod"
     ]
   },
   "accessWidener": "godwand.accesswidener",

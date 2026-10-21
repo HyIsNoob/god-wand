@@ -75,7 +75,12 @@ public class ArcaneOrbEntity extends ProjectileEntity {
 
         this.setPosition(this.getX() + velocity.x, this.getY() + velocity.y, this.getZ() + velocity.z);
 
-        if (!this.getWorld().isClient()) {
+        if (this.getWorld().isClient()) {
+            this.getWorld().addParticle(new DustParticleEffect(new Vector3f(0.0f, 0.94f, 1.0f), 1.3f),
+                    this.getX(), this.getY(), this.getZ(), 0.0, 0.0, 0.0);
+            this.getWorld().addParticle(ParticleTypes.REVERSE_PORTAL,
+                    this.getX(), this.getY(), this.getZ(), 0.0, 0.0, 0.0);
+        } else {
             ServerWorld sw = (ServerWorld) this.getWorld();
             // Cyan & Amethyst dual particles
             sw.spawnParticles(new DustParticleEffect(new Vector3f(0.0f, 0.94f, 1.0f), 1.2f),
@@ -87,6 +92,14 @@ public class ArcaneOrbEntity extends ProjectileEntity {
                 this.discard();
             }
         }
+    }
+
+    @Override
+    protected boolean canHit(net.minecraft.entity.Entity entity) {
+        if (entity == this.getOwner() && this.age < 5) {
+            return false;
+        }
+        return super.canHit(entity);
     }
 
     @Override

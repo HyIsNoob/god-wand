@@ -68,16 +68,6 @@ public class SpatialDisplacementManager {
         if (record != null) {
             record.ageTicks = 0;
             record.maxLifetimeTicks = lifetime;
-            if (record.displayEntityUuid != null && record.transformed) {
-                BlockDisplayEntity display = ACTIVE_ENTITIES.get(record.displayEntityUuid);
-                if (display != null && display.isAlive()) {
-                    display.setStartInterpolation(0);
-                    display.setInterpolationDuration(5);
-                    Vector3f comp = SpatialMath.compensatePivot(record.targetDisplacement, record.targetRotation);
-                    display.setTransformation(new AffineTransformation(
-                            comp, record.targetRotation, record.targetScale, null));
-                }
-            }
         }
     }
 
@@ -192,36 +182,69 @@ public class SpatialDisplacementManager {
             }
 
             record.ageTicks++;
-            BlockDisplayEntity display = ACTIVE_ENTITIES.get(record.displayEntityUuid);
+            BlockDisplayEntity display = record.displayEntityUuid != null ? ACTIVE_ENTITIES.get(record.displayEntityUuid) : null;
 
             // Tick T1 Handshake: Apply transformation on second tick
             if (record.spawnTickDelay > 0) {
                 record.spawnTickDelay--;
                 if (record.spawnTickDelay == 0 && display != null && display.isAlive()) {
                     display.setStartInterpolation(0);
-                    display.setInterpolationDuration(8);
+                    display.setInterpolationDuration(12);
                     Vector3f comp = SpatialMath.compensatePivot(record.targetDisplacement, record.targetRotation);
                     display.setTransformation(new AffineTransformation(
                             comp, record.targetRotation, record.targetScale, null));
                     record.transformed = true;
                 }
-            } else if (record.ageTicks < record.maxLifetimeTicks - 12 && display != null) {
-                // Idle Bobbing every 10 ticks
-                if (record.ageTicks % 10 == 0) {
-                    float bob = (float) Math.sin((record.ageTicks / 10.0) + SpatialMath.hashCoordinateToPhase(record.pos.asLong())) * 0.15f;
-                    Vector3f bobbedDisp = new Vector3f(record.targetDisplacement.x, record.targetDisplacement.y + bob, record.targetDisplacement.z);
-                    Vector3f comp = SpatialMath.compensatePivot(bobbedDisp, record.targetRotation);
-                    display.setStartInterpolation(0);
-                    display.setInterpolationDuration(10);
-                    display.setTransformation(new AffineTransformation(
-                            comp, record.targetRotation, record.targetScale, null));
+            } else if (display != null && display.isAlive()) {
+                // Tether Trail & Particles: Magical energy strands connecting home block socket to floating display entity
+                if (record.transformed && record.ageTicks % 3 == 0) {
+                    double homeX = record.pos.getX() + 0.5;
+                    double homeY = record.pos.getY() + 0.5;
+                    double homeZ = record.pos.getZ() + 0.5;
+
+                    Vector3f comp = SpatialMath.compensatePivot(record.targetDisplacement, record.targetRotation);
+                    double floatX = homeX + comp.x;
+                    double floatY = homeY + comp.y;
+                    double floatZ = homeZ + comp.z;
+
+                    // 2 points along the tether vector
+                    double px1 = homeX + (floatX - homeX) * 0.35;
+                    double py1 = homeY + (floatY - homeY) * 0.35;
+                    double pz1 = homeZ + (floatZ - homeZ) * 0.35;
+                    world.spawnParticles(net.minecraft.particle.ParticleTypes.REVERSE_PORTAL, px1, py1, pz1, 1, 0.02, 0.02, 0.02, 0.01);
+
+                    double px2 = homeX + (floatX - homeX) * 0.70;
+                    double py2 = homeY + (floatY - homeY) * 0.70;
+                    double pz2 = homeZ + (floatZ - homeZ) * 0.70;
+                    world.spawnParticles(net.minecraft.particle.ParticleTypes.REVERSE_PORTAL, px2, py2, pz2, 1, 0.02, 0.02, 0.02, 0.01);
+
+                    // Gentle spark at hovering block
+                    if (record.ageTicks % 6 == 0) {
+                        world.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, floatX, floatY, floatZ, 1, 0.08, 0.08, 0.08, 0.01);
+                    }
                 }
-            } else if (record.ageTicks == record.maxLifetimeTicks - 10 && display != null) {
-                // Return animation: interpolate back to identity (0,0,0)
-                display.setStartInterpolation(0);
-                display.setInterpolationDuration(10);
-                display.setTransformation(new AffineTransformation(
-                        new Vector3f(0, 0, 0), new Quaternionf(), new Vector3f(1.0f, 1.0f, 1.0f), null));
+
+                // Return animation: interpolate smoothly back to identity (0,0,0) 12 ticks before expiration
+                if (record.ageTicks == record.maxLifetimeTicks - 12) {
+                    display.setStartInterpolation(0);
+                    display.setInterpolationDuration(12);
+                    display.setTransformation(new AffineTransformation(
+                            new Vector3f(0, 0, 0), new Quaternionf(), new Vector3f(1.0f, 1.0f, 1.0f), null));
+                } else if (record.transformed && record.ageTicks < record.maxLifetimeTicks - 14) {
+                    // Gentle zero-gravity idle sway every 20 ticks (1s) with 20-tick interpolation duration
+                    if (record.ageTicks > 14 && record.ageTicks % 20 == 0) {
+                        float phase = (float) (SpatialMath.hashCoordinateToPhase(record.pos.asLong()) + (record.ageTicks / 20.0));
+                        float bobY = (float) Math.sin(phase) * 0.22f;
+                        Vector3f bobbedDisp = new Vector3f(record.targetDisplacement.x, record.targetDisplacement.y + bobY, record.targetDisplacement.z);
+                        Quaternionf swayRot = new Quaternionf(record.targetRotation).rotateY((float) Math.toRadians(6.0 * Math.sin(phase)));
+                        Vector3f comp = SpatialMath.compensatePivot(bobbedDisp, swayRot);
+
+                        display.setStartInterpolation(0);
+                        display.setInterpolationDuration(20);
+                        display.setTransformation(new AffineTransformation(
+                                comp, swayRot, record.targetScale, null));
+                    }
+                }
             }
 
             if (record.ageTicks >= record.maxLifetimeTicks) {
@@ -256,7 +279,7 @@ public class SpatialDisplacementManager {
     }
 
     private static void restoreSingleBlock(ServerWorld world, DisplacedBlockRecord r) {
-        world.setBlockState(r.pos, r.state, Block.FORCE_STATE | Block.NOTIFY_LISTENERS);
+        world.setBlockState(r.pos, r.state, Block.FORCE_STATE | Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
         if (r.nbt != null) {
             BlockEntity be = world.getBlockEntity(r.pos);
             if (be != null) {
@@ -270,6 +293,7 @@ public class SpatialDisplacementManager {
                 display.discard();
             }
         }
+        world.spawnParticles(net.minecraft.particle.ParticleTypes.WAX_OFF, r.pos.getX() + 0.5, r.pos.getY() + 0.5, r.pos.getZ() + 0.5, 1, 0.1, 0.1, 0.1, 0.01);
         ACTIVE_RECORDS.remove(new DimensionPos(r.worldKey, r.pos));
         DisplacementPersistentState.getServerState(world).markDirty();
     }
