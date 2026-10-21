@@ -141,6 +141,18 @@ public class GodWandPostFxManager {
                 distortionPower = 0.028f * baseIntensity * (1.0f - progress);
                 chromaticAmount = 0.016f * baseIntensity * (1.0f - progress);
             }
+            case ImpactFxPayload.TYPE_SUPERNOVA -> {
+                // Cataclysmic Cosmic Supernova:
+                // Ticks 0..6 (progress 0..0.28): Blinding, high-contrast solar impact frame flash
+                if (progress < 0.28f) {
+                    impactFrame = 1.0f - (progress / 0.28f);
+                }
+                // Relativistic shockwave expands across the entire sky
+                shockwaveRadius = (float) Math.pow(progress, 0.52) * 1.65f;
+                float distCurve = (float) Math.sin(progress * Math.PI);
+                distortionPower = 0.075f * baseIntensity * distCurve;
+                chromaticAmount = 0.045f * baseIntensity * (1.0f - progress);
+            }
         }
 
         // Project 3D explosion coordinates to 2D Screen UV

@@ -13,6 +13,7 @@ import net.godwand.network.ImpactFxPayload;
 import net.godwand.skill.RatioCollapseManager;
 import net.godwand.skill.ShockwaveSlicer;
 import net.godwand.skill.SpatialPathWalker;
+import net.godwand.skill.SupernovaManager;
 import net.godwand.spatial.DisplacementPersistentState;
 import net.godwand.spatial.SpatialDisplacementManager;
 import net.minecraft.entity.EntityType;
@@ -63,6 +64,7 @@ public class GodWandMod implements ModInitializer {
         ServerTickEvents.END_WORLD_TICK.register(world -> {
             ShockwaveSlicer.tick(world);
             RatioCollapseManager.tick(world);
+            SupernovaManager.tick(world);
             SpatialDisplacementManager.tick(world);
         });
 
@@ -73,6 +75,7 @@ public class GodWandMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             ShockwaveSlicer.clearAllTasks();
             RatioCollapseManager.clearAllTasks();
+            SupernovaManager.clearAllTasks();
             for (ServerWorld world : server.getWorlds()) {
                 SpatialDisplacementManager.emergencyRestoreAll(world);
             }

@@ -3,6 +3,7 @@ package net.godwand.item;
 import net.godwand.entity.ArcaneOrbEntity;
 import net.godwand.skill.RatioCollapseManager;
 import net.godwand.skill.SpatialPathWalker;
+import net.godwand.skill.SupernovaManager;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.LivingEntity;
@@ -30,7 +31,8 @@ public class GodWandItem extends Item {
     public static final int MODE_SPATIAL_PATH = 0;
     public static final int MODE_ARCANE_ORB = 1;
     public static final int MODE_RATIO_COLLAPSE = 2;
-    public static final int TOTAL_MODES = 3;
+    public static final int MODE_SUPERNOVA = 3;
+    public static final int TOTAL_MODES = 4;
 
     public GodWandItem(Settings settings) {
         super(settings.maxCount(1));
@@ -71,9 +73,16 @@ public class GodWandItem extends Item {
                                 SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 2.0f, 1.4f);
                     }
                     case MODE_RATIO_COLLAPSE -> {
-                        user.sendMessage(Text.literal("§6§l[✦ CHIÊU 3/3: SỤP ĐỔ THIÊN THẠCH (RATIO COLLAPSE) ✦]"), true);
+                        user.sendMessage(Text.literal("§6§l[✦ CHIÊU 3/4: SỤP ĐỔ THIÊN THẠCH (RATIO COLLAPSE) ✦]"), true);
                         world.playSound(null, user.getX(), user.getY(), user.getZ(),
                                 SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.PLAYERS, 2.5f, 0.9f);
+                    }
+                    case MODE_SUPERNOVA -> {
+                        user.sendMessage(Text.literal("§c§l[✦ CHIÊU 4/4: SIÊU TÂN TINH (SUPERNOVA & CHRONO REVERSAL) ✦]"), true);
+                        world.playSound(null, user.getX(), user.getY(), user.getZ(),
+                                SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 2.5f, 0.6f);
+                        world.playSound(null, user.getX(), user.getY(), user.getZ(),
+                                SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 2.5f, 0.5f);
                     }
                 }
             }
@@ -96,6 +105,13 @@ public class GodWandItem extends Item {
                 if (!world.isClient() && user instanceof ServerPlayerEntity serverPlayer) {
                     RatioCollapseManager.cast(serverPlayer);
                     user.getItemCooldownManager().set(this, 30); // 1.5s tactical cooldown
+                }
+                return TypedActionResult.success(stack);
+            }
+            case MODE_SUPERNOVA -> {
+                if (!world.isClient() && user instanceof ServerPlayerEntity serverPlayer) {
+                    SupernovaManager.cast(serverPlayer);
+                    user.getItemCooldownManager().set(this, 140); // 7s cooldown for apocalyptic skill
                 }
                 return TypedActionResult.success(stack);
             }
@@ -179,6 +195,7 @@ public class GodWandItem extends Item {
             case MODE_SPATIAL_PATH -> tooltip.add(Text.literal("§aĐang chọn: §b[1] Lối Đi Không Gian §7(Bật/Tắt rẽ khối)"));
             case MODE_ARCANE_ORB -> tooltip.add(Text.literal("§aĐang chọn: §d[2] Cầu Ma Pháp Hủy Diệt §7(Giữ bắn)"));
             case MODE_RATIO_COLLAPSE -> tooltip.add(Text.literal("§aĐang chọn: §6[3] Sụp Đổ Thiên Thạch §7(Bứt phá & Giáng sập)"));
+            case MODE_SUPERNOVA -> tooltip.add(Text.literal("§aĐang chọn: §c[4] Siêu Tân Tinh & Nghịch Đảo Thời Gian §7(Lỗ đen & Nổ bùng)"));
         }
         tooltip.add(Text.literal("§8--------------------------------"));
         tooltip.add(Text.translatable("item.godwand.god_wand.desc"));
