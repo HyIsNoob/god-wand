@@ -3,12 +3,14 @@ package net.godwand;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.godwand.entity.ArcaneOrbEntity;
 import net.godwand.item.GodWandItem;
 import net.godwand.skill.ShockwaveSlicer;
 import net.godwand.skill.SpatialPathWalker;
+import net.godwand.spatial.DisplacementPersistentState;
 import net.godwand.spatial.SpatialDisplacementManager;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnGroup;
@@ -66,6 +68,11 @@ public class GodWandMod implements ModInitializer {
             for (ServerWorld world : server.getWorlds()) {
                 SpatialDisplacementManager.emergencyRestoreAll(world);
             }
+        });
+
+        ServerWorldEvents.LOAD.register((server, world) -> {
+            // Check state and ensure clean startup
+            DisplacementPersistentState.getServerState(world);
         });
 
         LOGGER.info("God Wand Mod initialized.");
