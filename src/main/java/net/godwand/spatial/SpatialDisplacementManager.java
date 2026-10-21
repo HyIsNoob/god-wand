@@ -12,6 +12,7 @@ import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.decoration.Brightness;
 import net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.particle.BlockStateParticleEffect;
 import net.minecraft.particle.DustParticleEffect;
@@ -146,21 +147,21 @@ public class SpatialDisplacementManager {
     public static void displaceBlock(ServerWorld world, BlockPos pos, Vector3f targetDisplacement,
                                       Quaternionf rotation, Vector3f scale, int lifetime, int glowColor, boolean spawnDisplay) {
         displaceBlock(world, pos, targetDisplacement, rotation, scale, lifetime, glowColor, spawnDisplay,
-                DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE, null, null);
+                DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE, null, null, 0.0);
     }
 
     public static void displaceBlock(ServerWorld world, BlockPos pos, Vector3f targetDisplacement,
                                       Quaternionf rotation, Vector3f scale, int lifetime, int glowColor,
                                       boolean spawnDisplay, DisplacedBlockRecord.DisplacementMode mode,
-                                      UUID boundPlayerUuid, Vector3f vortexCenter) {
+                                      UUID boundPlayerUuid, Vec3d blastCenter, double blastRadius) {
         displaceBlockInternal(world, pos, targetDisplacement, rotation, scale, lifetime, glowColor,
-                spawnDisplay, mode, boundPlayerUuid, vortexCenter, true);
+                spawnDisplay, mode, boundPlayerUuid, blastCenter, blastRadius, true);
     }
 
     private static void displaceBlockInternal(ServerWorld world, BlockPos pos, Vector3f targetDisplacement,
                                               Quaternionf rotation, Vector3f scale, int lifetime, int glowColor,
                                               boolean spawnDisplay, DisplacedBlockRecord.DisplacementMode mode,
-                                              UUID boundPlayerUuid, Vector3f vortexCenter, boolean checkDoubleBlock) {
+                                              UUID boundPlayerUuid, Vec3d blastCenter, double blastRadius, boolean checkDoubleBlock) {
         BlockPos immutablePos = pos.toImmutable();
         BlockState state = world.getBlockState(immutablePos);
         if (!canDisplace(world, immutablePos, state)) return;
@@ -172,6 +173,7 @@ public class SpatialDisplacementManager {
             spawnDisplay = false;
         }
 
+        // Exact 1:1 state and NBT mapping: read identifying data then clear inventory to prevent duping
         BlockEntity be = world.getBlockEntity(immutablePos);
         NbtCompound nbt = null;
         if (be != null) {
@@ -183,17 +185,19 @@ public class SpatialDisplacementManager {
         DisplacedBlockRecord record = new DisplacedBlockRecord(
                 immutablePos, world.getRegistryKey(), state, nbt, targetDisplacement, rotation, scale,
                 lifetime, isFull, mode, boundPlayerUuid);
-        record.vortexCenter = vortexCenter;
+        record.blastCenter = blastCenter;
+        record.blastRadius = blastRadius;
 
-        // Replace with AIR immediately using safe flags
+        // Replace with AIR using atomic notification flags
         world.setBlockState(immutablePos, Blocks.AIR.getDefaultState(), Block.FORCE_STATE | Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
 
+        // Tick 0 Handshake: spawn at origin with identity matrix, high brightness, and glowing
         if (spawnDisplay) {
             BlockDisplayEntity display = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
             display.addCommandTag("godwand_displaced");
             display.setPosition(immutablePos.getX(), immutablePos.getY(), immutablePos.getZ());
             display.setBlockState(state);
-            display.setGlowing(false);
+            display.setGlowing(true); // Glowing active as requested in spec
             display.setBrightness(new Brightness(15, 15));
             display.setStartInterpolation(0);
             display.setInterpolationDuration(0);
@@ -203,7 +207,7 @@ public class SpatialDisplacementManager {
             record.displayEntityUuid = display.getUuid();
             ACTIVE_ENTITIES.put(display.getUuid(), display);
 
-            // Subtle stone crumbs on initial separation
+            // Subtle break crumbs
             if ((immutablePos.asLong() & 3) == 0) {
                 world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, state),
                         immutablePos.getX() + 0.5, immutablePos.getY() + 0.5, immutablePos.getZ() + 0.5,
@@ -215,15 +219,15 @@ public class SpatialDisplacementManager {
         ACTIVE_RECORDS.put(new DimensionPos(world.getRegistryKey(), immutablePos), record);
         DisplacementPersistentState.getServerState(world).markDirty();
 
-        // Displace matching half of double block
+        // Displace matching half of double block simultaneously
         if (otherHalf != null && canDisplace(world, otherHalf, world.getBlockState(otherHalf))) {
             displaceBlockInternal(world, otherHalf, targetDisplacement, rotation, scale, lifetime,
-                    glowColor, spawnDisplay, mode, boundPlayerUuid, vortexCenter, false);
+                    glowColor, spawnDisplay, mode, boundPlayerUuid, blastCenter, blastRadius, false);
         }
     }
 
     public static void tick(ServerWorld world) {
-        List<DisplacedBlockRecord> toRestore = new ArrayList<>();
+        List<DisplacedBlockRecord> toRemove = new ArrayList<>();
 
         for (DisplacedBlockRecord record : ACTIVE_RECORDS.values()) {
             if (!record.worldKey.equals(world.getRegistryKey())) {
@@ -240,63 +244,52 @@ public class SpatialDisplacementManager {
                 record.restoreTick++;
 
                 if (display != null && display.isAlive()) {
-                    // Phase 1: Inward Vortex Drag (restoreTick == 1)
+                    // Pha 1 (restoreTick == 1): Kéo xoắn về sát ô gốc (15% khoảng cách)
                     if (record.restoreTick == 1) {
-                        Vector3f preSnapOffset = new Vector3f(record.currentOffset).mul(0.15f);
-                        record.currentOffset.set(preSnapOffset);
-                        Quaternionf nearZeroRot = new Quaternionf().slerp(record.currentRotation, 0.2f);
+                        Vec3d preSnapOffset = record.getCurrentOffset().multiply(0.15);
+                        record.currentOffset.set((float)preSnapOffset.x, (float)preSnapOffset.y, (float)preSnapOffset.z);
+                        Quaternionf nearZeroRot = new Quaternionf().slerp(record.currentRotation, 0.20f);
                         record.currentRotation.set(nearZeroRot);
 
-                        Vector3f comp = SpatialMath.compensatePivot(preSnapOffset, nearZeroRot);
                         display.setStartInterpolation(0);
-                        display.setInterpolationDuration(10); // 10 ticks: pull from far away to 15% distance
-                        display.setTransformation(new AffineTransformation(comp, nearZeroRot, record.targetScale, null));
+                        display.setInterpolationDuration(10); // 10 ticks duration
+                        display.setTransformation(SpatialMath.createPivotTransform(preSnapOffset, nearZeroRot, record.targetScale.x));
                     }
-                    // Phase 2: Magnetic Snap / Latch (restoreTick == 11)
+                    // Pha 2 (restoreTick == 11): Khóa Khớp Từ Tính / Magnetic Snap tại (0,0,0)
                     else if (record.restoreTick == 11) {
                         display.setStartInterpolation(0);
-                        display.setInterpolationDuration(3); // 3 ticks: magnetic violent snap to identity
-                        display.setTransformation(new AffineTransformation(
-                                new Vector3f(0, 0, 0), new Quaternionf(), new Vector3f(1.0f, 1.0f, 1.0f), null));
+                        display.setInterpolationDuration(3); // 3 ticks magnetic violent snap
+                        display.setTransformation(AffineTransformation.identity());
 
-                        // Mechanical vault latch sound
+                        // Latch sound
                         world.playSound(null, record.pos, SoundEvents.BLOCK_VAULT_OPEN_SHUTTER, SoundCategory.BLOCKS, 0.25f, 1.4f);
                     }
                 }
 
-                // Phase 3: Exact 1:1 Solid restoration at tick 14
-                if (record.restoreTick == 14 && record.isFullCube) {
-                    toRestore.add(record);
+                // Pha 3 - Pass 1 (restoreTick == 14): Khôi phục khối đặc
+                if (record.restoreTick == 14 && record.originalState.isFullCube(world, record.pos)) {
+                    restoreRecordDirectly(world, record, display);
+                    toRemove.add(record);
                 }
-                // Phase 3: Delicate attached blocks (torches, lanterns, signs, doors) at tick 15
+                // Pha 3 - Pass 2 (restoreTick == 15): Khôi phục khối đính kèm (Đuốc, đèn lồng, hoa, v.v.)
                 else if (record.restoreTick >= 15) {
-                    toRestore.add(record);
+                    restoreRecordDirectly(world, record, display);
+                    toRemove.add(record);
                 }
-                continue; // Skip normal active physics while restoring
+                continue; // Skip active ticking during restoration
             }
 
             // ==========================================
-            // 2-TICK SPAWN HANDSHAKE (ACCELERATION)
+            // VÒNG ĐỜI SPAWN 2-TICK (TICK 1 TRANSFORMATION)
             // ==========================================
             if (record.spawnTickDelay > 0) {
                 record.spawnTickDelay--;
                 if (record.spawnTickDelay == 0 && display != null && display.isAlive()) {
-                    Vector3f burstDisp = new Vector3f(
-                            record.targetDisplacement.x * 1.12f,
-                            record.targetDisplacement.y * 1.12f + 0.2f,
-                            record.targetDisplacement.z * 1.12f
-                    );
-                    float impulseAngle = (float) Math.toRadians(12.0 * (Math.signum(record.targetDisplacement.x) != 0 ? Math.signum(record.targetDisplacement.x) : 1.0));
-                    Quaternionf burstRot = new Quaternionf(record.targetRotation).rotateY(impulseAngle).rotateZ(impulseAngle * 0.5f);
-                    Vector3f burstScale = new Vector3f(record.targetScale.x * 1.03f, record.targetScale.y * 1.03f, record.targetScale.z * 1.03f);
-
-                    Vector3f comp = SpatialMath.compensatePivot(burstDisp, burstRot);
                     display.setStartInterpolation(0);
-                    display.setInterpolationDuration(8); // 8 ticks: natural physical acceleration
-                    display.setTransformation(new AffineTransformation(comp, burstRot, burstScale, null));
+                    display.setInterpolationDuration(8); // 8 ticks interpolation
+                    display.setTransformation(SpatialMath.createPivotTransform(
+                            record.getCurrentOffset(), record.currentRotation, record.targetScale.x));
 
-                    record.currentOffset.set(burstDisp);
-                    record.currentRotation.set(burstRot);
                     record.animationStage = 1;
                     record.transformed = true;
                 }
@@ -304,94 +297,107 @@ public class SpatialDisplacementManager {
             }
 
             // ==========================================
-            // SKILL 1: LIVING AURA & DYNAMIC EVASION
+            // TƯƠNG TÁC NÉ NGƯỜI CHƠI LIÊN TỤC (LIVING DEBRIS)
             // ==========================================
-            if (record.mode == DisplacedBlockRecord.DisplacementMode.HYSTERESIS_AURA) {
-                if (record.boundPlayerUuid != null) {
-                    ServerPlayerEntity boundPlayer = world.getServer().getPlayerManager().getPlayer(record.boundPlayerUuid);
-                    if (boundPlayer != null && boundPlayer.getServerWorld() == world && net.godwand.skill.SpatialPathWalker.isActive(boundPlayer)) {
-                        double distToHome = boundPlayer.getPos().distanceTo(Vec3d.ofCenter(record.pos));
+            if (record.transformed && display != null && display.isAlive() && (record.ageTicks % 2 == 0)) {
+                Vec3d debrisWorldPos = Vec3d.ofCenter(record.pos).add(record.getCurrentOffset());
+                PlayerEntity closestPlayer = world.getClosestPlayer(debrisWorldPos.x, debrisWorldPos.y, debrisWorldPos.z, 4.0, false);
+                if (closestPlayer != null) {
+                    Vec3d playerChestPos = closestPlayer.getPos().add(0, 1.1, 0);
+                    Vec3d evasion = SpatialMath.computeInteractiveEvasion(debrisWorldPos, playerChestPos, 2.8);
+                    if (evasion.lengthSquared() > 0.001) {
+                        record.currentOffset.set(
+                                (float) (record.baseDisplacement.x + evasion.x),
+                                (float) (record.baseDisplacement.y + evasion.y),
+                                (float) (record.baseDisplacement.z + evasion.z)
+                        );
+                        record.hoverYaw += 0.40f;
+                        record.currentRotation.rotateY(0.40f);
 
-                        // Hysteresis Hold: keep open as long as player is within 5.5m
-                        if (distToHome <= 5.5) {
-                            if (record.isRestoring()) {
-                                record.interruptRestoration();
-                            }
+                        display.setStartInterpolation(0);
+                        display.setInterpolationDuration(3);
+                        display.setTransformation(SpatialMath.createPivotTransform(
+                                record.getCurrentOffset(), record.currentRotation, record.targetScale.x));
 
-                            // Dynamic Evasion: every 2 ticks check distance to player's chest
-                            if (display != null && display.isAlive() && (record.ageTicks % 2 == 0) && record.animationStage >= 1) {
-                                Vec3d playerChest = boundPlayer.getPos().add(0, 1.1, 0);
-                                Vec3d currentWorldPos = Vec3d.ofCenter(record.pos).add(
-                                        record.currentOffset.x, record.currentOffset.y, record.currentOffset.z
-                                );
-                                double distToDebris = currentWorldPos.distanceTo(playerChest);
-
-                                if (distToDebris < 2.8) {
-                                    double pushStrength = Math.pow(2.8 - distToDebris, 2) * 1.6;
-                                    Vec3d evasionDir = distToDebris > 0.05
-                                            ? currentWorldPos.subtract(playerChest).normalize().multiply(pushStrength)
-                                            : new Vec3d(0, 1, 0).multiply(pushStrength);
-
-                                    float phase = (float) (SpatialMath.hashCoordinateToPhase(record.pos.asLong()) + (record.ageTicks / 8.0));
-                                    float bobY = (float) (Math.sin(phase) * 0.12);
-
-                                    Vector3f newOffset = new Vector3f(
-                                            (float) (record.baseDisplacement.x + evasionDir.x),
-                                            (float) (record.baseDisplacement.y + bobY + evasionDir.y),
-                                            (float) (record.baseDisplacement.z + evasionDir.z)
-                                    );
-                                    record.currentOffset.set(newOffset);
-
-                                    record.hoverYaw += 0.35f;
-                                    Quaternionf evasionRot = new Quaternionf(record.targetRotation)
-                                            .rotateY(record.hoverYaw)
-                                            .rotateX((float) Math.toRadians(15.0 * Math.sin(phase)))
-                                            .rotateZ((float) Math.toRadians(15.0 * Math.cos(phase)));
-                                    record.currentRotation.set(evasionRot);
-
-                                    Vector3f comp = SpatialMath.compensatePivot(newOffset, evasionRot);
-                                    display.setStartInterpolation(0);
-                                    display.setInterpolationDuration(3); // 3 ticks reactive evasion
-                                    display.setTransformation(new AffineTransformation(comp, evasionRot, record.targetScale, null));
-                                } else if (record.currentOffset.distance(record.baseDisplacement) > 0.15f) {
-                                    // Settle back to base hover offset
-                                    float phase = (float) (SpatialMath.hashCoordinateToPhase(record.pos.asLong()) + (record.ageTicks / 8.0));
-                                    float bobY = (float) (Math.sin(phase) * 0.12);
-
-                                    Vector3f returnOffset = new Vector3f(
-                                            record.baseDisplacement.x,
-                                            record.baseDisplacement.y + bobY,
-                                            record.baseDisplacement.z
-                                    );
-                                    record.currentOffset.set(returnOffset);
-                                    record.hoverYaw += 0.05f;
-
-                                    Quaternionf returnRot = new Quaternionf(record.targetRotation)
-                                            .rotateY(record.hoverYaw)
-                                            .rotateX((float) Math.toRadians(6.0 * Math.sin(phase)))
-                                            .rotateZ((float) Math.toRadians(6.0 * Math.cos(phase)));
-                                    record.currentRotation.set(returnRot);
-
-                                    Vector3f comp = SpatialMath.compensatePivot(returnOffset, returnRot);
-                                    display.setStartInterpolation(0);
-                                    display.setInterpolationDuration(5);
-                                    display.setTransformation(new AffineTransformation(comp, returnRot, record.targetScale, null));
-                                }
-                            }
-                        } else {
-                            // Player moved beyond 5.5m -> begin 3-Phase Restoration
-                            record.beginRestoration();
-                        }
-                    } else {
-                        // Player offline or toggled off -> begin restoration
-                        record.beginRestoration();
+                        world.spawnParticles(ParticleTypes.END_ROD, debrisWorldPos.x, debrisWorldPos.y, debrisWorldPos.z, 2, 0.1, 0.1, 0.1, 0.02);
+                        world.spawnParticles(ParticleTypes.WITCH, debrisWorldPos.x, debrisWorldPos.y, debrisWorldPos.z, 1, 0.05, 0.05, 0.05, 0.0);
+                        continue;
                     }
+                }
+            }
+
+            // ==========================================
+            // CHẾ ĐỘ CHIÊU 1: PATH_WALKER / HYSTERESIS_AURA
+            // ==========================================
+            if (record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER ||
+                record.mode == DisplacedBlockRecord.DisplacementMode.HYSTERESIS_AURA) {
+
+                // Check distance to any player with Skill 1 active
+                boolean playerNearby = false;
+                Vec3d blockCenter = Vec3d.ofCenter(record.pos);
+                for (ServerPlayerEntity p : world.getPlayers()) {
+                    if (net.godwand.skill.SpatialPathWalker.isActive(p)) {
+                        if (p.getPos().distanceTo(blockCenter) <= 5.5) {
+                            playerNearby = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (playerNearby) {
+                    record.resetRestoreTick();
+                    // Gentle continuous floating / bobbing when player is near
+                    if (display != null && display.isAlive() && record.ageTicks % 8 == 0 && record.animationStage >= 1) {
+                        double hashPhase = SpatialMath.hash01(record.pos) * Math.PI * 2.0;
+                        float bobY = (float) (Math.sin(hashPhase + record.ageTicks / 8.0) * 0.12);
+                        record.currentOffset.set(
+                                record.baseDisplacement.x,
+                                record.baseDisplacement.y + bobY,
+                                record.baseDisplacement.z
+                        );
+                        record.hoverYaw += 0.04f;
+                        Quaternionf rot = new Quaternionf(record.targetRotation).rotateY(record.hoverYaw);
+                        record.currentRotation.set(rot);
+
+                        display.setStartInterpolation(0);
+                        display.setInterpolationDuration(8);
+                        display.setTransformation(SpatialMath.createPivotTransform(
+                                record.getCurrentOffset(), rot, record.targetScale.x));
+                    }
+                } else {
+                    // Player moved further than 5.5m or turned skill off -> begin 3-Phase Restoration
+                    record.beginRestoration();
                 }
                 continue;
             }
 
             // ==========================================
-            // SKILL 2: UPWARD CANOPY & STAGGERED VORTEX
+            // CHẾ ĐỘ CHIÊU 2: CANOPY VORTEX
+            // ==========================================
+            if (record.mode == DisplacedBlockRecord.DisplacementMode.CANOPY_VORTEX ||
+               (record.mode == DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE && record.blastCenter != null)) {
+
+                if (record.ageTicks >= record.maxLifetimeTicks) {
+                    record.beginRestoration();
+                    continue;
+                }
+
+                if (display != null && display.isAlive() && (display.getId() + record.ageTicks) % 3 == 0) {
+                    Vec3d vortexOffset = SpatialMath.computeCanopyVortexOffset(record.pos, record.blastCenter, record.blastRadius, record.ageTicks);
+                    record.currentOffset.set((float) vortexOffset.x, (float) vortexOffset.y, (float) vortexOffset.z);
+                    record.hoverYaw += 0.06f;
+                    Quaternionf rot = new Quaternionf(record.targetRotation).rotateY(record.hoverYaw);
+                    record.currentRotation.set(rot);
+
+                    display.setStartInterpolation(0);
+                    display.setInterpolationDuration(3);
+                    display.setTransformation(SpatialMath.createPivotTransform(vortexOffset, rot, record.targetScale.x));
+                }
+                continue;
+            }
+
+            // ==========================================
+            // DEFAULT TIMED LIFECYCLE (Chiêu 3 / Chiêu 4)
             // ==========================================
             if (record.mode == DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE) {
                 if (record.ageTicks >= record.maxLifetimeTicks) {
@@ -399,76 +405,35 @@ public class SpatialDisplacementManager {
                     continue;
                 }
 
-                // Staggered Y-axis vortex rotation around vortexCenter
-                if (record.vortexCenter != null && display != null && display.isAlive()) {
-                    if ((display.getId() + record.ageTicks) % 3 == 0) {
-                        // Current world position on air
-                        double worldX = record.homePos.x + record.currentOffset.x;
-                        double worldZ = record.homePos.z + record.currentOffset.z;
+                if (display != null && display.isAlive() && record.ageTicks % 8 == 0 && record.animationStage >= 1) {
+                    record.hoverYaw += 0.08f;
+                    double hashPhase = SpatialMath.hash01(record.pos) * Math.PI * 2.0;
+                    float tremorY = (float) (Math.sin(hashPhase + record.ageTicks / 8.0) * 0.12);
 
-                        double relX = worldX - record.vortexCenter.x;
-                        double relZ = worldZ - record.vortexCenter.z;
+                    Vector3f hoverDisp = new Vector3f(
+                            record.baseDisplacement.x,
+                            record.baseDisplacement.y + tremorY,
+                            record.baseDisplacement.z
+                    );
+                    record.currentOffset.set(hoverDisp);
+                    Quaternionf hoverRot = new Quaternionf(record.targetRotation).rotateY(record.hoverYaw);
+                    record.currentRotation.set(hoverRot);
 
-                        // Rotate 2.5 degrees around Y
-                        double angle = Math.toRadians(2.5);
-                        double cosA = Math.cos(angle);
-                        double sinA = Math.sin(angle);
-
-                        double newRelX = relX * cosA - relZ * sinA;
-                        double newRelZ = relX * sinA + relZ * cosA;
-
-                        float newOffsetX = (float) ((record.vortexCenter.x + newRelX) - record.homePos.x);
-                        float newOffsetZ = (float) ((record.vortexCenter.z + newRelZ) - record.homePos.z);
-
-                        float phase = (float) (SpatialMath.hashCoordinateToPhase(record.pos.asLong()) + (record.ageTicks / 10.0));
-                        float bobY = (float) (Math.sin(phase) * 0.15);
-                        float newOffsetY = record.baseDisplacement.y + bobY;
-
-                        record.currentOffset.set(newOffsetX, newOffsetY, newOffsetZ);
-                        record.currentRotation.rotateY((float) Math.toRadians(2.5));
-
-                        Vector3f comp = SpatialMath.compensatePivot(record.currentOffset, record.currentRotation);
-                        display.setStartInterpolation(0);
-                        display.setInterpolationDuration(3); // Continuous seamless rotation
-                        display.setTransformation(new AffineTransformation(comp, record.currentRotation, record.targetScale, null));
-                    }
-                } else if (display != null && display.isAlive()) {
-                    // Standard gentle zero-G orbital bobbing for custom scripted / default blocks
-                    if (record.ageTicks % 8 == 0 && record.animationStage >= 1) {
-                        record.hoverYaw += 0.10f;
-                        float phase = (float) (SpatialMath.hashCoordinateToPhase(record.pos.asLong()) + (record.ageTicks / 8.0));
-                        float tremorY = (float) (Math.sin(phase) * 0.12);
-
-                        Vector3f hoverDisp = new Vector3f(
-                                record.baseDisplacement.x,
-                                record.baseDisplacement.y + tremorY,
-                                record.baseDisplacement.z
-                        );
-                        record.currentOffset.set(hoverDisp);
-                        Quaternionf hoverRot = new Quaternionf(record.targetRotation)
-                                .rotateY(record.hoverYaw)
-                                .rotateX((float) Math.toRadians(4.0 * Math.sin(phase * 1.5)))
-                                .rotateZ((float) Math.toRadians(4.0 * Math.cos(phase * 1.2)));
-                        record.currentRotation.set(hoverRot);
-
-                        Vector3f comp = SpatialMath.compensatePivot(hoverDisp, hoverRot);
-                        display.setStartInterpolation(0);
-                        display.setInterpolationDuration(8);
-                        display.setTransformation(new AffineTransformation(comp, hoverRot, record.targetScale, null));
-                    }
+                    display.setStartInterpolation(0);
+                    display.setInterpolationDuration(8);
+                    display.setTransformation(SpatialMath.createPivotTransform(hoverDisp, hoverRot, record.targetScale.x));
                 }
             }
 
-            // Tether Trail: Sampled exclusively on 1 in 8 anchor blocks every 4 ticks
+            // Tether Trail: sampled on 1 in 8 anchor blocks every 4 ticks
             if (record.transformed && ((record.pos.asLong() & 7) == 0) && record.ageTicks % 4 == 0 && !record.isRestoring()) {
                 double homeX = record.pos.getX() + 0.5;
                 double homeY = record.pos.getY() + 0.5;
                 double homeZ = record.pos.getZ() + 0.5;
 
-                Vector3f comp = SpatialMath.compensatePivot(record.currentOffset, record.currentRotation);
-                double floatX = homeX + comp.x;
-                double floatY = homeY + comp.y;
-                double floatZ = homeZ + comp.z;
+                double floatX = homeX + record.currentOffset.x;
+                double floatY = homeY + record.currentOffset.y;
+                double floatZ = homeZ + record.currentOffset.z;
 
                 double dx = floatX - homeX;
                 double dy = floatY - homeY;
@@ -478,65 +443,39 @@ public class SpatialDisplacementManager {
                 if (dist > 0.6) {
                     for (double d = 0.6; d < dist - 0.3; d += 0.85) {
                         double t = d / dist;
-                        double px = homeX + dx * t;
-                        double py = homeY + dy * t;
-                        double pz = homeZ + dz * t;
                         world.spawnParticles(new DustParticleEffect(new Vector3f(0.28f, 0.90f, 1.0f), 0.30f),
-                                px, py, pz, 1, 0.0, 0.0, 0.0, 0.0);
+                                homeX + dx * t, homeY + dy * t, homeZ + dz * t, 1, 0, 0, 0, 0);
                     }
                 }
             }
         }
 
-        if (!toRestore.isEmpty()) {
-            executeTwoPassRestoration(world, toRestore);
+        for (DisplacedBlockRecord r : toRemove) {
+            ACTIVE_RECORDS.remove(new DimensionPos(r.worldKey, r.pos));
+            DisplacementPersistentState.getServerState(world).markDirty();
         }
     }
 
-    public static void executeTwoPassRestoration(ServerWorld world, List<DisplacedBlockRecord> records) {
-        // Pass 1: Solid base blocks
-        for (DisplacedBlockRecord r : records) {
-            if (r.isFullCube) {
-                restoreSingleBlock(world, r);
-            }
-        }
-        // Pass 2: Attached & delicate blocks (Torches, Lanterns, Signs, Doors, Plants)
-        // Sort by Y ascending so lower parts of double blocks are placed before upper parts
-        List<DisplacedBlockRecord> delicate = new ArrayList<>();
-        for (DisplacedBlockRecord r : records) {
-            if (!r.isFullCube) {
-                delicate.add(r);
-            }
-        }
-        delicate.sort(Comparator.comparingInt(r -> r.pos.getY()));
-        for (DisplacedBlockRecord r : delicate) {
-            restoreSingleBlock(world, r);
-        }
-    }
-
-    private static void restoreSingleBlock(ServerWorld world, DisplacedBlockRecord r) {
-        world.setBlockState(r.pos, r.state, Block.FORCE_STATE | Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
-        if (r.nbt != null) {
+    private static void restoreRecordDirectly(ServerWorld world, DisplacedBlockRecord r, BlockDisplayEntity display) {
+        // Exact 1:1 original BlockState and NBT restoration
+        world.setBlockState(r.pos, r.originalState, Block.FORCE_STATE | Block.NOTIFY_LISTENERS);
+        if (r.blockEntityNbt != null) {
             BlockEntity be = world.getBlockEntity(r.pos);
             if (be != null) {
-                be.read(r.nbt, world.getRegistryManager());
+                be.read(r.blockEntityNbt, world.getRegistryManager());
                 be.markDirty();
             }
         }
-        if (r.displayEntityUuid != null) {
-            BlockDisplayEntity display = ACTIVE_ENTITIES.remove(r.displayEntityUuid);
-            if (display != null) {
-                display.discard();
-            }
-            // Crisp stone impact sound and dust on re-solidification
-            world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, r.state),
-                    r.pos.getX() + 0.5, r.pos.getY() + 0.5, r.pos.getZ() + 0.5, 4, 0.15, 0.15, 0.15, 0.05);
-            if ((r.pos.asLong() & 3) == 0) {
-                world.playSound(null, r.pos, SoundEvents.BLOCK_STONE_PLACE, SoundCategory.BLOCKS, 0.75f, 1.0f);
-            }
+        if (display != null) {
+            ACTIVE_ENTITIES.remove(r.displayEntityUuid);
+            display.discard();
         }
-        ACTIVE_RECORDS.remove(new DimensionPos(r.worldKey, r.pos));
-        DisplacementPersistentState.getServerState(world).markDirty();
+        // Crisp stone impact particle and sound
+        world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, r.originalState),
+                r.pos.getX() + 0.5, r.pos.getY() + 0.5, r.pos.getZ() + 0.5, 4, 0.15, 0.15, 0.15, 0.05);
+        if ((r.pos.asLong() & 3) == 0) {
+            world.playSound(null, r.pos, SoundEvents.BLOCK_STONE_PLACE, SoundCategory.BLOCKS, 0.75f, 1.0f);
+        }
     }
 
     public static void collapsePlayerAura(UUID playerUuid) {
@@ -555,6 +494,32 @@ public class SpatialDisplacementManager {
             }
         }
         executeTwoPassRestoration(world, matching);
+    }
+
+    public static void executeTwoPassRestoration(ServerWorld world, List<DisplacedBlockRecord> records) {
+        // Pass 1: Solid base blocks
+        for (DisplacedBlockRecord r : records) {
+            if (r.isFullCube) {
+                BlockDisplayEntity d = r.displayEntityUuid != null ? ACTIVE_ENTITIES.get(r.displayEntityUuid) : null;
+                restoreRecordDirectly(world, r, d);
+                ACTIVE_RECORDS.remove(new DimensionPos(r.worldKey, r.pos));
+            }
+        }
+        // Pass 2: Attached & delicate blocks (Torches, Lanterns, Signs, Doors, Plants)
+        // Sort by Y ascending so lower parts of double blocks are placed before upper parts
+        List<DisplacedBlockRecord> delicate = new ArrayList<>();
+        for (DisplacedBlockRecord r : records) {
+            if (!r.isFullCube) {
+                delicate.add(r);
+            }
+        }
+        delicate.sort(Comparator.comparingInt(r -> r.pos.getY()));
+        for (DisplacedBlockRecord r : delicate) {
+            BlockDisplayEntity d = r.displayEntityUuid != null ? ACTIVE_ENTITIES.get(r.displayEntityUuid) : null;
+            restoreRecordDirectly(world, r, d);
+            ACTIVE_RECORDS.remove(new DimensionPos(r.worldKey, r.pos));
+        }
+        DisplacementPersistentState.getServerState(world).markDirty();
     }
 
     public static void collapseNearbyDisplacements(RegistryKey<World> worldKey, BlockPos center, double radius) {

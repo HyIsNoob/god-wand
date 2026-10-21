@@ -40,14 +40,13 @@ public class SpatialPathWalker {
             LAST_GROUND_Y.remove(player.getUuid());
             player.sendMessage(Text.literal("§c§l[✦ SPATIAL PATH: COLLAPSED ✦]"), true);
 
-            // Explosive Deactivation Impact: Sonic boom, flash, and implosion particles
+            // Explosive Deactivation Impact
             world.spawnParticles(ParticleTypes.FLASH, player.getX(), player.getEyeY(), player.getZ(), 2, 0.1, 0.1, 0.1, 0.0);
             world.spawnParticles(ParticleTypes.SONIC_BOOM, player.getX(), player.getY() + 1.0, player.getZ(), 1, 0, 0, 0, 0);
             world.spawnParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 40, 1.2, 0.8, 1.2, 0.25);
             world.spawnParticles(new DustParticleEffect(new Vector3f(0.25f, 0.88f, 1.0f), 1.2f),
                     player.getX(), player.getY() + 1.0, player.getZ(), 30, 1.5, 0.8, 1.5, 0.2);
 
-            // Layered Heavy Deactivation Audio
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.PLAYERS, 2.5f, 0.75f);
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
@@ -55,7 +54,7 @@ public class SpatialPathWalker {
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.PLAYERS, 2.0f, 1.2f);
 
-            // Push nearby entities away with physical shockwave impulse
+            // Push nearby entities away
             for (net.minecraft.entity.Entity e : world.getOtherEntities(player, player.getBoundingBox().expand(5.0))) {
                 Vec3d diff = e.getPos().subtract(player.getPos()).normalize().multiply(0.95).add(0, 0.28, 0);
                 e.addVelocity(diff.x, diff.y, diff.z);
@@ -98,9 +97,15 @@ public class SpatialPathWalker {
         if (!isActive(player)) return;
 
         ServerWorld world = player.getServerWorld();
-        Vec3d eyePos = player.getEyePos();
-        Vec3d chestPos = player.getPos().add(0, 1.1, 0);
-        Vec3d lookVec = player.getRotationVec(1.0f).normalize();
+        Vec3d playerPos = player.getPos();
+        Vec3d chestPos = playerPos.add(0, 1.1, 0);
+        Vec3d lookVec = player.getRotationVec(1.0f);
+        Vec3d lookDirHoriz = new Vec3d(lookVec.x, 0, lookVec.z);
+        if (lookDirHoriz.lengthSquared() < 0.001) {
+            lookDirHoriz = new Vec3d(1, 0, 0);
+        } else {
+            lookDirHoriz = lookDirHoriz.normalize();
+        }
 
         boolean allowDown = player.getAbilities().flying && player.getPitch() > 45.0f;
 
@@ -110,17 +115,17 @@ public class SpatialPathWalker {
         double baseGroundY = player.isOnGround() ? player.getY() : LAST_GROUND_Y.getOrDefault(player.getUuid(), player.getY());
         int floorY = (int) Math.floor(baseGroundY);
 
-        // Spherical Aura (R = 3.5m) + Forward Cone (Reach = 6.5m)
-        double reach = 6.5;
-        double auraRadius = 3.5;
-        double maxReach = Math.max(auraRadius, reach);
+        // Spherical Aura (R = 3.8m) + Forward Cone (Reach = 6.5m)
+        double auraRadius = 3.8;
+        double forwardReach = 6.5;
+        double maxRange = Math.max(auraRadius, forwardReach);
 
-        int minX = MathHelper.floor(player.getX() - maxReach);
-        int maxX = MathHelper.floor(player.getX() + maxReach);
-        int minY = allowDown ? MathHelper.floor(player.getY() - maxReach) : floorY;
-        int maxY = MathHelper.floor(player.getY() + 4.0);
-        int minZ = MathHelper.floor(player.getZ() - maxReach);
-        int maxZ = MathHelper.floor(player.getZ() + maxReach);
+        int minX = MathHelper.floor(playerPos.x - maxRange);
+        int maxX = MathHelper.floor(playerPos.x + maxRange);
+        int minY = allowDown ? MathHelper.floor(playerPos.y - maxRange) : floorY;
+        int maxY = MathHelper.floor(playerPos.y + 4.2);
+        int minZ = MathHelper.floor(playerPos.z - maxRange);
+        int maxZ = MathHelper.floor(playerPos.z + maxRange);
 
         BlockPos.Mutable mutablePos = new BlockPos.Mutable();
 
@@ -129,37 +134,36 @@ public class SpatialPathWalker {
                 for (int y = minY; y <= maxY; y++) {
                     mutablePos.set(x, y, z);
 
-                    // Absolute Ground Safety Rule: y < floorY is never displaced
+                    // Absolute Ground Safety Rule
                     if (!allowDown && y < floorY) continue;
 
-                    // Footing Protection: never displace directly underneath or immediately around player's feet
-                    if (!allowDown && Math.abs(x + 0.5 - player.getX()) <= 0.85 && Math.abs(z + 0.5 - player.getZ()) <= 0.85 && y <= floorY) {
+                    // Footing Protection
+                    if (!allowDown && Math.abs(x + 0.5 - playerPos.x) <= 0.85 && Math.abs(z + 0.5 - playerPos.z) <= 0.85 && y <= floorY) {
                         continue;
                     }
 
-                    Vec3d blockCenter = new Vec3d(x + 0.5, y + 0.5, z + 0.5);
+                    Vec3d blockCenter = Vec3d.ofCenter(mutablePos);
                     Vec3d toBlock = blockCenter.subtract(chestPos);
                     double distToChest = toBlock.length();
 
-                    // Check Spherical Aura (R <= 3.5m)
-                    boolean inAura = distToChest <= auraRadius;
+                    // Check Spherical Aura (R <= 3.8m)
+                    boolean inSphericalAura = distToChest <= auraRadius;
 
-                    // Check Forward Cone (forward reach <= 6.5m)
+                    // Check Forward Cone (forward reach <= 6.5m, radius 2.8m -> 3.8m)
                     boolean inForwardCone = false;
-                    double forwardDist = toBlock.dotProduct(lookVec);
-                    double perpDist = 0;
-                    if (forwardDist > 0 && forwardDist <= reach) {
-                        Vec3d forwardProj = lookVec.multiply(forwardDist);
-                        perpDist = toBlock.subtract(forwardProj).length();
-                        double coneRadius = 1.8 + 0.38 * forwardDist;
+                    double forwardDist = (blockCenter.x - playerPos.x) * lookDirHoriz.x + (blockCenter.z - playerPos.z) * lookDirHoriz.z;
+                    if (forwardDist > 0 && forwardDist <= forwardReach) {
+                        Vec3d spine = new Vec3d(playerPos.x + lookDirHoriz.x * forwardDist, blockCenter.y, playerPos.z + lookDirHoriz.z * forwardDist);
+                        double perpDist = blockCenter.subtract(spine).length();
+                        double coneRadius = 2.8 + (forwardDist / forwardReach) * (3.8 - 2.8);
                         if (perpDist <= coneRadius) {
                             inForwardCone = true;
                         }
                     }
 
-                    if (!inAura && !inForwardCone) continue;
+                    if (!inSphericalAura && !inForwardCone) continue;
 
-                    // Refresh lifetime and hold if already displaced
+                    // Distance Hysteresis: keep open and reset restore tick if already displaced
                     if (SpatialDisplacementManager.isPositionDisplaced(world.getRegistryKey(), mutablePos)) {
                         SpatialDisplacementManager.refreshDisplacement(world.getRegistryKey(), mutablePos, 100);
                         continue;
@@ -168,46 +172,34 @@ public class SpatialPathWalker {
                     BlockState state = world.getBlockState(mutablePos);
                     if (!SpatialDisplacementManager.canDisplace(world, mutablePos, state)) continue;
 
-                    // Push direction from player center
-                    Vec3d pushDir = toBlock.lengthSquared() > 0.001 ? toBlock.normalize() : new Vec3d(0, 1, 0);
+                    // Vector displacement computed by SpatialMath
+                    Vec3d auraDisp = SpatialMath.computeAuraDisplacement(mutablePos, playerPos, lookDirHoriz, auraRadius);
+                    Vector3f targetDisp = new Vector3f((float) auraDisp.x, (float) auraDisp.y, (float) auraDisp.z);
 
-                    // Push distance: inversely proportional to distance, with a strong clear margin
-                    double effDist = inAura ? distToChest : perpDist;
-                    double pushDist = Math.max(3.6, 5.0 - effDist * 0.45);
-
-                    double phase = SpatialMath.hashCoordinateToPhase(mutablePos.asLong());
-
-                    // Vertical lift Delta Y in [+1.2m, +2.5m]
-                    double liftY = 1.4 + 0.8 * Math.sin(phase * 1.6);
-
-                    double lateralX = pushDir.x * pushDist;
-                    double lateralZ = pushDir.z * pushDist;
-
-                    // Avoid center lock if block is right in front of chest
-                    if (Math.abs(lateralX) < 0.25 && Math.abs(lateralZ) < 0.25) {
-                        boolean goRight = ((x + z) & 1) == 0;
-                        lateralX = (goRight ? 1 : -1) * 3.6;
-                    }
-
-                    Vector3f targetDisp = new Vector3f(
-                            (float) lateralX,
-                            (float) liftY,
-                            (float) lateralZ
-                    );
-
-                    // Zero-gravity dynamic tilt / tumbling
+                    double hashPhase = SpatialMath.hash01(mutablePos) * Math.PI * 2.0;
                     Quaternionf rotation = new Quaternionf()
-                            .rotateY((float) Math.toRadians(26.0 * Math.sin(phase)))
-                            .rotateX((float) Math.toRadians(18.0 * Math.cos(phase * 1.3)))
-                            .rotateZ((float) Math.toRadians(18.0 * Math.sin(phase * 1.7)));
+                            .rotateY((float) Math.toRadians(25.0 * Math.sin(hashPhase)))
+                            .rotateX((float) Math.toRadians(15.0 * Math.cos(hashPhase)))
+                            .rotateZ((float) Math.toRadians(15.0 * Math.sin(hashPhase * 1.5)));
 
                     Vector3f scale = new Vector3f(1.02f, 1.02f, 1.02f);
 
-                    SpatialDisplacementManager.displaceBlock(world, mutablePos.toImmutable(), targetDisp, rotation, scale,
-                            100, 0x00F5FF, true, DisplacedBlockRecord.DisplacementMode.HYSTERESIS_AURA,
-                            player.getUuid(), null);
+                    SpatialDisplacementManager.displaceBlock(
+                            world,
+                            mutablePos.toImmutable(),
+                            targetDisp,
+                            rotation,
+                            scale,
+                            100,
+                            0x00F5FF,
+                            true,
+                            DisplacedBlockRecord.DisplacementMode.PATH_WALKER,
+                            player.getUuid(),
+                            null,
+                            0.0
+                    );
 
-                    // Subtle ambient shimmer particle
+                    // Ambient shimmer particle
                     if (((x ^ z) & 7) == 0) {
                         world.spawnParticles(ParticleTypes.END_ROD, blockCenter.x, blockCenter.y, blockCenter.z, 1, 0.1, 0.1, 0.1, 0.01);
                     }

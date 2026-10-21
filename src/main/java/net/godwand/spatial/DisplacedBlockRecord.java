@@ -4,6 +4,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -12,15 +13,20 @@ import java.util.UUID;
 
 public class DisplacedBlockRecord {
     public enum DisplacementMode {
+        PATH_WALKER,
         HYSTERESIS_AURA,
         TIMED_LIFECYCLE,
+        CANOPY_VORTEX,
         CUSTOM_SCRIPTED
     }
 
     public final BlockPos pos;
     public final RegistryKey<World> worldKey;
+    public final BlockState originalState;
     public final BlockState state;
+    public final NbtCompound blockEntityNbt;
     public final NbtCompound nbt;
+
     public UUID displayEntityUuid;
     public int ageTicks;
     public int maxLifetimeTicks;
@@ -42,14 +48,17 @@ public class DisplacedBlockRecord {
     public Vector3f currentOffset;
     public Quaternionf currentRotation;
     public Vector3f currentScale;
-    public Vector3f vortexCenter; // Center for Skill 2 vortex rotation
+    public Vec3d blastCenter;
+    public double blastRadius;
 
     public DisplacedBlockRecord(BlockPos pos, RegistryKey<World> worldKey, BlockState state, NbtCompound nbt,
                                 Vector3f targetDisplacement, Quaternionf targetRotation, Vector3f targetScale,
                                 int maxLifetimeTicks, boolean isFullCube, DisplacementMode mode, UUID boundPlayerUuid) {
         this.pos = pos.toImmutable();
         this.worldKey = worldKey;
+        this.originalState = state;
         this.state = state;
+        this.blockEntityNbt = nbt;
         this.nbt = nbt;
         this.displayEntityUuid = null;
         this.ageTicks = 0;
@@ -71,7 +80,8 @@ public class DisplacedBlockRecord {
         this.currentOffset = new Vector3f(targetDisplacement);
         this.currentRotation = new Quaternionf(this.targetRotation);
         this.currentScale = new Vector3f(this.targetScale);
-        this.vortexCenter = null;
+        this.blastCenter = null;
+        this.blastRadius = 0.0;
     }
 
     public DisplacedBlockRecord(BlockPos pos, RegistryKey<World> worldKey, BlockState state, NbtCompound nbt,
@@ -90,6 +100,30 @@ public class DisplacedBlockRecord {
                                 Vector3f targetDisplacement, Quaternionf targetRotation,
                                 int maxLifetimeTicks, boolean isFullCube) {
         this(pos, World.OVERWORLD, state, nbt, targetDisplacement, targetRotation, new Vector3f(1.0f, 1.0f, 1.0f), maxLifetimeTicks, isFullCube, DisplacementMode.TIMED_LIFECYCLE, null);
+    }
+
+    public BlockPos pos() {
+        return pos;
+    }
+
+    public BlockState originalState() {
+        return originalState;
+    }
+
+    public BlockState state() {
+        return state;
+    }
+
+    public NbtCompound blockEntityNbt() {
+        return blockEntityNbt;
+    }
+
+    public NbtCompound nbt() {
+        return nbt;
+    }
+
+    public Vec3d getCurrentOffset() {
+        return new Vec3d(currentOffset.x, currentOffset.y, currentOffset.z);
     }
 
     public void beginRestoration() {

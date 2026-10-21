@@ -36,15 +36,15 @@ public class ShockwaveSlicer {
         public int sampledDisplaysMid = 0;
         public int sampledDisplaysOuter = 0;
         public static final int MAX_DISPLAYS_PER_STRATA = 150;
-        public static final int MAX_DISPLAYS = 1400;
+        public static final int MAX_DISPLAYS = 1200;
         public final int maxDisplays;
 
         public SlicingTask(ServerWorld world, BlockPos center, double maxRadius) {
             this.world = world;
             this.center = center.toImmutable();
             this.maxRadius = maxRadius;
-            // R <= 8: 100% display entities; R > 8: up to 1,400 entities
-            this.maxDisplays = maxRadius <= 8.0 ? Integer.MAX_VALUE : 1400;
+            // R <= 8: 100% displays; R > 8: up to 1,200 displays as per spec
+            this.maxDisplays = maxRadius <= 8.0 ? Integer.MAX_VALUE : 1200;
         }
     }
 
@@ -132,11 +132,7 @@ public class ShockwaveSlicer {
 
             int intR = (int) Math.ceil(rMax);
             BlockPos.Mutable mutable = new BlockPos.Mutable();
-
-            // Reverse expiration: perimeter shells expire slightly earlier than inner shells
-            int lifetime = 100 + (task.totalShells - 1 - task.currentShell) * 2;
             Vec3d blastCenter = task.center.toCenterPos();
-            Vector3f vortexCenter = new Vector3f(task.center.getX() + 0.5f, (float) (blastCenter.y + 4.5), task.center.getZ() + 0.5f);
 
             for (int x = -intR; x <= intR; x++) {
                 for (int y = -intR; y <= intR; y++) {
@@ -165,15 +161,13 @@ public class ShockwaveSlicer {
                             task.sampledDisplays++;
                         } else if (task.sampledDisplays < task.maxDisplays) {
                             if (dist >= task.maxRadius * 0.70) {
-                                // Outer crust / surface: 60% sample rate
-                                if (((x ^ y ^ z) & 1) == 0) {
-                                    spawnDisplay = true;
-                                    scale = 1.0f;
-                                    task.sampledDisplays++;
-                                }
+                                // Outer surface: 100% sample rate within maxDisplays
+                                spawnDisplay = true;
+                                scale = 1.0f;
+                                task.sampledDisplays++;
                             } else {
-                                // 40% interior: scale = 1.35f to fill volume densely
-                                if (((x ^ y ^ z) % 5) < 2) {
+                                // 45% sample rate for interior with scale = 1.35f to create dense celestial nebula
+                                if (((Math.abs(x * 31 + y * 17 + z)) % 100) < 45) {
                                     spawnDisplay = true;
                                     scale = 1.35f;
                                     task.sampledDisplays++;
@@ -181,39 +175,50 @@ public class ShockwaveSlicer {
                             }
                         }
 
-                        // Upward Canopy Lift: liftY = (blastCenter.y - pos.getY()) + 3.5 + (hash01 * 5.5)
-                        double phase01 = (SpatialMath.hashCoordinateToPhase(mutable.asLong()) / (2.0 * Math.PI));
-                        double liftY = (blastCenter.y - targetY) + 3.5 + (phase01 * 5.5);
+                        // Compute Upward Canopy Vortex offset using SpatialMath
+                        Vec3d canopyOffset = SpatialMath.computeCanopyVortexOffset(mutable, blastCenter, task.maxRadius, 0);
+                        Vector3f targetDisp = new Vector3f((float) canopyOffset.x, (float) canopyOffset.y, (float) canopyOffset.z);
 
-                        double horizDist = Math.sqrt(x * x + z * z);
-                        double horizDirX = horizDist > 0.05 ? (x / horizDist) : 1.0;
-                        double horizDirZ = horizDist > 0.05 ? (z / horizDist) : 0.0;
-
-                        // Canopy expands outward horizontally into an asteroid ring above the crater
-                        double horizPush = Math.max(horizDist, task.maxRadius * 0.75) + 1.2 + (phase01 * 2.2);
-                        double targetOffsetX = (task.center.getX() + 0.5 + horizDirX * horizPush) - (mutable.getX() + 0.5);
-                        double targetOffsetZ = (task.center.getZ() + 0.5 + horizDirZ * horizPush) - (mutable.getZ() + 0.5);
-
-                        Vector3f targetDisp = new Vector3f(
-                                (float) targetOffsetX,
-                                (float) liftY,
-                                (float) targetOffsetZ
-                        );
-
-                        float rotAngle = (float) Math.toRadians(35.0 + 35.0 * phase01);
+                        double hashPhase = SpatialMath.hash01(mutable) * Math.PI * 2.0;
                         Quaternionf rot = new Quaternionf()
-                                .rotateY((float) (phase01 * 2 * Math.PI))
-                                .rotateX(rotAngle);
+                                .rotateY((float) hashPhase)
+                                .rotateX((float) Math.toRadians(35.0 + 30.0 * Math.sin(hashPhase)));
+
+                        // Concentric restoration wave from bottom of crater up to crater rim
+                        double depthFraction = Math.max(0.0, Math.min(1.0, (targetY - (task.center.getY() - task.maxRadius)) / (task.maxRadius * 2.0)));
+                        int lifetime = 100 + (int) (depthFraction * 12);
 
                         if (spawnDisplay) {
-                            SpatialDisplacementManager.displaceBlock(world, mutable.toImmutable(), targetDisp, rot,
-                                    new Vector3f(scale, scale, scale), lifetime, 0x00F0FF, true,
-                                    DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE, null, vortexCenter);
+                            SpatialDisplacementManager.displaceBlock(
+                                    world,
+                                    mutable.toImmutable(),
+                                    targetDisp,
+                                    rot,
+                                    new Vector3f(scale, scale, scale),
+                                    lifetime,
+                                    0x00F0FF,
+                                    true,
+                                    DisplacedBlockRecord.DisplacementMode.CANOPY_VORTEX,
+                                    null,
+                                    blastCenter,
+                                    task.maxRadius
+                            );
                         } else {
-                            // Non-display interior blocks hollowed out cleanly to AIR
-                            SpatialDisplacementManager.displaceBlock(world, mutable.toImmutable(), new Vector3f(0, 0, 0),
-                                    new Quaternionf(), new Vector3f(1.0f, 1.0f, 1.0f), lifetime, 0, false,
-                                    DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE, null, null);
+                            // Hollowed interior blocks displaced cleanly to AIR
+                            SpatialDisplacementManager.displaceBlock(
+                                    world,
+                                    mutable.toImmutable(),
+                                    new Vector3f(0, 0, 0),
+                                    new Quaternionf(),
+                                    new Vector3f(1.0f, 1.0f, 1.0f),
+                                    lifetime,
+                                    0,
+                                    false,
+                                    DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE,
+                                    null,
+                                    null,
+                                    0.0
+                            );
                         }
                     }
                 }

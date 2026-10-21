@@ -108,4 +108,40 @@ public class SpatialMathTest {
         assertEquals(0, record.restoreTick);
         assertEquals(2, record.animationStage);
     }
+
+    @Test
+    public void testCreatePivotTransform() {
+        net.minecraft.util.math.Vec3d offset = new net.minecraft.util.math.Vec3d(1.0, 2.0, 3.0);
+        Quaternionf rot = new Quaternionf();
+        net.minecraft.util.math.AffineTransformation transform = SpatialMath.createPivotTransform(offset, rot, 1.0f);
+        assertNotNull(transform);
+        assertEquals(1.0f, transform.getTranslation().x, 1e-4);
+        assertEquals(2.0f, transform.getTranslation().y, 1e-4);
+        assertEquals(3.0f, transform.getTranslation().z, 1e-4);
+    }
+
+    @Test
+    public void testComputeInteractiveEvasion() {
+        net.minecraft.util.math.Vec3d debris = new net.minecraft.util.math.Vec3d(10.0, 65.0, 10.0);
+        net.minecraft.util.math.Vec3d playerChest = new net.minecraft.util.math.Vec3d(9.0, 65.0, 10.0); // 1.0m away (< 2.8m)
+        net.minecraft.util.math.Vec3d evasion = SpatialMath.computeInteractiveEvasion(debris, playerChest, 2.8);
+        assertTrue(evasion.lengthSquared() > 0.0);
+        assertTrue(evasion.x > 0.0); // Pushed away from player (x increases)
+
+        // Far away (> 2.8m)
+        net.minecraft.util.math.Vec3d farPlayer = new net.minecraft.util.math.Vec3d(5.0, 65.0, 10.0);
+        net.minecraft.util.math.Vec3d noEvasion = SpatialMath.computeInteractiveEvasion(debris, farPlayer, 2.8);
+        assertEquals(net.minecraft.util.math.Vec3d.ZERO, noEvasion);
+    }
+
+    @Test
+    public void testComputeCanopyVortexOffsetLifting() {
+        net.minecraft.util.math.BlockPos craterBottom = new net.minecraft.util.math.BlockPos(0, 50, 0);
+        net.minecraft.util.math.Vec3d blastCenter = new net.minecraft.util.math.Vec3d(0.0, 64.0, 0.0);
+        net.minecraft.util.math.Vec3d offset = SpatialMath.computeCanopyVortexOffset(craterBottom, blastCenter, 10.0, 0);
+
+        // Crater bottom is at Y=50, blastCenter Y=64 (depth = 14)
+        // Offset Y must lift it up above crater center (> 14m)
+        assertTrue(offset.y >= 14.0 + 3.8, "Debris at crater bottom must be lifted above crater rim");
+    }
 }
