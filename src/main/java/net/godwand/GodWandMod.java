@@ -71,8 +71,9 @@ public class GodWandMod implements ModInitializer {
         });
 
         ServerWorldEvents.LOAD.register((server, world) -> {
-            // Check state and ensure clean startup
-            DisplacementPersistentState.getServerState(world);
+            // Restore any crash-orphaned displaced blocks and cleanup orphaned display entities
+            DisplacementPersistentState state = DisplacementPersistentState.getServerState(world);
+            state.restoreAndCleanup(world);
         });
 
         LOGGER.info("God Wand Mod initialized.");

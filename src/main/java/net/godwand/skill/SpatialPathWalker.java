@@ -55,13 +55,13 @@ public class SpatialPathWalker {
         }
 
         boolean allowDown = player.getAbilities().flying && player.getPitch() > 45.0f;
-        double floorY = Math.floor(player.getY());
+        int floorY = player.getBlockPos().getY();
         double reach = 6.5;
         double radius = 2.8;
 
         int minX = MathHelper.floor(player.getX() - radius - reach);
         int maxX = MathHelper.floor(player.getX() + radius + reach);
-        int minY = allowDown ? MathHelper.floor(player.getY() - radius - reach) : (int) floorY;
+        int minY = allowDown ? MathHelper.floor(player.getY() - radius - reach) : floorY;
         int maxY = MathHelper.floor(player.getY() + 3.5);
         int minZ = MathHelper.floor(player.getZ() - radius - reach);
         int maxZ = MathHelper.floor(player.getZ() + radius + reach);
@@ -73,7 +73,7 @@ public class SpatialPathWalker {
                 for (int y = minY; y <= maxY; y++) {
                     mutablePos.set(x, y, z);
 
-                    // Global Floor Protection: Pos.getY() < floorY is strictly skipped across the reach
+                    // Global Floor Protection: y < player.getBlockPos().getY() is strictly skipped across the reach
                     if (!allowDown && y < floorY) continue;
 
                     Vec3d blockCenter = new Vec3d(x + 0.5, y + 0.5, z + 0.5);
@@ -89,6 +89,12 @@ public class SpatialPathWalker {
                     double lateralDist = Math.sqrt(perp.x * perp.x + perp.z * perp.z);
 
                     if (lateralDist <= radius) {
+                        // Refresh lifetime of already displaced blocks to prevent strobing & suffocation
+                        if (SpatialDisplacementManager.isPositionDisplaced(world.getRegistryKey(), mutablePos)) {
+                            SpatialDisplacementManager.refreshDisplacement(world.getRegistryKey(), mutablePos, 20);
+                            continue;
+                        }
+
                         BlockState state = world.getBlockState(mutablePos);
                         if (!SpatialDisplacementManager.canDisplace(world, mutablePos, state)) continue;
 

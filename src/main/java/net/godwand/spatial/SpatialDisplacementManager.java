@@ -3,15 +3,23 @@ package net.godwand.spatial;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.DoorBlock;
+import net.minecraft.block.BedBlock;
+import net.minecraft.block.TallPlantBlock;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.enums.BedPart;
+import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.decoration.Brightness;
 import net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Clearable;
 import net.minecraft.util.math.AffineTransformation;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -19,18 +27,22 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SpatialDisplacementManager {
-    private static final Map<BlockPos, DisplacedBlockRecord> ACTIVE_RECORDS = new ConcurrentHashMap<>();
+    private static final Map<DimensionPos, DisplacedBlockRecord> ACTIVE_RECORDS = new ConcurrentHashMap<>();
     private static final Map<UUID, BlockDisplayEntity> ACTIVE_ENTITIES = new ConcurrentHashMap<>();
 
+    public static boolean isPositionDisplaced(RegistryKey<World> worldKey, BlockPos pos) {
+        return ACTIVE_RECORDS.containsKey(new DimensionPos(worldKey, pos));
+    }
+
     public static boolean isPositionDisplaced(BlockPos pos) {
-        return ACTIVE_RECORDS.containsKey(pos.toImmutable());
+        return isPositionDisplaced(World.OVERWORLD, pos);
     }
 
     public static boolean canDisplace(ServerWorld world, BlockPos pos, BlockState state) {
         BlockPos immutablePos = pos.toImmutable();
         if (state.isAir() || state.getHardness(world, immutablePos) < 0) return false;
         if (state.isOf(Blocks.BEDROCK) || state.isOf(Blocks.END_PORTAL) || state.isOf(Blocks.BARRIER)) return false;
-        return !isPositionDisplaced(immutablePos);
+        return !isPositionDisplaced(world.getRegistryKey(), immutablePos);
     }
 
     public static int getActiveRecordCount() {
@@ -39,6 +51,67 @@ public class SpatialDisplacementManager {
 
     public static int getActiveEntityCount() {
         return ACTIVE_ENTITIES.size();
+    }
+
+    public static List<DisplacedBlockRecord> getActiveRecordsForWorld(RegistryKey<World> worldKey) {
+        List<DisplacedBlockRecord> list = new ArrayList<>();
+        for (DisplacedBlockRecord r : ACTIVE_RECORDS.values()) {
+            if (r.worldKey.equals(worldKey)) {
+                list.add(r);
+            }
+        }
+        return list;
+    }
+
+    public static void refreshDisplacement(RegistryKey<World> worldKey, BlockPos pos, int lifetime) {
+        DisplacedBlockRecord record = ACTIVE_RECORDS.get(new DimensionPos(worldKey, pos));
+        if (record != null) {
+            record.ageTicks = 0;
+            record.maxLifetimeTicks = lifetime;
+            if (record.displayEntityUuid != null && record.transformed) {
+                BlockDisplayEntity display = ACTIVE_ENTITIES.get(record.displayEntityUuid);
+                if (display != null && display.isAlive()) {
+                    display.setStartInterpolation(0);
+                    display.setInterpolationDuration(5);
+                    Vector3f comp = SpatialMath.compensatePivot(record.targetDisplacement, record.targetRotation);
+                    display.setTransformation(new AffineTransformation(
+                            comp, record.targetRotation, record.targetScale, null));
+                }
+            }
+        }
+    }
+
+    public static BlockPos getMatchingDoubleBlockHalf(ServerWorld world, BlockPos pos, BlockState state) {
+        if (state.getBlock() instanceof DoorBlock) {
+            if (state.contains(DoorBlock.HALF)) {
+                DoubleBlockHalf half = state.get(DoorBlock.HALF);
+                BlockPos target = half == DoubleBlockHalf.LOWER ? pos.up() : pos.down();
+                BlockState targetState = world.getBlockState(target);
+                if (targetState.isOf(state.getBlock()) && targetState.contains(DoorBlock.HALF) && targetState.get(DoorBlock.HALF) != half) {
+                    return target;
+                }
+            }
+        } else if (state.getBlock() instanceof TallPlantBlock) {
+            if (state.contains(TallPlantBlock.HALF)) {
+                DoubleBlockHalf half = state.get(TallPlantBlock.HALF);
+                BlockPos target = half == DoubleBlockHalf.LOWER ? pos.up() : pos.down();
+                BlockState targetState = world.getBlockState(target);
+                if (targetState.isOf(state.getBlock()) && targetState.contains(TallPlantBlock.HALF) && targetState.get(TallPlantBlock.HALF) != half) {
+                    return target;
+                }
+            }
+        } else if (state.getBlock() instanceof BedBlock) {
+            if (state.contains(BedBlock.PART) && state.contains(BedBlock.FACING)) {
+                BedPart part = state.get(BedBlock.PART);
+                Direction facing = state.get(BedBlock.FACING);
+                BlockPos target = part == BedPart.FOOT ? pos.offset(facing) : pos.offset(facing.getOpposite());
+                BlockState targetState = world.getBlockState(target);
+                if (targetState.isOf(state.getBlock()) && targetState.contains(BedBlock.PART) && targetState.get(BedBlock.PART) != part) {
+                    return target;
+                }
+            }
+        }
+        return null;
     }
 
     public static void displaceBlock(ServerWorld world, BlockPos pos, Vector3f targetDisplacement,
@@ -53,9 +126,22 @@ public class SpatialDisplacementManager {
 
     public static void displaceBlock(ServerWorld world, BlockPos pos, Vector3f targetDisplacement,
                                       Quaternionf rotation, Vector3f scale, int lifetime, int glowColor, boolean spawnDisplay) {
+        displaceBlockInternal(world, pos, targetDisplacement, rotation, scale, lifetime, glowColor, spawnDisplay, true);
+    }
+
+    private static void displaceBlockInternal(ServerWorld world, BlockPos pos, Vector3f targetDisplacement,
+                                              Quaternionf rotation, Vector3f scale, int lifetime, int glowColor, boolean spawnDisplay,
+                                              boolean checkDoubleBlock) {
         BlockPos immutablePos = pos.toImmutable();
         BlockState state = world.getBlockState(immutablePos);
         if (!canDisplace(world, immutablePos, state)) return;
+
+        BlockPos otherHalf = checkDoubleBlock ? getMatchingDoubleBlockHalf(world, immutablePos, state) : null;
+
+        // Skip display spawn for pure water or lava
+        if (state.isOf(Blocks.WATER) || state.isOf(Blocks.LAVA)) {
+            spawnDisplay = false;
+        }
 
         BlockEntity be = world.getBlockEntity(immutablePos);
         NbtCompound nbt = null;
@@ -72,8 +158,8 @@ public class SpatialDisplacementManager {
         world.setBlockState(immutablePos, Blocks.AIR.getDefaultState(), Block.FORCE_STATE | Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
 
         if (spawnDisplay) {
-            // Tick T0: Spawn BlockDisplayEntity at pos with Identity matrix
             BlockDisplayEntity display = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
+            display.addCommandTag("godwand_displaced");
             display.setPosition(immutablePos.getX(), immutablePos.getY(), immutablePos.getZ());
             display.setBlockState(state);
             display.setGlowing(true);
@@ -83,13 +169,18 @@ public class SpatialDisplacementManager {
             display.setInterpolationDuration(0);
             display.setTransformation(AffineTransformation.identity());
 
-            // Spawn with identity transformation
             world.spawnEntity(display);
             record.displayEntityUuid = display.getUuid();
             ACTIVE_ENTITIES.put(display.getUuid(), display);
         }
 
-        ACTIVE_RECORDS.put(immutablePos, record);
+        ACTIVE_RECORDS.put(new DimensionPos(world.getRegistryKey(), immutablePos), record);
+        DisplacementPersistentState.getServerState(world).markDirty();
+
+        // Displace the other half of double blocks simultaneously
+        if (otherHalf != null && canDisplace(world, otherHalf, world.getBlockState(otherHalf))) {
+            displaceBlockInternal(world, otherHalf, targetDisplacement, rotation, scale, lifetime, glowColor, spawnDisplay, false);
+        }
     }
 
     public static void tick(ServerWorld world) {
@@ -143,18 +234,24 @@ public class SpatialDisplacementManager {
         }
     }
 
-    private static void executeTwoPassRestoration(ServerWorld world, List<DisplacedBlockRecord> records) {
+    public static void executeTwoPassRestoration(ServerWorld world, List<DisplacedBlockRecord> records) {
         // Pass 1: Solid base blocks
         for (DisplacedBlockRecord r : records) {
             if (r.isFullCube) {
                 restoreSingleBlock(world, r);
             }
         }
-        // Pass 2: Attached & delicate blocks (Torches, Lanterns, Signs)
+        // Pass 2: Attached & delicate blocks (Torches, Lanterns, Signs, Doors, Plants)
+        // Sort by Y ascending so lower parts of double blocks are placed before upper parts
+        List<DisplacedBlockRecord> delicate = new ArrayList<>();
         for (DisplacedBlockRecord r : records) {
             if (!r.isFullCube) {
-                restoreSingleBlock(world, r);
+                delicate.add(r);
             }
+        }
+        delicate.sort(Comparator.comparingInt(r -> r.pos.getY()));
+        for (DisplacedBlockRecord r : delicate) {
+            restoreSingleBlock(world, r);
         }
     }
 
@@ -173,7 +270,8 @@ public class SpatialDisplacementManager {
                 display.discard();
             }
         }
-        ACTIVE_RECORDS.remove(r.pos);
+        ACTIVE_RECORDS.remove(new DimensionPos(r.worldKey, r.pos));
+        DisplacementPersistentState.getServerState(world).markDirty();
     }
 
     public static void emergencyRestoreAll(ServerWorld world) {

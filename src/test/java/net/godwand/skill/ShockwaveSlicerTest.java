@@ -1,7 +1,9 @@
 package net.godwand.skill;
 
+import net.godwand.spatial.DimensionPos;
 import net.godwand.spatial.DisplacedBlockRecord;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -73,6 +75,10 @@ public class ShockwaveSlicerTest {
         assertEquals(0, task.currentShell);
         assertEquals(5, task.totalShells);
         assertEquals(0, task.sampledDisplays);
+        assertEquals(0, task.sampledDisplaysInner);
+        assertEquals(0, task.sampledDisplaysMid);
+        assertEquals(0, task.sampledDisplaysOuter);
+        assertEquals(150, ShockwaveSlicer.SlicingTask.MAX_DISPLAYS_PER_STRATA);
         assertEquals(450, ShockwaveSlicer.SlicingTask.MAX_DISPLAYS);
         assertEquals(16.0, task.maxRadius, 1e-6);
     }
@@ -116,5 +122,33 @@ public class ShockwaveSlicerTest {
             };
             assertEquals(expectedRadii[i], radius, 1e-6);
         }
+    }
+
+    @Test
+    public void testInwardWaveCollapseLifetimes() {
+        int totalShells = 5;
+        int[] expectedLifetimes = {108, 106, 104, 102, 100};
+
+        for (int shell = 0; shell < totalShells; shell++) {
+            int lifetime = 100 + (totalShells - 1 - shell) * 2;
+            assertEquals(expectedLifetimes[shell], lifetime, "Shell " + shell + " lifetime mismatch");
+        }
+    }
+
+    @Test
+    public void testDimensionPosRecord() {
+        BlockPos pos1 = new BlockPos(10, 64, 20);
+        BlockPos.Mutable mutablePos = new BlockPos.Mutable(10, 64, 20);
+
+        DimensionPos dimPos1 = new DimensionPos(World.OVERWORLD, pos1);
+        DimensionPos dimPos2 = new DimensionPos(World.OVERWORLD, mutablePos);
+        DimensionPos dimNether = new DimensionPos(World.NETHER, pos1);
+
+        // Mutating mutablePos should not affect dimPos2 since record creates an immutable copy
+        mutablePos.set(999, 999, 999);
+
+        assertEquals(dimPos1, dimPos2);
+        assertEquals(dimPos1.hashCode(), dimPos2.hashCode());
+        assertNotEquals(dimPos1, dimNether);
     }
 }

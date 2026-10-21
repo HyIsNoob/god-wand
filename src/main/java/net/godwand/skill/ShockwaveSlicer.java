@@ -23,6 +23,10 @@ public class ShockwaveSlicer {
         public int currentShell = 0;
         public final int totalShells = 5;
         public int sampledDisplays = 0;
+        public int sampledDisplaysInner = 0;
+        public int sampledDisplaysMid = 0;
+        public int sampledDisplaysOuter = 0;
+        public static final int MAX_DISPLAYS_PER_STRATA = 150;
         public static final int MAX_DISPLAYS = 450;
 
         public SlicingTask(ServerWorld world, BlockPos center, double maxRadius) {
@@ -65,6 +69,9 @@ public class ShockwaveSlicer {
             int intR = (int) Math.ceil(rMax);
             BlockPos.Mutable mutable = new BlockPos.Mutable();
 
+            // Slices collapse in reverse (perimeter to center): outer shells expire slightly earlier than inner shells
+            int lifetime = 100 + (task.totalShells - 1 - task.currentShell) * 2;
+
             for (int x = -intR; x <= intR; x++) {
                 for (int y = -intR; y <= intR; y++) {
                     int targetY = task.center.getY() + y;
@@ -82,22 +89,34 @@ public class ShockwaveSlicer {
                         double dist = Math.sqrt(dSq);
                         Vec3d dir = dist < 0.1 ? new Vec3d(0, 1, 0) : new Vec3d(x / dist, y / dist, z / dist);
 
-                        // Multi-Strata Display Sampling
+                        // Stratified Display Quota: Inner, Mid, and Outer strata (each capped at 150)
                         boolean spawnDisplay = false;
                         float scale = 1.0f;
                         double targetPush = (task.maxRadius - dist) + 2.0;
 
-                        if (task.sampledDisplays < SlicingTask.MAX_DISPLAYS) {
-                            // Sample 1 in every 8 blocks for display entity
-                            if (((x ^ y ^ z) & 7) == 0) {
-                                spawnDisplay = true;
-                                task.sampledDisplays++;
-                                if (dist < task.maxRadius * 0.4) {
+                        if (((x ^ y ^ z) & 7) == 0) {
+                            if (dist < task.maxRadius * 0.4) {
+                                if (task.sampledDisplaysInner < SlicingTask.MAX_DISPLAYS_PER_STRATA) {
+                                    spawnDisplay = true;
+                                    task.sampledDisplaysInner++;
+                                    task.sampledDisplays++;
                                     scale = 1.35f;
                                     targetPush += 3.0;
-                                } else if (dist < task.maxRadius * 0.7) {
+                                }
+                            } else if (dist < task.maxRadius * 0.7) {
+                                if (task.sampledDisplaysMid < SlicingTask.MAX_DISPLAYS_PER_STRATA) {
+                                    spawnDisplay = true;
+                                    task.sampledDisplaysMid++;
+                                    task.sampledDisplays++;
                                     scale = 1.15f;
                                     targetPush += 1.5;
+                                }
+                            } else {
+                                if (task.sampledDisplaysOuter < SlicingTask.MAX_DISPLAYS_PER_STRATA) {
+                                    spawnDisplay = true;
+                                    task.sampledDisplaysOuter++;
+                                    task.sampledDisplays++;
+                                    scale = 1.0f;
                                 }
                             }
                         }
@@ -113,11 +132,11 @@ public class ShockwaveSlicer {
 
                         if (spawnDisplay) {
                             SpatialDisplacementManager.displaceBlock(world, mutable.toImmutable(), targetDisp, rot,
-                                    new Vector3f(scale, scale, scale), 100, 0x00F0FF, true);
+                                    new Vector3f(scale, scale, scale), lifetime, 0x00F0FF, true);
                         } else {
                             // Interior blocks hollowed out to AIR without display entity
                             SpatialDisplacementManager.displaceBlock(world, mutable.toImmutable(), new Vector3f(0, 0, 0),
-                                    new Quaternionf(), new Vector3f(1.0f, 1.0f, 1.0f), 100, 0, false);
+                                    new Quaternionf(), new Vector3f(1.0f, 1.0f, 1.0f), lifetime, 0, false);
                         }
                     }
                 }

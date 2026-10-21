@@ -5,6 +5,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.fluid.FlowableFluid;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.fluid.FluidState;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.BlockView;
@@ -21,8 +22,10 @@ public abstract class FlowableFluidMixin {
             Direction flowDirection, BlockPos targetPos, BlockState targetBlockState,
             FluidState targetFluidState, Fluid fluid,
             CallbackInfoReturnable<Boolean> cir) {
-        if (SpatialDisplacementManager.isPositionDisplaced(targetPos)) {
-            cir.setReturnValue(false);
+        if (world instanceof ServerWorld serverWorld) {
+            if (SpatialDisplacementManager.isPositionDisplaced(serverWorld.getRegistryKey(), targetPos)) {
+                cir.setReturnValue(false);
+            }
         }
     }
 }
