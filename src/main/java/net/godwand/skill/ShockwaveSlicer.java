@@ -3,11 +3,11 @@ package net.godwand.skill;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.godwand.network.ImpactFxPayload;
+import net.godwand.spatial.DisplacedBlockRecord;
 import net.godwand.spatial.SpatialDisplacementManager;
+import net.godwand.spatial.SpatialMath;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.particle.BlockStateParticleEffect;
 import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -36,12 +36,15 @@ public class ShockwaveSlicer {
         public int sampledDisplaysMid = 0;
         public int sampledDisplaysOuter = 0;
         public static final int MAX_DISPLAYS_PER_STRATA = 150;
-        public static final int MAX_DISPLAYS = 450;
+        public static final int MAX_DISPLAYS = 1400;
+        public final int maxDisplays;
 
         public SlicingTask(ServerWorld world, BlockPos center, double maxRadius) {
             this.world = world;
             this.center = center.toImmutable();
             this.maxRadius = maxRadius;
+            // R <= 8: 100% display entities; R > 8: up to 1,400 entities
+            this.maxDisplays = maxRadius <= 8.0 ? Integer.MAX_VALUE : 1400;
         }
     }
 
@@ -83,7 +86,7 @@ public class ShockwaveSlicer {
         world.playSound(null, center.getX(), center.getY(), center.getZ(),
                 SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 3.0f, 0.5f);
 
-        // Violent Kinetic Blast Wave: Hurl nearby mobs away
+        // Kinetic Blast Wave
         Box blastBox = new Box(center).expand(maxRadius * 1.25);
         for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, blastBox, ent -> true)) {
             Vec3d delta = e.getPos().subtract(center.toCenterPos());
@@ -96,7 +99,7 @@ public class ShockwaveSlicer {
             }
         }
 
-        // Trigger Client Post-Processing Shader FX (Impact Frame + Shockwave Distortion)
+        // Trigger Client Post-Processing Shader FX
         ImpactFxPayload detPayload = new ImpactFxPayload(
                 center.getX() + 0.5, center.getY() + 0.5, center.getZ() + 0.5,
                 ImpactFxPayload.TYPE_DETONATION, 15, (float) Math.max(1.0, maxRadius / 10.0)
@@ -130,8 +133,10 @@ public class ShockwaveSlicer {
             int intR = (int) Math.ceil(rMax);
             BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-            // Slices collapse in reverse (perimeter to center): outer shells expire slightly earlier than inner shells
+            // Reverse expiration: perimeter shells expire slightly earlier than inner shells
             int lifetime = 100 + (task.totalShells - 1 - task.currentShell) * 2;
+            Vec3d blastCenter = task.center.toCenterPos();
+            Vector3f vortexCenter = new Vector3f(task.center.getX() + 0.5f, (float) (blastCenter.y + 4.5), task.center.getZ() + 0.5f);
 
             for (int x = -intR; x <= intR; x++) {
                 for (int y = -intR; y <= intR; y++) {
@@ -148,62 +153,73 @@ public class ShockwaveSlicer {
                         if (!SpatialDisplacementManager.canDisplace(world, mutable, state)) continue;
 
                         double dist = Math.sqrt(dSq);
-                        Vec3d dir = dist < 0.1 ? new Vec3d(0, 1, 0) : new Vec3d(x / dist, y / dist, z / dist);
 
-                        // Stratified Display Quota: Inner, Mid, and Outer strata (each capped at 150)
+                        // Quota decision
                         boolean spawnDisplay = false;
                         float scale = 1.0f;
-                        double targetPush = (task.maxRadius - dist) + 2.0;
 
-                        if (((x ^ y ^ z) & 7) == 0) {
-                            if (dist < task.maxRadius * 0.4) {
-                                if (task.sampledDisplaysInner < SlicingTask.MAX_DISPLAYS_PER_STRATA) {
+                        if (task.maxRadius <= 8.0) {
+                            // 100% of blocks become displays
+                            spawnDisplay = true;
+                            scale = 1.0f;
+                            task.sampledDisplays++;
+                        } else if (task.sampledDisplays < task.maxDisplays) {
+                            if (dist >= task.maxRadius * 0.70) {
+                                // Outer crust / surface: 60% sample rate
+                                if (((x ^ y ^ z) & 1) == 0) {
                                     spawnDisplay = true;
-                                    task.sampledDisplaysInner++;
+                                    scale = 1.0f;
                                     task.sampledDisplays++;
-                                    scale = 1.35f;
-                                    targetPush += 3.0;
-                                }
-                            } else if (dist < task.maxRadius * 0.7) {
-                                if (task.sampledDisplaysMid < SlicingTask.MAX_DISPLAYS_PER_STRATA) {
-                                    spawnDisplay = true;
-                                    task.sampledDisplaysMid++;
-                                    task.sampledDisplays++;
-                                    scale = 1.15f;
-                                    targetPush += 1.5;
                                 }
                             } else {
-                                if (task.sampledDisplaysOuter < SlicingTask.MAX_DISPLAYS_PER_STRATA) {
+                                // 40% interior: scale = 1.35f to fill volume densely
+                                if (((x ^ y ^ z) % 5) < 2) {
                                     spawnDisplay = true;
-                                    task.sampledDisplaysOuter++;
+                                    scale = 1.35f;
                                     task.sampledDisplays++;
-                                    scale = 1.0f;
                                 }
                             }
                         }
 
+                        // Upward Canopy Lift: liftY = (blastCenter.y - pos.getY()) + 3.5 + (hash01 * 5.5)
+                        double phase01 = (SpatialMath.hashCoordinateToPhase(mutable.asLong()) / (2.0 * Math.PI));
+                        double liftY = (blastCenter.y - targetY) + 3.5 + (phase01 * 5.5);
+
+                        double horizDist = Math.sqrt(x * x + z * z);
+                        double horizDirX = horizDist > 0.05 ? (x / horizDist) : 1.0;
+                        double horizDirZ = horizDist > 0.05 ? (z / horizDist) : 0.0;
+
+                        // Canopy expands outward horizontally into an asteroid ring above the crater
+                        double horizPush = Math.max(horizDist, task.maxRadius * 0.75) + 1.2 + (phase01 * 2.2);
+                        double targetOffsetX = (task.center.getX() + 0.5 + horizDirX * horizPush) - (mutable.getX() + 0.5);
+                        double targetOffsetZ = (task.center.getZ() + 0.5 + horizDirZ * horizPush) - (mutable.getZ() + 0.5);
+
                         Vector3f targetDisp = new Vector3f(
-                                (float) (dir.x * targetPush),
-                                (float) (dir.y * targetPush + 0.8),
-                                (float) (dir.z * targetPush)
+                                (float) targetOffsetX,
+                                (float) liftY,
+                                (float) targetOffsetZ
                         );
 
-                        float rotAngle = dist < task.maxRadius * 0.4 ? (float) Math.toRadians(55) : (float) Math.toRadians(25);
-                        Quaternionf rot = new Quaternionf().rotateAxis(rotAngle, (float) dir.x, (float) dir.y, (float) dir.z);
+                        float rotAngle = (float) Math.toRadians(35.0 + 35.0 * phase01);
+                        Quaternionf rot = new Quaternionf()
+                                .rotateY((float) (phase01 * 2 * Math.PI))
+                                .rotateX(rotAngle);
 
                         if (spawnDisplay) {
                             SpatialDisplacementManager.displaceBlock(world, mutable.toImmutable(), targetDisp, rot,
-                                    new Vector3f(scale, scale, scale), lifetime, 0x00F0FF, true);
+                                    new Vector3f(scale, scale, scale), lifetime, 0x00F0FF, true,
+                                    DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE, null, vortexCenter);
                         } else {
-                            // Interior blocks hollowed out to AIR without display entity
+                            // Non-display interior blocks hollowed out cleanly to AIR
                             SpatialDisplacementManager.displaceBlock(world, mutable.toImmutable(), new Vector3f(0, 0, 0),
-                                    new Quaternionf(), new Vector3f(1.0f, 1.0f, 1.0f), lifetime, 0, false);
+                                    new Quaternionf(), new Vector3f(1.0f, 1.0f, 1.0f), lifetime, 0, false,
+                                    DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE, null, null);
                         }
                     }
                 }
             }
 
-            // Spawn shockwave ring particles
+            // Shockwave ring particles
             world.spawnParticles(ParticleTypes.FLASH, task.center.getX() + 0.5, task.center.getY() + 0.5, task.center.getZ() + 0.5,
                     5, rMax * 0.5, 0.5, rMax * 0.5, 0.0);
 
@@ -213,7 +229,7 @@ public class ShockwaveSlicer {
             }
         }
 
-        // Process Inward Calamity Collapse & Grand Implosion Slam
+        // Process Grand Implosion Slam
         Iterator<CollapseTask> colIt = ACTIVE_COLLAPSES.iterator();
         while (colIt.hasNext()) {
             CollapseTask cTask = colIt.next();
@@ -221,7 +237,7 @@ public class ShockwaveSlicer {
 
             cTask.ticksRemaining--;
 
-            // Gravitational Inward Implosion Vortex (Last 14 ticks before final slam)
+            // Gravitational Inward Implosion Vortex (Last 14 ticks)
             if (cTask.ticksRemaining <= 14 && cTask.ticksRemaining > 0) {
                 world.spawnParticles(ParticleTypes.REVERSE_PORTAL,
                         cTask.center.getX() + 0.5, cTask.center.getY() + 0.5, cTask.center.getZ() + 0.5,
@@ -234,47 +250,22 @@ public class ShockwaveSlicer {
                     world.playSound(null, cTask.center, SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, 2.5f, 1.4f);
                 }
             } else if (cTask.ticksRemaining == 0) {
-                // THE GRAND EPICENTER IMPLOSION SLAM
+                // Grand Epicenter Implosion Slam
                 world.spawnParticles(ParticleTypes.FLASH,
                         cTask.center.getX() + 0.5, cTask.center.getY() + 0.5, cTask.center.getZ() + 0.5, 6, 0.2, 0.2, 0.2, 0.0);
                 world.spawnParticles(ParticleTypes.SONIC_BOOM,
-                        cTask.center.getX() + 0.5, cTask.center.getY() + 0.5, cTask.center.getZ() + 0.5, 3, 0.2, 0.2, 0.2, 0.0);
+                        cTask.center.getX() + 0.5, cTask.center.getY() + 0.5, cTask.center.getZ() + 0.5, 2, 0, 0, 0, 0);
                 world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER,
-                        cTask.center.getX() + 0.5, cTask.center.getY() + 0.5, cTask.center.getZ() + 0.5, 2, 0.5, 0.5, 0.5, 0.0);
+                        cTask.center.getX() + 0.5, cTask.center.getY() + 0.5, cTask.center.getZ() + 0.5, 4, 1.0, 1.0, 1.0, 0.0);
 
-                // Expanding radial ground dust ring
-                for (int i = 0; i < 32; i++) {
-                    double angle = (i / 32.0) * (2.0 * Math.PI);
-                    double r = cTask.maxRadius * 0.8;
-                    double px = cTask.center.getX() + 0.5 + Math.cos(angle) * r;
-                    double pz = cTask.center.getZ() + 0.5 + Math.sin(angle) * r;
-                    world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, px, cTask.center.getY() + 0.2, pz,
-                            1, Math.cos(angle) * 0.12, 0.04, Math.sin(angle) * 0.12, 0.02);
-                    world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, Blocks.STONE.getDefaultState()),
-                            px, cTask.center.getY() + 0.2, pz, 3, 0.2, 0.1, 0.2, 0.06);
-                }
+                world.playSound(null, cTask.center, SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.BLOCKS, 3.5f, 0.75f);
+                world.playSound(null, cTask.center, SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.BLOCKS, 3.0f, 0.6f);
+                world.playSound(null, cTask.center, SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.BLOCKS, 2.5f, 0.8f);
 
-                // Cataclysmic Implosion Audio Layering
-                world.playSound(null, cTask.center.getX(), cTask.center.getY(), cTask.center.getZ(),
-                        SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.BLOCKS, 4.0f, 0.5f);
-                world.playSound(null, cTask.center.getX(), cTask.center.getY(), cTask.center.getZ(),
-                        SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.BLOCKS, 3.0f, 0.55f);
-                world.playSound(null, cTask.center.getX(), cTask.center.getY(), cTask.center.getZ(),
-                        SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.BLOCKS, 3.5f, 0.65f);
-                world.playSound(null, cTask.center.getX(), cTask.center.getY(), cTask.center.getZ(),
-                        SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.BLOCKS, 3.0f, 1.35f);
-
-                // Ground-shaking tremor kick on nearby entities
-                Box tremorBox = new Box(cTask.center).expand(cTask.maxRadius * 1.3);
-                for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, tremorBox, ent -> true)) {
-                    e.addVelocity(0, 0.52, 0);
-                    e.velocityModified = true;
-                }
-
-                // Trigger Epicenter Implosion Post-FX
+                // Implosion Post-FX
                 ImpactFxPayload impPayload = new ImpactFxPayload(
                         cTask.center.getX() + 0.5, cTask.center.getY() + 0.5, cTask.center.getZ() + 0.5,
-                        ImpactFxPayload.TYPE_IMPLOSION, 12, 1.25f
+                        ImpactFxPayload.TYPE_IMPLOSION, 12, (float) Math.max(1.0, cTask.maxRadius / 10.0)
                 );
                 for (ServerPlayerEntity p : PlayerLookup.around(world, cTask.center.toCenterPos(), 96.0)) {
                     ServerPlayNetworking.send(p, impPayload);

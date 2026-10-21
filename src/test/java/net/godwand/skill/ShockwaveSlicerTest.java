@@ -79,7 +79,7 @@ public class ShockwaveSlicerTest {
         assertEquals(0, task.sampledDisplaysMid);
         assertEquals(0, task.sampledDisplaysOuter);
         assertEquals(150, ShockwaveSlicer.SlicingTask.MAX_DISPLAYS_PER_STRATA);
-        assertEquals(450, ShockwaveSlicer.SlicingTask.MAX_DISPLAYS);
+        assertEquals(1400, ShockwaveSlicer.SlicingTask.MAX_DISPLAYS);
         assertEquals(16.0, task.maxRadius, 1e-6);
     }
 
