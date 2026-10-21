@@ -41,4 +41,38 @@ public class SpatialMathTest {
         assertTrue(phase3 >= 0.0 && phase3 < 2.0 * Math.PI);
         assertNotEquals(phase1, phase3);
     }
+
+    @Test
+    public void testDisplacedBlockRecordImmutablePosAndWorldKey() {
+        net.minecraft.util.math.BlockPos.Mutable mutablePos = new net.minecraft.util.math.BlockPos.Mutable(10, 20, 30);
+        net.minecraft.registry.RegistryKey<net.minecraft.world.World> worldKey = net.minecraft.registry.RegistryKey.of(
+                net.minecraft.registry.RegistryKeys.WORLD,
+                net.minecraft.util.Identifier.of("minecraft", "the_nether")
+        );
+        DisplacedBlockRecord record = new DisplacedBlockRecord(
+                mutablePos,
+                worldKey,
+                null,
+                null,
+                new Vector3f(0, 1, 0),
+                new Quaternionf(),
+                100,
+                true
+        );
+
+        // Mutate mutablePos
+        mutablePos.set(99, 99, 99);
+
+        // Record pos should remain unchanged at (10, 20, 30)
+        assertEquals(10, record.pos.getX());
+        assertEquals(20, record.pos.getY());
+        assertEquals(30, record.pos.getZ());
+        assertEquals(worldKey, record.worldKey);
+    }
+
+    @Test
+    public void testSpatialDisplacementManagerMutableBlockPosQuery() {
+        net.minecraft.util.math.BlockPos.Mutable mutablePos = new net.minecraft.util.math.BlockPos.Mutable(5, 5, 5);
+        assertFalse(SpatialDisplacementManager.isPositionDisplaced(mutablePos));
+    }
 }

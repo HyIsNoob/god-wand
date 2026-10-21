@@ -2,13 +2,16 @@ package net.godwand.spatial;
 
 import net.minecraft.block.BlockState;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import java.util.UUID;
 
 public class DisplacedBlockRecord {
     public final BlockPos pos;
+    public final RegistryKey<World> worldKey;
     public final BlockState state;
     public final NbtCompound nbt;
     public UUID displayEntityUuid;
@@ -21,20 +24,27 @@ public class DisplacedBlockRecord {
     public final boolean isFullCube;
     public boolean transformed;
 
-    public DisplacedBlockRecord(BlockPos pos, BlockState state, NbtCompound nbt,
+    public DisplacedBlockRecord(BlockPos pos, RegistryKey<World> worldKey, BlockState state, NbtCompound nbt,
                                 Vector3f targetDisplacement, Quaternionf targetRotation,
                                 int maxLifetimeTicks, boolean isFullCube) {
-        this.pos = pos;
+        this.pos = pos.toImmutable();
+        this.worldKey = worldKey;
         this.state = state;
         this.nbt = nbt;
         this.displayEntityUuid = null;
         this.ageTicks = 0;
         this.maxLifetimeTicks = maxLifetimeTicks;
         this.spawnTickDelay = 1;
-        this.homePos = new Vector3f(pos.getX(), pos.getY(), pos.getZ());
+        this.homePos = new Vector3f(this.pos.getX(), this.pos.getY(), this.pos.getZ());
         this.targetDisplacement = targetDisplacement;
         this.targetRotation = targetRotation;
         this.isFullCube = isFullCube;
         this.transformed = false;
+    }
+
+    public DisplacedBlockRecord(BlockPos pos, BlockState state, NbtCompound nbt,
+                                Vector3f targetDisplacement, Quaternionf targetRotation,
+                                int maxLifetimeTicks, boolean isFullCube) {
+        this(pos, World.OVERWORLD, state, nbt, targetDisplacement, targetRotation, maxLifetimeTicks, isFullCube);
     }
 }

@@ -1,0 +1,8 @@
+accessWidener v1 named
+
+accessible method net/minecraft/entity/decoration/DisplayEntity setTransformation (Lnet/minecraft/util/math/AffineTransformation;)V
+accessible method net/minecraft/entity/decoration/DisplayEntity setInterpolationDuration (I)V
+accessible method net/minecraft/entity/decoration/DisplayEntity setStartInterpolation (I)V
+accessible method net/minecraft/entity/decoration/DisplayEntity setBrightness (Lnet/minecraft/entity/decoration/Brightness;)V
+accessible method net/minecraft/entity/decoration/DisplayEntity setGlowColorOverride (I)V
+accessible method net/minecraft/entity/decoration/DisplayEntity$BlockDisplayEntity setBlockState (Lnet/minecraft/block/BlockState;)V

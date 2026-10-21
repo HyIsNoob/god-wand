@@ -12,6 +12,7 @@
       "net.godwand.GodWandMod"
     ]
   },
+  "accessWidener": "godwand.accesswidener",
   "mixins": [
     "godwand.mixins.json"
   ],
