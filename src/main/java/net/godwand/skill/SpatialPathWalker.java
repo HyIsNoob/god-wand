@@ -115,8 +115,11 @@ public class SpatialPathWalker {
         double baseGroundY = player.isOnGround() ? player.getY() : LAST_GROUND_Y.getOrDefault(player.getUuid(), player.getY());
         int floorY = (int) Math.floor(baseGroundY);
 
+        Vec3d velocityHoriz = new Vec3d(player.getVelocity().x, 0, player.getVelocity().z);
+        double speedLead = Math.min(3.2, velocityHoriz.length() * 6.5);
+        double forwardLead = 1.0 + speedLead;
         double auraRadius = 2.1;
-        double maxRange = 3.4;
+        double maxRange = auraRadius + forwardLead + 0.8;
 
         int minX = MathHelper.floor(playerPos.x - maxRange);
         int maxX = MathHelper.floor(playerPos.x + maxRange);
@@ -142,13 +145,12 @@ public class SpatialPathWalker {
 
                     Vec3d blockCenter = Vec3d.ofCenter(mutablePos);
 
-                    // Tâm trường lực dịch nhẹ về phía trước theo hướng di chuyển/nhìn
-                    Vec3d auraCenter = chestPos.add(lookDirHoriz.multiply(1.1));
+                    // Tâm trường lực tự vươn xa về phía trước theo vận tốc di chuyển
+                    Vec3d auraCenter = chestPos.add(lookDirHoriz.multiply(forwardLead));
                     double distToAuraCenter = blockCenter.subtract(auraCenter).length();
                     double distToPlayerChest = blockCenter.subtract(chestPos).length();
 
-                    // Vòm nhỏ gọn 2.1m quanh người + 2.3m mở đường phía trước
-                    boolean insideAura = (distToPlayerChest <= 2.1) || (distToAuraCenter <= 2.3);
+                    boolean insideAura = (distToPlayerChest <= 2.1) || (distToAuraCenter <= 2.35);
                     if (!insideAura) continue;
 
                     // Distance Hysteresis: keep open and reset restore tick if already displaced

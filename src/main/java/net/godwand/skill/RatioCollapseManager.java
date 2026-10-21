@@ -138,8 +138,9 @@ public class RatioCollapseManager {
                 float scaleVal = 1.05f + 0.2f * (float) Math.abs(Math.cos(hash));
                 Vector3f scale = new Vector3f(scaleVal, scaleVal, scaleVal);
 
-                // Displace block with 75 ticks lifetime
-                SpatialDisplacementManager.displaceBlock(world, targetPos, initialLift, rot, scale, 75, 0x00F0FF, true);
+                // Displace block with 75 ticks lifetime in CUSTOM_SCRIPTED mode
+                SpatialDisplacementManager.displaceBlock(world, targetPos, initialLift, rot, scale, 75, 0x00F0FF, true,
+                        DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED, player.getUuid(), null, 0.0);
 
                 task.displacedPositions.add(targetPos);
                 task.originalRadius.put(targetPos, (float) dist);
@@ -210,10 +211,9 @@ public class RatioCollapseManager {
                         Vector3f newDisp = new Vector3f((float) homeRelX, (float) homeRelY, (float) homeRelZ);
                         Quaternionf newRot = new Quaternionf(baseRot).rotateY(task.swirlAngle * rotSpeed);
 
-                        Vector3f comp = SpatialMath.compensatePivot(newDisp, newRot);
                         display.setStartInterpolation(0);
                         display.setInterpolationDuration(6);
-                        display.setTransformation(new AffineTransformation(comp, newRot, scale, null));
+                        display.setTransformation(SpatialMath.createPivotTransform(newDisp, newRot, scale.x));
                     }
 
                     // Sound of grinding, hovering boulders

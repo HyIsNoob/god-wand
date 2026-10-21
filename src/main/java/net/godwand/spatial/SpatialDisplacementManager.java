@@ -69,6 +69,18 @@ public class SpatialDisplacementManager {
         return uuid != null ? ACTIVE_ENTITIES.get(uuid) : null;
     }
 
+    public static void trackEntity(UUID uuid, BlockDisplayEntity entity) {
+        if (uuid != null && entity != null) {
+            ACTIVE_ENTITIES.put(uuid, entity);
+        }
+    }
+
+    public static void untrackEntity(UUID uuid) {
+        if (uuid != null) {
+            ACTIVE_ENTITIES.remove(uuid);
+        }
+    }
+
     public static DisplacedBlockRecord removeActiveRecord(RegistryKey<World> worldKey, BlockPos pos) {
         DisplacedBlockRecord rec = ACTIVE_RECORDS.remove(new DimensionPos(worldKey, pos));
         if (rec != null && rec.displayEntityUuid != null) {
@@ -247,12 +259,12 @@ public class SpatialDisplacementManager {
             // 1. PHA THU HỒI 3 BƯỚC (3-PHASE MAGNETIC SNAP REASSEMBLY)
             // ==========================================
             if (record.isRestoring()) {
-                // Nếu là PATH_WALKER mà người chơi bước lại vào vùng <= 3.2m trong lúc đang đóng -> Hất ngược ra vòm Aura ngay lập tức!
+                // Nếu là PATH_WALKER mà người chơi bước lại vào vùng <= 4.2m trong lúc đang đóng -> Hất ngược ra vòm Aura ngay lập tức!
                 if (record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER ||
                     record.mode == DisplacedBlockRecord.DisplacementMode.HYSTERESIS_AURA) {
                     Vec3d blockCenter = Vec3d.ofCenter(record.pos);
                     for (ServerPlayerEntity p : world.getPlayers()) {
-                        if (net.godwand.skill.SpatialPathWalker.isActive(p) && p.getPos().distanceTo(blockCenter) <= 3.2) {
+                        if (net.godwand.skill.SpatialPathWalker.isActive(p) && p.getPos().distanceTo(blockCenter) <= 4.2) {
                             record.interruptRestoration();
                             if (display != null && display.isAlive()) {
                                 Vec3d lookVec = p.getRotationVec(1.0f);
@@ -313,13 +325,14 @@ public class SpatialDisplacementManager {
             }
 
             // ==========================================
-            // 2. VÒNG ĐỜI SPAWN 2-TICK & BẢO VỆ 8 TICKS MỞ ĐƯỜNG ĐẦU TIÊN
+            // 2. VÒNG ĐỜI SPAWN 2-TICK & BẢO VỆ MỞ ĐƯỜNG ĐẦU TIÊN
             // ==========================================
             if (record.spawnTickDelay > 0) {
                 record.spawnTickDelay--;
                 if (record.spawnTickDelay == 0 && display != null && display.isAlive()) {
                     display.setStartInterpolation(0);
-                    display.setInterpolationDuration(8); // 8 ticks bung mở mượt mà từ (0,0,0)
+                    int openDuration = record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER ? 5 : 8;
+                    display.setInterpolationDuration(openDuration); // 5 ticks cho PATH_WALKER, 8 ticks cho các chiêu khác
                     display.setTransformation(SpatialMath.createPivotTransform(
                             record.getCurrentOffset(), record.currentRotation, record.targetScale.x));
 
@@ -329,8 +342,9 @@ public class SpatialDisplacementManager {
                 continue;
             }
 
-            // Chờ hết 8 ticks bung mở ban đầu rồi mới chạy cập nhật trường lực động để không cắt ngang animation!
-            if (record.ageTicks < 9) {
+            // Chờ hết ticks bung mở ban đầu (5 ticks cho PATH_WALKER, 8 ticks cho các chiêu khác) rồi mới chạy cập nhật trường lực động
+            int minHoldTicks = record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER ? 6 : 9;
+            if (record.ageTicks < minHoldTicks) {
                 continue;
             }
 
@@ -346,7 +360,7 @@ public class SpatialDisplacementManager {
 
                 for (ServerPlayerEntity p : world.getPlayers()) {
                     if (net.godwand.skill.SpatialPathWalker.isActive(p)) {
-                        double d = p.getPos().distanceTo(blockCenter);
+                        double d = p.getPos().add(0, 1.1, 0).distanceTo(blockCenter);
                         if (d < minPlayerDist) {
                             minPlayerDist = d;
                             activeOwner = p;
@@ -354,7 +368,7 @@ public class SpatialDisplacementManager {
                     }
                 }
 
-                if (activeOwner != null && minPlayerDist <= 3.6) {
+                if (activeOwner != null && minPlayerDist <= 4.6) {
                     record.resetRestoreTick();
 
                     if (display != null && display.isAlive() && ((record.ageTicks + Math.abs(record.pos.hashCode())) % 3 == 0)) {

@@ -168,7 +168,8 @@ public class SupernovaManager {
 
                             Vector3f scale = new Vector3f(1.1f, 1.1f, 1.1f);
 
-                            SpatialDisplacementManager.displaceBlock(world, pos, initialLift, rot, scale, 220, 0x00F5FF, true);
+                            SpatialDisplacementManager.displaceBlock(world, pos, initialLift, rot, scale, 220, 0x00F5FF, true,
+                                    DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED, task.caster.getUuid(), null, 0.0);
 
                             task.displacedPositions.add(pos);
                             task.originalRadius.put(pos, (float) dist);
@@ -280,11 +281,10 @@ public class SupernovaManager {
                             (float) (dz / d * 18.0)
                     );
                     Quaternionf tumble = new Quaternionf().rotateAxis((float) Math.toRadians(75), (float) dz, (float) dx, (float) dy);
-                    Vector3f comp = SpatialMath.compensatePivot(blastDisp, tumble);
 
                     display.setStartInterpolation(0);
                     display.setInterpolationDuration(8); // 8 ticks explosive outward surge!
-                    display.setTransformation(new AffineTransformation(comp, tumble, new Vector3f(1.2f, 1.2f, 1.2f), null));
+                    display.setTransformation(SpatialMath.createPivotTransform(blastDisp, tumble, 1.2f));
                 }
 
                 // Massive Cataclysmic Blast Damage
@@ -391,11 +391,10 @@ public class SupernovaManager {
             );
 
             Quaternionf newRot = new Quaternionf(baseRot).rotateY(task.swirlAngle);
-            Vector3f comp = SpatialMath.compensatePivot(newDisp, newRot);
 
             display.setStartInterpolation(0);
             display.setInterpolationDuration(6);
-            display.setTransformation(new AffineTransformation(comp, newRot, scale, null));
+            display.setTransformation(SpatialMath.createPivotTransform(newDisp, newRot, scale.x));
         }
     }
 

@@ -7,7 +7,11 @@ import net.godwand.spatial.DisplacedBlockRecord;
 import net.godwand.spatial.SpatialDisplacementManager;
 import net.godwand.spatial.SpatialMath;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.decoration.Brightness;
+import net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity;
 import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -22,6 +26,7 @@ import org.joml.Vector3f;
 
 import java.util.Iterator;
 import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ShockwaveSlicer {
@@ -52,6 +57,8 @@ public class ShockwaveSlicer {
         public final BlockPos center;
         public final double maxRadius;
         public int ticksRemaining;
+        public UUID innerCoreUuid;
+        public UUID outerCoreUuid;
 
         public CollapseTask(ServerWorld world, BlockPos center, double maxRadius, int delayTicks) {
             this.world = world;
@@ -66,7 +73,45 @@ public class ShockwaveSlicer {
 
     public static void queueCalamityDetonation(ServerWorld world, BlockPos center, double maxRadius) {
         ACTIVE_TASKS.add(new SlicingTask(world, center, maxRadius));
-        ACTIVE_COLLAPSES.add(new CollapseTask(world, center, maxRadius, 108));
+
+        CollapseTask cTask = new CollapseTask(world, center, maxRadius, 108);
+
+        // Spawn 3D Singularity Core displays at vortex center
+        double coreX = center.getX() + 0.5;
+        double coreY = center.getY() + 3.2 + maxRadius * 0.35;
+        double coreZ = center.getZ() + 0.5;
+
+        // Inner Core: Crying Obsidian (Glowing Amethyst Purple)
+        BlockDisplayEntity innerCore = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
+        innerCore.addCommandTag("godwand_displaced");
+        innerCore.setPosition(coreX, coreY, coreZ);
+        innerCore.setBlockState(Blocks.CRYING_OBSIDIAN.getDefaultState());
+        innerCore.setGlowing(true);
+        innerCore.setGlowColorOverride(0x9B59B6);
+        innerCore.setBrightness(new Brightness(15, 15));
+        innerCore.setStartInterpolation(0);
+        innerCore.setInterpolationDuration(0);
+        innerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 1.6f));
+        world.spawnEntity(innerCore);
+        cTask.innerCoreUuid = innerCore.getUuid();
+        SpatialDisplacementManager.trackEntity(innerCore.getUuid(), innerCore);
+
+        // Outer Core: Cyan Stained Glass (Glowing Cyan)
+        BlockDisplayEntity outerCore = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
+        outerCore.addCommandTag("godwand_displaced");
+        outerCore.setPosition(coreX, coreY, coreZ);
+        outerCore.setBlockState(Blocks.CYAN_STAINED_GLASS.getDefaultState());
+        outerCore.setGlowing(true);
+        outerCore.setGlowColorOverride(0x00F0FF);
+        outerCore.setBrightness(new Brightness(15, 15));
+        outerCore.setStartInterpolation(0);
+        outerCore.setInterpolationDuration(0);
+        outerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 2.3f));
+        world.spawnEntity(outerCore);
+        cTask.outerCoreUuid = outerCore.getUuid();
+        SpatialDisplacementManager.trackEntity(outerCore.getUuid(), outerCore);
+
+        ACTIVE_COLLAPSES.add(cTask);
 
         // Cataclysmic Detonation Blast VFX
         world.spawnParticles(ParticleTypes.FLASH, center.getX() + 0.5, center.getY() + 0.5, center.getZ() + 0.5, 4, 0.2, 0.2, 0.2, 0.0);
@@ -114,6 +159,18 @@ public class ShockwaveSlicer {
 
     public static void clearAllTasks() {
         ACTIVE_TASKS.clear();
+        for (CollapseTask cTask : ACTIVE_COLLAPSES) {
+            BlockDisplayEntity inner = SpatialDisplacementManager.getActiveEntity(cTask.innerCoreUuid);
+            if (inner != null && inner.isAlive()) {
+                inner.discard();
+                SpatialDisplacementManager.untrackEntity(cTask.innerCoreUuid);
+            }
+            BlockDisplayEntity outer = SpatialDisplacementManager.getActiveEntity(cTask.outerCoreUuid);
+            if (outer != null && outer.isAlive()) {
+                outer.discard();
+                SpatialDisplacementManager.untrackEntity(cTask.outerCoreUuid);
+            }
+        }
         ACTIVE_COLLAPSES.clear();
     }
 
@@ -232,15 +289,54 @@ public class ShockwaveSlicer {
 
             cTask.ticksRemaining--;
 
+            BlockDisplayEntity innerCore = SpatialDisplacementManager.getActiveEntity(cTask.innerCoreUuid);
+            BlockDisplayEntity outerCore = SpatialDisplacementManager.getActiveEntity(cTask.outerCoreUuid);
+
             // Quả Cầu Lõi Lỗ Đen (Singularity Core) ở chính giữa miệng hố kèm tia năng lượng hút vào tâm
-            if (cTask.ticksRemaining > 14 && cTask.ticksRemaining % 3 == 0) {
-                double cx = cTask.center.getX() + 0.5;
-                double cy = cTask.center.getY() + 3.2 + cTask.maxRadius * 0.35;
-                double cz = cTask.center.getZ() + 0.5;
-                world.spawnParticles(ParticleTypes.REVERSE_PORTAL, cx, cy, cz, 12, 0.6, 0.6, 0.6, 0.15);
-                world.spawnParticles(ParticleTypes.END_ROD, cx, cy, cz, 4, cTask.maxRadius * 0.5, 1.5, cTask.maxRadius * 0.5, 0.02);
-                world.spawnParticles(new DustParticleEffect(new Vector3f(0.58f, 0.20f, 0.92f), 1.6f),
-                        cx, cy, cz, 8, 1.2, 1.2, 1.2, 0.0);
+            if (cTask.ticksRemaining > 14) {
+                if (cTask.ticksRemaining % 3 == 0) {
+                    double cx = cTask.center.getX() + 0.5;
+                    double cy = cTask.center.getY() + 3.2 + cTask.maxRadius * 0.35;
+                    double cz = cTask.center.getZ() + 0.5;
+                    world.spawnParticles(ParticleTypes.REVERSE_PORTAL, cx, cy, cz, 12, 0.6, 0.6, 0.6, 0.15);
+                    world.spawnParticles(ParticleTypes.END_ROD, cx, cy, cz, 4, cTask.maxRadius * 0.5, 1.5, cTask.maxRadius * 0.5, 0.02);
+                    world.spawnParticles(new DustParticleEffect(new Vector3f(0.58f, 0.20f, 0.92f), 1.6f),
+                            cx, cy, cz, 8, 1.2, 1.2, 1.2, 0.0);
+                }
+
+                // Xoay 3D lõi lỗ đen ngược chiều nhau mỗi 2 ticks
+                if (cTask.ticksRemaining % 2 == 0) {
+                    float spin = (108 - cTask.ticksRemaining) * 0.14f;
+                    Quaternionf innerRot = new Quaternionf().rotateY(spin * 1.5f).rotateX(spin * 0.9f);
+                    Quaternionf outerRot = new Quaternionf().rotateY(-spin * 1.2f).rotateZ(-spin * 0.8f);
+
+                    if (innerCore != null && innerCore.isAlive()) {
+                        innerCore.setStartInterpolation(0);
+                        innerCore.setInterpolationDuration(2);
+                        innerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, innerRot, 1.6f));
+                    }
+                    if (outerCore != null && outerCore.isAlive()) {
+                        outerCore.setStartInterpolation(0);
+                        outerCore.setInterpolationDuration(2);
+                        outerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, outerRot, 2.3f));
+                    }
+                }
+            } else if (cTask.ticksRemaining == 14) {
+                // Thu nhỏ lõi lỗ đen về 0.01f trong 12 ticks trước khi phát nổ
+                float spin = (108 - cTask.ticksRemaining) * 0.14f;
+                Quaternionf innerRot = new Quaternionf().rotateY(spin * 1.5f).rotateX(spin * 0.9f);
+                Quaternionf outerRot = new Quaternionf().rotateY(-spin * 1.2f).rotateZ(-spin * 0.8f);
+
+                if (innerCore != null && innerCore.isAlive()) {
+                    innerCore.setStartInterpolation(0);
+                    innerCore.setInterpolationDuration(12);
+                    innerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, innerRot, 0.01f));
+                }
+                if (outerCore != null && outerCore.isAlive()) {
+                    outerCore.setStartInterpolation(0);
+                    outerCore.setInterpolationDuration(12);
+                    outerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, outerRot, 0.01f));
+                }
             }
 
             // Gravitational Inward Implosion Vortex (Last 14 ticks)
@@ -256,6 +352,16 @@ public class ShockwaveSlicer {
                     world.playSound(null, cTask.center, SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, 2.5f, 1.4f);
                 }
             } else if (cTask.ticksRemaining == 0) {
+                // Xóa 2 thực thể lõi
+                if (innerCore != null && innerCore.isAlive()) {
+                    innerCore.discard();
+                    SpatialDisplacementManager.untrackEntity(cTask.innerCoreUuid);
+                }
+                if (outerCore != null && outerCore.isAlive()) {
+                    outerCore.discard();
+                    SpatialDisplacementManager.untrackEntity(cTask.outerCoreUuid);
+                }
+
                 // Grand Epicenter Implosion Slam
                 world.spawnParticles(ParticleTypes.FLASH,
                         cTask.center.getX() + 0.5, cTask.center.getY() + 0.5, cTask.center.getZ() + 0.5, 6, 0.2, 0.2, 0.2, 0.0);

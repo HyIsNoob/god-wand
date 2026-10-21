@@ -130,8 +130,8 @@ public final class SpatialMath {
     }
 
     /**
-     * CHIÊU 2: 3 VÀNH ĐAI THIÊN THẠCH NGHIÊNG CHÉO (Tilted Gimbal Accretion Rings)
-     * Chia mảnh vỡ vào 3 vòng quỹ đạo nghiêng chéo nhau (giống vành đai hành tinh / Astrolabe),
+     * CHIÊU 2: 3 VÀNH ĐAI THIÊN THẠCH NGHIÊNG CHÉO (3-Ring Tilted Gimbal Astrolabe)
+     * 3 vành đai nghiêng trên cả 2 trục X và Z tạo thành khối cầu Armillary Sphere 3D,
      * giữ khoảng cách thưa thoáng giữa các viên đá và để lộ tâm vụ nổ.
      */
     public static Vec3d computeCanopyVortexOffset(BlockPos pos, Vec3d blastCenter, double blastRadius, int ageTicks) {
@@ -140,39 +140,47 @@ public final class SpatialMath {
         double dz = blockCenter.z - blastCenter.z;
         double hash = hash01(pos);
 
-        // Phân mảnh vỡ vào 3 vành đai quỹ đạo (0: Vành xích đạo rộng, 1: Vành nghiêng +26 độ, 2: Vành nghiêng -26 độ)
         int ringIndex = (int) (Math.abs(pos.asLong()) % 3);
         double baseAngle = Math.atan2(dz, dx) + hash * 0.5;
-        double angularSpeed = (ringIndex == 1 ? -0.042 : 0.038) * (0.85 + hash * 0.35);
+        double angularSpeed = (ringIndex == 1 ? -0.045 : 0.040) * (0.85 + hash * 0.35);
         double theta = baseAngle + ageTicks * angularSpeed;
 
-        // Bán kính vành đai rộng thoáng (từ 0.75R đến 1.45R) để tuyệt đối không bị vón cục ở tâm!
         double ringRadius = switch (ringIndex) {
-            case 0 -> blastRadius * (0.95 + hash * 0.50);
-            case 1 -> blastRadius * (0.75 + hash * 0.35);
-            default -> blastRadius * (1.10 + hash * 0.45);
+            case 0 -> blastRadius * (0.85 + hash * 0.40);
+            case 1 -> blastRadius * (0.68 + hash * 0.32);
+            default -> blastRadius * (1.02 + hash * 0.42);
         };
 
-        double localX = Math.cos(theta) * ringRadius;
-        double localZ = Math.sin(theta) * ringRadius;
-        double localY = (hash - 0.5) * 2.4 + Math.sin(theta * 2.0 + ageTicks * 0.1) * 0.45;
+        double lx = Math.cos(theta) * ringRadius;
+        double lz = Math.sin(theta) * ringRadius;
+        double ly = (hash - 0.5) * 1.8 + Math.sin(theta * 2.0 + ageTicks * 0.1) * 0.35;
 
-        // Xoay nghiêng mặt phẳng quỹ đạo cho vành 1 và vành 2 tạo hiệu ứng Gimbal 3D
-        double tiltAngle = switch (ringIndex) {
-            case 1 -> Math.toRadians(26.0);
-            case 2 -> Math.toRadians(-26.0);
-            default -> Math.toRadians(6.0);
-        };
+        double rotX = 0.0;
+        double rotZ = 0.0;
+        if (ringIndex == 0) {
+            rotZ = Math.toRadians(28.0);
+        } else if (ringIndex == 1) {
+            rotX = Math.toRadians(28.0);
+        } else {
+            rotX = Math.toRadians(-22.0);
+            rotZ = Math.toRadians(-22.0);
+        }
 
-        double tiltedY = localY * Math.cos(tiltAngle) - localX * Math.sin(tiltAngle);
-        double tiltedX = localX * Math.cos(tiltAngle) + localY * Math.sin(tiltAngle);
+        // Xoay quanh trục Z
+        double x1 = lx * Math.cos(rotZ) - ly * Math.sin(rotZ);
+        double y1 = lx * Math.sin(rotZ) + ly * Math.cos(rotZ);
+        double z1 = lz;
 
-        // Tâm của hệ vành đai nằm lơ lửng ở độ cao vừa tầm mắt (blastCenter.y + 3.2m + 0.35R)
+        // Xoay quanh trục X
+        double finalX = x1;
+        double finalY = y1 * Math.cos(rotX) - z1 * Math.sin(rotX);
+        double finalZ = y1 * Math.sin(rotX) + z1 * Math.cos(rotX);
+
         double centerElevation = blastCenter.y + 3.2 + blastRadius * 0.35;
 
-        double targetWorldX = blastCenter.x + tiltedX;
-        double targetWorldY = Math.max(blastCenter.y + 1.2, centerElevation + tiltedY);
-        double targetWorldZ = blastCenter.z + localZ;
+        double targetWorldX = blastCenter.x + finalX;
+        double targetWorldY = Math.max(blastCenter.y + 1.2, centerElevation + finalY);
+        double targetWorldZ = blastCenter.z + finalZ;
 
         return new Vec3d(
             targetWorldX - blockCenter.x,
