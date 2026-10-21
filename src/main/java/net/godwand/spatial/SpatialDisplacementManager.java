@@ -194,8 +194,17 @@ public class SpatialDisplacementManager {
             display.addCommandTag("godwand_displaced");
             display.setPosition(immutablePos.getX(), immutablePos.getY(), immutablePos.getZ());
             display.setBlockState(state);
-            display.setGlowing(true); // Glowing active as requested in spec
-            display.setBrightness(new Brightness(15, 15));
+
+            boolean isArcaneHighlight = ((immutablePos.asLong() * 1315423911L) & 15L) == 0L;
+            if (isArcaneHighlight && glowColor != 0) {
+                display.setGlowing(true);
+                display.setGlowColorOverride(glowColor);
+                display.setBrightness(new Brightness(15, 15));
+            } else {
+                display.setGlowing(false);
+                display.setBrightness(new Brightness(12, 13));
+            }
+
             display.setStartInterpolation(0);
             display.setInterpolationDuration(0);
             display.setTransformation(AffineTransformation.identity());
@@ -238,22 +247,24 @@ public class SpatialDisplacementManager {
             // 1. PHA THU HỒI 3 BƯỚC (3-PHASE MAGNETIC SNAP REASSEMBLY)
             // ==========================================
             if (record.isRestoring()) {
-                // Nếu là PATH_WALKER mà người chơi bước lại vào vùng <= 5.5m trong lúc đang đóng -> Hất ngược ra vòm Aura ngay lập tức!
+                // Nếu là PATH_WALKER mà người chơi bước lại vào vùng <= 3.2m trong lúc đang đóng -> Hất ngược ra vòm Aura ngay lập tức!
                 if (record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER ||
                     record.mode == DisplacedBlockRecord.DisplacementMode.HYSTERESIS_AURA) {
                     Vec3d blockCenter = Vec3d.ofCenter(record.pos);
                     for (ServerPlayerEntity p : world.getPlayers()) {
-                        if (net.godwand.skill.SpatialPathWalker.isActive(p) && p.getPos().distanceTo(blockCenter) <= 5.5) {
+                        if (net.godwand.skill.SpatialPathWalker.isActive(p) && p.getPos().distanceTo(blockCenter) <= 3.2) {
                             record.interruptRestoration();
                             if (display != null && display.isAlive()) {
                                 Vec3d lookVec = p.getRotationVec(1.0f);
                                 Vec3d lookHoriz = new Vec3d(lookVec.x, 0, lookVec.z);
                                 lookHoriz = lookHoriz.lengthSquared() < 0.001 ? new Vec3d(1, 0, 0) : lookHoriz.normalize();
-                                Vec3d rebound = SpatialMath.computeDynamicAuraOffset(record.pos, p.getPos(), lookHoriz, 3.8, record.ageTicks);
+                                Vec3d rebound = SpatialMath.computeDynamicAuraOffset(record.pos, p.getPos(), lookHoriz, 2.1, record.ageTicks);
                                 record.currentOffset.set((float) rebound.x, (float) rebound.y, (float) rebound.z);
+                                Quaternionf reboundRot = SpatialMath.computeArchwayRotation(record.pos, p.getPos(), lookHoriz, record.ageTicks);
+                                record.currentRotation.set(reboundRot);
                                 display.setStartInterpolation(0);
                                 display.setInterpolationDuration(5);
-                                display.setTransformation(SpatialMath.createPivotTransform(rebound, record.currentRotation, record.targetScale.x));
+                                display.setTransformation(SpatialMath.createPivotTransform(rebound, reboundRot, record.targetScale.x));
                             }
                             break;
                         }
@@ -343,7 +354,7 @@ public class SpatialDisplacementManager {
                     }
                 }
 
-                if (activeOwner != null && minPlayerDist <= 6.8) {
+                if (activeOwner != null && minPlayerDist <= 3.6) {
                     record.resetRestoreTick();
 
                     if (display != null && display.isAlive() && ((record.ageTicks + Math.abs(record.pos.hashCode())) % 3 == 0)) {
@@ -353,7 +364,7 @@ public class SpatialDisplacementManager {
 
                         // Tính vị trí đích trên vòm Aura
                         Vec3d desiredAuraOffset = SpatialMath.computeDynamicAuraOffset(
-                                record.pos, activeOwner.getPos(), lookHoriz, 3.8, record.ageTicks);
+                                record.pos, activeOwner.getPos(), lookHoriz, 2.1, record.ageTicks);
 
                         // Kiểm tra né tương tác dựa trên VỊ TRÍ THỰC TẾ ĐANG BAY của mảnh vỡ
                         Vec3d actualDebrisWorldPos = blockCenter.add(record.getCurrentOffset());
@@ -373,10 +384,7 @@ public class SpatialDisplacementManager {
                         record.currentOffset.set((float) smoothedOffset.x, (float) smoothedOffset.y, (float) smoothedOffset.z);
 
                         record.hoverYaw += 0.09f;
-                        double hashPhase = SpatialMath.hash01(record.pos) * Math.PI * 2.0;
-                        Quaternionf rot = new Quaternionf(record.targetRotation)
-                                .rotateY(record.hoverYaw)
-                                .rotateX((float) Math.sin(record.ageTicks * 0.12 + hashPhase) * 0.28f);
+                        Quaternionf rot = SpatialMath.computeArchwayRotation(record.pos, activeOwner.getPos(), lookHoriz, record.ageTicks);
                         record.currentRotation.set(rot);
 
                         display.setStartInterpolation(0);

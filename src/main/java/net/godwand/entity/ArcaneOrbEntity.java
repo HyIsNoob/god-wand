@@ -20,7 +20,6 @@ import org.joml.Vector3f;
 
 public class ArcaneOrbEntity extends ProjectileEntity {
     private int chargeLevel = 1;
-    private int age = 0;
 
     public ArcaneOrbEntity(EntityType<? extends ProjectileEntity> entityType, World world) {
         super(entityType, world);

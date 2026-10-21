@@ -36,15 +36,14 @@ public class ShockwaveSlicer {
         public int sampledDisplaysMid = 0;
         public int sampledDisplaysOuter = 0;
         public static final int MAX_DISPLAYS_PER_STRATA = 150;
-        public static final int MAX_DISPLAYS = 2000;
+        public static final int MAX_DISPLAYS = 320;
         public final int maxDisplays;
 
         public SlicingTask(ServerWorld world, BlockPos center, double maxRadius) {
             this.world = world;
             this.center = center.toImmutable();
             this.maxRadius = maxRadius;
-            // R <= 10: 100% displays; R > 10: up to 2,000 displays as per spec
-            this.maxDisplays = maxRadius <= 10.0 ? Integer.MAX_VALUE : 2000;
+            this.maxDisplays = 320;
         }
     }
 
@@ -152,28 +151,19 @@ public class ShockwaveSlicer {
 
                         // Quota decision
                         boolean spawnDisplay = false;
-                        float scale = 1.0f;
+                        float hashVal = (float) SpatialMath.hash01(mutable);
+                        float scale = 0.45f + hashVal * 0.48f; // Đa dạng kích thước từ mảnh nhỏ 0.45x đến khối 0.93x
 
-                        if (task.maxRadius <= 10.0) {
-                            // Cấp 1 & 2: 100% số block bị bóc tách thành display
-                            spawnDisplay = true;
-                            scale = 1.0f;
-                            task.sampledDisplays++;
-                        } else if (task.sampledDisplays < task.maxDisplays) {
-                            // Cấp 3 (R = 16): 100% bề mặt / vách hố (dist >= 0.65R)
-                            if (dist >= task.maxRadius * 0.65) {
+                        if (task.sampledDisplays < 320) {
+                            boolean isOuterShell = dist >= task.maxRadius * 0.78;
+                            int sampleChance = task.maxRadius <= 6.0 ? 45 : (isOuterShell ? 32 : 12);
+                            if (((Math.abs(x * 73 + y * 37 + z * 19)) % 100) < sampleChance) {
                                 spawnDisplay = true;
-                                scale = 1.0f;
                                 task.sampledDisplays++;
-                            } else {
-                                // 50% sample rate cho phần ruột với scale = 1.35f
-                                if (((Math.abs(x * 31 + y * 17 + z)) % 100) < 50) {
-                                    spawnDisplay = true;
-                                    scale = 1.35f;
-                                    task.sampledDisplays++;
-                                }
                             }
                         }
+
+                        int glowColor = (hashVal > 0.5f) ? 0x00F0FF : 0x9B59B6;
 
                         // Compute Upward Canopy Vortex offset using SpatialMath
                         Vec3d canopyOffset = SpatialMath.computeCanopyVortexOffset(mutable, blastCenter, task.maxRadius, 0);
@@ -196,7 +186,7 @@ public class ShockwaveSlicer {
                                     rot,
                                     new Vector3f(scale, scale, scale),
                                     lifetime,
-                                    0x00F0FF,
+                                    glowColor,
                                     true,
                                     DisplacedBlockRecord.DisplacementMode.CANOPY_VORTEX,
                                     null,
@@ -241,6 +231,17 @@ public class ShockwaveSlicer {
             if (cTask.world != world) continue;
 
             cTask.ticksRemaining--;
+
+            // Quả Cầu Lõi Lỗ Đen (Singularity Core) ở chính giữa miệng hố kèm tia năng lượng hút vào tâm
+            if (cTask.ticksRemaining > 14 && cTask.ticksRemaining % 3 == 0) {
+                double cx = cTask.center.getX() + 0.5;
+                double cy = cTask.center.getY() + 3.2 + cTask.maxRadius * 0.35;
+                double cz = cTask.center.getZ() + 0.5;
+                world.spawnParticles(ParticleTypes.REVERSE_PORTAL, cx, cy, cz, 12, 0.6, 0.6, 0.6, 0.15);
+                world.spawnParticles(ParticleTypes.END_ROD, cx, cy, cz, 4, cTask.maxRadius * 0.5, 1.5, cTask.maxRadius * 0.5, 0.02);
+                world.spawnParticles(new DustParticleEffect(new Vector3f(0.58f, 0.20f, 0.92f), 1.6f),
+                        cx, cy, cz, 8, 1.2, 1.2, 1.2, 0.0);
+            }
 
             // Gravitational Inward Implosion Vortex (Last 14 ticks)
             if (cTask.ticksRemaining <= 14 && cTask.ticksRemaining > 0) {

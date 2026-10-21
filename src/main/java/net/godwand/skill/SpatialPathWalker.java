@@ -115,13 +115,13 @@ public class SpatialPathWalker {
         double baseGroundY = player.isOnGround() ? player.getY() : LAST_GROUND_Y.getOrDefault(player.getUuid(), player.getY());
         int floorY = (int) Math.floor(baseGroundY);
 
-        double auraRadius = 4.0;
-        double maxRange = 5.6;
+        double auraRadius = 2.1;
+        double maxRange = 3.4;
 
         int minX = MathHelper.floor(playerPos.x - maxRange);
         int maxX = MathHelper.floor(playerPos.x + maxRange);
-        int minY = allowDown ? MathHelper.floor(playerPos.y - maxRange) : floorY;
-        int maxY = MathHelper.floor(playerPos.y + 4.2);
+        int minY = allowDown ? MathHelper.floor(playerPos.y - 2.2) : floorY;
+        int maxY = MathHelper.floor(playerPos.y + 2.6);
         int minZ = MathHelper.floor(playerPos.z - maxRange);
         int maxZ = MathHelper.floor(playerPos.z + maxRange);
 
@@ -143,12 +143,12 @@ public class SpatialPathWalker {
                     Vec3d blockCenter = Vec3d.ofCenter(mutablePos);
 
                     // Tâm trường lực dịch nhẹ về phía trước theo hướng di chuyển/nhìn
-                    Vec3d auraCenter = chestPos.add(lookDirHoriz.multiply(1.4));
+                    Vec3d auraCenter = chestPos.add(lookDirHoriz.multiply(1.1));
                     double distToAuraCenter = blockCenter.subtract(auraCenter).length();
                     double distToPlayerChest = blockCenter.subtract(chestPos).length();
 
-                    // Quét vòm cầu xung quanh người chơi (bán kính 3.8m) kết hợp vòm mở đường phía trước (bán kính 4.2m)
-                    boolean insideAura = (distToPlayerChest <= 3.8) || (distToAuraCenter <= 4.2);
+                    // Vòm nhỏ gọn 2.1m quanh người + 2.3m mở đường phía trước
+                    boolean insideAura = (distToPlayerChest <= 2.1) || (distToAuraCenter <= 2.3);
                     if (!insideAura) continue;
 
                     // Distance Hysteresis: keep open and reset restore tick if already displaced
@@ -161,16 +161,17 @@ public class SpatialPathWalker {
                     if (!SpatialDisplacementManager.canDisplace(world, mutablePos, state)) continue;
 
                     // Compute dynamic aura offset from SpatialMath
-                    Vec3d auraDisp = SpatialMath.computeDynamicAuraOffset(mutablePos, playerPos, lookDirHoriz, 3.8, 0);
+                    Vec3d auraDisp = SpatialMath.computeDynamicAuraOffset(mutablePos, playerPos, lookDirHoriz, auraRadius, 0);
                     Vector3f targetDisp = new Vector3f((float) auraDisp.x, (float) auraDisp.y, (float) auraDisp.z);
 
-                    double hashPhase = SpatialMath.hash01(mutablePos) * Math.PI * 2.0;
-                    Quaternionf rotation = new Quaternionf()
-                            .rotateY((float) Math.toRadians(25.0 * Math.sin(hashPhase)))
-                            .rotateX((float) Math.toRadians(15.0 * Math.cos(hashPhase)))
-                            .rotateZ((float) Math.toRadians(15.0 * Math.sin(hashPhase * 1.5)));
+                    Quaternionf rotation = SpatialMath.computeArchwayRotation(mutablePos, playerPos, lookDirHoriz, 0);
 
-                    Vector3f scale = new Vector3f(1.02f, 1.02f, 1.02f);
+                    // Thu nhỏ nhẹ kích thước mỗi block (0.82f) để tạo khe hở ma pháp giữa các viên gạch thay vì dính bệt vào nhau!
+                    float blockScale = 0.78f + (float) (SpatialMath.hash01(mutablePos) * 0.14);
+                    Vector3f scale = new Vector3f(blockScale, blockScale, blockScale);
+
+                    // Xen kẽ màu viền Cyan (0x00F5FF) và Amethyst Purple (0xA855F7)
+                    int glowColor = ((x + y + z) & 1) == 0 ? 0x00F5FF : 0xA855F7;
 
                     SpatialDisplacementManager.displaceBlock(
                             world,
@@ -179,7 +180,7 @@ public class SpatialPathWalker {
                             rotation,
                             scale,
                             100,
-                            0x00F5FF,
+                            glowColor,
                             true,
                             DisplacedBlockRecord.DisplacementMode.PATH_WALKER,
                             player.getUuid(),
@@ -198,8 +199,8 @@ public class SpatialPathWalker {
         // Vòng hạt ma pháp xoay quanh chân người chơi mỗi 2 ticks
         if (player.age % 2 == 0) {
             double angle = (player.age * 0.25) % (Math.PI * 2.0);
-            double rx = Math.cos(angle) * 3.6;
-            double rz = Math.sin(angle) * 3.6;
+            double rx = Math.cos(angle) * 2.1;
+            double rz = Math.sin(angle) * 2.1;
             world.spawnParticles(ParticleTypes.END_ROD, playerPos.x + rx, playerPos.y + 0.2, playerPos.z + rz, 1, 0, 0.05, 0, 0.0);
             world.spawnParticles(ParticleTypes.ENCHANT, playerPos.x - rx, playerPos.y + 0.3, playerPos.z - rz, 2, 0.1, 0.1, 0.1, 0.05);
         }

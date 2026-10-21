@@ -43,66 +43,76 @@ public final class SpatialMath {
     }
 
     /**
-     * CHIÊU 1: TRƯỜNG LỰC VÒM MA PHÁP KHÍ ĐỘNG HỌC (Aerodynamic Living Aura)
-     * Đẩy dạt các khối ra vỏ cầu 4.8m quanh người chơi, uốn cong thành cổng vòm phía trên đầu
-     * và trôi nổi nhịp nhàng theo pha sóng Sine.
+     * CHIÊU 1: MIRROR-DIMENSION COHERENT ARCHWAY (Tách cổng vòm gọn & đồng bộ)
+     * Các khối tách sang 2 bên theo sóng mượt đồng bộ, tạo hành lang nhỏ gọn bán kính ~2.2m.
      */
     public static Vec3d computeDynamicAuraOffset(BlockPos pos, Vec3d playerPos, Vec3d lookDirHoriz, double auraRadius, int ageTicks) {
         Vec3d blockCenter = Vec3d.ofCenter(pos);
         Vec3d fromPlayer = blockCenter.subtract(playerPos);
 
-        double horizDist = Math.sqrt(fromPlayer.x * fromPlayer.x + fromPlayer.z * fromPlayer.z);
-        double hash = hash01(pos);
-        double phase = hash * Math.PI * 2.0 + ageTicks * 0.14;
-
-        // Tính hình chiếu dọc theo trục nhìn để tách sang 2 bên trái/phải mượt mà
+        // Hình chiếu dọc theo trục đường đi
         double forwardProj = fromPlayer.x * lookDirHoriz.x + fromPlayer.z * lookDirHoriz.z;
         Vec3d spinePoint = new Vec3d(
-            playerPos.x + lookDirHoriz.x * MathHelper.clamp(forwardProj, -1.5, 4.5),
+            playerPos.x + lookDirHoriz.x * MathHelper.clamp(forwardProj, -1.2, 3.0),
             blockCenter.y,
-            playerPos.z + lookDirHoriz.z * MathHelper.clamp(forwardProj, -1.5, 4.5)
+            playerPos.z + lookDirHoriz.z * MathHelper.clamp(forwardProj, -1.2, 3.0)
         );
 
         Vec3d radial = blockCenter.subtract(spinePoint);
         double perpDist = Math.sqrt(radial.x * radial.x + radial.z * radial.z);
 
+        // Vector vuông góc sang phải của hướng nhìn
+        Vec3d rightVec = new Vec3d(-lookDirHoriz.z, 0, lookDirHoriz.x);
+        double sideSign = (radial.x * rightVec.x + radial.z * rightVec.z) >= 0 ? 1.0 : -1.0;
+
         Vec3d pushDir;
-        if (perpDist < 0.08) {
-            boolean goRight = ((pos.getX() + pos.getZ()) & 1) == 0;
-            pushDir = goRight
-                ? new Vec3d(-lookDirHoriz.z, 0, lookDirHoriz.x)
-                : new Vec3d(lookDirHoriz.z, 0, -lookDirHoriz.x);
+        if (perpDist < 0.15) {
+            pushDir = rightVec.multiply(sideSign);
         } else {
             pushDir = new Vec3d(radial.x / perpDist, 0, radial.z / perpDist);
         }
 
-        // Bán kính vòm mục tiêu (4.5m -> 5.3m)
-        double targetShellRadius = auraRadius + 0.8 + Math.sin(phase) * 0.35 + hash * 0.65;
-        double pushOutDist = Math.max(1.75, targetShellRadius - perpDist);
+        // Sóng liên kết mượt theo không gian (không dùng nhiễu loạn ngẫu nhiên)
+        double spatialWave = Math.sin(pos.getX() * 0.45 + pos.getZ() * 0.45 + ageTicks * 0.12);
 
-        // Chuyển động quỹ đạo tiếp tuyến nhẹ quanh người chơi
-        Vec3d tangent = new Vec3d(-pushDir.z, 0, pushDir.x).multiply(0.55 * Math.sin(phase * 0.65));
+        // Đẩy gọn gàng ra vỏ hành lang 2.5m - 3.0m
+        double targetCorridorRadius = auraRadius + 0.45 + spatialWave * 0.18;
+        double pushOutDist = Math.max(1.15, targetCorridorRadius - perpDist);
 
-        // Nâng cao tạo mái vòm (block càng gần trục giữa càng được nâng cao vượt qua đầu người chơi)
-        double archFactor = Math.max(0.0, 1.0 - (perpDist / (auraRadius + 1.2)));
-        double liftY = 0.95 + archFactor * 2.15 + Math.sin(phase) * 0.38 + hash * 0.65;
+        // Độ nâng vòm theo chiều cao tương đối so với chân người chơi
+        double relY = Math.max(0.0, blockCenter.y - playerPos.y);
+        double archLift = 0.35 + (relY * 0.42) + Math.max(0.0, (auraRadius - perpDist) * 0.35) + spatialWave * 0.15;
 
         return new Vec3d(
-            pushDir.x * pushOutDist + tangent.x,
-            liftY,
-            pushDir.z * pushOutDist + tangent.z
+            pushDir.x * pushOutDist,
+            archLift,
+            pushDir.z * pushOutDist
         );
+    }
+
+    /**
+     * Tính góc xoay uốn vòm đồng bộ cho Chiêu 1 (Càng lên cao càng uốn mở ra ngoài như cánh cổng)
+     */
+    public static Quaternionf computeArchwayRotation(BlockPos pos, Vec3d playerPos, Vec3d lookDirHoriz, int ageTicks) {
+        Vec3d blockCenter = Vec3d.ofCenter(pos);
+        Vec3d rel = blockCenter.subtract(playerPos);
+        Vec3d rightVec = new Vec3d(-lookDirHoriz.z, 0, lookDirHoriz.x);
+        float side = (rel.x * rightVec.x + rel.z * rightVec.z) >= 0 ? 1.0f : -1.0f;
+
+        float relY = (float) MathHelper.clamp(blockCenter.y - playerPos.y, 0.0, 3.0);
+        float peelAngle = (float) Math.toRadians((18.0 + relY * 14.0) * side);
+        float wavePitch = (float) Math.sin(ageTicks * 0.1 + (pos.getX() + pos.getZ()) * 0.35) * 0.12f;
+
+        return new Quaternionf()
+                .rotateY((float) Math.atan2(lookDirHoriz.x, lookDirHoriz.z))
+                .rotateZ(peelAngle)
+                .rotateX(wavePitch);
     }
 
     public static Vec3d computeAuraDisplacement(BlockPos pos, Vec3d playerPos, Vec3d lookDirHoriz, double auraRadius) {
         return computeDynamicAuraOffset(pos, playerPos, lookDirHoriz, auraRadius, 0);
     }
 
-    /**
-     * PHẢN XẠ NÉ NGƯỜI CHƠI TỨC THỜI (Interactive Living Debris Evasion):
-     * Tính trên tọa độ thực tế đang lơ lửng của mảnh vỡ. Khi người chơi tiến sát (< 3.4m),
-     * mảnh vỡ tự động dạt mạnh ra xa và nhấc bổng lên.
-     */
     public static Vec3d computeInteractiveEvasion(Vec3d actualDebrisWorldPos, Vec3d playerChestPos, double evasionRadius) {
         Vec3d diff = actualDebrisWorldPos.subtract(playerChestPos);
         double dist = diff.length();
@@ -110,44 +120,59 @@ public final class SpatialMath {
             return Vec3d.ZERO;
         }
         double factor = (evasionRadius - dist) / evasionRadius;
-        double strength = factor * factor * 4.2;
+        double strength = factor * factor * 2.8;
         Vec3d dir = diff.normalize();
         return new Vec3d(
             dir.x * strength,
-            Math.max(0.55, dir.y * strength + 0.75 * factor),
+            Math.max(0.35, dir.y * strength + 0.45 * factor),
             dir.z * strength
         );
     }
 
     /**
-     * CHIÊU 2: LỐC XOÁY PHỄU THIÊN THẠCH 3 TẦNG (Multi-Tier Tornado Funnel Vortex)
-     * Phân bổ các mảnh vỡ từ ngay vành miệng hố (+1.8m) xoắn ốc lên bầu trời (+13.5m)
-     * để người chơi nhìn thấy hàng trăm khối đá bay lơ lửng ngay trước tầm mắt.
+     * CHIÊU 2: 3 VÀNH ĐAI THIÊN THẠCH NGHIÊNG CHÉO (Tilted Gimbal Accretion Rings)
+     * Chia mảnh vỡ vào 3 vòng quỹ đạo nghiêng chéo nhau (giống vành đai hành tinh / Astrolabe),
+     * giữ khoảng cách thưa thoáng giữa các viên đá và để lộ tâm vụ nổ.
      */
     public static Vec3d computeCanopyVortexOffset(BlockPos pos, Vec3d blastCenter, double blastRadius, int ageTicks) {
         Vec3d blockCenter = Vec3d.ofCenter(pos);
         double dx = blockCenter.x - blastCenter.x;
         double dz = blockCenter.z - blastCenter.z;
         double hash = hash01(pos);
-        double hash2 = hash01(pos.up(7));
 
-        double baseAngle = Math.atan2(dz, dx);
-        // Tầng thấp xoay nhanh, tầng cao xoay chậm tạo hiệu ứng lốc xoáy thực tế
-        double angularSpeed = (0.032 + 0.038 * (1.0 - hash)) * (((pos.getY() & 1) == 0) ? 1.0 : -0.85);
-        double currentAngle = baseAngle + ageTicks * angularSpeed;
+        // Phân mảnh vỡ vào 3 vành đai quỹ đạo (0: Vành xích đạo rộng, 1: Vành nghiêng +26 độ, 2: Vành nghiêng -26 độ)
+        int ringIndex = (int) (Math.abs(pos.asLong()) % 3);
+        double baseAngle = Math.atan2(dz, dx) + hash * 0.5;
+        double angularSpeed = (ringIndex == 1 ? -0.042 : 0.038) * (0.85 + hash * 0.35);
+        double theta = baseAngle + ageTicks * angularSpeed;
 
-        // Hình phễu: Càng lên cao bán kính vòng xoáy càng mở rộng (từ 0.45R ở đáy phễu lên 1.25R ở đỉnh phễu)
-        double heightTier = hash; // 0.0 (thấp ngang tầm mắt) -> 1.0 (vòm cao trên bầu trời)
-        double funnelRadius = blastRadius * (0.45 + 0.80 * heightTier) + Math.sin(ageTicks * 0.1 + hash * 6.28) * 0.75;
+        // Bán kính vành đai rộng thoáng (từ 0.75R đến 1.45R) để tuyệt đối không bị vón cục ở tâm!
+        double ringRadius = switch (ringIndex) {
+            case 0 -> blastRadius * (0.95 + hash * 0.50);
+            case 1 -> blastRadius * (0.75 + hash * 0.35);
+            default -> blastRadius * (1.10 + hash * 0.45);
+        };
 
-        double targetWorldX = blastCenter.x + Math.cos(currentAngle) * funnelRadius;
-        double targetWorldZ = blastCenter.z + Math.sin(currentAngle) * funnelRadius;
+        double localX = Math.cos(theta) * ringRadius;
+        double localZ = Math.sin(theta) * ringRadius;
+        double localY = (hash - 0.5) * 2.4 + Math.sin(theta * 2.0 + ageTicks * 0.1) * 0.45;
 
-        // Độ cao: Bắt đầu từ +1.8m phía trên tâm nổ kéo dài lên +(4.5 + 0.75 * R) mét
-        double minHoverY = blastCenter.y + 1.8;
-        double maxHoverY = blastCenter.y + 5.0 + blastRadius * 0.75;
-        double targetWorldY = MathHelper.lerp(heightTier, minHoverY, maxHoverY)
-                + Math.sin(ageTicks * 0.14 + hash2 * 6.28) * 0.55;
+        // Xoay nghiêng mặt phẳng quỹ đạo cho vành 1 và vành 2 tạo hiệu ứng Gimbal 3D
+        double tiltAngle = switch (ringIndex) {
+            case 1 -> Math.toRadians(26.0);
+            case 2 -> Math.toRadians(-26.0);
+            default -> Math.toRadians(6.0);
+        };
+
+        double tiltedY = localY * Math.cos(tiltAngle) - localX * Math.sin(tiltAngle);
+        double tiltedX = localX * Math.cos(tiltAngle) + localY * Math.sin(tiltAngle);
+
+        // Tâm của hệ vành đai nằm lơ lửng ở độ cao vừa tầm mắt (blastCenter.y + 3.2m + 0.35R)
+        double centerElevation = blastCenter.y + 3.2 + blastRadius * 0.35;
+
+        double targetWorldX = blastCenter.x + tiltedX;
+        double targetWorldY = Math.max(blastCenter.y + 1.2, centerElevation + tiltedY);
+        double targetWorldZ = blastCenter.z + localZ;
 
         return new Vec3d(
             targetWorldX - blockCenter.x,
@@ -156,10 +181,6 @@ public final class SpatialMath {
         );
     }
 
-    /**
-     * ĐƯỜNG CONG THU HỒI XOẮN ỐC (Spiral Ease-In Reassembly):
-     * Tạo điểm trung gian xoáy nhẹ trước khi khóa từ tính về (0,0,0).
-     */
     public static Vec3d computeSpiralReturnOffset(Vec3d currentOffset, BlockPos pos) {
         double angle = 0.55 * (((pos.asLong() & 1) == 0) ? 1.0 : -1.0);
         double cos = Math.cos(angle);
