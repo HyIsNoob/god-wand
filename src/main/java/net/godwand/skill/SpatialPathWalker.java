@@ -193,11 +193,12 @@ public class SpatialPathWalker {
 
                         Vector3f scale = new Vector3f(1.02f, 1.02f, 1.02f);
 
-                        SpatialDisplacementManager.displaceBlock(world, mutablePos.toImmutable(), targetDisp, rotation, scale, 30, 0x00F5FF, true);
+                        SpatialDisplacementManager.displaceBlock(world, mutablePos.toImmutable(), targetDisp, rotation, scale, 32, 0x00F5FF, true);
 
-                        // Subtle ambient particles near parted blocks
-                        world.spawnParticles(ParticleTypes.END_ROD, blockCenter.x, blockCenter.y, blockCenter.z, 2, 0.2, 0.2, 0.2, 0.02);
-                        world.spawnParticles(ParticleTypes.GLOW, blockCenter.x, blockCenter.y, blockCenter.z, 1, 0.1, 0.1, 0.1, 0.01);
+                        // Very subtle ambient shimmer (throttled to 1 in 8 blocks to ensure zero lag)
+                        if (((x ^ z) & 7) == 0) {
+                            world.spawnParticles(ParticleTypes.END_ROD, blockCenter.x, blockCenter.y, blockCenter.z, 1, 0.1, 0.1, 0.1, 0.01);
+                        }
                     }
                 }
             }

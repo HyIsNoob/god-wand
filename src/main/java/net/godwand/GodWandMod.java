@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.godwand.entity.ArcaneOrbEntity;
 import net.godwand.item.GodWandItem;
 import net.godwand.network.ImpactFxPayload;
+import net.godwand.skill.RatioCollapseManager;
 import net.godwand.skill.ShockwaveSlicer;
 import net.godwand.skill.SpatialPathWalker;
 import net.godwand.spatial.DisplacementPersistentState;
@@ -61,6 +62,7 @@ public class GodWandMod implements ModInitializer {
 
         ServerTickEvents.END_WORLD_TICK.register(world -> {
             ShockwaveSlicer.tick(world);
+            RatioCollapseManager.tick(world);
             SpatialDisplacementManager.tick(world);
         });
 
@@ -69,6 +71,8 @@ public class GodWandMod implements ModInitializer {
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            ShockwaveSlicer.clearAllTasks();
+            RatioCollapseManager.clearAllTasks();
             for (ServerWorld world : server.getWorlds()) {
                 SpatialDisplacementManager.emergencyRestoreAll(world);
             }
