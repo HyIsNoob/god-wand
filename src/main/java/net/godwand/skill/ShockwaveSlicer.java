@@ -160,14 +160,18 @@ public class ShockwaveSlicer {
     public static void clearAllTasks() {
         ACTIVE_TASKS.clear();
         for (CollapseTask cTask : ACTIVE_COLLAPSES) {
-            BlockDisplayEntity inner = SpatialDisplacementManager.getActiveEntity(cTask.innerCoreUuid);
-            if (inner != null && inner.isAlive()) {
-                inner.discard();
+            if (cTask.innerCoreUuid != null) {
+                BlockDisplayEntity inner = SpatialDisplacementManager.getActiveEntity(cTask.innerCoreUuid);
+                if (inner != null && inner.isAlive()) {
+                    inner.discard();
+                }
                 SpatialDisplacementManager.untrackEntity(cTask.innerCoreUuid);
             }
-            BlockDisplayEntity outer = SpatialDisplacementManager.getActiveEntity(cTask.outerCoreUuid);
-            if (outer != null && outer.isAlive()) {
-                outer.discard();
+            if (cTask.outerCoreUuid != null) {
+                BlockDisplayEntity outer = SpatialDisplacementManager.getActiveEntity(cTask.outerCoreUuid);
+                if (outer != null && outer.isAlive()) {
+                    outer.discard();
+                }
                 SpatialDisplacementManager.untrackEntity(cTask.outerCoreUuid);
             }
         }

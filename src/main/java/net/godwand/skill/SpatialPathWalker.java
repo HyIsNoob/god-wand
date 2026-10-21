@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SpatialPathWalker {
     private static final Set<UUID> ACTIVE_PLAYERS = ConcurrentHashMap.newKeySet();
     private static final java.util.Map<UUID, Double> LAST_GROUND_Y = new ConcurrentHashMap<>();
+    private static final java.util.Map<UUID, Vec3d> LAST_PLAYER_POS = new ConcurrentHashMap<>();
 
     public static boolean isActive(PlayerEntity player) {
         return ACTIVE_PLAYERS.contains(player.getUuid());
@@ -38,6 +39,7 @@ public class SpatialPathWalker {
         if (ACTIVE_PLAYERS.contains(player.getUuid())) {
             ACTIVE_PLAYERS.remove(player.getUuid());
             LAST_GROUND_Y.remove(player.getUuid());
+            LAST_PLAYER_POS.remove(player.getUuid());
             player.sendMessage(Text.literal("§c§l[✦ SPATIAL PATH: COLLAPSED ✦]"), true);
 
             // Explosive Deactivation Impact
@@ -90,7 +92,21 @@ public class SpatialPathWalker {
     public static void deactivate(PlayerEntity player) {
         ACTIVE_PLAYERS.remove(player.getUuid());
         LAST_GROUND_Y.remove(player.getUuid());
+        LAST_PLAYER_POS.remove(player.getUuid());
         SpatialDisplacementManager.collapsePlayerAura(player.getUuid());
+    }
+
+    public static double getPlayerForwardLead(ServerPlayerEntity player) {
+        Vec3d currentPos = player.getPos();
+        Vec3d lastPos = LAST_PLAYER_POS.getOrDefault(player.getUuid(), currentPos);
+        Vec3d deltaHoriz = new Vec3d(currentPos.x - lastPos.x, 0, currentPos.z - lastPos.z);
+        double speed = deltaHoriz.length();
+        // Nếu tốc độ dịch chuyển hợp lệ (< 4.0 blocks/tick để loại trừ teleport)
+        double boost = (speed > 0.02 && speed < 4.0) ? Math.min(3.2, speed * 7.0) : 0.0;
+        if (player.isSprinting() && boost < 1.2) {
+            boost = 1.2;
+        }
+        return 1.0 + boost;
     }
 
     public static void tickPlayer(ServerPlayerEntity player) {
@@ -115,9 +131,7 @@ public class SpatialPathWalker {
         double baseGroundY = player.isOnGround() ? player.getY() : LAST_GROUND_Y.getOrDefault(player.getUuid(), player.getY());
         int floorY = (int) Math.floor(baseGroundY);
 
-        Vec3d velocityHoriz = new Vec3d(player.getVelocity().x, 0, player.getVelocity().z);
-        double speedLead = Math.min(3.2, velocityHoriz.length() * 6.5);
-        double forwardLead = 1.0 + speedLead;
+        double forwardLead = getPlayerForwardLead(player);
         double auraRadius = 2.1;
         double maxRange = auraRadius + forwardLead + 0.8;
 
@@ -206,5 +220,7 @@ public class SpatialPathWalker {
             world.spawnParticles(ParticleTypes.END_ROD, playerPos.x + rx, playerPos.y + 0.2, playerPos.z + rz, 1, 0, 0.05, 0, 0.0);
             world.spawnParticles(ParticleTypes.ENCHANT, playerPos.x - rx, playerPos.y + 0.3, playerPos.z - rz, 2, 0.1, 0.1, 0.1, 0.05);
         }
+
+        LAST_PLAYER_POS.put(player.getUuid(), player.getPos());
     }
 }

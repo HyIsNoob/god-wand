@@ -144,4 +144,27 @@ public class SpatialMathTest {
         // Offset Y must lift it up above crater center (> 14m)
         assertTrue(offset.y >= 14.0 + 3.8, "Debris at crater bottom must be lifted above crater rim");
     }
+
+    @Test
+    public void testDistanceToAuraSpine() {
+        net.minecraft.util.math.Vec3d chest = new net.minecraft.util.math.Vec3d(0.0, 65.0, 0.0);
+        net.minecraft.util.math.Vec3d lookDir = new net.minecraft.util.math.Vec3d(1.0, 0.0, 0.0);
+        double forwardLead = 4.0;
+
+        // Block on the spine midway
+        net.minecraft.util.math.Vec3d onSpine = new net.minecraft.util.math.Vec3d(2.0, 65.0, 0.0);
+        assertEquals(0.0, SpatialMath.distanceToAuraSpine(onSpine, chest, lookDir, forwardLead), 1e-4);
+
+        // Block perpendicular to the spine
+        net.minecraft.util.math.Vec3d perp = new net.minecraft.util.math.Vec3d(2.0, 65.0, 1.5);
+        assertEquals(1.5, SpatialMath.distanceToAuraSpine(perp, chest, lookDir, forwardLead), 1e-4);
+
+        // Block ahead beyond forward lead (clamped at x=4.0)
+        net.minecraft.util.math.Vec3d beyond = new net.minecraft.util.math.Vec3d(6.0, 65.0, 0.0);
+        assertEquals(2.0, SpatialMath.distanceToAuraSpine(beyond, chest, lookDir, forwardLead), 1e-4);
+
+        // Block behind chest (clamped at x=0.0)
+        net.minecraft.util.math.Vec3d behind = new net.minecraft.util.math.Vec3d(-1.5, 65.0, 0.0);
+        assertEquals(1.5, SpatialMath.distanceToAuraSpine(behind, chest, lookDir, forwardLead), 1e-4);
+    }
 }

@@ -264,21 +264,25 @@ public class SpatialDisplacementManager {
                     record.mode == DisplacedBlockRecord.DisplacementMode.HYSTERESIS_AURA) {
                     Vec3d blockCenter = Vec3d.ofCenter(record.pos);
                     for (ServerPlayerEntity p : world.getPlayers()) {
-                        if (net.godwand.skill.SpatialPathWalker.isActive(p) && p.getPos().distanceTo(blockCenter) <= 4.2) {
-                            record.interruptRestoration();
-                            if (display != null && display.isAlive()) {
-                                Vec3d lookVec = p.getRotationVec(1.0f);
-                                Vec3d lookHoriz = new Vec3d(lookVec.x, 0, lookVec.z);
-                                lookHoriz = lookHoriz.lengthSquared() < 0.001 ? new Vec3d(1, 0, 0) : lookHoriz.normalize();
-                                Vec3d rebound = SpatialMath.computeDynamicAuraOffset(record.pos, p.getPos(), lookHoriz, 2.1, record.ageTicks);
-                                record.currentOffset.set((float) rebound.x, (float) rebound.y, (float) rebound.z);
-                                Quaternionf reboundRot = SpatialMath.computeArchwayRotation(record.pos, p.getPos(), lookHoriz, record.ageTicks);
-                                record.currentRotation.set(reboundRot);
-                                display.setStartInterpolation(0);
-                                display.setInterpolationDuration(5);
-                                display.setTransformation(SpatialMath.createPivotTransform(rebound, reboundRot, record.targetScale.x));
+                        if (net.godwand.skill.SpatialPathWalker.isActive(p)) {
+                            Vec3d lv = p.getRotationVec(1.0f);
+                            Vec3d lh = new Vec3d(lv.x, 0, lv.z);
+                            lh = lh.lengthSquared() < 0.001 ? new Vec3d(1, 0, 0) : lh.normalize();
+                            double lead = net.godwand.skill.SpatialPathWalker.getPlayerForwardLead(p);
+                            double spineDist = SpatialMath.distanceToAuraSpine(blockCenter, p.getPos().add(0, 1.1, 0), lh, lead);
+                            if (spineDist <= 3.1) {
+                                record.interruptRestoration();
+                                if (display != null && display.isAlive()) {
+                                    Vec3d rebound = SpatialMath.computeDynamicAuraOffset(record.pos, p.getPos(), lh, 2.1, record.ageTicks);
+                                    record.currentOffset.set((float) rebound.x, (float) rebound.y, (float) rebound.z);
+                                    Quaternionf reboundRot = SpatialMath.computeArchwayRotation(record.pos, p.getPos(), lh, record.ageTicks);
+                                    record.currentRotation.set(reboundRot);
+                                    display.setStartInterpolation(0);
+                                    display.setInterpolationDuration(5);
+                                    display.setTransformation(SpatialMath.createPivotTransform(rebound, reboundRot, record.targetScale.x));
+                                }
+                                break;
                             }
-                            break;
                         }
                     }
                 }
@@ -356,19 +360,24 @@ public class SpatialDisplacementManager {
 
                 Vec3d blockCenter = Vec3d.ofCenter(record.pos);
                 ServerPlayerEntity activeOwner = null;
-                double minPlayerDist = Double.MAX_VALUE;
+                double minSpineDist = Double.MAX_VALUE;
 
                 for (ServerPlayerEntity p : world.getPlayers()) {
                     if (net.godwand.skill.SpatialPathWalker.isActive(p)) {
-                        double d = p.getPos().add(0, 1.1, 0).distanceTo(blockCenter);
-                        if (d < minPlayerDist) {
-                            minPlayerDist = d;
+                        Vec3d lv = p.getRotationVec(1.0f);
+                        Vec3d lh = new Vec3d(lv.x, 0, lv.z);
+                        lh = lh.lengthSquared() < 0.001 ? new Vec3d(1, 0, 0) : lh.normalize();
+                        double lead = net.godwand.skill.SpatialPathWalker.getPlayerForwardLead(p);
+                        double d = SpatialMath.distanceToAuraSpine(blockCenter, p.getPos().add(0, 1.1, 0), lh, lead);
+                        if (d < minSpineDist) {
+                            minSpineDist = d;
                             activeOwner = p;
                         }
                     }
                 }
 
-                if (activeOwner != null && minPlayerDist <= 4.6) {
+                // Bán kính quét quanh trục là 2.35m, ngưỡng giữ mở quanh trục là 3.6m -> Không bao giờ bị đóng sập khi đang chạy nhanh
+                if (activeOwner != null && minSpineDist <= 3.6) {
                     record.resetRestoreTick();
 
                     if (display != null && display.isAlive() && ((record.ageTicks + Math.abs(record.pos.hashCode())) % 3 == 0)) {
@@ -452,7 +461,17 @@ public class SpatialDisplacementManager {
             }
 
             // ==========================================
-            // 5. DEFAULT TIMED LIFECYCLE (Chiêu 3 / Chiêu 4 / Nội thất ẩn)
+            // 4.5. BẢO HIỂM WATCHDOG CHO CUSTOM_SCRIPTED (Chiêu 3 / Chiêu 4)
+            // ==========================================
+            if (record.mode == DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED) {
+                if (record.ageTicks >= record.maxLifetimeTicks + 20) {
+                    record.beginRestoration();
+                }
+                continue;
+            }
+
+            // ==========================================
+            // 5. DEFAULT TIMED LIFECYCLE (Nội thất ẩn / Khối thường)
             // ==========================================
             if (record.mode == DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE) {
                 if (record.ageTicks >= record.maxLifetimeTicks) {

@@ -53,9 +53,9 @@ public final class SpatialMath {
         // Hình chiếu dọc theo trục đường đi
         double forwardProj = fromPlayer.x * lookDirHoriz.x + fromPlayer.z * lookDirHoriz.z;
         Vec3d spinePoint = new Vec3d(
-            playerPos.x + lookDirHoriz.x * MathHelper.clamp(forwardProj, -1.2, 3.0),
+            playerPos.x + lookDirHoriz.x * MathHelper.clamp(forwardProj, -1.5, 7.0),
             blockCenter.y,
-            playerPos.z + lookDirHoriz.z * MathHelper.clamp(forwardProj, -1.2, 3.0)
+            playerPos.z + lookDirHoriz.z * MathHelper.clamp(forwardProj, -1.5, 7.0)
         );
 
         Vec3d radial = blockCenter.subtract(spinePoint);
@@ -111,6 +111,18 @@ public final class SpatialMath {
 
     public static Vec3d computeAuraDisplacement(BlockPos pos, Vec3d playerPos, Vec3d lookDirHoriz, double auraRadius) {
         return computeDynamicAuraOffset(pos, playerPos, lookDirHoriz, auraRadius, 0);
+    }
+
+    public static double distanceToAuraSpine(Vec3d blockCenter, Vec3d chestPos, Vec3d lookDirHoriz, double forwardLead) {
+        Vec3d rel = blockCenter.subtract(chestPos);
+        double proj = rel.x * lookDirHoriz.x + rel.z * lookDirHoriz.z;
+        double clampedProj = MathHelper.clamp(proj, 0.0, forwardLead);
+        Vec3d closestPoint = new Vec3d(
+            chestPos.x + lookDirHoriz.x * clampedProj,
+            chestPos.y,
+            chestPos.z + lookDirHoriz.z * clampedProj
+        );
+        return blockCenter.distanceTo(closestPoint);
     }
 
     public static Vec3d computeInteractiveEvasion(Vec3d actualDebrisWorldPos, Vec3d playerChestPos, double evasionRadius) {
