@@ -21,11 +21,12 @@ public class DisplacedBlockRecord {
     public final Vector3f homePos;
     public final Vector3f targetDisplacement;
     public final Quaternionf targetRotation;
+    public final Vector3f targetScale;
     public final boolean isFullCube;
     public boolean transformed;
 
     public DisplacedBlockRecord(BlockPos pos, RegistryKey<World> worldKey, BlockState state, NbtCompound nbt,
-                                Vector3f targetDisplacement, Quaternionf targetRotation,
+                                Vector3f targetDisplacement, Quaternionf targetRotation, Vector3f targetScale,
                                 int maxLifetimeTicks, boolean isFullCube) {
         this.pos = pos.toImmutable();
         this.worldKey = worldKey;
@@ -38,13 +39,20 @@ public class DisplacedBlockRecord {
         this.homePos = new Vector3f(this.pos.getX(), this.pos.getY(), this.pos.getZ());
         this.targetDisplacement = targetDisplacement;
         this.targetRotation = targetRotation;
+        this.targetScale = targetScale != null ? targetScale : new Vector3f(1.0f, 1.0f, 1.0f);
         this.isFullCube = isFullCube;
         this.transformed = false;
+    }
+
+    public DisplacedBlockRecord(BlockPos pos, RegistryKey<World> worldKey, BlockState state, NbtCompound nbt,
+                                Vector3f targetDisplacement, Quaternionf targetRotation,
+                                int maxLifetimeTicks, boolean isFullCube) {
+        this(pos, worldKey, state, nbt, targetDisplacement, targetRotation, new Vector3f(1.0f, 1.0f, 1.0f), maxLifetimeTicks, isFullCube);
     }
 
     public DisplacedBlockRecord(BlockPos pos, BlockState state, NbtCompound nbt,
                                 Vector3f targetDisplacement, Quaternionf targetRotation,
                                 int maxLifetimeTicks, boolean isFullCube) {
-        this(pos, World.OVERWORLD, state, nbt, targetDisplacement, targetRotation, maxLifetimeTicks, isFullCube);
+        this(pos, World.OVERWORLD, state, nbt, targetDisplacement, targetRotation, new Vector3f(1.0f, 1.0f, 1.0f), maxLifetimeTicks, isFullCube);
     }
 }

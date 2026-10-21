@@ -33,8 +33,26 @@ public class SpatialDisplacementManager {
         return !isPositionDisplaced(immutablePos);
     }
 
+    public static int getActiveRecordCount() {
+        return ACTIVE_RECORDS.size();
+    }
+
+    public static int getActiveEntityCount() {
+        return ACTIVE_ENTITIES.size();
+    }
+
     public static void displaceBlock(ServerWorld world, BlockPos pos, Vector3f targetDisplacement,
                                       Quaternionf rotation, int lifetime, int glowColor) {
+        displaceBlock(world, pos, targetDisplacement, rotation, new Vector3f(1.0f, 1.0f, 1.0f), lifetime, glowColor, true);
+    }
+
+    public static void displaceBlock(ServerWorld world, BlockPos pos, Vector3f targetDisplacement,
+                                      Quaternionf rotation, int lifetime, int glowColor, boolean spawnDisplay) {
+        displaceBlock(world, pos, targetDisplacement, rotation, new Vector3f(1.0f, 1.0f, 1.0f), lifetime, glowColor, spawnDisplay);
+    }
+
+    public static void displaceBlock(ServerWorld world, BlockPos pos, Vector3f targetDisplacement,
+                                      Quaternionf rotation, Vector3f scale, int lifetime, int glowColor, boolean spawnDisplay) {
         BlockPos immutablePos = pos.toImmutable();
         BlockState state = world.getBlockState(immutablePos);
         if (!canDisplace(world, immutablePos, state)) return;
@@ -48,27 +66,30 @@ public class SpatialDisplacementManager {
 
         boolean isFull = state.isFullCube(world, immutablePos);
         DisplacedBlockRecord record = new DisplacedBlockRecord(
-                immutablePos, world.getRegistryKey(), state, nbt, targetDisplacement, rotation, lifetime, isFull);
+                immutablePos, world.getRegistryKey(), state, nbt, targetDisplacement, rotation, scale, lifetime, isFull);
 
         // Replace with AIR immediately
         world.setBlockState(immutablePos, Blocks.AIR.getDefaultState(), Block.FORCE_STATE | Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
 
-        // Tick T0: Spawn BlockDisplayEntity at pos with Identity matrix
-        BlockDisplayEntity display = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
-        display.setPosition(immutablePos.getX(), immutablePos.getY(), immutablePos.getZ());
-        display.setBlockState(state);
-        display.setGlowing(true);
-        display.setGlowColorOverride(glowColor);
-        display.setBrightness(new Brightness(15, 15));
-        display.setStartInterpolation(0);
-        display.setInterpolationDuration(0);
-        display.setTransformation(AffineTransformation.identity());
-        
-        // Spawn with identity transformation
-        world.spawnEntity(display);
-        record.displayEntityUuid = display.getUuid();
+        if (spawnDisplay) {
+            // Tick T0: Spawn BlockDisplayEntity at pos with Identity matrix
+            BlockDisplayEntity display = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
+            display.setPosition(immutablePos.getX(), immutablePos.getY(), immutablePos.getZ());
+            display.setBlockState(state);
+            display.setGlowing(true);
+            display.setGlowColorOverride(glowColor);
+            display.setBrightness(new Brightness(15, 15));
+            display.setStartInterpolation(0);
+            display.setInterpolationDuration(0);
+            display.setTransformation(AffineTransformation.identity());
+
+            // Spawn with identity transformation
+            world.spawnEntity(display);
+            record.displayEntityUuid = display.getUuid();
+            ACTIVE_ENTITIES.put(display.getUuid(), display);
+        }
+
         ACTIVE_RECORDS.put(immutablePos, record);
-        ACTIVE_ENTITIES.put(display.getUuid(), display);
     }
 
     public static void tick(ServerWorld world) {
@@ -90,7 +111,7 @@ public class SpatialDisplacementManager {
                     display.setInterpolationDuration(8);
                     Vector3f comp = SpatialMath.compensatePivot(record.targetDisplacement, record.targetRotation);
                     display.setTransformation(new AffineTransformation(
-                            comp, record.targetRotation, new Vector3f(1.0f, 1.0f, 1.0f), null));
+                            comp, record.targetRotation, record.targetScale, null));
                     record.transformed = true;
                 }
             } else if (record.ageTicks < record.maxLifetimeTicks - 12 && display != null) {
@@ -102,7 +123,7 @@ public class SpatialDisplacementManager {
                     display.setStartInterpolation(0);
                     display.setInterpolationDuration(10);
                     display.setTransformation(new AffineTransformation(
-                            comp, record.targetRotation, new Vector3f(1.0f, 1.0f, 1.0f), null));
+                            comp, record.targetRotation, record.targetScale, null));
                 }
             } else if (record.ageTicks == record.maxLifetimeTicks - 10 && display != null) {
                 // Return animation: interpolate back to identity (0,0,0)
@@ -146,9 +167,11 @@ public class SpatialDisplacementManager {
                 be.markDirty();
             }
         }
-        BlockDisplayEntity display = ACTIVE_ENTITIES.remove(r.displayEntityUuid);
-        if (display != null) {
-            display.discard();
+        if (r.displayEntityUuid != null) {
+            BlockDisplayEntity display = ACTIVE_ENTITIES.remove(r.displayEntityUuid);
+            if (display != null) {
+                display.discard();
+            }
         }
         ACTIVE_RECORDS.remove(r.pos);
     }
