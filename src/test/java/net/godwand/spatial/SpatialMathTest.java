@@ -75,4 +75,37 @@ public class SpatialMathTest {
         net.minecraft.util.math.BlockPos.Mutable mutablePos = new net.minecraft.util.math.BlockPos.Mutable(5, 5, 5);
         assertFalse(SpatialDisplacementManager.isPositionDisplaced(mutablePos));
     }
+
+    @Test
+    public void testDisplacedBlockRecordHysteresisAndRestoration() {
+        net.minecraft.util.math.BlockPos pos = new net.minecraft.util.math.BlockPos(1, 2, 3);
+        DisplacedBlockRecord record = new DisplacedBlockRecord(
+                pos,
+                net.minecraft.world.World.OVERWORLD,
+                null,
+                null,
+                new Vector3f(0, 2, 0),
+                new Quaternionf(),
+                new Vector3f(1, 1, 1),
+                100,
+                true,
+                DisplacedBlockRecord.DisplacementMode.HYSTERESIS_AURA,
+                java.util.UUID.randomUUID()
+        );
+
+        assertEquals(DisplacedBlockRecord.DisplacementMode.HYSTERESIS_AURA, record.mode);
+        assertNotNull(record.boundPlayerUuid);
+        assertFalse(record.isRestoring());
+        assertEquals(0, record.restoreTick);
+
+        record.beginRestoration();
+        assertTrue(record.isRestoring());
+        assertEquals(1, record.restoreTick);
+        assertEquals(3, record.animationStage);
+
+        record.interruptRestoration();
+        assertFalse(record.isRestoring());
+        assertEquals(0, record.restoreTick);
+        assertEquals(2, record.animationStage);
+    }
 }
