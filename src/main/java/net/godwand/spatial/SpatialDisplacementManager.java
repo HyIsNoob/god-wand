@@ -93,10 +93,7 @@ public class SpatialDisplacementManager {
     public static void refreshDisplacement(RegistryKey<World> worldKey, BlockPos pos, int lifetime) {
         DisplacedBlockRecord record = ACTIVE_RECORDS.get(new DimensionPos(worldKey, pos));
         if (record != null) {
-            record.resetRestoreTick();
-            if (record.ageTicks > 8) {
-                record.ageTicks = 9;
-            }
+            record.interruptRestoration();
             record.maxLifetimeTicks = lifetime;
         }
     }
@@ -241,42 +238,56 @@ public class SpatialDisplacementManager {
             // 3-PHASE MAGNETIC SNAP REASSEMBLY (RESTORE)
             // ==========================================
             if (record.isRestoring()) {
-                record.restoreTick++;
-
-                if (display != null && display.isAlive()) {
-                    // Pha 1 (restoreTick == 1): Kéo xoắn về sát ô gốc (15% khoảng cách)
-                    if (record.restoreTick == 1) {
-                        Vec3d preSnapOffset = record.getCurrentOffset().multiply(0.15);
-                        record.currentOffset.set((float)preSnapOffset.x, (float)preSnapOffset.y, (float)preSnapOffset.z);
-                        Quaternionf nearZeroRot = new Quaternionf().slerp(record.currentRotation, 0.20f);
-                        record.currentRotation.set(nearZeroRot);
-
-                        display.setStartInterpolation(0);
-                        display.setInterpolationDuration(10); // 10 ticks duration
-                        display.setTransformation(SpatialMath.createPivotTransform(preSnapOffset, nearZeroRot, record.targetScale.x));
-                    }
-                    // Pha 2 (restoreTick == 11): Khóa Khớp Từ Tính / Magnetic Snap tại (0,0,0)
-                    else if (record.restoreTick == 11) {
-                        display.setStartInterpolation(0);
-                        display.setInterpolationDuration(3); // 3 ticks magnetic violent snap
-                        display.setTransformation(AffineTransformation.identity());
-
-                        // Latch sound
-                        world.playSound(null, record.pos, SoundEvents.BLOCK_VAULT_OPEN_SHUTTER, SoundCategory.BLOCKS, 0.25f, 1.4f);
+                // Nếu là chế độ PATH_WALKER mà người chơi bước lại vào vùng <= 5.2m trong lúc đang đóng -> Mở bung ra lại ngay!
+                if (record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER ||
+                    record.mode == DisplacedBlockRecord.DisplacementMode.HYSTERESIS_AURA) {
+                    Vec3d blockCenter = Vec3d.ofCenter(record.pos);
+                    for (ServerPlayerEntity p : world.getPlayers()) {
+                        if (net.godwand.skill.SpatialPathWalker.isActive(p) && p.getPos().distanceTo(blockCenter) <= 5.2) {
+                            record.interruptRestoration();
+                            break;
+                        }
                     }
                 }
 
-                // Pha 3 - Pass 1 (restoreTick == 14): Khôi phục khối đặc
-                if (record.restoreTick == 14 && record.originalState.isFullCube(world, record.pos)) {
-                    restoreRecordDirectly(world, record, display);
-                    toRemove.add(record);
+                if (record.isRestoring()) {
+                    if (display != null && display.isAlive()) {
+                        // Pha 1 (restoreTick == 1): Hút xoáy + thu nhỏ nhẹ về cách ô gốc 18% quãng đường trong 9 ticks
+                        if (record.restoreTick == 1) {
+                            Vec3d preSnapOffset = record.getCurrentOffset().multiply(0.18);
+                            record.currentOffset.set((float) preSnapOffset.x, (float) preSnapOffset.y, (float) preSnapOffset.z);
+                            Quaternionf nearZeroRot = new Quaternionf().slerp(record.currentRotation, 0.15f);
+                            record.currentRotation.set(nearZeroRot);
+
+                            display.setStartInterpolation(0);
+                            display.setInterpolationDuration(9);
+                            display.setTransformation(SpatialMath.createPivotTransform(preSnapOffset, nearZeroRot, 0.96f));
+                        }
+                        // Pha 2 (restoreTick == 10): Khóa khớp từ tính (Magnetic Snap) về đúng (0,0,0) trong 4 ticks
+                        else if (record.restoreTick == 10) {
+                            display.setStartInterpolation(0);
+                            display.setInterpolationDuration(4);
+                            display.setTransformation(AffineTransformation.identity());
+                            if ((record.pos.asLong() & 7) == 0) {
+                                world.playSound(null, record.pos, SoundEvents.BLOCK_VAULT_OPEN_SHUTTER, SoundCategory.BLOCKS, 0.25f, 1.35f);
+                            }
+                        }
+                    }
+
+                    // Pha 3 - Pass 1 (restoreTick == 14): Khôi phục khối đặc
+                    if (record.restoreTick == 14 && record.originalState.isFullCube(world, record.pos)) {
+                        restoreRecordDirectly(world, record, display);
+                        toRemove.add(record);
+                    }
+                    // Pha 3 - Pass 2 (restoreTick >= 15): Khôi phục khối đính kèm (Đuốc, Đèn lồng, Hoa...)
+                    else if (record.restoreTick >= 15) {
+                        restoreRecordDirectly(world, record, display);
+                        toRemove.add(record);
+                    }
+
+                    record.restoreTick++;
+                    continue;
                 }
-                // Pha 3 - Pass 2 (restoreTick == 15): Khôi phục khối đính kèm (Đuốc, đèn lồng, hoa, v.v.)
-                else if (record.restoreTick >= 15) {
-                    restoreRecordDirectly(world, record, display);
-                    toRemove.add(record);
-                }
-                continue; // Skip active ticking during restoration
             }
 
             // ==========================================
@@ -297,75 +308,65 @@ public class SpatialDisplacementManager {
             }
 
             // ==========================================
-            // TƯƠNG TÁC NÉ NGƯỜI CHƠI LIÊN TỤC (LIVING DEBRIS)
-            // ==========================================
-            if (record.transformed && display != null && display.isAlive() && (record.ageTicks % 2 == 0)) {
-                Vec3d debrisWorldPos = Vec3d.ofCenter(record.pos).add(record.getCurrentOffset());
-                PlayerEntity closestPlayer = world.getClosestPlayer(debrisWorldPos.x, debrisWorldPos.y, debrisWorldPos.z, 4.0, false);
-                if (closestPlayer != null) {
-                    Vec3d playerChestPos = closestPlayer.getPos().add(0, 1.1, 0);
-                    Vec3d evasion = SpatialMath.computeInteractiveEvasion(debrisWorldPos, playerChestPos, 2.8);
-                    if (evasion.lengthSquared() > 0.001) {
-                        record.currentOffset.set(
-                                (float) (record.baseDisplacement.x + evasion.x),
-                                (float) (record.baseDisplacement.y + evasion.y),
-                                (float) (record.baseDisplacement.z + evasion.z)
-                        );
-                        record.hoverYaw += 0.40f;
-                        record.currentRotation.rotateY(0.40f);
-
-                        display.setStartInterpolation(0);
-                        display.setInterpolationDuration(3);
-                        display.setTransformation(SpatialMath.createPivotTransform(
-                                record.getCurrentOffset(), record.currentRotation, record.targetScale.x));
-
-                        world.spawnParticles(ParticleTypes.END_ROD, debrisWorldPos.x, debrisWorldPos.y, debrisWorldPos.z, 2, 0.1, 0.1, 0.1, 0.02);
-                        world.spawnParticles(ParticleTypes.WITCH, debrisWorldPos.x, debrisWorldPos.y, debrisWorldPos.z, 1, 0.05, 0.05, 0.05, 0.0);
-                        continue;
-                    }
-                }
-            }
-
-            // ==========================================
-            // CHẾ ĐỘ CHIÊU 1: PATH_WALKER / HYSTERESIS_AURA
+            // CHẾ ĐỘ CHIÊU 1: PATH_WALKER / HYSTERESIS_AURA VÀ TƯƠNG TÁC NÉ NGƯỜI CHƠI
             // ==========================================
             if (record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER ||
                 record.mode == DisplacedBlockRecord.DisplacementMode.HYSTERESIS_AURA) {
 
-                // Check distance to any player with Skill 1 active
-                boolean playerNearby = false;
                 Vec3d blockCenter = Vec3d.ofCenter(record.pos);
+                ServerPlayerEntity activeOwner = null;
+                double minPlayerDist = Double.MAX_VALUE;
+
                 for (ServerPlayerEntity p : world.getPlayers()) {
                     if (net.godwand.skill.SpatialPathWalker.isActive(p)) {
-                        if (p.getPos().distanceTo(blockCenter) <= 5.5) {
-                            playerNearby = true;
-                            break;
+                        double d = p.getPos().distanceTo(blockCenter);
+                        if (d < minPlayerDist) {
+                            minPlayerDist = d;
+                            activeOwner = p;
                         }
                     }
                 }
 
-                if (playerNearby) {
+                // Bán kính giữ mở Hysteresis là 6.8m (lớn hơn bán kính quét 4.2m để không bao giờ bị đóng sập khi đang đứng yên!)
+                if (activeOwner != null && minPlayerDist <= 6.8) {
                     record.resetRestoreTick();
-                    // Gentle continuous floating / bobbing when player is near
-                    if (display != null && display.isAlive() && record.ageTicks % 8 == 0 && record.animationStage >= 1) {
+
+                    if (display != null && display.isAlive() && ((record.ageTicks + Math.abs(record.pos.hashCode())) % 3 == 0)) {
+                        Vec3d lookVec = activeOwner.getRotationVec(1.0f);
+                        Vec3d lookHoriz = new Vec3d(lookVec.x, 0, lookVec.z);
+                        if (lookHoriz.lengthSquared() < 0.001) lookHoriz = new Vec3d(1, 0, 0);
+                        else lookHoriz = lookHoriz.normalize();
+
+                        // 1. Tính vị trí đẩy động trên vòm Aura dựa theo vị trí HIỆN TẠI của người chơi
+                        Vec3d dynamicAuraOffset = SpatialMath.computeDynamicAuraOffset(
+                                record.pos, activeOwner.getPos(), lookHoriz, 3.8, record.ageTicks);
+
+                        // 2. Kiểm tra nếu người chơi tiến sát mảnh vỡ đang bay trên không -> đẩy né mạnh hơn nữa!
+                        Vec3d currentDebrisWorld = blockCenter.add(dynamicAuraOffset);
+                        PlayerEntity closestToDebris = world.getClosestPlayer(currentDebrisWorld.x, currentDebrisWorld.y, currentDebrisWorld.z, 3.5, false);
+                        if (closestToDebris != null) {
+                            Vec3d evasion = SpatialMath.computeInteractiveEvasion(
+                                    currentDebrisWorld, closestToDebris.getPos().add(0, 1.1, 0), 3.2);
+                            if (evasion.lengthSquared() > 0.001) {
+                                dynamicAuraOffset = dynamicAuraOffset.add(evasion);
+                                record.hoverYaw += 0.35f;
+                                world.spawnParticles(ParticleTypes.END_ROD, currentDebrisWorld.x, currentDebrisWorld.y, currentDebrisWorld.z, 1, 0.05, 0.05, 0.05, 0.01);
+                            }
+                        }
+
+                        record.currentOffset.set((float) dynamicAuraOffset.x, (float) dynamicAuraOffset.y, (float) dynamicAuraOffset.z);
+                        record.hoverYaw += 0.08f;
                         double hashPhase = SpatialMath.hash01(record.pos) * Math.PI * 2.0;
-                        float bobY = (float) (Math.sin(hashPhase + record.ageTicks / 8.0) * 0.12);
-                        record.currentOffset.set(
-                                record.baseDisplacement.x,
-                                record.baseDisplacement.y + bobY,
-                                record.baseDisplacement.z
-                        );
-                        record.hoverYaw += 0.04f;
-                        Quaternionf rot = new Quaternionf(record.targetRotation).rotateY(record.hoverYaw);
+                        Quaternionf rot = new Quaternionf(record.targetRotation)
+                                .rotateY(record.hoverYaw)
+                                .rotateX((float) Math.sin(record.ageTicks * 0.1 + hashPhase) * 0.25f);
                         record.currentRotation.set(rot);
 
                         display.setStartInterpolation(0);
-                        display.setInterpolationDuration(8);
-                        display.setTransformation(SpatialMath.createPivotTransform(
-                                record.getCurrentOffset(), rot, record.targetScale.x));
+                        display.setInterpolationDuration(3);
+                        display.setTransformation(SpatialMath.createPivotTransform(dynamicAuraOffset, rot, record.targetScale.x));
                     }
                 } else {
-                    // Player moved further than 5.5m or turned skill off -> begin 3-Phase Restoration
                     record.beginRestoration();
                 }
                 continue;

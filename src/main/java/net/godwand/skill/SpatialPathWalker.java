@@ -115,10 +115,8 @@ public class SpatialPathWalker {
         double baseGroundY = player.isOnGround() ? player.getY() : LAST_GROUND_Y.getOrDefault(player.getUuid(), player.getY());
         int floorY = (int) Math.floor(baseGroundY);
 
-        // Spherical Aura (R = 3.8m) + Forward Cone (Reach = 6.5m)
-        double auraRadius = 3.8;
-        double forwardReach = 6.5;
-        double maxRange = Math.max(auraRadius, forwardReach);
+        double auraRadius = 4.0;
+        double maxRange = 5.6;
 
         int minX = MathHelper.floor(playerPos.x - maxRange);
         int maxX = MathHelper.floor(playerPos.x + maxRange);
@@ -143,25 +141,15 @@ public class SpatialPathWalker {
                     }
 
                     Vec3d blockCenter = Vec3d.ofCenter(mutablePos);
-                    Vec3d toBlock = blockCenter.subtract(chestPos);
-                    double distToChest = toBlock.length();
 
-                    // Check Spherical Aura (R <= 3.8m)
-                    boolean inSphericalAura = distToChest <= auraRadius;
+                    // Tâm trường lực dịch nhẹ về phía trước theo hướng di chuyển/nhìn
+                    Vec3d auraCenter = chestPos.add(lookDirHoriz.multiply(1.4));
+                    double distToAuraCenter = blockCenter.subtract(auraCenter).length();
+                    double distToPlayerChest = blockCenter.subtract(chestPos).length();
 
-                    // Check Forward Cone (forward reach <= 6.5m, radius 2.8m -> 3.8m)
-                    boolean inForwardCone = false;
-                    double forwardDist = (blockCenter.x - playerPos.x) * lookDirHoriz.x + (blockCenter.z - playerPos.z) * lookDirHoriz.z;
-                    if (forwardDist > 0 && forwardDist <= forwardReach) {
-                        Vec3d spine = new Vec3d(playerPos.x + lookDirHoriz.x * forwardDist, blockCenter.y, playerPos.z + lookDirHoriz.z * forwardDist);
-                        double perpDist = blockCenter.subtract(spine).length();
-                        double coneRadius = 2.8 + (forwardDist / forwardReach) * (3.8 - 2.8);
-                        if (perpDist <= coneRadius) {
-                            inForwardCone = true;
-                        }
-                    }
-
-                    if (!inSphericalAura && !inForwardCone) continue;
+                    // Quét vòm cầu xung quanh người chơi (bán kính 3.8m) kết hợp vòm mở đường phía trước (bán kính 4.2m)
+                    boolean insideAura = (distToPlayerChest <= 3.8) || (distToAuraCenter <= 4.2);
+                    if (!insideAura) continue;
 
                     // Distance Hysteresis: keep open and reset restore tick if already displaced
                     if (SpatialDisplacementManager.isPositionDisplaced(world.getRegistryKey(), mutablePos)) {
@@ -172,8 +160,8 @@ public class SpatialPathWalker {
                     BlockState state = world.getBlockState(mutablePos);
                     if (!SpatialDisplacementManager.canDisplace(world, mutablePos, state)) continue;
 
-                    // Vector displacement computed by SpatialMath
-                    Vec3d auraDisp = SpatialMath.computeAuraDisplacement(mutablePos, playerPos, lookDirHoriz, auraRadius);
+                    // Compute dynamic aura offset from SpatialMath
+                    Vec3d auraDisp = SpatialMath.computeDynamicAuraOffset(mutablePos, playerPos, lookDirHoriz, 3.8, 0);
                     Vector3f targetDisp = new Vector3f((float) auraDisp.x, (float) auraDisp.y, (float) auraDisp.z);
 
                     double hashPhase = SpatialMath.hash01(mutablePos) * Math.PI * 2.0;
@@ -207,11 +195,13 @@ public class SpatialPathWalker {
             }
         }
 
-        // Arcane footstep aura
-        if (player.age % 4 == 0) {
-            world.spawnParticles(ParticleTypes.ENCHANT,
-                    player.getX(), player.getY() + 0.1, player.getZ(),
-                    3, 0.3, 0.1, 0.3, 0.1);
+        // Vòng hạt ma pháp xoay quanh chân người chơi mỗi 2 ticks
+        if (player.age % 2 == 0) {
+            double angle = (player.age * 0.25) % (Math.PI * 2.0);
+            double rx = Math.cos(angle) * 3.6;
+            double rz = Math.sin(angle) * 3.6;
+            world.spawnParticles(ParticleTypes.END_ROD, playerPos.x + rx, playerPos.y + 0.2, playerPos.z + rz, 1, 0, 0.05, 0, 0.0);
+            world.spawnParticles(ParticleTypes.ENCHANT, playerPos.x - rx, playerPos.y + 0.3, playerPos.z - rz, 2, 0.1, 0.1, 0.1, 0.05);
         }
     }
 }

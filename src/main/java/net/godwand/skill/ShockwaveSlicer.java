@@ -36,15 +36,15 @@ public class ShockwaveSlicer {
         public int sampledDisplaysMid = 0;
         public int sampledDisplaysOuter = 0;
         public static final int MAX_DISPLAYS_PER_STRATA = 150;
-        public static final int MAX_DISPLAYS = 1200;
+        public static final int MAX_DISPLAYS = 2000;
         public final int maxDisplays;
 
         public SlicingTask(ServerWorld world, BlockPos center, double maxRadius) {
             this.world = world;
             this.center = center.toImmutable();
             this.maxRadius = maxRadius;
-            // R <= 8: 100% displays; R > 8: up to 1,200 displays as per spec
-            this.maxDisplays = maxRadius <= 8.0 ? Integer.MAX_VALUE : 1200;
+            // R <= 10: 100% displays; R > 10: up to 2,000 displays as per spec
+            this.maxDisplays = maxRadius <= 10.0 ? Integer.MAX_VALUE : 2000;
         }
     }
 
@@ -154,20 +154,20 @@ public class ShockwaveSlicer {
                         boolean spawnDisplay = false;
                         float scale = 1.0f;
 
-                        if (task.maxRadius <= 8.0) {
-                            // 100% of blocks become displays
+                        if (task.maxRadius <= 10.0) {
+                            // Cấp 1 & 2: 100% số block bị bóc tách thành display
                             spawnDisplay = true;
                             scale = 1.0f;
                             task.sampledDisplays++;
                         } else if (task.sampledDisplays < task.maxDisplays) {
-                            if (dist >= task.maxRadius * 0.70) {
-                                // Outer surface: 100% sample rate within maxDisplays
+                            // Cấp 3 (R = 16): 100% bề mặt / vách hố (dist >= 0.65R)
+                            if (dist >= task.maxRadius * 0.65) {
                                 spawnDisplay = true;
                                 scale = 1.0f;
                                 task.sampledDisplays++;
                             } else {
-                                // 45% sample rate for interior with scale = 1.35f to create dense celestial nebula
-                                if (((Math.abs(x * 31 + y * 17 + z)) % 100) < 45) {
+                                // 50% sample rate cho phần ruột với scale = 1.35f
+                                if (((Math.abs(x * 31 + y * 17 + z)) % 100) < 50) {
                                     spawnDisplay = true;
                                     scale = 1.35f;
                                     task.sampledDisplays++;
@@ -204,14 +204,14 @@ public class ShockwaveSlicer {
                                     task.maxRadius
                             );
                         } else {
-                            // Hollowed interior blocks displaced cleanly to AIR
+                            // Hollowed interior blocks displaced cleanly to AIR; lifetime = 114 to restore when outer displays finish snapping
                             SpatialDisplacementManager.displaceBlock(
                                     world,
                                     mutable.toImmutable(),
                                     new Vector3f(0, 0, 0),
                                     new Quaternionf(),
                                     new Vector3f(1.0f, 1.0f, 1.0f),
-                                    lifetime,
+                                    114,
                                     0,
                                     false,
                                     DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE,
