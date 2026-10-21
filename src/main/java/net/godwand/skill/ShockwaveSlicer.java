@@ -204,14 +204,14 @@ public class ShockwaveSlicer {
                                     task.maxRadius
                             );
                         } else {
-                            // Hollowed interior blocks displaced cleanly to AIR; lifetime = 114 to restore when outer displays finish snapping
+                            // Đồng bộ chính xác với lifetime theo độ sâu để đáy hố đầy lên trước, miệng hố đầy sau cùng
                             SpatialDisplacementManager.displaceBlock(
                                     world,
                                     mutable.toImmutable(),
                                     new Vector3f(0, 0, 0),
                                     new Quaternionf(),
                                     new Vector3f(1.0f, 1.0f, 1.0f),
-                                    114,
+                                    lifetime,
                                     0,
                                     false,
                                     DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE,
