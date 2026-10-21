@@ -4,9 +4,12 @@ import net.godwand.spatial.SpatialDisplacementManager;
 import net.godwand.spatial.SpatialMath;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -27,13 +30,47 @@ public class SpatialPathWalker {
     }
 
     public static void toggle(ServerPlayerEntity player) {
+        ServerWorld world = player.getServerWorld();
         if (ACTIVE_PLAYERS.contains(player.getUuid())) {
             ACTIVE_PLAYERS.remove(player.getUuid());
             LAST_GROUND_Y.remove(player.getUuid());
-            player.sendMessage(Text.literal("§7[✦ SPATIAL PATH: §cOFF§7]"), true);
+            player.sendMessage(Text.literal("§c§l[✦ SPATIAL PATH: COLLAPSED ✦]"), true);
+
+            // Explosive Deactivation Impact: Sonic boom, flash, and implosion particles
+            world.spawnParticles(ParticleTypes.FLASH, player.getX(), player.getEyeY(), player.getZ(), 2, 0.1, 0.1, 0.1, 0.0);
+            world.spawnParticles(ParticleTypes.SONIC_BOOM, player.getX(), player.getY() + 1.0, player.getZ(), 1, 0, 0, 0, 0);
+            world.spawnParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 40, 1.2, 0.8, 1.2, 0.25);
+            world.spawnParticles(new DustParticleEffect(new Vector3f(0.25f, 0.88f, 1.0f), 1.2f),
+                    player.getX(), player.getY() + 1.0, player.getZ(), 30, 1.5, 0.8, 1.5, 0.2);
+
+            // Layered Heavy Deactivation Audio
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.PLAYERS, 2.5f, 0.75f);
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.PLAYERS, 2.0f, 1.5f);
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.PLAYERS, 2.0f, 1.2f);
+
+            // Push nearby entities away with physical shockwave impulse
+            for (net.minecraft.entity.Entity e : world.getOtherEntities(player, player.getBoundingBox().expand(5.0))) {
+                Vec3d diff = e.getPos().subtract(player.getPos()).normalize().multiply(0.95).add(0, 0.28, 0);
+                e.addVelocity(diff.x, diff.y, diff.z);
+                e.velocityModified = true;
+            }
+
+            // Immediately collapse all currently displaced blocks in the vicinity with heavy snap
+            SpatialDisplacementManager.collapseNearbyDisplacements(world.getRegistryKey(), player.getBlockPos(), 14.0);
         } else {
             ACTIVE_PLAYERS.add(player.getUuid());
             player.sendMessage(Text.literal("§d§l[✦ SPATIAL PATH: §aACTIVE §d§l✦]"), true);
+
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 1.8f, 1.4f);
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.PLAYERS, 2.5f, 1.1f);
+            world.spawnParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 1.0, player.getZ(), 20, 0.5, 0.5, 0.5, 0.15);
+            world.spawnParticles(new DustParticleEffect(new Vector3f(0.3f, 0.9f, 1.0f), 1.0f),
+                    player.getX(), player.getY() + 1.0, player.getZ(), 25, 0.5, 0.8, 0.5, 0.1);
         }
     }
 

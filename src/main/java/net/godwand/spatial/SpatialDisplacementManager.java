@@ -371,4 +371,18 @@ public class SpatialDisplacementManager {
         }
         executeTwoPassRestoration(world, matching);
     }
+
+    public static void collapseNearbyDisplacements(RegistryKey<World> worldKey, BlockPos center, double radius) {
+        double rSq = radius * radius;
+        for (DisplacedBlockRecord record : ACTIVE_RECORDS.values()) {
+            if (record.worldKey.equals(worldKey)) {
+                double dSq = record.pos.getSquaredDistance(center);
+                if (dSq <= rSq) {
+                    if (record.maxLifetimeTicks > record.ageTicks + 8) {
+                        record.maxLifetimeTicks = record.ageTicks + 8;
+                    }
+                }
+            }
+        }
+    }
 }
