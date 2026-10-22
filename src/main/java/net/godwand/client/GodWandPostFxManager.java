@@ -92,16 +92,24 @@ public class GodWandPostFxManager {
 
         float impactIntensity = baseIntensity * (1.0f - progress * 0.75f);
         float impactFrame = 0.0f;
+        float impactMode = 0.0f;
         float shockwaveRadius = 0.0f;
         float distortionPower = 0.0f;
         float chromaticAmount = 0.0f;
+        float zoomBlur = 0.0f;
+        float retinaBurn = 0.0f;
+        float gTime = (float) ((System.currentTimeMillis() % 10000000L) / 1000.0);
+
+        int tickIdx = Math.max(0, maxTicks - currentTick);
 
         switch (fxType) {
             case ImpactFxPayload.TYPE_DETONATION -> {
                 // Calamity Detonation:
-                // Ticks 0..3 (progress 0..0.22): Blinding impact frame flash with negative anime contrast
-                if (progress < 0.22f) {
-                    impactFrame = (1.0f - (progress / 0.22f));
+                // Ticks 0..4: 36 Anime Impact Frames cycle: Six-Eyes Cyan -> Crimson Invert -> Ink-Wash -> Prism Line-Art
+                if (progress < 0.26f) {
+                    impactFrame = (1.0f - (progress / 0.26f));
+                    int[] detModes = {3, 2, 0, 33, 3};
+                    impactMode = detModes[Math.min(tickIdx, detModes.length - 1)];
                 }
 
                 // Shockwave expands rapidly outwards across screen
@@ -113,6 +121,10 @@ public class GodWandPostFxManager {
 
                 // Chromatic Aberration decays exponentially
                 chromaticAmount = 0.024f * baseIntensity * (1.0f - progress);
+
+                // Directional Zoom Blur & Retinal Flash Afterglow
+                zoomBlur = 0.065f * baseIntensity * (1.0f - progress);
+                retinaBurn = Math.max(0.0f, 0.65f * baseIntensity * (1.0f - progress * 1.4f));
             }
             case ImpactFxPayload.TYPE_IMPLOSION -> {
                 // Epicenter Calamity Implosion:
@@ -121,14 +133,19 @@ public class GodWandPostFxManager {
                     float suckCurve = progress / 0.30f;
                     distortionPower = -0.042f * baseIntensity * suckCurve;
                     shockwaveRadius = 0.7f * (1.0f - suckCurve);
+                    zoomBlur = -0.052f * baseIntensity * suckCurve; // Hút hướng tâm
+                    impactMode = 4.0f; // Shadow Blue
                 } else {
                     // Phase 2 (progress 0.30..0.55): Slam Impact Frame flash
                     float slamProg = (progress - 0.30f) / 0.70f;
                     if (slamProg < 0.30f) {
                         impactFrame = 1.0f - (slamProg / 0.30f);
+                        impactMode = (tickIdx % 2 == 0) ? 3.0f : 2.0f;
                     }
                     shockwaveRadius = slamProg * 1.45f;
                     distortionPower = 0.052f * baseIntensity * (1.0f - slamProg);
+                    zoomBlur = 0.048f * baseIntensity * (1.0f - slamProg);
+                    retinaBurn = Math.max(0.0f, 0.45f * baseIntensity * (1.0f - slamProg * 1.5f));
                 }
                 chromaticAmount = 0.030f * baseIntensity * (1.0f - progress);
             }
@@ -136,22 +153,31 @@ public class GodWandPostFxManager {
                 // Spatial Path Collapse: Snappy, sharp tactical burst
                 if (progress < 0.35f) {
                     impactFrame = 0.85f * (1.0f - (progress / 0.35f));
+                    impactMode = (tickIdx % 2 == 0) ? 3.0f : 0.0f;
                 }
                 shockwaveRadius = progress * 1.2f;
                 distortionPower = 0.028f * baseIntensity * (1.0f - progress);
                 chromaticAmount = 0.016f * baseIntensity * (1.0f - progress);
+                zoomBlur = 0.025f * baseIntensity * (1.0f - progress);
             }
             case ImpactFxPayload.TYPE_SUPERNOVA -> {
                 // Cataclysmic Cosmic Supernova:
-                // Ticks 0..6 (progress 0..0.28): Blinding, high-contrast solar impact frame flash
-                if (progress < 0.28f) {
-                    impactFrame = 1.0f - (progress / 0.28f);
+                // Ticks 0..7: Chuỗi chuyển đổi 36 Anime Impact Frame liên tục:
+                // Isometric 30° Grid (35) -> Spectral Bands (34) -> Prism 7-Color Line-Art (33) -> Crimson (2) -> Six-Eyes Cyan (3) -> Stark Ink (0)
+                if (progress < 0.32f) {
+                    impactFrame = 1.0f - (progress / 0.32f);
+                    int[] novaModes = {35, 34, 33, 2, 3, 0, 1, 33};
+                    impactMode = novaModes[Math.min(tickIdx, novaModes.length - 1)];
                 }
                 // Relativistic shockwave expands across the entire sky
                 shockwaveRadius = (float) Math.pow(progress, 0.52) * 1.65f;
                 float distCurve = (float) Math.sin(progress * Math.PI);
                 distortionPower = 0.075f * baseIntensity * distCurve;
                 chromaticAmount = 0.045f * baseIntensity * (1.0f - progress);
+
+                // Cực đại Zoom Blur và Lưu ảnh võng mạc (Retina Burn)
+                zoomBlur = 0.098f * baseIntensity * (float) Math.sin(progress * Math.PI);
+                retinaBurn = Math.max(0.0f, 1.0f * baseIntensity * (1.0f - progress * 1.15f));
             }
         }
 
@@ -185,12 +211,16 @@ public class GodWandPostFxManager {
 
         postProcessor.setUniforms("ImpactIntensity", impactIntensity);
         postProcessor.setUniforms("ImpactFrame", impactFrame);
+        postProcessor.setUniforms("ImpactMode", impactMode);
         postProcessor.setUniforms("ShockwaveRadius", shockwaveRadius);
         postProcessor.setUniforms("DistortionPower", distortionPower);
         postProcessor.setUniforms("ChromaticAmount", chromaticAmount);
+        postProcessor.setUniforms("ZoomBlur", zoomBlur);
+        postProcessor.setUniforms("RetinaBurn", retinaBurn);
         postProcessor.setUniforms("CenterX", centerX);
         postProcessor.setUniforms("CenterY", centerY);
         postProcessor.setUniforms("Aspect", aspect);
+        postProcessor.setUniforms("GTime", gTime);
 
         RenderSystem.disableBlend();
         RenderSystem.disableDepthTest();

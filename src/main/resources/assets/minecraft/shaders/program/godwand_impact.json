@@ -16,11 +16,15 @@
         { "name": "OutSize",          "type": "float",     "count": 2,  "values": [ 1.0, 1.0 ] },
         { "name": "ImpactIntensity",  "type": "float",     "count": 1,  "values": [ 0.0 ] },
         { "name": "ImpactFrame",      "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "ImpactMode",       "type": "float",     "count": 1,  "values": [ 0.0 ] },
         { "name": "ShockwaveRadius",  "type": "float",     "count": 1,  "values": [ 0.0 ] },
         { "name": "DistortionPower",  "type": "float",     "count": 1,  "values": [ 0.0 ] },
         { "name": "ChromaticAmount",  "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "ZoomBlur",         "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "RetinaBurn",       "type": "float",     "count": 1,  "values": [ 0.0 ] },
         { "name": "CenterX",          "type": "float",     "count": 1,  "values": [ 0.5 ] },
         { "name": "CenterY",          "type": "float",     "count": 1,  "values": [ 0.5 ] },
-        { "name": "Aspect",           "type": "float",     "count": 1,  "values": [ 1.7777 ] }
+        { "name": "Aspect",           "type": "float",     "count": 1,  "values": [ 1.7777 ] },
+        { "name": "GTime",            "type": "float",     "count": 1,  "values": [ 0.0 ] }
     ]
 }
