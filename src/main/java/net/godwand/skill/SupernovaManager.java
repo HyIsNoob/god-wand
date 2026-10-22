@@ -206,6 +206,11 @@ public class SupernovaManager {
                                     0.0
                             );
 
+                            DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+                            if (rec != null) {
+                                rec.permanentDestruction = true;
+                            }
+
                             task.displayedPositions.add(pos);
                             task.stage1UpliftMap.put(pos, stage1Lift);
                             task.baseRotationMap.put(pos, rot);
@@ -232,6 +237,12 @@ public class SupernovaManager {
                                     null,
                                     0.0
                             );
+
+                            DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+                            if (rec != null) {
+                                rec.permanentDestruction = true;
+                            }
+
                             task.interiorPositions.add(pos);
                         }
                     }
@@ -346,8 +357,8 @@ public class SupernovaManager {
                         Vec3d displayWorldPos = Vec3d.ofCenter(pos).add(ringOffset);
                         double distToCore = displayWorldPos.distanceTo(task.corePos);
 
-                        // Khi chạm vào tâm Chân trời sự kiện (< 3.2m): Nuốt chửng hoàn toàn!
-                        if (distToCore < 3.2 || radiusScale < 0.10f) {
+                        // Khi chạm vào tâm Chân trời sự kiện (< 4.6m): Nuốt chửng hoàn toàn!
+                        if (distToCore < 4.6 || radiusScale < 0.10f) {
                             task.swallowedPositions.add(pos);
                             display.setStartInterpolation(0);
                             display.setInterpolationDuration(2);

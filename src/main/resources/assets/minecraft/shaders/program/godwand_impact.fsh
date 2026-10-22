@@ -190,11 +190,21 @@ void main() {
         else if (FxType > 2.5 && FxType < 3.5 && inFront) {
             if (CoreRadius > 0.5) {
                 float dSphere = impactParam;
-                if (dSphere < CoreRadius && sceneDist > (tBH - CoreRadius)) {
-                    float fireGrad = 1.0 - (dSphere / CoreRadius);
-                    vec3 fireCol = mix(vec3(1.0, 0.22, 0.05), vec3(1.0, 0.92, 0.70), smoothstep(0.35, 0.92, fireGrad));
-                    fireCol = mix(fireCol, vec3(0.65, 0.95, 1.0), smoothstep(0.85, 1.0, fireGrad));
-                    addGlow += fireCol * (fireGrad * fireGrad * 6.5 + 2.0) * ImpactIntensity;
+                float outerCorona = CoreRadius * 1.45;
+                if (dSphere < outerCorona && sceneDist > (tBH - outerCorona)) {
+                    float normD = dSphere / CoreRadius;
+                    float coreMask = saturate(1.0 - normD);
+                    float coronaFalloff = exp(-max(0.0, dSphere - CoreRadius * 0.7) / (CoreRadius * 0.35));
+
+                    // Nhiễu plasma bức xạ mặt trời trên bề mặt cầu
+                    float solarNoise = 0.8 + 0.2 * sin(normD * 18.0 - GTime * 22.0 + atan(pClosest.y - bhRel.y, pClosest.x - bhRel.x) * 8.0);
+                    float temp = saturate(coreMask * 1.25 * solarNoise);
+
+                    vec3 fireCol = blackbody(temp * 1.2);
+                    fireCol = mix(fireCol, vec3(0.75, 0.96, 1.0), smoothstep(0.75, 1.0, coreMask));
+
+                    float alphaDepth = smoothstep(tBH - outerCorona, tBH + outerCorona * 0.5, sceneDist);
+                    addGlow += fireCol * (coreMask * coreMask * 5.5 + coronaFalloff * 2.8) * ImpactIntensity * alphaDepth;
                 }
             }
         }

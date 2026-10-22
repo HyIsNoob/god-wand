@@ -50,6 +50,8 @@ public class DisplacedBlockRecord {
     public Vector3f currentScale;
     public Vec3d blastCenter;
     public double blastRadius;
+    public int openDurationTicks = 8;
+    public boolean permanentDestruction = false;
 
     public DisplacedBlockRecord(BlockPos pos, RegistryKey<World> worldKey, BlockState state, NbtCompound nbt,
                                 Vector3f targetDisplacement, Quaternionf targetRotation, Vector3f targetScale,

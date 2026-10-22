@@ -144,6 +144,11 @@ public class RatioCollapseManager {
                     0.0
             );
 
+            DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+            if (rec != null) {
+                rec.permanentDestruction = true;
+            }
+
             task.displacedPositions.add(pos);
             task.apexHeight.put(pos, apexY);
             task.baseRotation.put(pos, rot);

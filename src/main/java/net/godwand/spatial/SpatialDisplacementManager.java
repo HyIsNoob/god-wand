@@ -96,7 +96,7 @@ public class SpatialDisplacementManager {
     public static List<DisplacedBlockRecord> getActiveRecordsForWorld(RegistryKey<World> worldKey) {
         List<DisplacedBlockRecord> list = new ArrayList<>();
         for (DisplacedBlockRecord r : ACTIVE_RECORDS.values()) {
-            if (r.worldKey.equals(worldKey)) {
+            if (r.worldKey.equals(worldKey) && !r.permanentDestruction) {
                 list.add(r);
             }
         }
@@ -365,6 +365,7 @@ public class SpatialDisplacementManager {
                             }
                         }
                     }
+                    record.openDurationTicks = openDuration;
                     display.setInterpolationDuration(openDuration);
                     display.setTransformation(SpatialMath.createPivotTransform(
                             record.getCurrentOffset(), record.currentRotation, record.targetScale.x));
@@ -375,8 +376,9 @@ public class SpatialDisplacementManager {
                 continue;
             }
 
-            // Chờ hết ticks bung mở ban đầu (tối đa 27 ticks cho PATH_WALKER, 9 ticks cho các chiêu khác) rồi mới chạy cập nhật trường lực động
-            int minHoldTicks = record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER ? 27 : 9;
+            // Chờ hết ticks bung mở ban đầu (động theo openDurationTicks + 1 cho PATH_WALKER, 9 ticks cho các chiêu khác) rồi mới chạy cập nhật trường lực động
+            int minHoldTicks = record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER
+                    ? (record.openDurationTicks + 1) : 9;
             if (record.ageTicks < minHoldTicks) {
                 continue;
             }
@@ -566,7 +568,16 @@ public class SpatialDisplacementManager {
         List<DisplacedBlockRecord> matching = new ArrayList<>();
         for (DisplacedBlockRecord r : ACTIVE_RECORDS.values()) {
             if (r.worldKey.equals(world.getRegistryKey())) {
-                matching.add(r);
+                if (r.permanentDestruction) {
+                    if (r.displayEntityUuid != null) {
+                        BlockDisplayEntity ent = ACTIVE_ENTITIES.remove(r.displayEntityUuid);
+                        if (ent != null && ent.isAlive()) {
+                            ent.discard();
+                        }
+                    }
+                } else {
+                    matching.add(r);
+                }
             }
         }
         executeTwoPassRestoration(world, matching);

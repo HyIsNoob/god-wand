@@ -60,7 +60,7 @@ public class ShockwaveSlicer {
     private static final Queue<SingularityTask> ACTIVE_TASKS = new ConcurrentLinkedQueue<>();
 
     public static void queueCalamityDetonation(ServerWorld world, BlockPos center, double maxRadius) {
-        Vec3d orbCenter = center.toCenterPos().add(0, 2.2 + maxRadius * 0.2, 0);
+        Vec3d orbCenter = center.toCenterPos().add(0, 3.8 + maxRadius * 0.35, 0);
         SingularityTask task = new SingularityTask(world, center, maxRadius, orbCenter);
 
         // 1. Quả cầu năng lượng trung tâm được kết xuất trực tiếp bằng 3D Raymarched Shader (TYPE_DETONATION)
@@ -118,6 +118,15 @@ public class ShockwaveSlicer {
                 ).normalize();
 
                 Vec3d targetWorldPos = orbCenter.add(sphereDir.multiply(expandRadius));
+                // Đảm bảo các mảnh vỡ nửa dưới cầu không bị chôn sâu dưới lòng đất mà lơ lửng quanh miệng hố
+                double minHoverY = center.getY() + 1.0 + SpatialMath.hash01(pos.up()) * 2.5;
+                if (targetWorldPos.y < minHoverY) {
+                    targetWorldPos = new Vec3d(
+                            targetWorldPos.x,
+                            minHoverY + (minHoverY - targetWorldPos.y) * 0.25,
+                            targetWorldPos.z
+                    );
+                }
                 Vec3d fullExpansionVec = targetWorldPos.subtract(Vec3d.ofCenter(pos));
 
                 float hashVal = (float) SpatialMath.hash01(pos);

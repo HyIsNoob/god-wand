@@ -222,30 +222,29 @@ public class GodWandPostFxManager {
                 lensingPower = (1.0f - progress) * 2.8f;
             }
             case ImpactFxPayload.TYPE_BLACK_HOLE -> {
-                // 3D Raymarched Black Hole Accretion & Collapse Progression (186 ticks)
                 impactIntensity = 1.0f;
-                // Progression 0.0 to 0.75 (Ticks 0..140): Growth & Steady Accretion
-                if (progress < 0.75f) {
-                    float grow = Math.min(1.0f, progress / 0.20f);
-                    coreRadius = 2.4f * (float) Math.sin(grow * Math.PI * 0.5);
-                    lensingPower = 1.4f * grow;
+                // Ticks 0..120 (progress 0.0 -> 0.645): Hố Đen to dần từ từ (0.6f -> 4.5f) đồng bộ với việc cuốn đất
+                if (progress < 0.645f) {
+                    float grow = progress / 0.645f;
+                    coreRadius = MathHelper.lerp((float) Math.pow(grow, 0.85), 0.6f, 4.5f);
+                    lensingPower = MathHelper.lerp(grow, 0.8f, 2.2f);
                     shockwaveRadius = 0.0f;
                     distortionPower = 0.0f;
                 }
-                // Progression 0.75 to 0.94 (Ticks 140..175): Gravitational Collapse / Inward Compression
+                // Ticks 121..175 (progress 0.645 -> 0.94): Sụp đổ hấp dẫn, co rút từ 4.5f về 0.65f
                 else if (progress < 0.94f) {
-                    float collapseProg = (progress - 0.75f) / 0.19f;
-                    coreRadius = MathHelper.lerp(collapseProg, 2.4f, 0.45f);
-                    lensingPower = MathHelper.lerp(collapseProg, 1.4f, 4.2f);
-                    zoomBlur = -0.045f * collapseProg; // Inward gravitational suction
-                    distortionPower = -0.035f * collapseProg;
+                    float collapseProg = (progress - 0.645f) / 0.295f;
+                    coreRadius = MathHelper.lerp(collapseProg, 4.5f, 0.65f);
+                    lensingPower = MathHelper.lerp(collapseProg, 2.2f, 4.5f);
+                    zoomBlur = -0.055f * collapseProg;
+                    distortionPower = -0.04f * collapseProg;
                 }
-                // Progression 0.94 to 1.0 (Ticks 176..186): Vacuum Silence & Horizon Jitter
+                // Ticks 176..186 (progress 0.94 -> 1.0): Vacuum Silence & Co giật chân không
                 else {
-                    coreRadius = 0.40f + 0.04f * (float) Math.sin(gTime * 50.0);
-                    lensingPower = 4.8f;
-                    zoomBlur = -0.06f;
-                    distortionPower = -0.05f;
+                    coreRadius = 0.55f + 0.08f * (float) Math.sin(gTime * 60.0);
+                    lensingPower = 5.0f;
+                    zoomBlur = -0.075f;
+                    distortionPower = -0.06f;
                 }
             }
         }
