@@ -243,6 +243,24 @@ public class GodWandPostFxManager {
                 distortionPower = 0.0f;
                 zoomBlur = -0.025f * progress;
             }
+            case ImpactFxPayload.TYPE_GRAVITY_CORE -> {
+                // Quả cầu năng lượng Chiêu 3 (86 ticks):
+                // Ticks 0..58 (progress 0.0 -> 0.67): Màu Vàng Hổ Phách / Cam Trọng Lực hút đá xoay vòng
+                // Ticks 59..86 (progress 0.67 -> 1.0): Hóa Đỏ Nhiệt Hạch (Crimson Overheat) đồng bộ với Mũi Khoan!
+                float pulse = (float) (Math.sin(gTime * 22.0) * 0.14);
+                if (progress < 0.67f) {
+                    float grow = Math.min(1.0f, progress / 0.18f);
+                    coreRadius = (0.85f + pulse) * grow * Math.min(1.6f, baseIntensity);
+                    lensingPower = 1.2f * grow;
+                    impactIntensity = 1.0f; // Encode heat < 1.5 cho màu Vàng Hổ Phách
+                } else {
+                    float redProg = (progress - 0.67f) / 0.33f;
+                    coreRadius = (1.05f + pulse * 1.5f) * (1.0f - redProg * 0.35f) * Math.min(1.6f, baseIntensity);
+                    lensingPower = 1.8f + redProg * 1.2f;
+                    zoomBlur = -0.035f * redProg;
+                    impactIntensity = 1.0f + redProg * 1.5f; // Tăng từ 1.0 -> 2.5 để Shader chuyển sang Đỏ Nhiệt Hạch!
+                }
+            }
         }
 
         // Project 3D explosion coordinates to 2D Screen UV

@@ -243,6 +243,33 @@ void main() {
                 addGlow += (plasmaCore + plasmaCorona + plasmaAura) * min(ImpactIntensity * 1.5, 1.8);
             }
         }
+        // =========================================================================
+        // NHÁNH 4: CHIÊU 3 - QUẢ CẦU TRỌNG LỰC HÓA ĐỎ MŨI KHOAN (FxType == 6.0: TYPE_GRAVITY_CORE)
+        // Đổi màu mượt từ Vàng Hổ Phách (Amber Gravity) -> Đỏ Thẫm Nhiệt Hạch (Crimson Drill Overheat)
+        // =========================================================================
+        else if (FxType > 5.5 && inFront && !coreOccluded && CoreRadius > 0.05) {
+            float dSphere = impactParam;
+            if (dSphere < CoreRadius * 1.75 && sceneDist > (tBH - CoreRadius)) {
+                vec2 lensDir = (dist > 0.0001) ? normalize(aspectDiff) : vec2(0.0);
+                float lensShift = (LensingPower * sqr(CoreRadius)) / (sqr(dSphere) + 0.10);
+                lensOffset = vec2(lensDir.x / Aspect, lensDir.y) * clamp(lensShift, 0.0, 0.18);
+
+                // redMix = 0.0 (Vàng Hổ Phách ở Pha 1-2) -> 1.0 (Đỏ Thẫm Nhiệt Hạch ở Pha 3 Mũi Khoan)
+                float redMix = saturate((ImpactIntensity - 1.0) / 1.2);
+                float coreGrad = smoothstep(CoreRadius * 1.5, 0.0, dSphere);
+                float spiralWave = 0.8 + 0.2 * sin(dSphere * 20.0 - GTime * (25.0 + redMix * 35.0));
+
+                vec3 coreColor = mix(vec3(1.0, 0.95, 0.75), vec3(1.0, 0.85, 0.85), redMix);
+                vec3 coronaColor = mix(vec3(1.0, 0.65, 0.08), vec3(1.0, 0.08, 0.02), redMix);
+                vec3 auraColor = mix(vec3(0.85, 0.35, 0.02), vec3(0.75, 0.0, 0.08), redMix);
+
+                vec3 gravCore = coreColor * exp(-dSphere / (CoreRadius * 0.42)) * 4.5;
+                vec3 gravCorona = coronaColor * exp(-dSphere / (CoreRadius * 0.92)) * 3.2;
+                vec3 gravAura = auraColor * coreGrad * spiralWave * 1.8;
+
+                addGlow += (gravCore + gravCorona + gravAura) * 1.4;
+            }
+        }
     }
 
     // =========================================================================
