@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.godwand.entity.ArcaneOrbEntity;
 import net.godwand.network.CinematicFxPayload;
 import net.godwand.skill.RatioCollapseManager;
+import net.godwand.skill.ShockwaveSlicer;
 import net.godwand.skill.SpatialPathWalker;
 import net.godwand.skill.SupernovaManager;
 import net.minecraft.component.DataComponentTypes;
@@ -95,6 +96,18 @@ public class GodWandItem extends Item {
         }
 
         // NORMAL RIGHT CLICK: Execute Current Selected Skill
+        if (!world.isClient() && user instanceof ServerPlayerEntity serverPlayer) {
+            if (currentMode == MODE_ARCANE_ORB && ShockwaveSlicer.hasActiveTask(serverPlayer)) {
+                boolean snapped = ShockwaveSlicer.triggerEarlySnap(serverPlayer);
+                if (snapped) {
+                    serverPlayer.clearActiveItem();
+                    user.swingHand(hand, true);
+                    serverPlayer.sendMessage(Text.literal("§d§l✦ Singularity Collapsed! ✦"), true);
+                    return TypedActionResult.success(stack);
+                }
+            }
+        }
+
         switch (currentMode) {
             case MODE_SPATIAL_PATH -> {
                 if (!world.isClient() && user instanceof ServerPlayerEntity serverPlayer) {

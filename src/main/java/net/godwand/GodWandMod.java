@@ -4,6 +4,8 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -21,10 +23,13 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnGroup;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemGroups;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +66,38 @@ public class GodWandMod implements ModInitializer {
             for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                 SpatialPathWalker.tickPlayer(player);
             }
+        });
+
+        AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
+            if (!world.isClient() && player instanceof ServerPlayerEntity serverPlayer) {
+                ItemStack stack = serverPlayer.getStackInHand(hand);
+                if (stack.isOf(GOD_WAND_ITEM) && GodWandItem.getSkillMode(stack) == GodWandItem.MODE_ARCANE_ORB) {
+                    if (ShockwaveSlicer.hasActiveTask(serverPlayer)) {
+                        boolean snapped = ShockwaveSlicer.triggerEarlySnap(serverPlayer);
+                        if (snapped) {
+                            serverPlayer.sendMessage(Text.literal("§d§l✦ Singularity Collapsed! ✦"), true);
+                            return ActionResult.SUCCESS;
+                        }
+                    }
+                }
+            }
+            return ActionResult.PASS;
+        });
+
+        AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+            if (!world.isClient() && player instanceof ServerPlayerEntity serverPlayer) {
+                ItemStack stack = serverPlayer.getStackInHand(hand);
+                if (stack.isOf(GOD_WAND_ITEM) && GodWandItem.getSkillMode(stack) == GodWandItem.MODE_ARCANE_ORB) {
+                    if (ShockwaveSlicer.hasActiveTask(serverPlayer)) {
+                        boolean snapped = ShockwaveSlicer.triggerEarlySnap(serverPlayer);
+                        if (snapped) {
+                            serverPlayer.sendMessage(Text.literal("§d§l✦ Singularity Collapsed! ✦"), true);
+                            return ActionResult.SUCCESS;
+                        }
+                    }
+                }
+            }
+            return ActionResult.PASS;
         });
 
         ServerTickEvents.END_WORLD_TICK.register(world -> {

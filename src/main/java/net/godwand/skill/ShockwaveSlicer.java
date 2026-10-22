@@ -10,12 +10,14 @@ import net.godwand.spatial.SpatialMath;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity;
+import net.minecraft.particle.BlockStateParticleEffect;
 import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
@@ -34,6 +36,7 @@ public class ShockwaveSlicer {
         public final BlockPos center;
         public final double maxRadius;
         public final Vec3d orbCenter;
+        public final ServerPlayerEntity caster;
 
         public final List<BlockPos> displayedPositions = new ArrayList<>();
         public final List<BlockPos> interiorPositions = new ArrayList<>();
@@ -49,12 +52,19 @@ public class ShockwaveSlicer {
         public final int maxLifetimeTicks = 132;
         public boolean snappedBack = false;
         public boolean restored = false;
+        public boolean earlySnapped = false;
+        public int earlySnapTick = -1;
 
         public SingularityTask(ServerWorld world, BlockPos center, double maxRadius, Vec3d orbCenter) {
+            this(world, center, maxRadius, orbCenter, null);
+        }
+
+        public SingularityTask(ServerWorld world, BlockPos center, double maxRadius, Vec3d orbCenter, ServerPlayerEntity caster) {
             this.world = world;
             this.center = center.toImmutable();
             this.maxRadius = maxRadius;
             this.orbCenter = orbCenter;
+            this.caster = caster;
         }
     }
 
@@ -71,8 +81,12 @@ public class ShockwaveSlicer {
     }
 
     public static void queueCalamityDetonation(ServerWorld world, BlockPos center, double maxRadius) {
+        queueCalamityDetonation(world, center, maxRadius, null);
+    }
+
+    public static void queueCalamityDetonation(ServerWorld world, BlockPos center, double maxRadius, ServerPlayerEntity caster) {
         Vec3d orbCenter = center.toCenterPos().add(0, 3.8 + maxRadius * 0.35, 0);
-        SingularityTask task = new SingularityTask(world, center, maxRadius, orbCenter);
+        SingularityTask task = new SingularityTask(world, center, maxRadius, orbCenter, caster);
 
         int intR = (int) Math.ceil(maxRadius);
         double maxRadiusSq = maxRadius * maxRadius;
@@ -233,6 +247,10 @@ public class ShockwaveSlicer {
         }
 
         ACTIVE_TASKS.add(task);
+
+        if (caster != null) {
+            caster.sendMessage(Text.literal("§d§l✦ Singularity Deployed! [Right-Click to Recall] ✦"), true);
+        }
     }
 
     /**
@@ -281,6 +299,92 @@ public class ShockwaveSlicer {
         }
     }
 
+    public static boolean hasActiveTask(ServerPlayerEntity player) {
+        for (SingularityTask task : ACTIVE_TASKS) {
+            if (!task.restored && !task.earlySnapped) {
+                if (task.caster == null || task.caster == player || task.caster.getUuid().equals(player.getUuid())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static boolean triggerEarlySnap(ServerPlayerEntity player) {
+        for (SingularityTask task : ACTIVE_TASKS) {
+            if (!task.restored && !task.earlySnapped) {
+                if (task.caster == null || task.caster == player || task.caster.getUuid().equals(player.getUuid())) {
+                    snapTask(task);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void snapTask(SingularityTask task) {
+        task.earlySnapped = true;
+        task.earlySnapTick = task.ageTicks;
+        task.snappedBack = true;
+
+        ServerWorld world = task.world;
+
+        // 1. Audio feedback uy lực
+        world.playSound(null, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
+                SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.BLOCKS, 3.8f, 1.8f);
+        world.playSound(null, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
+                SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.BLOCKS, 3.2f, 1.6f);
+        world.playSound(null, task.center, SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.PLAYERS, 3.5f, 0.8f);
+        world.playSound(null, task.center, SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.BLOCKS, 3.5f, 0.7f);
+
+        // 2. Sát thương nghiền nát (45 - 125) & Lực hút trọng trường kéo tụt mục tiêu xuống đáy hố
+        Box snapBox = new Box(task.center).expand(task.maxRadius * 1.15);
+        for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, snapBox, ent -> ent != task.caster && ent.isAlive())) {
+            Vec3d diff = task.center.toCenterPos().subtract(e.getPos());
+            double dist = diff.length();
+            if (dist <= task.maxRadius * 1.15) {
+                float dmg = (float) Math.max(45.0, (1.0 - (dist / (task.maxRadius * 1.15))) * 80.0 + 45.0);
+                e.damage(world.getDamageSources().fallingBlock(task.caster), dmg);
+
+                Vec3d pull = (dist > 0.01) ? diff.normalize().multiply(1.9).add(0, -0.9, 0) : new Vec3d(0, -1.0, 0);
+                e.setVelocity(pull);
+                e.velocityModified = true;
+            }
+        }
+
+        // 3. Interpolate siêu tốc (4 ticks) kéo toàn bộ khối hiển thị về ô gốc (0,0,0)
+        for (BlockPos pos : task.displayedPositions) {
+            DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+            if (record == null || record.displayEntityUuid == null) continue;
+
+            BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
+            if (display == null || !display.isAlive()) continue;
+
+            display.setStartInterpolation(0);
+            display.setInterpolationDuration(4);
+            display.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 1.0f));
+        }
+
+        // 4. Gửi hiệu ứng rung chấn Trauma Shake & FOV Punch
+        ImpactFxPayload snapFx = new ImpactFxPayload(task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
+                ImpactFxPayload.TYPE_REASSEMBLY, 10, 1.45f);
+        CinematicFxPayload snapShake = new CinematicFxPayload(
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE,
+                task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
+                0.95f, 14
+        );
+        CinematicFxPayload snapFov = new CinematicFxPayload(
+                CinematicFxPayload.EVENT_FOV_PUNCH,
+                task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
+                0.85f, 6
+        );
+        for (ServerPlayerEntity p : PlayerLookup.around(world, task.orbCenter, 96.0)) {
+            ServerPlayNetworking.send(p, snapFx);
+            ServerPlayNetworking.send(p, snapShake);
+            ServerPlayNetworking.send(p, snapFov);
+        }
+    }
+
     public static void tick(ServerWorld world) {
         Iterator<SingularityTask> it = ACTIVE_TASKS.iterator();
         while (it.hasNext()) {
@@ -288,6 +392,19 @@ public class ShockwaveSlicer {
             if (task.world != world) continue;
 
             task.ageTicks++;
+
+            // Xử lý Early Snap: Thu toàn bộ block về thần tốc trong 4 ticks, gây sát thương nghiền nát và chôn vùi (Entombment)
+            if (task.earlySnapped) {
+                int ticksSinceSnap = task.ageTicks - task.earlySnapTick;
+                if (ticksSinceSnap < 4) {
+                    world.spawnParticles(ParticleTypes.REVERSE_PORTAL, task.center.getX() + 0.5, task.center.getY() + 1.0, task.center.getZ() + 0.5, 16, 1.5, 1.0, 1.5, 0.2);
+                    world.spawnParticles(new DustParticleEffect(new Vector3f(0.0f, 0.95f, 1.0f), 1.5f), task.orbCenter.x, task.orbCenter.y, task.orbCenter.z, 12, 0.8, 0.8, 0.8, 0.3);
+                } else if (!task.restored) {
+                    executeRestoration(task);
+                    it.remove();
+                }
+                continue;
+            }
 
             // Duy trì 3 vòng Particle bay tốc độ cao quanh khối cầu năng lượng từ lúc nổ đến lúc thu về
             if (task.ageTicks <= 112) {
@@ -403,66 +520,93 @@ public class ShockwaveSlicer {
 
                 // Tick 131: Dọn dẹp thực thể và khôi phục địa hình 1:1 ngay khi kết thúc nội suy 18 ticks (112 + 18 = 130)
                 if (task.ageTicks >= 131 && !task.restored) {
-                    task.restored = true;
-
-                    List<DisplacedBlockRecord> toRestore = new ArrayList<>();
-                    for (BlockPos pos : task.displayedPositions) {
-                        DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                        if (rec != null) toRestore.add(rec);
-                    }
-                    for (BlockPos pos : task.interiorPositions) {
-                        DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                        if (rec != null) toRestore.add(rec);
-                    }
-
-                    if (!toRestore.isEmpty()) {
-                        SpatialDisplacementManager.executeTwoPassRestoration(world, toRestore);
-                    }
-
-                    // Hiệu ứng chớp sáng Manga & rung chấn cực mạnh khi địa hình khóa sập 1:1 liền mạch
-                    ImpactFxPayload snapFx = new ImpactFxPayload(task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
-                            ImpactFxPayload.TYPE_REASSEMBLY, 10, 1.35f);
-                    CinematicFxPayload snapShake = new CinematicFxPayload(
-                            CinematicFxPayload.EVENT_TRAUMA_SHAKE,
-                            task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
-                            0.82f, 12
-                    );
-                    CinematicFxPayload snapFov = new CinematicFxPayload(
-                            CinematicFxPayload.EVENT_FOV_PUNCH,
-                            task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
-                            0.90f, 6
-                    );
-                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.orbCenter, 96.0)) {
-                        ServerPlayNetworking.send(p, snapFx);
-                        ServerPlayNetworking.send(p, snapShake);
-                        ServerPlayNetworking.send(p, snapFov);
-                    }
-
-                    // Chớp sáng Flash & Mạng lưới hàn gắn địa chấn mặt đất (Seam Fusion Sparks)
-                    world.spawnParticles(ParticleTypes.FLASH, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z, 4, 0.4, 0.4, 0.4, 0.0);
-                    world.spawnParticles(ParticleTypes.SONIC_BOOM, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z, 1, 0, 0, 0, 0);
-
-                    for (int s = 0; s < 54; s++) {
-                        double ang = (s / 54.0) * Math.PI * 2.0;
-                        double dist = task.maxRadius * (0.35 + world.random.nextDouble() * 0.75);
-                        double px = task.center.getX() + 0.5 + Math.cos(ang) * dist;
-                        double pz = task.center.getZ() + 0.5 + Math.sin(ang) * dist;
-                        world.spawnParticles(ParticleTypes.FLASH, px, task.center.getY() + 1.05, pz, 1, 0, 0, 0, 0);
-                        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, px, task.center.getY() + 1.1, pz, 2, 0.1, 0.1, 0.1, 0.05);
-                        world.spawnParticles(new DustParticleEffect(new Vector3f(0.0f, 0.95f, 1.0f), 1.5f),
-                                px, task.center.getY() + 1.1, pz, 1, 0, 0.05, 0, 0.02);
-                    }
-
-                    // Dàn âm thanh cơ học khóa sập cực kỳ uy lực
-                    world.playSound(null, task.center, SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.BLOCKS, 3.5f, 1.05f);
-                    world.playSound(null, task.center, SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.BLOCKS, 3.0f, 1.4f);
-                    world.playSound(null, task.center, SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.BLOCKS, 3.2f, 1.7f);
-                    world.playSound(null, task.center, SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.BLOCKS, 3.0f, 1.35f);
-                    world.playSound(null, task.center, SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.BLOCKS, 2.8f, 1.8f);
+                    executeRestoration(task);
                     it.remove();
                 }
             }
         }
+    }
+
+    private static void executeRestoration(SingularityTask task) {
+        task.restored = true;
+        ServerWorld world = task.world;
+
+        List<DisplacedBlockRecord> toRestore = new ArrayList<>();
+        for (BlockPos pos : task.displayedPositions) {
+            DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+            if (rec != null) toRestore.add(rec);
+        }
+        for (BlockPos pos : task.interiorPositions) {
+            DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+            if (rec != null) toRestore.add(rec);
+        }
+
+        if (!toRestore.isEmpty()) {
+            SpatialDisplacementManager.executeTwoPassRestoration(world, toRestore);
+        }
+
+        // Sát thương chôn vùi & ngạt thở (Entombment & Suffocation)
+        Box entombBox = new Box(task.center).expand(task.maxRadius * 1.05);
+        for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, entombBox, ent -> ent != task.caster && ent.isAlive())) {
+            BlockPos feetPos = BlockPos.ofFloored(e.getPos());
+            BlockPos eyePos = BlockPos.ofFloored(e.getEyePos());
+            BlockState feetState = world.getBlockState(feetPos);
+            BlockState eyeState = world.getBlockState(eyePos);
+            boolean inSolid = feetState.isOpaqueFullCube(world, feetPos) || eyeState.isOpaqueFullCube(world, eyePos);
+            if (inSolid) {
+                e.damage(task.caster != null ? world.getDamageSources().fallingBlock(task.caster) : world.getDamageSources().inWall(), 35.0f);
+                BlockState blockToBreak = feetState.isOpaqueFullCube(world, feetPos) ? feetState : eyeState;
+                world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, blockToBreak),
+                        e.getX(), e.getY() + 0.5, e.getZ(), 24, 0.3, 0.5, 0.3, 0.15);
+                world.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.ENTITY_PLAYER_HURT_SWEET_BERRY_BUSH, SoundCategory.PLAYERS, 1.5f, 0.6f);
+                world.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.BLOCK_STONE_BREAK, SoundCategory.BLOCKS, 1.5f, 0.8f);
+            }
+        }
+
+        if (task.caster != null) {
+            task.caster.sendMessage(Text.literal("§d§l✦ Singularity Restored! Targets Entombed! ✦"), true);
+        }
+
+        // Hiệu ứng chớp sáng Manga & rung chấn cực mạnh khi địa hình khóa sập 1:1 liền mạch
+        ImpactFxPayload snapFx = new ImpactFxPayload(task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
+                ImpactFxPayload.TYPE_REASSEMBLY, 10, 1.35f);
+        CinematicFxPayload snapShake = new CinematicFxPayload(
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE,
+                task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
+                0.82f, 12
+        );
+        CinematicFxPayload snapFov = new CinematicFxPayload(
+                CinematicFxPayload.EVENT_FOV_PUNCH,
+                task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
+                0.90f, 6
+        );
+        for (ServerPlayerEntity p : PlayerLookup.around(world, task.orbCenter, 96.0)) {
+            ServerPlayNetworking.send(p, snapFx);
+            ServerPlayNetworking.send(p, snapShake);
+            ServerPlayNetworking.send(p, snapFov);
+        }
+
+        // Chớp sáng Flash & Mạng lưới hàn gắn địa chấn mặt đất (Seam Fusion Sparks)
+        world.spawnParticles(ParticleTypes.FLASH, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z, 4, 0.4, 0.4, 0.4, 0.0);
+        world.spawnParticles(ParticleTypes.SONIC_BOOM, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z, 1, 0, 0, 0, 0);
+
+        for (int s = 0; s < 54; s++) {
+            double ang = (s / 54.0) * Math.PI * 2.0;
+            double dist = task.maxRadius * (0.35 + world.random.nextDouble() * 0.75);
+            double px = task.center.getX() + 0.5 + Math.cos(ang) * dist;
+            double pz = task.center.getZ() + 0.5 + Math.sin(ang) * dist;
+            world.spawnParticles(ParticleTypes.FLASH, px, task.center.getY() + 1.05, pz, 1, 0, 0, 0, 0);
+            world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, px, task.center.getY() + 1.1, pz, 2, 0.1, 0.1, 0.1, 0.05);
+            world.spawnParticles(new DustParticleEffect(new Vector3f(0.0f, 0.95f, 1.0f), 1.5f),
+                    px, task.center.getY() + 1.1, pz, 1, 0, 0.05, 0, 0.02);
+        }
+
+        // Dàn âm thanh cơ học khóa sập cực kỳ uy lực
+        world.playSound(null, task.center, SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.BLOCKS, 3.5f, 1.05f);
+        world.playSound(null, task.center, SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.BLOCKS, 3.0f, 1.4f);
+        world.playSound(null, task.center, SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.BLOCKS, 3.2f, 1.7f);
+        world.playSound(null, task.center, SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.BLOCKS, 3.0f, 1.35f);
+        world.playSound(null, task.center, SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.BLOCKS, 2.8f, 1.8f);
     }
 
     private static void updateBlockPositions(SingularityTask task, double progress, int duration, boolean chaoticTumble) {

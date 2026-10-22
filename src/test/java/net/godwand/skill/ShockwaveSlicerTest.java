@@ -77,6 +77,9 @@ public class ShockwaveSlicerTest {
         assertEquals(132, task.maxLifetimeTicks);
         assertEquals(16.0, task.maxRadius, 1e-6);
         assertEquals(orbCenter, task.orbCenter);
+        assertNull(task.caster);
+        assertFalse(task.earlySnapped);
+        assertEquals(-1, task.earlySnapTick);
     }
 
     @Test

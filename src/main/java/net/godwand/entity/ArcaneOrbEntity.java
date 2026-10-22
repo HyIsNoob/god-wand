@@ -10,6 +10,7 @@ import net.minecraft.entity.projectile.ProjectileUtil;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
@@ -111,7 +112,8 @@ public class ArcaneOrbEntity extends ProjectileEntity {
                 default -> 16.0; // Calamity Level 3
             };
             BlockPos center = hitResult instanceof BlockHitResult bhr ? bhr.getBlockPos() : this.getBlockPos();
-            ShockwaveSlicer.queueCalamityDetonation((ServerWorld) this.getWorld(), center, radius);
+            ServerPlayerEntity caster = (this.getOwner() instanceof ServerPlayerEntity spe) ? spe : null;
+            ShockwaveSlicer.queueCalamityDetonation((ServerWorld) this.getWorld(), center, radius, caster);
             this.discard();
         }
     }
