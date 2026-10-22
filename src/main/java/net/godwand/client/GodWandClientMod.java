@@ -24,7 +24,8 @@ public class GodWandClientMod implements ClientModInitializer {
                         payload.type(), payload.durationTicks(), payload.intensity()
                 );
                 if (payload.type() == ImpactFxPayload.TYPE_SUPERNOVA) {
-                    CustomImpactFrameOverlay.trigger(16);
+                    // Thời gian xuất hiện 4 impact frame bằng đúng thời gian impact frame Chiêu 2 (12 ticks = 0.6s, 3 ticks/frame)
+                    CustomImpactFrameOverlay.trigger(12);
                 }
             });
         });
