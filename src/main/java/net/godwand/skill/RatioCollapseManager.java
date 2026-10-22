@@ -119,29 +119,29 @@ public class RatioCollapseManager {
         };
 
         int craterRadius = switch (chargeLevel) {
-            case 2 -> 14;
-            case 3 -> 20;
-            default -> 9;
-        };
-
-        // Tăng độ sâu hố khoan (Drill Borehole Depth) sâu hơn đáng kể
-        int craterDepth = switch (chargeLevel) {
-            case 2 -> 12;
+            case 2 -> 13;
             case 3 -> 18;
             default -> 8;
         };
 
+        // Tăng độ sâu hố khoan (Drill Borehole Depth) sâu hơn gấp đôi, khoan cắm sâu vào lòng đất
+        int craterDepth = switch (chargeLevel) {
+            case 2 -> 24;
+            case 3 -> 36;
+            default -> 16;
+        };
+
         float damageMult = switch (chargeLevel) {
-            case 2 -> 1.6f;
-            case 3 -> 2.5f;
-            default -> 1.0f;
+            case 2 -> 1.8f;
+            case 3 -> 2.8f;
+            default -> 1.2f;
         };
 
         launch(world, player, targetPos, radius, boulderRadius, maxBlocks, craterRadius, craterDepth, damageMult);
     }
 
     public static void launch(ServerWorld world, ServerPlayerEntity player, BlockPos center, double radius) {
-        launch(world, player, center, radius, 2.5, 135, 9, 8, 1.0f);
+        launch(world, player, center, radius, 2.5, 135, 8, 16, 1.2f);
     }
 
     public static void launch(ServerWorld world, ServerPlayerEntity player, BlockPos center,
@@ -526,8 +526,8 @@ public class RatioCollapseManager {
                 float clampedBore = MathHelper.clamp(boreProg, 0.0f, 1.0f);
                 task.orbitAngle += 0.95f; // Vẫn xoay cực nhanh trong lúc đâm xuyên xuống đất!
 
-                // Tâm mũi khoan lao từ meteorCore xuyên thẳng xuống dưới mặt đất (-craterDepth * 0.45)
-                Vec3d drillTargetCenter = task.center.toCenterPos().subtract(0, task.craterDepth * 0.35, 0);
+                // Tâm mũi khoan lao từ meteorCore xuyên thẳng sâu xuống lòng đất (-craterDepth * 0.60)
+                Vec3d drillTargetCenter = task.center.toCenterPos().subtract(0, task.craterDepth * 0.60, 0);
                 Vec3d currentDrillCenter = task.meteorCore.lerp(drillTargetCenter, clampedBore * clampedBore);
 
                 if (task.ageTicks == 135) {
@@ -554,6 +554,14 @@ public class RatioCollapseManager {
                         display.setStartInterpolation(0);
                         display.setInterpolationDuration(1);
                         display.setTransformation(SpatialMath.createPivotTransform(slamDisp, drillRot, 1.25f));
+                    }
+
+                    // Sát thương nghiền nát xuyên thấu khi mũi khoan cắm sâu xuống đất (Ticks 135..145)
+                    Box drillPenetrateBox = Box.of(currentDrillCenter, task.boulderRadius * 2.2, task.boulderRadius * 3.6, task.boulderRadius * 2.2);
+                    for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, drillPenetrateBox, ent -> ent != task.caster)) {
+                        e.damage(world.getDamageSources().fallingBlock(task.caster), 10.0f * task.damageMult);
+                        e.addVelocity(0, -0.45, 0); // Ép chặt nạn nhân xuống đáy lỗ khoan
+                        e.velocityModified = true;
                     }
 
                     // Vệt lửa đỏ rực kéo dài theo đuôi mũi khoan khi lao xuống
@@ -593,14 +601,21 @@ public class RatioCollapseManager {
                                 px, task.center.getY() + 0.4, pz, 3, 0.3, 0.3, 0.3, 0.05);
                     }
 
-                    // Sát thương khoan xuyên giáp & hất văng
-                    Box slamBox = new Box(task.center).expand(task.radius * 1.45);
+                    // Sát thương khoan xuyên giáp & hất văng (phủ sâu toàn bộ lỗ khoan -craterDepth)
+                    Box slamBox = new Box(
+                            task.center.getX() - task.radius * 1.45,
+                            task.center.getY() - task.craterDepth - 4.0,
+                            task.center.getZ() - task.radius * 1.45,
+                            task.center.getX() + task.radius * 1.45,
+                            task.center.getY() + task.radius * 0.8,
+                            task.center.getZ() + task.radius * 1.45
+                    );
                     for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, slamBox, ent -> ent != task.caster)) {
                         double dist = e.getPos().distanceTo(task.center.toCenterPos());
-                        float dmg = (float) Math.max(20.0, ((1.0 - (dist / (task.radius * 1.45))) * 48.0 + 14.0) * task.damageMult);
+                        float dmg = (float) Math.max(35.0, ((1.0 - (dist / (task.radius * 1.45))) * 75.0 + 25.0) * task.damageMult);
                         e.damage(world.getDamageSources().fallingBlock(task.caster), dmg);
 
-                        Vec3d diff = e.getPos().subtract(task.center.toCenterPos()).normalize().multiply(1.8 * task.damageMult).add(0, 0.75, 0);
+                        Vec3d diff = e.getPos().subtract(task.center.toCenterPos()).normalize().multiply(2.2 * task.damageMult).add(0, 0.85, 0);
                         e.addVelocity(diff.x, diff.y, diff.z);
                         e.velocityModified = true;
                     }
@@ -634,12 +649,12 @@ public class RatioCollapseManager {
                             double dist2D = Math.sqrt(distSq);
                             double angle2D = Math.atan2(cz, cx);
                             // Rãnh xoắn ốc khắc vào lòng hố khoan
-                            double spiralGroove = Math.sin(angle2D * 3.0 + dist2D * 0.85) * 1.2;
+                            double spiralGroove = Math.sin(angle2D * 3.0 + dist2D * 0.85) * 1.5;
                             double normDist = Math.min(1.0, dist2D / craterR);
-                            // Hình phễu mũi khoan nhọn và sâu ở tâm (hàm mũ 1.45)
-                            int depth = (int) Math.round(Math.pow(1.0 - normDist, 1.45) * maxD + (1.0 - normDist) * spiralGroove);
+                            // Hình phễu mũi khoan nhọn và khoan cắm sâu tận cùng ở tâm (hàm mũ 1.55)
+                            int depth = (int) Math.round(Math.pow(1.0 - normDist, 1.55) * maxD + (1.0 - normDist) * spiralGroove);
 
-                            for (int cy = -depth; cy <= 2; cy++) {
+                            for (int cy = -depth; cy <= 3; cy++) {
                                 cMut.set(task.center.getX() + cx, task.center.getY() + cy, task.center.getZ() + cz);
                                 if (cMut.getY() < world.getBottomY() || cMut.getY() >= world.getTopY()) continue;
 
@@ -648,7 +663,7 @@ public class RatioCollapseManager {
 
                                 if (cy == -depth) {
                                     // Vách rãnh khoan nóng chảy đỏ rực
-                                    boolean isGrooveHot = Math.sin(angle2D * 3.0 + dist2D * 0.85) > 0.25;
+                                    boolean isGrooveHot = Math.sin(angle2D * 3.0 + dist2D * 0.85) > 0.15;
                                     BlockState floorState = isGrooveHot ? Blocks.MAGMA_BLOCK.getDefaultState() :
                                             (rng.nextFloat() < 0.45f) ? Blocks.BLACKSTONE.getDefaultState() :
                                             (rng.nextFloat() < 0.75f) ? Blocks.COBBLESTONE.getDefaultState() :
