@@ -1,4 +1,5 @@
 {
   "item.godwand.god_wand": "God Wand",
-  "item.godwand.god_wand.desc": "§bSpatial Path Walker §7| §dArcane Singularity §7| §6Stone Cannon Drill §7| §cCosmic Supernova"
+  "item.godwand.god_wand.desc": "§bSpatial Path Walker §7| §dArcane Singularity §7| §6Stone Cannon Drill §7| §cCosmic Supernova §7| §eStone Cannon",
+  "entity.godwand.stone_cannon": "Stone Cannon"
 }

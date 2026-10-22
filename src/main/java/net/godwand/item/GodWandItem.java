@@ -6,6 +6,7 @@ import net.godwand.network.CinematicFxPayload;
 import net.godwand.skill.RatioCollapseManager;
 import net.godwand.skill.ShockwaveSlicer;
 import net.godwand.skill.SpatialPathWalker;
+import net.godwand.skill.StoneCannonManager;
 import net.godwand.skill.SupernovaManager;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
@@ -38,7 +39,8 @@ public class GodWandItem extends Item {
     public static final int MODE_ARCANE_ORB = 1;
     public static final int MODE_RATIO_COLLAPSE = 2;
     public static final int MODE_SUPERNOVA = 3;
-    public static final int TOTAL_MODES = 4;
+    public static final int MODE_STONE_CANNON = 4;
+    public static final int TOTAL_MODES = 5;
 
     public GodWandItem(Settings settings) {
         super(settings.maxCount(1));
@@ -90,6 +92,13 @@ public class GodWandItem extends Item {
                         world.playSound(null, user.getX(), user.getY(), user.getZ(),
                                 SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 2.5f, 0.5f);
                     }
+                    case MODE_STONE_CANNON -> {
+                        user.sendMessage(Text.literal("§6§l✦ Aerodynamic Stone Cannon ✦"), true);
+                        world.playSound(null, user.getX(), user.getY(), user.getZ(),
+                                SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.PLAYERS, 2.5f, 1.2f);
+                        world.playSound(null, user.getX(), user.getY(), user.getZ(),
+                                SoundEvents.ITEM_ELYTRA_FLYING, SoundCategory.PLAYERS, 2.0f, 1.4f);
+                    }
                 }
             }
             return TypedActionResult.success(stack);
@@ -115,7 +124,7 @@ public class GodWandItem extends Item {
                 }
                 return TypedActionResult.success(stack);
             }
-            case MODE_ARCANE_ORB, MODE_RATIO_COLLAPSE, MODE_SUPERNOVA -> {
+            case MODE_ARCANE_ORB, MODE_RATIO_COLLAPSE, MODE_SUPERNOVA, MODE_STONE_CANNON -> {
                 user.setCurrentHand(hand);
                 return TypedActionResult.consume(stack);
             }
@@ -128,7 +137,7 @@ public class GodWandItem extends Item {
     @Override
     public int getMaxUseTime(ItemStack stack, LivingEntity user) {
         int mode = getSkillMode(stack);
-        if (mode == MODE_ARCANE_ORB || mode == MODE_SUPERNOVA || mode == MODE_RATIO_COLLAPSE) {
+        if (mode == MODE_ARCANE_ORB || mode == MODE_SUPERNOVA || mode == MODE_RATIO_COLLAPSE || mode == MODE_STONE_CANNON) {
             return 72000;
         }
         return 0;
@@ -137,7 +146,7 @@ public class GodWandItem extends Item {
     @Override
     public UseAction getUseAction(ItemStack stack) {
         int mode = getSkillMode(stack);
-        if (mode == MODE_ARCANE_ORB || mode == MODE_RATIO_COLLAPSE) {
+        if (mode == MODE_ARCANE_ORB || mode == MODE_RATIO_COLLAPSE || mode == MODE_STONE_CANNON) {
             return UseAction.BOW;
         } else if (mode == MODE_SUPERNOVA) {
             return UseAction.SPEAR;
@@ -257,6 +266,26 @@ public class GodWandItem extends Item {
                 }
 
                 player.sendMessage(Text.literal("§6§l✦ Stone Cannon Drill: " + meter + " ✦"), true);
+            }
+            return;
+        }
+
+        // SKILL: AERODYNAMIC STONE CANNON
+        if (currentMode == MODE_STONE_CANNON) {
+            int chargeTicks = this.getMaxUseTime(stack, user) - remainingUseTicks;
+            if (chargeTicks < 0) return;
+
+            int level = StoneCannonManager.calculateChargeLevel(chargeTicks);
+            String meter = switch (level) {
+                case 4 -> "§4Level IV §8[§4§l▰▰▰▰ §eHYPER-SONIC§8]";
+                case 3 -> "§cLevel III §8[§c▰▰▰§8▱]";
+                case 2 -> "§6Level II §8[§6▰▰§8▱▱]";
+                default -> "§eLevel I §8[§e▰§8▱▱▱]";
+            };
+
+            if (!world.isClient() && user instanceof ServerPlayerEntity player) {
+                StoneCannonManager.tickCharge(player, chargeTicks, level);
+                player.sendMessage(Text.literal("§6§l✦ Stone Cannon: " + meter + " ✦"), true);
             }
             return;
         }
@@ -397,6 +426,15 @@ public class GodWandItem extends Item {
             return;
         }
 
+        if (getSkillMode(stack) == MODE_STONE_CANNON) {
+            if (!world.isClient() && user instanceof ServerPlayerEntity player) {
+                int chargeDuration = this.getMaxUseTime(stack, user) - remainingUseTicks;
+                StoneCannonManager.fire(player, chargeDuration);
+                player.getItemCooldownManager().set(this, 30);
+            }
+            return;
+        }
+
         if (getSkillMode(stack) != MODE_ARCANE_ORB) return;
 
         if (!world.isClient() && user instanceof PlayerEntity player) {
@@ -454,6 +492,7 @@ public class GodWandItem extends Item {
             case MODE_ARCANE_ORB -> tooltip.add(Text.literal("§aSelected: §dArcane Singularity §7(Hold to Charge)"));
             case MODE_RATIO_COLLAPSE -> tooltip.add(Text.literal("§aSelected: §6Stone Cannon Drill §7(Hold to Charge)"));
             case MODE_SUPERNOVA -> tooltip.add(Text.literal("§aSelected: §cCosmic Supernova §7(Hold to Unleash)"));
+            case MODE_STONE_CANNON -> tooltip.add(Text.literal("§aSelected: §6Aerodynamic Stone Cannon §7(Hold to Charge & Spin Drill)"));
         }
         tooltip.add(Text.literal("§8--------------------------------"));
         tooltip.add(Text.translatable("item.godwand.god_wand.desc"));

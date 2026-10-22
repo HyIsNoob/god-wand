@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.godwand.entity.ArcaneOrbEntity;
+import net.godwand.entity.StoneCannonProjectileEntity;
 import net.godwand.item.GodWandItem;
 import net.godwand.network.CinematicFxPayload;
 import net.godwand.network.ImpactFxPayload;
@@ -39,6 +40,7 @@ public class GodWandMod implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
     public static EntityType<ArcaneOrbEntity> ARCANE_ORB_ENTITY_TYPE;
+    public static EntityType<StoneCannonProjectileEntity> STONE_CANNON_ENTITY_TYPE;
     public static Item GOD_WAND_ITEM;
 
     @Override
@@ -48,6 +50,14 @@ public class GodWandMod implements ModInitializer {
                 Identifier.of(MOD_ID, "arcane_orb"),
                 EntityType.Builder.<ArcaneOrbEntity>create(ArcaneOrbEntity::new, SpawnGroup.MISC)
                         .dimensions(0.5f, 0.5f)
+                        .build()
+        );
+
+        STONE_CANNON_ENTITY_TYPE = Registry.register(
+                Registries.ENTITY_TYPE,
+                Identifier.of(MOD_ID, "stone_cannon"),
+                EntityType.Builder.<StoneCannonProjectileEntity>create(StoneCannonProjectileEntity::new, SpawnGroup.MISC)
+                        .dimensions(0.6f, 0.6f)
                         .build()
         );
 
