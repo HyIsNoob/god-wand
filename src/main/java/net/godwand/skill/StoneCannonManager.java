@@ -97,27 +97,10 @@ public class StoneCannonManager {
             }
         }
 
-        // 2. Luồng gió cuộn xoáy khí động học dạng nón xoáy hút vào mũi khoan (Vortex Cone)
+        // 2. Quy tụ hạt bụi đá ma sát nén và tia lửa điện cao tần (Hiệu ứng gió xoáy Ribbon được render mượt mà 3D ở Client)
         Vec3d up = Math.abs(look.y) < 0.99 ? new Vec3d(0, 1, 0) : new Vec3d(0, 0, 1);
         Vec3d tangent = look.crossProduct(up).normalize();
         Vec3d binormal = look.crossProduct(tangent).normalize();
-
-        int arms = 3;
-        double spinSpeed = 0.35 + level * 0.25;
-        for (int a = 0; a < arms; a++) {
-            double theta = (chargeTicks * spinSpeed) + (a * 2.0 * Math.PI / arms);
-            double coneDist = 0.6 + (1.0 - (chargeTicks % 6) / 6.0) * 1.5;
-            double coneRadius = 0.22 + coneDist * 0.55;
-            Vec3d ringPos = focusPos.add(look.multiply(coneDist))
-                    .add(tangent.multiply(coneRadius * Math.cos(theta)))
-                    .add(binormal.multiply(coneRadius * Math.sin(theta)));
-            Vec3d pullDir = focusPos.subtract(ringPos).normalize().multiply(0.35);
-
-            sw.spawnParticles(ParticleTypes.CLOUD, ringPos.x, ringPos.y, ringPos.z,
-                    1, pullDir.x, pullDir.y, pullDir.z, 0.05);
-            sw.spawnParticles(ParticleTypes.SWEEP_ATTACK, ringPos.x, ringPos.y, ringPos.z,
-                    1, 0, 0, 0, 0);
-        }
 
         // 3. Vòng quay ma sát cao độ tại lõi mũi khoan
         int corePoints = 8;

@@ -1,11 +1,11 @@
 package net.godwand.client;
 
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.godwand.entity.StoneCannonProjectileEntity;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.LightmapTextureManager;
-import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.*;
 import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
@@ -14,7 +14,13 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix4f;
 
+/**
+ * 3D Aerodynamic Rifling Model & Supersonic Wind Ribbon Trail Renderer for StoneCannonProjectileEntity.
+ * Renders the 3-part rifling projectile with continuous rotation and 3 intertwined 3D aerodynamic
+ * wind ribbons trailing behind the projectile, replacing vanilla particle puffs.
+ */
 public class StoneCannonEntityRenderer extends EntityRenderer<StoneCannonProjectileEntity> {
     private final BlockRenderManager blockRenderManager;
 
@@ -41,9 +47,10 @@ public class StoneCannonEntityRenderer extends EntityRenderer<StoneCannonProject
         float yaw = (float) (MathHelper.atan2(vel.x, vel.z) * (180.0 / Math.PI));
         float pitch = (float) (MathHelper.atan2(vel.y, horizontalDist) * (180.0 / Math.PI));
         float time = entity.age + tickDelta;
-        float spin = time * (45.0f + entity.getChargeLevel() * 15.0f); // Tốc độ xoáy nòng siêu thanh
+        int level = entity.getChargeLevel();
+        float spin = time * (50.0f + level * 20.0f); // Tốc độ xoáy nòng siêu thanh
 
-        float baseScale = 0.38f + entity.getChargeLevel() * 0.14f;
+        float baseScale = 0.38f + level * 0.14f;
 
         matrices.push();
         // Căn chỉnh trục mũi khoan theo vector vận tốc
@@ -59,8 +66,9 @@ public class StoneCannonEntityRenderer extends EntityRenderer<StoneCannonProject
         matrices.scale(baseScale * 0.75f, baseScale * 0.75f, baseScale * 1.35f);
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45.0f));
         matrices.translate(-0.5f, -0.5f, -0.5f);
+        var tipBlock = (level >= 3) ? Blocks.DIAMOND_BLOCK.getDefaultState() : Blocks.DEEPSLATE_TILES.getDefaultState();
         blockRenderManager.renderBlockAsEntity(
-                Blocks.DEEPSLATE_TILES.getDefaultState(),
+                tipBlock,
                 matrices, vertexConsumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV
         );
         matrices.pop();
@@ -87,6 +95,56 @@ public class StoneCannonEntityRenderer extends EntityRenderer<StoneCannonProject
                 matrices, vertexConsumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV
         );
         matrices.pop();
+
+        // 4. DẢI RIBBON KHÍ ĐỘNG HỌC CUỘN XOẮN PHÍA SAU ĐUÔI ĐẠN (3D Supersonic Ribbon Slipstream)
+        RenderSystem.enableBlend();
+        RenderSystem.blendFunc(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE);
+        RenderSystem.disableCull();
+        RenderSystem.depthMask(false);
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+
+        Matrix4f mat = matrices.peek().getPositionMatrix();
+        int ribbonArms = 3;
+        int trailSteps = 24;
+        float trailLength = 5.5f + level * 2.2f;
+
+        int rCol = (level == 4) ? 255 : 210;
+        int gCol = (level == 4) ? 245 : 245;
+        int bCol = 255;
+
+        for (int arm = 0; arm < ribbonArms; arm++) {
+            Tessellator tessellator = Tessellator.getInstance();
+            BufferBuilder buffer = tessellator.begin(VertexFormat.DrawMode.TRIANGLE_STRIP, VertexFormats.POSITION_COLOR);
+
+            float armPhase = arm * ((float) Math.PI * 2.0f / (float) ribbonArms);
+
+            for (int s = 0; s <= trailSteps; s++) {
+                float progress = (float) s / (float) trailSteps; // 0.0 (ngay sau đế) -> 1.0 (đuôi xa)
+                float z = -0.45f * baseScale - progress * trailLength;
+                float r = (0.12f + progress * 0.35f) * (0.85f + level * 0.15f);
+                float theta = armPhase + progress * ((float) Math.PI * 4.2f) - (time * 0.25f);
+
+                float cx = r * (float) Math.cos(theta);
+                float cy = r * (float) Math.sin(theta);
+
+                float w = (0.04f + progress * 0.06f);
+                float nx = -(float) Math.sin(theta) * w * 0.5f;
+                float ny = (float) Math.cos(theta) * w * 0.5f;
+
+                float alpha = (1.0f - progress) * (0.75f + level * 0.08f);
+                int a = Math.clamp((int) (alpha * 255.0f), 0, 255);
+
+                buffer.vertex(mat, cx - nx, cy - ny, z).color(rCol, gCol, bCol, a);
+                buffer.vertex(mat, cx + nx, cy + ny, z).color(rCol, gCol, bCol, a);
+            }
+
+            BufferRenderer.drawWithGlobalProgram(buffer.end());
+        }
+
+        RenderSystem.depthMask(true);
+        RenderSystem.enableCull();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableBlend();
 
         matrices.pop();
 

@@ -9,9 +9,10 @@ import net.minecraft.util.math.MathHelper;
 
 /**
  * 2D Anime Impact Frame & Smooth Whiteout Aftermath Overlay for Cosmic Supernova (Chiêu 4).
- * - Phase 1: 4 Hand-drawn anime impact frames flash in rapid succession (6 ticks = 0.3s).
- * - Phase 2: Smooth cinematic pure white light fadeout over 16 ticks (0.8s), completely
- *   eliminating harsh strobing/stuttering flashes.
+ * - Phase 1: 4 Hand-drawn anime impact frames (Snapshot 1..4) held for 3 ticks each (12 ticks = 0.6s total),
+ *   exactly matching Chiêu 2's high-impact cinematic pacing so every brushstroke is clearly visible.
+ * - Phase 2: Smooth cinematic pure white light fadeout over 20 ticks (1.0s),
+ *   starting strictly AFTER the 4 drawings finish, eliminating whiteout masking over artwork.
  */
 public class CustomImpactFrameOverlay {
     public static final Identifier[] FRAMES = {
@@ -21,8 +22,8 @@ public class CustomImpactFrameOverlay {
             Identifier.of("godwand", "textures/vfx/impact_frame_3.png")
     };
 
-    public static final int IMPACT_FRAME_TICKS = 4;
-    public static final int FADEOUT_TICKS = 18;
+    public static final int IMPACT_FRAME_TICKS = 12; // 3 ticks per frame = 12 ticks (0.6s total)
+    public static final int FADEOUT_TICKS = 20;      // 1.0s smooth whiteout fadeout
     public static final int TOTAL_DURATION = IMPACT_FRAME_TICKS + FADEOUT_TICKS;
 
     private static int currentTick = 0;
@@ -63,8 +64,11 @@ public class CustomImpactFrameOverlay {
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
+        RenderSystem.disableDepthTest();
+        RenderSystem.depthMask(false);
 
-        // 1. Giai đoạn 1 (Ticks 0..5, đúng 6 ticks): 4 bức vẽ tay Anime Impact Frame chớp cực nhanh và mạnh mẽ
+        // 1. Giai đoạn 1 (Ticks 0..11, đúng 12 ticks = 0.6s):
+        // 4 bức vẽ tay Anime Impact Frame hiển thị sắc nét, mỗi frame giữ 3 ticks trọn vẹn
         if (currentTick < IMPACT_FRAME_TICKS) {
             int frameIndex = Math.min(FRAMES.length - 1, (currentTick * FRAMES.length) / IMPACT_FRAME_TICKS);
             Identifier texture = FRAMES[frameIndex];
@@ -73,10 +77,10 @@ public class CustomImpactFrameOverlay {
             context.drawTexture(texture, 0, 0, 0.0f, 0.0f, screenWidth, screenHeight, screenWidth, screenHeight);
         }
 
-        // 2. Giai đoạn 2 (Ticks 5..21): Màn hình chuyển thành màu trắng tinh khiết rồi fadeout từ từ êm dịu
-        // Không còn tình trạng "flash flash" nhấp nháy giật mắt, tạo cảm giác điện ảnh đỉnh cao
-        if (currentTick >= IMPACT_FRAME_TICKS - 1) {
-            float fadeProgress = (float) (currentTick - (IMPACT_FRAME_TICKS - 1)) / (float) FADEOUT_TICKS;
+        // 2. Giai đoạn 2 (Ticks 12..31):
+        // Sau khi kết thúc trọn vẹn 4 frame tranh vẽ, màn hình chuyển sang ánh sáng trắng rồi fadeout từ từ êm dịu
+        if (currentTick >= IMPACT_FRAME_TICKS) {
+            float fadeProgress = (float) (currentTick - IMPACT_FRAME_TICKS) / (float) FADEOUT_TICKS;
             fadeProgress = MathHelper.clamp(fadeProgress, 0.0f, 1.0f);
 
             // Đường cong mờ dần mượt mà (smoothstep / ease-out)
@@ -91,6 +95,8 @@ public class CustomImpactFrameOverlay {
         }
 
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+        RenderSystem.depthMask(true);
+        RenderSystem.enableDepthTest();
         RenderSystem.disableBlend();
     }
 }

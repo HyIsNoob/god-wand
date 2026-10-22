@@ -44,8 +44,8 @@ public class SupernovaManager {
         public final ServerPlayerEntity caster;
         public final BlockPos groundCenter;
         public final Vec3d corePos;
-        public final double maxRadius = 34.0; // Bán kính hút đất dạng cầu gồ ghề (Suction Cavity)
-        public final double blastRadius = 62.0; // Bán kính vụ nổ tận thế hủy diệt cực đại (Detonation Blast)
+        public final double maxRadius = 55.0; // Bán kính hút đất dạng cầu gồ ghề mở rộng (Suction Cavity)
+        public final double blastRadius = 125.0; // Bán kính vụ nổ tận thế hủy diệt thế giới cực đại gấp đôi (Detonation Blast: 125m)
 
         public int ageTicks = 0;
         public float swirlAngle = 0.0f;
@@ -80,12 +80,12 @@ public class SupernovaManager {
     public static void cast(ServerPlayerEntity player) {
         ServerWorld world = player.getServerWorld();
 
-        HitResult hit = player.raycast(45.0, 0.0f, false);
+        HitResult hit = player.raycast(180.0, 0.0f, false);
         BlockPos groundCenter;
         if (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult bHit) {
             groundCenter = bHit.getBlockPos();
         } else {
-            Vec3d forward = player.getEyePos().add(player.getRotationVec(1.0f).multiply(24.0));
+            Vec3d forward = player.getEyePos().add(player.getRotationVec(1.0f).multiply(120.0));
             groundCenter = BlockPos.ofFloored(forward);
             while (groundCenter.getY() > world.getBottomY() && world.getBlockState(groundCenter).isAir()) {
                 groundCenter = groundCenter.down();
@@ -101,8 +101,11 @@ public class SupernovaManager {
                 corePos.x, corePos.y, corePos.z,
                 ImpactFxPayload.TYPE_BLACK_HOLE, DETONATION_TICK, 1.0f
         );
-        for (ServerPlayerEntity p : PlayerLookup.around(world, corePos, 160.0)) {
+        for (ServerPlayerEntity p : PlayerLookup.around(world, corePos, 250.0)) {
             ServerPlayNetworking.send(p, blackHolePayload);
+        }
+        if (player.isAlive()) {
+            ServerPlayNetworking.send(player, blackHolePayload);
         }
 
         // 2. Thu thập danh sách khối ứng viên trong bán kính hút R = 34.0m
@@ -411,8 +414,11 @@ public class SupernovaManager {
                             task.corePos.x, task.corePos.y, task.corePos.z,
                             1.0f, 30
                     );
-                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 160.0)) {
+                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 250.0)) {
                         ServerPlayNetworking.send(p, silencePayload);
+                    }
+                    if (task.caster != null && task.caster.isAlive() && task.caster.getServerWorld() == world) {
+                        ServerPlayNetworking.send(task.caster, silencePayload);
                     }
                 }
             }
@@ -433,9 +439,13 @@ public class SupernovaManager {
                         task.corePos.x, task.corePos.y, task.corePos.z,
                         1.0f, 110
                 );
-                for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 160.0)) {
+                for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 250.0)) {
                     ServerPlayNetworking.send(p, novaPayload);
                     ServerPlayNetworking.send(p, burstCinematic);
+                }
+                if (task.caster != null && task.caster.isAlive() && task.caster.getServerWorld() == world) {
+                    ServerPlayNetworking.send(task.caster, novaPayload);
+                    ServerPlayNetworking.send(task.caster, burstCinematic);
                 }
 
                 // 2. Âm thanh tận thế đa tầng
@@ -471,20 +481,22 @@ public class SupernovaManager {
                     world.spawnParticles(ParticleTypes.LAVA, task.corePos.x, task.corePos.y, task.corePos.z, 1, vx * 0.8, vy * 0.8, vz * 0.8, 0.25);
                 }
 
-                // 4. Sát thương Calamity hủy diệt (150 - 350 damage) trong bán kính 65m
-                Box blastBox = new Box(task.groundCenter).expand(65.0);
+                // 4. Sát thương Calamity hủy diệt cực đại (80 - 460 damage) bao trùm toàn bộ bán kính vụ nổ (125m)
+                Box blastBox = new Box(task.groundCenter).expand(task.blastRadius + 10.0);
                 for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, blastBox, ent -> ent != task.caster)) {
                     double dist = e.getPos().distanceTo(task.corePos);
-                    float dmg = (float) Math.max(60.0, (1.0 - (dist / 65.0)) * 290.0 + 60.0);
-                    e.damage(world.getDamageSources().explosion(null, task.caster), dmg);
+                    if (dist <= task.blastRadius + 8.0) {
+                        float dmg = (float) Math.max(80.0, (1.0 - (dist / task.blastRadius)) * 380.0 + 80.0);
+                        e.damage(world.getDamageSources().explosion(null, task.caster), dmg);
 
-                    Vec3d push = e.getPos().subtract(task.corePos).normalize().multiply(4.2).add(0, 1.8, 0);
-                    e.addVelocity(push.x, push.y, push.z);
-                    e.velocityModified = true;
+                        Vec3d push = e.getPos().subtract(task.corePos).normalize().multiply(5.8).add(0, 2.2, 0);
+                        e.addVelocity(push.x, push.y, push.z);
+                        e.velocityModified = true;
+                    }
                 }
 
                 // 5. HIỆU ỨNG VỤ NỔ VẬT LÝ 3D:
-                // Giữ lại tối đa 650 BlockDisplayEntity và phóng văng siêu thanh ra bán kính 45m - 75m!
+                // Giữ lại tối đa 650 BlockDisplayEntity và phóng văng siêu thanh ra bán kính 45m - 95m!
                 Random rng = new Random(task.groundCenter.asLong());
                 int flingDisplayCount = Math.min(650, task.displayedPositions.size());
                 for (int i = 0; i < task.displayedPositions.size(); i++) {
@@ -495,9 +507,9 @@ public class SupernovaManager {
                             BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
                             if (display != null && display.isAlive()) {
                                 double fAngle = rng.nextDouble() * Math.PI * 2.0;
-                                double fDist = 45.0 + rng.nextDouble() * 23.0;
+                                double fDist = 45.0 + rng.nextDouble() * 45.0;
                                 double targetX = task.corePos.x + Math.cos(fAngle) * fDist;
-                                double targetY = task.groundCenter.getY() + 2.0 + rng.nextDouble() * 12.0;
+                                double targetY = task.groundCenter.getY() + 2.0 + rng.nextDouble() * 16.0;
                                 double targetZ = task.corePos.z + Math.sin(fAngle) * fDist;
 
                                 Vec3d flingDisp = new Vec3d(targetX, targetY, targetZ).subtract(Vec3d.ofCenter(pos));
@@ -521,8 +533,7 @@ public class SupernovaManager {
                     SpatialDisplacementManager.removeActiveRecord(world.getRegistryKey(), pos);
                 }
 
-                // 6. Chuẩn bị tạo Hố sâu tận thế Parabol gồ ghề & San phẳng núi non khổng lồ (Bán kính 62m, sâu -42m)
-                // Phá hủy một khu vực khổng lồ rộng hơn nhiều lần so với bán kính bị hút (62m vs 34m)
+                // 6. Chuẩn bị tạo Hố sâu tận thế Parabol gồ ghề & San phẳng núi non khổng lồ (GẤP ĐÔI BÁN KÍNH: 125m, sâu -65m)
                 int craterR = (int) task.blastRadius;
                 BlockPos.Mutable cMut = new BlockPos.Mutable();
                 int centerGroundY = task.groundCenter.getY();
@@ -534,30 +545,32 @@ public class SupernovaManager {
 
                         double dist2D = Math.sqrt(distSq);
                         double angle = Math.atan2(cz, cx);
-                        double ridgeNoise = Math.sin(angle * 7.0) * 4.5 + Math.cos(angle * 13.0) * 2.8;
+                        double ridgeNoise = Math.sin(angle * 7.0) * 8.5 + Math.cos(angle * 13.0) * 4.8;
                         double effectiveR = craterR + ridgeNoise;
                         if (dist2D > effectiveR) continue;
 
                         double normDist = dist2D / effectiveR;
-                        // Chiều sâu Parabol sâu nhất ở tâm (-42 blocks) và thoải dần ra vành ngoài 62m
+                        // Chiều sâu Parabol sâu nhất ở tâm (-65 blocks) và thoải dần ra vành ngoài 125m
                         double depthCurve = Math.pow(1.0 - normDist, 1.45);
-                        double calculatedDepth = depthCurve * 42.0;
+                        double calculatedDepth = depthCurve * 65.0;
 
                         // Fractal 3D noise gồ ghề lởm chởm cực mạnh (tuyệt đối không phẳng lì!)
                         int wx = task.groundCenter.getX() + cx;
                         int wz = task.groundCenter.getZ() + cz;
-                        double floorNoise = (SpatialMath.hash01(new BlockPos(wx * 2, 0, wz * 2)) - 0.5) * 8.0;
-                        floorNoise += Math.sin(wx * 0.28) * Math.cos(wz * 0.28) * 3.5;
-                        floorNoise += Math.sin(wx * 0.7 + wz * 0.5) * 1.8;
+                        double floorNoise = (SpatialMath.hash01(new BlockPos(wx * 2, 0, wz * 2)) - 0.5) * 10.0;
+                        floorNoise += Math.sin(wx * 0.28) * Math.cos(wz * 0.28) * 4.5;
+                        floorNoise += Math.sin(wx * 0.7 + wz * 0.5) * 2.2;
 
                         int realSurfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, wx, wz);
-                        int topCutY = Math.min(world.getTopY() - 1, Math.max(realSurfaceY + 6, centerGroundY + 54));
+                        int topCutY = Math.min(world.getTopY() - 1, realSurfaceY + 1);
                         int floorY = Math.max(world.getBottomY() + 3, (int) Math.round(centerGroundY - calculatedDepth + floorNoise));
 
-                        for (int y = floorY; y <= topCutY; y++) {
-                            cMut.set(wx, y, wz);
-                            if (cMut.getY() < world.getBottomY() || cMut.getY() >= world.getTopY()) continue;
-                            task.craterCarveBatch.add(cMut.toImmutable());
+                        if (topCutY >= floorY) {
+                            for (int y = floorY; y <= topCutY; y++) {
+                                cMut.set(wx, y, wz);
+                                if (cMut.getY() < world.getBottomY() || cMut.getY() >= world.getTopY()) continue;
+                                task.craterCarveBatch.add(cMut.toImmutable());
+                            }
                         }
                     }
                 }
@@ -612,9 +625,9 @@ public class SupernovaManager {
                     task.blastFlingPositions.clear();
                 }
 
-                // 1. Đào hố tận thế và nung chảy địa hình gồ ghề chia theo mẻ (25 sub-ticks)
+                // 1. Đào hố tận thế và nung chảy địa hình gồ ghề chia theo mẻ (35 sub-ticks)
                 if (task.craterIndex < task.craterCarveBatch.size()) {
-                    int batchSize = (task.craterCarveBatch.size() / 25) + 1;
+                    int batchSize = (task.craterCarveBatch.size() / 35) + 1;
                     int endIndex = Math.min(task.craterCarveBatch.size(), task.craterIndex + batchSize);
                     Random rng = new Random();
 
@@ -625,15 +638,15 @@ public class SupernovaManager {
 
                         double dist2D = Math.sqrt(pos.getSquaredDistance(task.groundCenter.getX(), pos.getY(), task.groundCenter.getZ()));
                         double angle = Math.atan2(pos.getZ() - task.groundCenter.getZ(), pos.getX() - task.groundCenter.getX());
-                        double ridgeNoise = Math.sin(angle * 7.0) * 4.5 + Math.cos(angle * 13.0) * 2.8;
+                        double ridgeNoise = Math.sin(angle * 7.0) * 8.5 + Math.cos(angle * 13.0) * 4.8;
                         double effectiveR = task.blastRadius + ridgeNoise;
                         double normDist = Math.min(1.0, dist2D / effectiveR);
                         double depthCurve = Math.pow(1.0 - normDist, 1.45);
-                        double calculatedDepth = depthCurve * 42.0;
+                        double calculatedDepth = depthCurve * 65.0;
 
-                        double floorNoise = (SpatialMath.hash01(new BlockPos(pos.getX() * 2, 0, pos.getZ() * 2)) - 0.5) * 8.0;
-                        floorNoise += Math.sin(pos.getX() * 0.28) * Math.cos(pos.getZ() * 0.28) * 3.5;
-                        floorNoise += Math.sin(pos.getX() * 0.7 + pos.getZ() * 0.5) * 1.8;
+                        double floorNoise = (SpatialMath.hash01(new BlockPos(pos.getX() * 2, 0, pos.getZ() * 2)) - 0.5) * 10.0;
+                        floorNoise += Math.sin(pos.getX() * 0.28) * Math.cos(pos.getZ() * 0.28) * 4.5;
+                        floorNoise += Math.sin(pos.getX() * 0.7 + pos.getZ() * 0.5) * 2.2;
                         int floorY = Math.max(world.getBottomY() + 3, (int) Math.round(task.groundCenter.getY() - calculatedDepth + floorNoise));
 
                         // TẤT CẢ các khối trên floorY (bao gồm cả nguyên quả núi phía trên) đều bị bốc hơi thành AIR!

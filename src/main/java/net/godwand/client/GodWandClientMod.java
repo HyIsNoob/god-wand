@@ -25,8 +25,8 @@ public class GodWandClientMod implements ClientModInitializer {
                         payload.type(), payload.durationTicks(), payload.intensity()
                 );
                 if (payload.type() == ImpactFxPayload.TYPE_SUPERNOVA) {
-                    // Anime impact frames siêu nhanh 4 ticks (0.2s - 1 tick/frame) kèm lớp phủ trắng fadeout êm ái
-                    CustomImpactFrameOverlay.trigger(4);
+                    // Anime impact frames 12 ticks (3 ticks / frame) rõ nét + fadeout trắng điện ảnh
+                    CustomImpactFrameOverlay.trigger();
                 }
             });
         });
@@ -38,8 +38,12 @@ public class GodWandClientMod implements ClientModInitializer {
             });
         });
 
-        // Register 2D Hand-drawn Anime Impact Frame Overlay
+        // Register 2D Hand-drawn Anime Impact Frame Overlay & Aiming Reticle
         HudRenderCallback.EVENT.register(CustomImpactFrameOverlay::render);
+        HudRenderCallback.EVENT.register(SupernovaReticleOverlay::render);
+
+        // Register 3D Charging Drill & Aerodynamic Wind Ribbon Vortex
+        WorldRenderEvents.AFTER_TRANSLUCENT.register(StoneCannonChargeRenderer::render);
 
         // Register Post-Processing Shader Render Hook (renders right after translucent pass)
         WorldRenderEvents.AFTER_TRANSLUCENT.register(GodWandPostFxManager::onWorldRender);
@@ -59,4 +63,3 @@ public class GodWandClientMod implements ClientModInitializer {
         });
     }
 }
-

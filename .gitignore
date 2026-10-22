@@ -5,3 +5,5 @@ run/
 logs/
 others/
 bin/
+
+.vscode/

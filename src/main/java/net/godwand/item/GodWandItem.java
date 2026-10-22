@@ -368,15 +368,29 @@ public class GodWandItem extends Item {
                         SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 1.8f, pitch);
             }
 
-            // 4. Aim Target indicator
-            HitResult hit = player.raycast(45.0, 0.0f, false);
+            // 4. Aim Target indicator (Tầm xa 180m + Cột sáng Beacon & Cổ ngữ định vị mặt đất)
+            HitResult hit = player.raycast(180.0, 0.0f, false);
             Vec3d targetPos;
             if (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult bHit) {
                 targetPos = bHit.getBlockPos().toCenterPos();
             } else {
-                targetPos = player.getEyePos().add(player.getRotationVec(1.0f).multiply(30.0));
+                targetPos = player.getEyePos().add(player.getRotationVec(1.0f).multiply(120.0));
             }
-            Vec3d seedPos = targetPos.add(0, 18.0, 0);
+            Vec3d seedPos = targetPos.add(0, 20.0, 0);
+
+            // Cột sáng định vị vút cao 35m lên trời
+            for (int by = 0; by < 36; by += 4) {
+                sw.spawnParticles(ParticleTypes.END_ROD, targetPos.x, targetPos.y + by, targetPos.z, 2, 0.15, 0.15, 0.15, 0.02);
+                sw.spawnParticles(ParticleTypes.PORTAL, targetPos.x, targetPos.y + by, targetPos.z, 2, 0.3, 0.3, 0.3, 0.05);
+            }
+            // Vòng tròn mục tiêu mở rộng trên mặt đất
+            double targetRingRadius = 3.5 + progress * 14.0;
+            for (int r = 0; r < 12; r++) {
+                double a = r * Math.PI * 2.0 / 12.0;
+                sw.spawnParticles(ParticleTypes.ELECTRIC_SPARK,
+                        targetPos.x + Math.cos(a) * targetRingRadius, targetPos.y + 0.25, targetPos.z + Math.sin(a) * targetRingRadius,
+                        1, 0, 0.08, 0, 0.01);
+            }
 
             sw.spawnParticles(ParticleTypes.END_ROD, seedPos.x, seedPos.y, seedPos.z, 2, 0.1, 0.1, 0.1, 0.02);
             sw.spawnParticles(ParticleTypes.REVERSE_PORTAL, seedPos.x, seedPos.y, seedPos.z, 4, 0.5 + progress * 1.2, 0.5 + progress * 1.2, 0.5 + progress * 1.2, 0.08);
