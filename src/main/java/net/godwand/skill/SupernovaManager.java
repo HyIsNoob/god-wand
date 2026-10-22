@@ -8,9 +8,10 @@ import net.godwand.spatial.SpatialDisplacementManager;
 import net.godwand.spatial.SpatialMath;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.decoration.Brightness;
 import net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity;
-import net.minecraft.particle.BlockStateParticleEffect;
 import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -19,7 +20,6 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.AffineTransformation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
@@ -30,28 +30,36 @@ import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class SupernovaManager {
+
     public static class SupernovaTask {
         public final ServerWorld world;
         public final ServerPlayerEntity caster;
-        public final BlockPos center;
+        public final BlockPos groundCenter;
         public final Vec3d corePos;
+        public final double maxRadius = 16.0;
+
+        public UUID innerCoreUuid;
+        public UUID outerCoreUuid;
+        public UUID upperBeamUuid;
+        public UUID lowerBeamUuid;
+
         public int ageTicks = 0;
-        public final int maxLifetimeTicks = 220;
+        public final int maxLifetimeTicks = 260;
         public float swirlAngle = 0.0f;
         public boolean exploded = false;
         public boolean rewindTriggered = false;
+        public boolean restored = false;
 
-        public final List<BlockPos> displacedPositions = new ArrayList<>();
-        public final Map<BlockPos, Float> originalRadius = new HashMap<>();
-        public final Map<BlockPos, Float> originalAngle = new HashMap<>();
-        public final Map<BlockPos, Float> apexY = new HashMap<>();
-        public final Map<BlockPos, Quaternionf> baseRotation = new HashMap<>();
-        public final Map<BlockPos, Vector3f> blockScale = new HashMap<>();
+        public final List<BlockPos> displayedPositions = new ArrayList<>();
+        public final List<BlockPos> interiorPositions = new ArrayList<>();
+        public final Map<BlockPos, Vec3d> stage1UpliftMap = new HashMap<>();
+        public final Map<BlockPos, Quaternionf> baseRotationMap = new HashMap<>();
+        public final Map<BlockPos, Float> blockScaleMap = new HashMap<>();
 
-        public SupernovaTask(ServerWorld world, ServerPlayerEntity caster, BlockPos center, Vec3d corePos) {
+        public SupernovaTask(ServerWorld world, ServerPlayerEntity caster, BlockPos groundCenter, Vec3d corePos) {
             this.world = world;
             this.caster = caster;
-            this.center = center.toImmutable();
+            this.groundCenter = groundCenter.toImmutable();
             this.corePos = corePos;
         }
     }
@@ -61,25 +69,164 @@ public class SupernovaManager {
     public static void cast(ServerPlayerEntity player) {
         ServerWorld world = player.getServerWorld();
 
-        // Target: In front of the player elevated in the sky
-        HitResult hit = player.raycast(32.0, 0.0f, false);
+        HitResult hit = player.raycast(36.0, 0.0f, false);
         BlockPos groundCenter;
         if (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult bHit) {
             groundCenter = bHit.getBlockPos();
         } else {
-            Vec3d forward = player.getEyePos().add(player.getRotationVec(1.0f).multiply(16.0));
+            Vec3d forward = player.getEyePos().add(player.getRotationVec(1.0f).multiply(20.0));
             groundCenter = BlockPos.ofFloored(forward);
             while (groundCenter.getY() > world.getBottomY() && world.getBlockState(groundCenter).isAir()) {
                 groundCenter = groundCenter.down();
             }
         }
 
-        // Singularity core floating 8 blocks above ground center
-        Vec3d corePos = new Vec3d(groundCenter.getX() + 0.5, groundCenter.getY() + 7.5, groundCenter.getZ() + 0.5);
-
+        Vec3d corePos = groundCenter.toCenterPos().add(0, 9.5, 0);
         SupernovaTask task = new SupernovaTask(world, player, groundCenter, corePos);
 
-        // Initiation: Cosmic event horizon birth audio
+        // 1. Spawn Quả Cầu Lõi Kép (Inner Crying Obsidian + Outer Cyan Stained Glass)
+        BlockDisplayEntity innerCore = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
+        innerCore.addCommandTag("godwand_displaced");
+        innerCore.setPosition(corePos.x, corePos.y, corePos.z);
+        innerCore.setBlockState(Blocks.CRYING_OBSIDIAN.getDefaultState());
+        innerCore.setGlowing(true);
+        innerCore.setGlowColorOverride(0x9B59B6);
+        innerCore.setBrightness(new Brightness(15, 15));
+        innerCore.setStartInterpolation(0);
+        innerCore.setInterpolationDuration(0);
+        innerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 1.6f));
+        world.spawnEntity(innerCore);
+        task.innerCoreUuid = innerCore.getUuid();
+        SpatialDisplacementManager.trackEntity(innerCore.getUuid(), innerCore);
+
+        BlockDisplayEntity outerCore = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
+        outerCore.addCommandTag("godwand_displaced");
+        outerCore.setPosition(corePos.x, corePos.y, corePos.z);
+        outerCore.setBlockState(Blocks.CYAN_STAINED_GLASS.getDefaultState());
+        outerCore.setGlowing(true);
+        outerCore.setGlowColorOverride(0x00F0FF);
+        outerCore.setBrightness(new Brightness(15, 15));
+        outerCore.setStartInterpolation(0);
+        outerCore.setInterpolationDuration(0);
+        outerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 2.4f));
+        world.spawnEntity(outerCore);
+        task.outerCoreUuid = outerCore.getUuid();
+        SpatialDisplacementManager.trackEntity(outerCore.getUuid(), outerCore);
+
+        // 2. Spawn 2 Luồng Năng Lượng Bắn Lên Trời & Cắm Xuống Đáy (Relativistic Pulsar Jets)
+        // Upper Beam: Bắn thẳng lên trời 38m
+        BlockDisplayEntity upperBeam = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
+        upperBeam.addCommandTag("godwand_displaced");
+        upperBeam.setPosition(corePos.x, corePos.y, corePos.z);
+        upperBeam.setBlockState(Blocks.SEA_LANTERN.getDefaultState());
+        upperBeam.setGlowing(true);
+        upperBeam.setGlowColorOverride(0x00F5FF);
+        upperBeam.setBrightness(new Brightness(15, 15));
+        upperBeam.setStartInterpolation(0);
+        upperBeam.setInterpolationDuration(0);
+        upperBeam.setTransformation(SpatialMath.createThinBeamTransform(corePos, corePos.add(0, 38.0, 0), 0.08f));
+        world.spawnEntity(upperBeam);
+        task.upperBeamUuid = upperBeam.getUuid();
+        SpatialDisplacementManager.trackEntity(upperBeam.getUuid(), upperBeam);
+
+        // Lower Beam: Cắm thẳng xuống đất 18m
+        BlockDisplayEntity lowerBeam = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
+        lowerBeam.addCommandTag("godwand_displaced");
+        lowerBeam.setPosition(corePos.x, corePos.y, corePos.z);
+        lowerBeam.setBlockState(Blocks.SEA_LANTERN.getDefaultState());
+        lowerBeam.setGlowing(true);
+        lowerBeam.setGlowColorOverride(0x00F5FF);
+        lowerBeam.setBrightness(new Brightness(15, 15));
+        lowerBeam.setStartInterpolation(0);
+        lowerBeam.setInterpolationDuration(0);
+        lowerBeam.setTransformation(SpatialMath.createThinBeamTransform(corePos, corePos.subtract(0, 18.0, 0), 0.08f));
+        world.spawnEntity(lowerBeam);
+        task.lowerBeamUuid = lowerBeam.getUuid();
+        SpatialDisplacementManager.trackEntity(lowerBeam.getUuid(), lowerBeam);
+
+        // 3. Quét hình cầu bán kính R = 16.0 quanh groundCenter, lấy tối đa 400 khối
+        int intR = (int) Math.ceil(task.maxRadius);
+        double maxRadiusSq = task.maxRadius * task.maxRadius;
+        BlockPos.Mutable mutable = new BlockPos.Mutable();
+
+        List<BlockPos> candidatePositions = new ArrayList<>();
+        for (int x = -intR; x <= intR; x++) {
+            for (int y = -intR; y <= intR; y++) {
+                int targetY = groundCenter.getY() + y;
+                if (targetY < world.getBottomY() || targetY >= world.getTopY()) continue;
+                for (int z = -intR; z <= intR; z++) {
+                    double dSq = x * x + y * y + z * z;
+                    if (dSq > maxRadiusSq) continue;
+
+                    mutable.set(groundCenter.getX() + x, targetY, groundCenter.getZ() + z);
+                    BlockState state = world.getBlockState(mutable);
+                    if (!SpatialDisplacementManager.canDisplace(world, mutable, state)) continue;
+                    candidatePositions.add(mutable.toImmutable());
+                }
+            }
+        }
+
+        // Ưu tiên chọn 400 khối phân bổ từ ngoài vào trong
+        candidatePositions.sort((a, b) -> {
+            double da = a.getSquaredDistance(task.groundCenter);
+            double db = b.getSquaredDistance(task.groundCenter);
+            return Double.compare(db, da);
+        });
+
+        int maxDisplays = Math.min(400, candidatePositions.size());
+        for (int i = 0; i < candidatePositions.size(); i++) {
+            BlockPos pos = candidatePositions.get(i);
+            boolean isDisplay = (i < maxDisplays);
+
+            if (isDisplay) {
+                float hash = (float) SpatialMath.hash01(pos);
+                float liftY = 0.4f + hash * 2.4f; // Nâng chậm 0.4m -> 2.8m ở Giai đoạn 1
+                Vec3d stage1Lift = new Vec3d((hash - 0.5) * 0.4, liftY, (SpatialMath.hash01(pos.up()) - 0.5) * 0.4);
+
+                Quaternionf rot = new Quaternionf()
+                        .rotateY((float) (hash * Math.PI * 2.0))
+                        .rotateX((float) Math.toRadians(20.0 + hash * 25.0));
+                float scale = 0.65f + hash * 0.42f;
+
+                SpatialDisplacementManager.displaceBlock(
+                        world,
+                        pos,
+                        new Vector3f(0, 0, 0),
+                        rot,
+                        new Vector3f(scale, scale, scale),
+                        265,
+                        0x00F5FF,
+                        true,
+                        DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED,
+                        player.getUuid(),
+                        null,
+                        0.0
+                );
+
+                task.displayedPositions.add(pos);
+                task.stage1UpliftMap.put(pos, stage1Lift);
+                task.baseRotationMap.put(pos, rot);
+                task.blockScaleMap.put(pos, scale);
+            } else {
+                SpatialDisplacementManager.displaceBlock(
+                        world,
+                        pos,
+                        new Vector3f(0, 0, 0),
+                        new Quaternionf(),
+                        new Vector3f(1.0f, 1.0f, 1.0f),
+                        265,
+                        0,
+                        false,
+                        DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE,
+                        null,
+                        null,
+                        0.0
+                );
+                task.interiorPositions.add(pos);
+            }
+        }
+
+        // Âm thanh khởi sinh hố đen vũ trụ
         world.playSound(null, corePos.x, corePos.y, corePos.z,
                 SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 3.5f, 0.5f);
         world.playSound(null, corePos.x, corePos.y, corePos.z,
@@ -87,10 +234,9 @@ public class SupernovaManager {
         world.playSound(null, corePos.x, corePos.y, corePos.z,
                 SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 3.0f, 0.6f);
 
-        // Initial Black Hole Event Horizon VFX
         world.spawnParticles(ParticleTypes.SONIC_BOOM, corePos.x, corePos.y, corePos.z, 1, 0, 0, 0, 0);
         world.spawnParticles(ParticleTypes.FLASH, corePos.x, corePos.y, corePos.z, 2, 0.1, 0.1, 0.1, 0.0);
-        world.spawnParticles(ParticleTypes.REVERSE_PORTAL, corePos.x, corePos.y, corePos.z, 40, 1.2, 1.2, 1.2, 0.35);
+        world.spawnParticles(ParticleTypes.REVERSE_PORTAL, corePos.x, corePos.y, corePos.z, 50, 1.5, 1.5, 1.5, 0.35);
 
         ACTIVE_TASKS.add(task);
     }
@@ -103,298 +249,322 @@ public class SupernovaManager {
 
             task.ageTicks++;
 
+            BlockDisplayEntity innerCore = SpatialDisplacementManager.getActiveEntity(task.innerCoreUuid);
+            BlockDisplayEntity outerCore = SpatialDisplacementManager.getActiveEntity(task.outerCoreUuid);
+            BlockDisplayEntity upperBeam = SpatialDisplacementManager.getActiveEntity(task.upperBeamUuid);
+            BlockDisplayEntity lowerBeam = SpatialDisplacementManager.getActiveEntity(task.lowerBeamUuid);
+
             // =========================================================================
-            // PHASE 1: GRAVITATIONAL WELL & ACCRETION DISK UPROOT (Ticks 0..100 / 0s-5s)
+            // GIAI ĐOẠN 1: RUNG CHẤN & TÁCH KHỐI TỪ TỪ (Ticks 1..50 / 0s - 2.5s)
             // =========================================================================
-            if (task.ageTicks < 100) {
-                // Pulsing Black Hole Core in mid-air
-                world.spawnParticles(ParticleTypes.REVERSE_PORTAL,
-                        task.corePos.x, task.corePos.y, task.corePos.z, 8, 0.4, 0.4, 0.4, 0.2);
-                world.spawnParticles(new DustParticleEffect(new Vector3f(0.05f, 0.95f, 1.0f), 1.2f),
-                        task.corePos.x, task.corePos.y, task.corePos.z, 4, 0.3, 0.3, 0.3, 0.05);
+            if (task.ageTicks <= 50) {
+                float u = (float) Math.pow(task.ageTicks / 50.0f, 2.0); // Tách từ từ theo hàm bậc hai
+                float beamThick = 0.08f + (task.ageTicks / 50.0f) * 0.27f; // Tia beam nhen nhóm 0.08m -> 0.35m
+
+                if (task.ageTicks % 2 == 0) {
+                    for (BlockPos pos : task.displayedPositions) {
+                        DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+                        if (record == null || record.displayEntityUuid == null) continue;
+
+                        BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
+                        if (display == null || !display.isAlive()) continue;
+
+                        Vec3d lift = task.stage1UpliftMap.getOrDefault(pos, Vec3d.ZERO).multiply(u);
+                        Quaternionf rot = task.baseRotationMap.getOrDefault(pos, new Quaternionf());
+                        float scale = task.blockScaleMap.getOrDefault(pos, 1.0f);
+
+                        display.setStartInterpolation(0);
+                        display.setInterpolationDuration(2);
+                        display.setTransformation(SpatialMath.createPivotTransform(lift, rot, scale));
+                    }
+
+                    // Cập nhật độ dày 2 cột beam
+                    updateBeams(task, upperBeam, lowerBeam, beamThick, 2);
+                }
+
+                // Xoay nhẹ lõi
+                float spin = task.ageTicks * 0.03f;
+                rotateCores(innerCore, outerCore, spin, 1.6f, 2.4f, 2);
 
                 if (task.ageTicks % 15 == 0) {
-                    float pitch = 0.6f + (task.ageTicks / 100.0f) * 0.9f;
                     world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 2.5f, pitch);
-                }
-
-                // Gravitational Vortex Suction: Sucks nearby entities into the event horizon
-                Box suctionBox = new Box(task.center).expand(20.0);
-                for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, suctionBox, ent -> ent != task.caster)) {
-                    Vec3d pull = task.corePos.subtract(e.getPos()).normalize().multiply(0.16).add(0, 0.04, 0);
-                    e.addVelocity(pull.x, pull.y, pull.z);
-                    e.velocityModified = true;
-                    if (task.ageTicks % 12 == 0) {
-                        e.damage(world.getDamageSources().magic(), 2.5f);
-                    }
-                }
-
-                // Wave 1, 2, 3 Uproot: Progressively rip ground blocks into the orbiting accretion disk
-                if (task.ageTicks == 10 || task.ageTicks == 35 || task.ageTicks == 60) {
-                    int waveIndex = task.ageTicks == 10 ? 1 : (task.ageTicks == 35 ? 2 : 3);
-                    double rMin = (waveIndex - 1) * 3.8;
-                    double rMax = waveIndex * 3.8;
-
-                    int intR = (int) Math.ceil(rMax);
-                    BlockPos.Mutable mutable = new BlockPos.Mutable();
-                    int count = 0;
-
-                    for (int x = -intR; x <= intR && count < 22; x++) {
-                        for (int z = -intR; z <= intR && count < 22; z++) {
-                            double dSq = x * x + z * z;
-                            if (dSq < rMin * rMin || dSq > rMax * rMax) continue;
-
-                            int startY = task.center.getY() + 3;
-                            mutable.set(task.center.getX() + x, startY, task.center.getZ() + z);
-                            while (mutable.getY() > task.center.getY() - 4 && world.getBlockState(mutable).isAir()) {
-                                mutable.move(0, -1, 0);
-                            }
-
-                            BlockState state = world.getBlockState(mutable);
-                            if (!SpatialDisplacementManager.canDisplace(world, mutable, state)) continue;
-
-                            BlockPos pos = mutable.toImmutable();
-                            double dist = Math.sqrt(dSq);
-                            float angle = (float) Math.atan2(z, x);
-                            float hash = (float) SpatialMath.hashCoordinateToPhase(pos.asLong());
-
-                            float floatY = (float) (task.corePos.y - pos.getY() + Math.sin(hash) * 1.5);
-                            Vector3f initialLift = new Vector3f((float) (-x * 0.2), floatY, (float) (-z * 0.2));
-
-                            Quaternionf rot = new Quaternionf()
-                                    .rotateY((float) Math.toRadians(40.0 * Math.cos(hash)))
-                                    .rotateX((float) Math.toRadians(25.0 * Math.sin(hash)));
-
-                            Vector3f scale = new Vector3f(1.1f, 1.1f, 1.1f);
-
-                            SpatialDisplacementManager.displaceBlock(world, pos, initialLift, rot, scale, 220, 0x00F5FF, true,
-                                    DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED, task.caster.getUuid(), null, 0.0);
-
-                            task.displacedPositions.add(pos);
-                            task.originalRadius.put(pos, (float) dist);
-                            task.originalAngle.put(pos, angle);
-                            task.apexY.put(pos, floatY);
-                            task.baseRotation.put(pos, rot);
-                            task.blockScale.put(pos, scale);
-                            count++;
-                        }
-                    }
-
-                    world.playSound(null, task.center, SoundEvents.BLOCK_BASALT_BREAK, SoundCategory.BLOCKS, 2.0f, 0.8f);
-                }
-
-                // Accretion Disk Horizontal Swirling
-                if (task.ageTicks >= 20 && task.ageTicks % 6 == 0) {
-                    task.swirlAngle += 0.22f;
-                    updateAccretionOrbit(task, 1.0f);
+                            SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 2.5f, 0.7f + (task.ageTicks / 100.0f));
                 }
             }
 
             // =========================================================================
-            // PHASE 2: SUPERDENSE COMPRESSION (Ticks 100..140 / 5s - 7s)
+            // GIAI ĐOẠN 2: ĐI VÀO 3 VÀNH ĐAI & TĂNG TỐC CỰC HẠN (Ticks 51..150 / 2.5s - 7.5s)
             // =========================================================================
-            else if (task.ageTicks >= 100 && task.ageTicks < 140) {
-                task.swirlAngle += 0.35f;
+            else if (task.ageTicks <= 150) {
+                float accelProgress = (task.ageTicks - 50) / 100.0f; // 0.0 -> 1.0
+                float currentAngularSpeed = 0.008f + (accelProgress * accelProgress * 0.24f); // Tăng tốc cấp số nhân
+                task.swirlAngle += currentAngularSpeed;
 
-                // Accretion disk contracts inwards towards core center
-                float compressFactor = 1.0f - ((task.ageTicks - 100) / 40.0f) * 0.65f;
-                if ((task.ageTicks - 100) % 4 == 0) {
-                    updateAccretionOrbit(task, compressFactor);
+                float lerpProgress = Math.min(1.0f, (task.ageTicks - 50) / 35.0f); // Ticks 51..85 nhập mượt vào quỹ đạo
+                float beamThick = 0.35f + (accelProgress * 0.90f); // Phình to lên 1.25m!
+
+                if ((task.ageTicks - 50) % 2 == 0) {
+                    for (BlockPos pos : task.displayedPositions) {
+                        DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+                        if (record == null || record.displayEntityUuid == null) continue;
+
+                        BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
+                        if (display == null || !display.isAlive()) continue;
+
+                        Vec3d ringOffset = SpatialMath.computeCanopyVortexOffset(pos, task.corePos, task.maxRadius, task.swirlAngle, 1.0);
+                        Vec3d finalOffset;
+                        if (lerpProgress < 1.0f) {
+                            Vec3d stage1Lift = task.stage1UpliftMap.getOrDefault(pos, Vec3d.ZERO);
+                            finalOffset = stage1Lift.lerp(ringOffset, lerpProgress);
+                        } else {
+                            finalOffset = ringOffset;
+                        }
+
+                        Quaternionf rot = new Quaternionf(task.baseRotationMap.getOrDefault(pos, new Quaternionf()))
+                                .rotateY(task.swirlAngle * 0.8f);
+                        float scale = task.blockScaleMap.getOrDefault(pos, 1.0f);
+
+                        display.setStartInterpolation(0);
+                        display.setInterpolationDuration(2);
+                        display.setTransformation(SpatialMath.createPivotTransform(finalOffset, rot, scale));
+                    }
+
+                    updateBeams(task, upperBeam, lowerBeam, beamThick, 2);
                 }
 
-                // Core flashes violently
+                // Xoay lõi cực nhanh
+                float spin = task.ageTicks * (0.05f + accelProgress * 0.25f);
+                rotateCores(innerCore, outerCore, spin, 1.6f, 2.4f, 2);
+
+                // Hút các thực thể xung quanh vào đĩa bồi tụ
+                if (task.ageTicks % 6 == 0) {
+                    Box suctionBox = new Box(task.groundCenter).expand(task.maxRadius * 1.35);
+                    for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, suctionBox, ent -> ent != task.caster)) {
+                        Vec3d pull = task.corePos.subtract(e.getPos()).normalize().multiply(0.24);
+                        e.addVelocity(pull.x, pull.y, pull.z);
+                        e.velocityModified = true;
+                    }
+                }
+            }
+
+            // =========================================================================
+            // GIAI ĐOẠN 3: SỤP ĐỔ HẤP DẪN VÀO TÂM LỖ ĐEN (Ticks 151..185 / 7.5s - 9.25s)
+            // =========================================================================
+            else if (task.ageTicks <= 185) {
+                float shrinkProgress = (task.ageTicks - 150) / 35.0f;
+                float radiusScale = 1.0f - (shrinkProgress * 0.88f); // Bán kính co rút mạnh từ 1.0 về 0.12!
+                task.swirlAngle += 0.25f;
+
+                if ((task.ageTicks - 150) % 2 == 0) {
+                    for (BlockPos pos : task.displayedPositions) {
+                        DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+                        if (record == null || record.displayEntityUuid == null) continue;
+
+                        BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
+                        if (display == null || !display.isAlive()) continue;
+
+                        Vec3d ringOffset = SpatialMath.computeCanopyVortexOffset(pos, task.corePos, task.maxRadius, task.swirlAngle, radiusScale);
+                        Quaternionf rot = new Quaternionf(task.baseRotationMap.getOrDefault(pos, new Quaternionf()))
+                                .rotateY(task.swirlAngle);
+                        float scale = task.blockScaleMap.getOrDefault(pos, 1.0f);
+
+                        display.setStartInterpolation(0);
+                        display.setInterpolationDuration(2);
+                        display.setTransformation(SpatialMath.createPivotTransform(ringOffset, rot, scale));
+                    }
+
+                    updateBeams(task, upperBeam, lowerBeam, 1.35f, 2);
+                }
+
+                // Lõi quay ở tốc độ cực hạn
+                float spin = task.ageTicks * 0.35f;
+                rotateCores(innerCore, outerCore, spin, 1.6f, 2.4f, 2);
+
                 world.spawnParticles(ParticleTypes.ELECTRIC_SPARK,
-                        task.corePos.x, task.corePos.y, task.corePos.z, 12, 0.8, 0.8, 0.8, 0.2);
-                world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.9f, 0.3f), 1.6f),
-                        task.corePos.x, task.corePos.y, task.corePos.z, 6, 0.5, 0.5, 0.5, 0.1);
+                        task.corePos.x, task.corePos.y, task.corePos.z, 14, 1.2, 1.2, 1.2, 0.3);
 
                 if (task.ageTicks % 8 == 0) {
                     world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 3.0f, 1.8f);
+                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 3.5f, 1.8f);
                 }
             }
 
             // =========================================================================
-            // PHASE 3: EVENT HORIZON SILENCE (Ticks 141..144)
+            // GIAI ĐOẠN 4: ĐẠI VỤ NỔ SIÊU TÂN TINH & NGHỊCH ĐẢO THỜI GIAN (Ticks 186..260)
             // =========================================================================
-            else if (task.ageTicks >= 141 && task.ageTicks < 145) {
-                // The dramatic pause before the supernova
-                if (task.ageTicks == 142) {
-                    world.spawnParticles(ParticleTypes.FLASH, task.corePos.x, task.corePos.y, task.corePos.z, 2, 0.1, 0.1, 0.1, 0.0);
-                    world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.PLAYERS, 3.0f, 2.0f);
-                }
-            }
+            else {
+                // Tại Tick 186: ĐẠI VỤ NỔ SIÊU TÂN TINH
+                if (task.ageTicks == 186 && !task.exploded) {
+                    task.exploded = true;
 
-            // =========================================================================
-            // PHASE 4: THE SUPERNOVA DETONATION & CATACLYSM (Tick 145 / 7.25s)
-            // =========================================================================
-            else if (task.ageTicks == 145 && !task.exploded) {
-                task.exploded = true;
+                    // Hủy bỏ 2 cột beam
+                    if (upperBeam != null && upperBeam.isAlive()) {
+                        upperBeam.discard();
+                        SpatialDisplacementManager.untrackEntity(task.upperBeamUuid);
+                    }
+                    if (lowerBeam != null && lowerBeam.isAlive()) {
+                        lowerBeam.discard();
+                        SpatialDisplacementManager.untrackEntity(task.lowerBeamUuid);
+                    }
 
-                // TRIGGER SHADER: Anime Impact Frame Inversion + Mega Relativistic Shockwave
-                ImpactFxPayload novaPayload = new ImpactFxPayload(
-                        task.corePos.x, task.corePos.y, task.corePos.z,
-                        ImpactFxPayload.TYPE_SUPERNOVA, 24, 2.0f
-                );
-                for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 128.0)) {
-                    ServerPlayNetworking.send(p, novaPayload);
-                }
-
-                // Apocalyptic Sound Layering
-                world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                        SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.PLAYERS, 5.0f, 0.5f);
-                world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                        SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.PLAYERS, 5.0f, 0.6f);
-                world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                        SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.PLAYERS, 4.0f, 0.8f);
-                world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                        SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.PLAYERS, 4.0f, 0.5f);
-                world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                        SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.PLAYERS, 4.0f, 0.55f);
-
-                // Cataclysmic VFX: Flash, Sonic Booms, Solar Corona
-                world.spawnParticles(ParticleTypes.FLASH, task.corePos.x, task.corePos.y, task.corePos.z, 8, 0.5, 0.5, 0.5, 0.0);
-                world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, task.corePos.x, task.corePos.y, task.corePos.z, 5, 1.2, 1.2, 1.2, 0.0);
-                world.spawnParticles(ParticleTypes.SONIC_BOOM, task.corePos.x, task.corePos.y, task.corePos.z, 4, 0.5, 0.5, 0.5, 0.0);
-                world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.85f, 0.25f), 2.0f),
-                        task.corePos.x, task.corePos.y, task.corePos.z, 100, 3.5, 3.5, 3.5, 0.6);
-
-                // Blast blocks outward violently in 3D (Stellar Ejecta)
-                for (BlockPos pos : task.displacedPositions) {
-                    DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                    if (record == null || record.displayEntityUuid == null) continue;
-
-                    BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
-                    if (display == null || !display.isAlive()) continue;
-
-                    double dx = (pos.getX() + 0.5) - task.corePos.x;
-                    double dy = (pos.getY() + 0.5) - task.corePos.y;
-                    double dz = (pos.getZ() + 0.5) - task.corePos.z;
-                    double d = Math.max(0.5, Math.sqrt(dx * dx + dy * dy + dz * dz));
-
-                    // Outward burst displacement
-                    Vector3f blastDisp = new Vector3f(
-                            (float) (dx / d * 18.0),
-                            (float) (dy / d * 12.0 + 4.0),
-                            (float) (dz / d * 18.0)
+                    // Kích hoạt Shader Siêu Tân Tinh
+                    ImpactFxPayload novaPayload = new ImpactFxPayload(
+                            task.corePos.x, task.corePos.y, task.corePos.z,
+                            ImpactFxPayload.TYPE_SUPERNOVA, 28, 2.2f
                     );
-                    Quaternionf tumble = new Quaternionf().rotateAxis((float) Math.toRadians(75), (float) dz, (float) dx, (float) dy);
+                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 128.0)) {
+                        ServerPlayNetworking.send(p, novaPayload);
+                    }
 
-                    display.setStartInterpolation(0);
-                    display.setInterpolationDuration(8); // 8 ticks explosive outward surge!
-                    display.setTransformation(SpatialMath.createPivotTransform(blastDisp, tumble, 1.2f));
-                }
-
-                // Massive Cataclysmic Blast Damage
-                Box blastBox = new Box(task.center).expand(26.0);
-                for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, blastBox, ent -> ent != task.caster)) {
-                    double dist = e.getPos().distanceTo(task.corePos);
-                    float dmg = (float) Math.max(20.0, (1.0 - (dist / 26.0)) * 65.0 + 15.0);
-                    e.damage(world.getDamageSources().explosion(null, task.caster), dmg);
-
-                    Vec3d push = e.getPos().subtract(task.corePos).normalize().multiply(2.2).add(0, 0.85, 0);
-                    e.addVelocity(push.x, push.y, push.z);
-                    e.velocityModified = true;
-                }
-            }
-
-            // =========================================================================
-            // PHASE 5: TIME FREEZE AT THE EVENT HORIZON (Ticks 155..175 / 7.75s - 8.75s)
-            // =========================================================================
-            else if (task.ageTicks >= 155 && task.ageTicks < 175) {
-                // Floating in suspended animation (Zero-G shimmer)
-                if (task.ageTicks % 6 == 0) {
+                    // Âm thanh tận thế
                     world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.BLOCKS, 2.5f, 1.2f);
+                            SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.PLAYERS, 5.0f, 0.5f);
                     world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.BLOCKS, 2.0f, 0.9f);
-                }
-            }
+                            SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.PLAYERS, 5.0f, 0.6f);
+                    world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
+                            SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.PLAYERS, 4.0f, 0.8f);
+                    world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
+                            SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.PLAYERS, 4.0f, 0.5f);
+                    world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
+                            SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.PLAYERS, 4.0f, 0.55f);
 
-            // =========================================================================
-            // PHASE 6: CHRONO REVERSAL (Quay Ngược Thời Gian) (Ticks 176..215 / 8.75s-10.75s)
-            // =========================================================================
-            else if (task.ageTicks >= 176 && !task.rewindTriggered) {
-                task.rewindTriggered = true;
+                    world.spawnParticles(ParticleTypes.FLASH, task.corePos.x, task.corePos.y, task.corePos.z, 10, 0.8, 0.8, 0.8, 0.0);
+                    world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, task.corePos.x, task.corePos.y, task.corePos.z, 6, 1.5, 1.5, 1.5, 0.0);
+                    world.spawnParticles(ParticleTypes.SONIC_BOOM, task.corePos.x, task.corePos.y, task.corePos.z, 5, 0.8, 0.8, 0.8, 0.0);
+                    world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.85f, 0.25f), 2.2f),
+                            task.corePos.x, task.corePos.y, task.corePos.z, 120, 4.0, 4.0, 4.0, 0.6);
 
-                // Chrono-Reversal Audio & Reverse Portal Streams
-                world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                        SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.PLAYERS, 4.0f, 1.35f);
-                world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                        SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 3.0f, 1.6f);
+                    // Phóng 400 khối nổ tung ra bán kính 42m trong không gian 3D
+                    for (BlockPos pos : task.displayedPositions) {
+                        DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+                        if (record == null || record.displayEntityUuid == null) continue;
 
-                // All flying debris smoothly decelerates and reverses trajectory back into original sockets!
-                for (BlockPos pos : task.displacedPositions) {
-                    DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                    if (record == null || record.displayEntityUuid == null) continue;
+                        BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
+                        if (display == null || !display.isAlive()) continue;
 
-                    BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
-                    if (display == null || !display.isAlive()) continue;
+                        Vec3d blockWorldCenter = Vec3d.ofCenter(pos);
+                        Vec3d diff = blockWorldCenter.subtract(task.corePos);
+                        if (diff.lengthSquared() < 0.01) diff = new Vec3d(0, 1, 0);
+                        Vec3d blastDir = diff.normalize();
 
-                    display.setStartInterpolation(0);
-                    display.setInterpolationDuration(16); // 16 ticks (800ms) smooth reverse flight back to earth!
-                    display.setTransformation(new AffineTransformation(
-                            new Vector3f(0, 0, 0), new Quaternionf(), new Vector3f(1.0f, 1.0f, 1.0f), null));
-                }
-            }
+                        double blastDist = 28.0 + SpatialMath.hash01(pos) * 16.0; // 28m -> 44m
+                        Vec3d blastWorldPos = task.corePos.add(blastDir.multiply(blastDist));
+                        Vec3d blastDisp = blastWorldPos.subtract(blockWorldCenter);
 
-            // =========================================================================
-            // PHASE 7: SEAMLESS RESTORATION & SEALING (Tick 218+)
-            // =========================================================================
-            if (task.ageTicks >= 218) {
-                List<DisplacedBlockRecord> toRestore = new ArrayList<>();
-                for (BlockPos pos : task.displacedPositions) {
-                    DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                    if (rec != null) {
-                        toRestore.add(rec);
+                        Quaternionf tumble = new Quaternionf().rotateAxis(
+                                (float) Math.toRadians(75), (float) blastDir.z, (float) blastDir.x, (float) blastDir.y);
+
+                        display.setStartInterpolation(0);
+                        display.setInterpolationDuration(10); // Phóng bung ra trong 10 ticks
+                        display.setTransformation(SpatialMath.createPivotTransform(blastDisp, tumble, 1.25f));
+                    }
+
+                    // Sát thương khủng khiếp và lực đẩy
+                    Box blastBox = new Box(task.groundCenter).expand(32.0);
+                    for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, blastBox, ent -> ent != task.caster)) {
+                        double dist = e.getPos().distanceTo(task.corePos);
+                        float dmg = (float) Math.max(25.0, (1.0 - (dist / 32.0)) * 75.0 + 15.0);
+                        e.damage(world.getDamageSources().explosion(null, task.caster), dmg);
+
+                        Vec3d push = e.getPos().subtract(task.corePos).normalize().multiply(2.5).add(0, 0.95, 0);
+                        e.addVelocity(push.x, push.y, push.z);
+                        e.velocityModified = true;
                     }
                 }
-                if (!toRestore.isEmpty()) {
-                    SpatialDisplacementManager.executeTwoPassRestoration(world, toRestore);
+
+                // Ticks 196..220: Mảnh vỡ trôi lơ lửng trong không gian hậu vụ nổ
+                if (task.ageTicks >= 196 && task.ageTicks < 221) {
+                    if (task.ageTicks % 6 == 0) {
+                        world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
+                                SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.BLOCKS, 2.5f, 1.2f);
+                        world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
+                                SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.BLOCKS, 2.0f, 0.9f);
+                    }
                 }
 
-                // Final Re-solidification Chime
-                world.playSound(null, task.center, SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.BLOCKS, 2.5f, 1.8f);
-                world.playSound(null, task.center, SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.BLOCKS, 2.5f, 1.2f);
-                it.remove();
+                // Tại Tick 221: TUA NGƯỢC THỜI GIAN (Chrono Reversal)
+                if (task.ageTicks >= 221 && !task.rewindTriggered) {
+                    task.rewindTriggered = true;
+
+                    world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
+                            SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.PLAYERS, 4.0f, 1.35f);
+                    world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
+                            SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 3.5f, 1.6f);
+
+                    for (BlockPos pos : task.displayedPositions) {
+                        DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+                        if (record == null || record.displayEntityUuid == null) continue;
+
+                        BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
+                        if (display == null || !display.isAlive()) continue;
+
+                        display.setStartInterpolation(0);
+                        display.setInterpolationDuration(22); // Bay lùi mượt mà về lại 0,0,0 trong 22 ticks
+                        display.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 1.0f));
+                    }
+                }
+
+                // Tại Tick 246+: Khôi phục địa hình hoàn chỉnh
+                if (task.ageTicks >= 246 && !task.restored) {
+                    task.restored = true;
+
+                    if (innerCore != null && innerCore.isAlive()) {
+                        innerCore.discard();
+                        SpatialDisplacementManager.untrackEntity(task.innerCoreUuid);
+                    }
+                    if (outerCore != null && outerCore.isAlive()) {
+                        outerCore.discard();
+                        SpatialDisplacementManager.untrackEntity(task.outerCoreUuid);
+                    }
+
+                    List<DisplacedBlockRecord> toRestore = new ArrayList<>();
+                    for (BlockPos pos : task.displayedPositions) {
+                        DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+                        if (rec != null) toRestore.add(rec);
+                    }
+                    for (BlockPos pos : task.interiorPositions) {
+                        DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+                        if (rec != null) toRestore.add(rec);
+                    }
+
+                    if (!toRestore.isEmpty()) {
+                        SpatialDisplacementManager.executeTwoPassRestoration(world, toRestore);
+                    }
+
+                    world.playSound(null, task.groundCenter, SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.BLOCKS, 3.0f, 1.8f);
+                    world.playSound(null, task.groundCenter, SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.BLOCKS, 3.0f, 1.2f);
+                    it.remove();
+                }
             }
         }
     }
 
-    private static void updateAccretionOrbit(SupernovaTask task, float radiusFactor) {
-        for (BlockPos pos : task.displacedPositions) {
-            DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(task.world.getRegistryKey(), pos);
-            if (record == null || record.displayEntityUuid == null) continue;
+    private static void updateBeams(SupernovaTask task, BlockDisplayEntity upperBeam, BlockDisplayEntity lowerBeam, float thickness, int duration) {
+        if (upperBeam != null && upperBeam.isAlive()) {
+            upperBeam.setStartInterpolation(0);
+            upperBeam.setInterpolationDuration(duration);
+            upperBeam.setTransformation(SpatialMath.createThinBeamTransform(task.corePos, task.corePos.add(0, 38.0, 0), thickness));
+        }
+        if (lowerBeam != null && lowerBeam.isAlive()) {
+            lowerBeam.setStartInterpolation(0);
+            lowerBeam.setInterpolationDuration(duration);
+            lowerBeam.setTransformation(SpatialMath.createThinBeamTransform(task.corePos, task.corePos.subtract(0, 18.0, 0), thickness));
+        }
+    }
 
-            BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
-            if (display == null || !display.isAlive()) continue;
+    private static void rotateCores(BlockDisplayEntity inner, BlockDisplayEntity outer, float spin, float innerScale, float outerScale, int duration) {
+        Quaternionf innerRot = new Quaternionf().rotateY(spin * 1.5f).rotateX(spin * 0.9f);
+        Quaternionf outerRot = new Quaternionf().rotateY(-spin * 1.2f).rotateZ(-spin * 0.8f);
 
-            float origR = task.originalRadius.getOrDefault(pos, 4.0f);
-            float origAngle = task.originalAngle.getOrDefault(pos, 0.0f);
-            float apex = task.apexY.getOrDefault(pos, 7.0f);
-            Quaternionf baseRot = task.baseRotation.getOrDefault(pos, new Quaternionf());
-            Vector3f scale = task.blockScale.getOrDefault(pos, new Vector3f(1.0f, 1.0f, 1.0f));
-
-            float curR = origR * radiusFactor;
-            float curAngle = origAngle + task.swirlAngle;
-
-            double targetWorldX = task.corePos.x + Math.cos(curAngle) * curR;
-            double targetWorldZ = task.corePos.z + Math.sin(curAngle) * curR;
-            double targetWorldY = task.corePos.y + Math.sin(curAngle * 2.0) * 0.8;
-
-            Vector3f newDisp = new Vector3f(
-                    (float) (targetWorldX - pos.getX()),
-                    (float) (targetWorldY - pos.getY()),
-                    (float) (targetWorldZ - pos.getZ())
-            );
-
-            Quaternionf newRot = new Quaternionf(baseRot).rotateY(task.swirlAngle);
-
-            display.setStartInterpolation(0);
-            display.setInterpolationDuration(6);
-            display.setTransformation(SpatialMath.createPivotTransform(newDisp, newRot, scale.x));
+        if (inner != null && inner.isAlive()) {
+            inner.setStartInterpolation(0);
+            inner.setInterpolationDuration(duration);
+            inner.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, innerRot, innerScale));
+        }
+        if (outer != null && outer.isAlive()) {
+            outer.setStartInterpolation(0);
+            outer.setInterpolationDuration(duration);
+            outer.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, outerRot, outerScale));
         }
     }
 
@@ -403,6 +573,28 @@ public class SupernovaManager {
     }
 
     public static void clearAllTasks() {
+        for (SupernovaTask task : ACTIVE_TASKS) {
+            if (task.innerCoreUuid != null) {
+                BlockDisplayEntity inner = SpatialDisplacementManager.getActiveEntity(task.innerCoreUuid);
+                if (inner != null && inner.isAlive()) inner.discard();
+                SpatialDisplacementManager.untrackEntity(task.innerCoreUuid);
+            }
+            if (task.outerCoreUuid != null) {
+                BlockDisplayEntity outer = SpatialDisplacementManager.getActiveEntity(task.outerCoreUuid);
+                if (outer != null && outer.isAlive()) outer.discard();
+                SpatialDisplacementManager.untrackEntity(task.outerCoreUuid);
+            }
+            if (task.upperBeamUuid != null) {
+                BlockDisplayEntity ub = SpatialDisplacementManager.getActiveEntity(task.upperBeamUuid);
+                if (ub != null && ub.isAlive()) ub.discard();
+                SpatialDisplacementManager.untrackEntity(task.upperBeamUuid);
+            }
+            if (task.lowerBeamUuid != null) {
+                BlockDisplayEntity lb = SpatialDisplacementManager.getActiveEntity(task.lowerBeamUuid);
+                if (lb != null && lb.isAlive()) lb.discard();
+                SpatialDisplacementManager.untrackEntity(task.lowerBeamUuid);
+            }
+        }
         ACTIVE_TASKS.clear();
     }
 }

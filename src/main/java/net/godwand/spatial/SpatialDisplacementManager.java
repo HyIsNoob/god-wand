@@ -270,7 +270,7 @@ public class SpatialDisplacementManager {
                             lh = lh.lengthSquared() < 0.001 ? new Vec3d(1, 0, 0) : lh.normalize();
                             double lead = net.godwand.skill.SpatialPathWalker.getPlayerForwardLead(p);
                             double spineDist = SpatialMath.distanceToAuraSpine(blockCenter, p.getPos().add(0, 1.1, 0), lh, lead);
-                            if (spineDist <= 3.1) {
+                            if (spineDist <= 3.5) {
                                 record.interruptRestoration();
                                 if (display != null && display.isAlive()) {
                                     Vec3d rebound = SpatialMath.computeDynamicAuraOffset(record.pos, p.getPos(), lh, 2.1, record.ageTicks);
@@ -376,8 +376,8 @@ public class SpatialDisplacementManager {
                     }
                 }
 
-                // Bán kính quét quanh trục là 2.35m, ngưỡng giữ mở quanh trục là 3.6m -> Không bao giờ bị đóng sập khi đang chạy nhanh
-                if (activeOwner != null && minSpineDist <= 3.6) {
+                // Bán kính quét quanh trục là 3.3m, ngưỡng giữ mở quanh trục là 3.8m -> Không bao giờ bị đóng sập khi đang chạy nhanh
+                if (activeOwner != null && minSpineDist <= 3.8) {
                     record.resetRestoreTick();
 
                     if (display != null && display.isAlive() && ((record.ageTicks + Math.abs(record.pos.hashCode())) % 3 == 0)) {
@@ -413,6 +413,13 @@ public class SpatialDisplacementManager {
                         display.setStartInterpolation(0);
                         display.setInterpolationDuration(3);
                         display.setTransformation(SpatialMath.createPivotTransform(smoothedOffset, rot, record.targetScale.x));
+
+                        // Dây năng lượng 3D nối từ khối vòm cao xuống mặt đất
+                        if (desiredAuraOffset.y > 1.2 && ((record.ageTicks + record.pos.hashCode()) & 7) == 0) {
+                            world.spawnParticles(ParticleTypes.END_ROD,
+                                    actualDebrisWorldPos.x, actualDebrisWorldPos.y, actualDebrisWorldPos.z,
+                                    1, 0.04, -0.4, 0.04, 0.02);
+                        }
                     }
                 } else {
                     record.beginRestoration();

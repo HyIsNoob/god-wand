@@ -62,9 +62,10 @@ public class ShockwaveSlicerTest {
     }
 
     @Test
-    public void testSlicingTaskProperties() {
+    public void testSingularityTaskProperties() {
         BlockPos.Mutable mutableCenter = new BlockPos.Mutable(100, 64, -200);
-        ShockwaveSlicer.SlicingTask task = new ShockwaveSlicer.SlicingTask(null, mutableCenter, 16.0);
+        net.minecraft.util.math.Vec3d orbCenter = mutableCenter.toCenterPos().add(0, 2.2 + 16.0 * 0.2, 0);
+        ShockwaveSlicer.SingularityTask task = new ShockwaveSlicer.SingularityTask(null, mutableCenter, 16.0, orbCenter);
 
         // Ensure center was converted to immutable
         mutableCenter.set(0, 0, 0);
@@ -72,15 +73,10 @@ public class ShockwaveSlicerTest {
         assertEquals(64, task.center.getY());
         assertEquals(-200, task.center.getZ());
 
-        assertEquals(0, task.currentShell);
-        assertEquals(5, task.totalShells);
-        assertEquals(0, task.sampledDisplays);
-        assertEquals(0, task.sampledDisplaysInner);
-        assertEquals(0, task.sampledDisplaysMid);
-        assertEquals(0, task.sampledDisplaysOuter);
-        assertEquals(150, ShockwaveSlicer.SlicingTask.MAX_DISPLAYS_PER_STRATA);
-        assertEquals(320, ShockwaveSlicer.SlicingTask.MAX_DISPLAYS);
+        assertEquals(0, task.ageTicks);
+        assertEquals(130, task.maxLifetimeTicks);
         assertEquals(16.0, task.maxRadius, 1e-6);
+        assertEquals(orbCenter, task.orbCenter);
     }
 
     @Test

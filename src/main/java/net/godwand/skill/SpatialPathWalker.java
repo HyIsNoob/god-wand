@@ -144,12 +144,12 @@ public class SpatialPathWalker {
 
         double forwardLead = updatePlayerForwardLead(player);
         double auraRadius = 2.1;
-        double maxRange = auraRadius + forwardLead + 0.8;
+        double maxRange = 3.3 + forwardLead + 0.8;
 
         int minX = MathHelper.floor(playerPos.x - maxRange);
         int maxX = MathHelper.floor(playerPos.x + maxRange);
         int minY = allowDown ? MathHelper.floor(playerPos.y - 2.2) : floorY;
-        int maxY = MathHelper.floor(playerPos.y + 2.6);
+        int maxY = MathHelper.floor(playerPos.y + 2.8);
         int minZ = MathHelper.floor(playerPos.z - maxRange);
         int maxZ = MathHelper.floor(playerPos.z + maxRange);
 
@@ -170,13 +170,9 @@ public class SpatialPathWalker {
 
                     Vec3d blockCenter = Vec3d.ofCenter(mutablePos);
 
-                    // Tâm trường lực tự vươn xa về phía trước theo vận tốc di chuyển
-                    Vec3d auraCenter = chestPos.add(lookDirHoriz.multiply(forwardLead));
-                    double distToAuraCenter = blockCenter.subtract(auraCenter).length();
-                    double distToPlayerChest = blockCenter.subtract(chestPos).length();
-
-                    boolean insideAura = (distToPlayerChest <= 2.1) || (distToAuraCenter <= 2.35);
-                    if (!insideAura) continue;
+                    // Quét 2 tầng (Tầng trong <= 2.1m vòm cao, Tầng ngoài <= 3.3m sóng địa chấn)
+                    double spineDist = SpatialMath.distanceToAuraSpine(blockCenter, chestPos, lookDirHoriz, forwardLead);
+                    if (spineDist > 3.3) continue;
 
                     // Distance Hysteresis: keep open and reset restore tick if already displaced
                     if (SpatialDisplacementManager.isPositionDisplaced(world.getRegistryKey(), mutablePos)) {

@@ -167,4 +167,17 @@ public class SpatialMathTest {
         net.minecraft.util.math.Vec3d behind = new net.minecraft.util.math.Vec3d(-1.5, 65.0, 0.0);
         assertEquals(1.5, SpatialMath.distanceToAuraSpine(behind, chest, lookDir, forwardLead), 1e-4);
     }
+
+    @Test
+    public void testCreateThinBeamTransform() {
+        net.minecraft.util.math.Vec3d start = new net.minecraft.util.math.Vec3d(0.0, 0.0, 0.0);
+        net.minecraft.util.math.Vec3d end = new net.minecraft.util.math.Vec3d(0.0, 0.0, 10.0);
+        float thickness = 0.04f;
+
+        net.minecraft.util.math.AffineTransformation transform = SpatialMath.createThinBeamTransform(start, end, thickness);
+        assertNotNull(transform);
+        assertEquals(thickness, transform.getScale().x, 1e-4);
+        assertEquals(thickness, transform.getScale().y, 1e-4);
+        assertEquals(10.0f, transform.getScale().z, 1e-4);
+    }
 }
