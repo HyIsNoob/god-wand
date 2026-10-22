@@ -102,18 +102,7 @@ public class GodWandItem extends Item {
                 }
                 return TypedActionResult.success(stack);
             }
-            case MODE_ARCANE_ORB -> {
-                user.setCurrentHand(hand);
-                return TypedActionResult.consume(stack);
-            }
-            case MODE_RATIO_COLLAPSE -> {
-                if (!world.isClient() && user instanceof ServerPlayerEntity serverPlayer) {
-                    RatioCollapseManager.cast(serverPlayer);
-                    user.getItemCooldownManager().set(this, 30); // 1.5s tactical cooldown
-                }
-                return TypedActionResult.success(stack);
-            }
-            case MODE_SUPERNOVA -> {
+            case MODE_ARCANE_ORB, MODE_RATIO_COLLAPSE, MODE_SUPERNOVA -> {
                 user.setCurrentHand(hand);
                 return TypedActionResult.consume(stack);
             }
@@ -126,7 +115,7 @@ public class GodWandItem extends Item {
     @Override
     public int getMaxUseTime(ItemStack stack, LivingEntity user) {
         int mode = getSkillMode(stack);
-        if (mode == MODE_ARCANE_ORB || mode == MODE_SUPERNOVA) {
+        if (mode == MODE_ARCANE_ORB || mode == MODE_SUPERNOVA || mode == MODE_RATIO_COLLAPSE) {
             return 72000;
         }
         return 0;
@@ -135,7 +124,7 @@ public class GodWandItem extends Item {
     @Override
     public UseAction getUseAction(ItemStack stack) {
         int mode = getSkillMode(stack);
-        if (mode == MODE_ARCANE_ORB) {
+        if (mode == MODE_ARCANE_ORB || mode == MODE_RATIO_COLLAPSE) {
             return UseAction.BOW;
         } else if (mode == MODE_SUPERNOVA) {
             return UseAction.SPEAR;
@@ -145,7 +134,55 @@ public class GodWandItem extends Item {
 
     @Override
     public void usageTick(World world, LivingEntity user, ItemStack stack, int remainingUseTicks) {
-        if (getSkillMode(stack) != MODE_SUPERNOVA) return;
+        int currentMode = getSkillMode(stack);
+
+        // VẬN CHIÊU 3: SỤP ĐỔ THIÊN THẠCH (RATIO COLLAPSE)
+        if (currentMode == MODE_RATIO_COLLAPSE) {
+            int chargeTicks = this.getMaxUseTime(stack, user) - remainingUseTicks;
+            if (chargeTicks < 0) return;
+
+            int level = (chargeTicks >= 50) ? 3 : (chargeTicks >= 24) ? 2 : 1;
+            float progress = Math.min(1.0f, chargeTicks / 50.0f);
+
+            if (!world.isClient() && user instanceof ServerPlayerEntity player) {
+                ServerWorld sw = (ServerWorld) world;
+
+                // Bụi đất đá nứt gãy và khói địa chấn dưới chân
+                if (chargeTicks % 2 == 0) {
+                    sw.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
+                            player.getX() + (Math.random() - 0.5) * 1.8, player.getY() + 0.1, player.getZ() + (Math.random() - 0.5) * 1.8,
+                            1, 0, 0.06 + progress * 0.10, 0, 0.01);
+                }
+
+                // Điểm chỉ thị mục tiêu rơi thiên thạch
+                double reach = (level == 3) ? 65.0 : (level == 2) ? 45.0 : 28.0;
+                HitResult hit = player.raycast(reach, 0.0f, false);
+                Vec3d targetPos = (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult bHit)
+                        ? bHit.getBlockPos().toCenterPos()
+                        : player.getEyePos().add(player.getRotationVec(1.0f).multiply(reach * 0.7));
+
+                if (chargeTicks % 3 == 0) {
+                    sw.spawnParticles(ParticleTypes.ELECTRIC_SPARK,
+                            targetPos.x, targetPos.y + 0.5, targetPos.z, 2, 0.4, 0.2, 0.4, 0.05);
+                }
+
+                // Âm thanh nén trọng lực tăng dần
+                if (chargeTicks % 10 == 0) {
+                    float pitch = 0.7f + progress * 0.8f;
+                    world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 1.6f, pitch);
+                    world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                            SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.PLAYERS, 1.4f, pitch);
+                }
+
+                int percent = (int) (progress * 100);
+                String lvlStr = (level == 3) ? "§c§l[CẤP 3: ĐẠI THIÊN THẠCH]" : (level == 2) ? "§6§l[CẤP 2: NÉN TRỌNG LỰC]" : "§e§l[CẤP 1: CĂN BẢN]";
+                player.sendMessage(Text.literal("§6§l[✦ VẬN KHÍ THIÊN THẠCH: " + lvlStr + " (" + percent + "%) ✦]"), true);
+            }
+            return;
+        }
+
+        if (currentMode != MODE_SUPERNOVA) return;
 
         int chargeTicks = this.getMaxUseTime(stack, user) - remainingUseTicks;
         if (chargeTicks < 0) return;
@@ -241,6 +278,22 @@ public class GodWandItem extends Item {
                             SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.PLAYERS, 2.0f, 1.2f);
                     player.sendMessage(Text.literal("§7§o[Đã hủy vận chiêu Siêu Tân Tinh]"), true);
                 }
+            }
+            return;
+        }
+
+        if (getSkillMode(stack) == MODE_RATIO_COLLAPSE) {
+            if (!world.isClient() && user instanceof ServerPlayerEntity player) {
+                int chargeDuration = this.getMaxUseTime(stack, user) - remainingUseTicks;
+                int level = 1;
+                if (chargeDuration >= 50) {
+                    level = 3;
+                } else if (chargeDuration >= 24) {
+                    level = 2;
+                }
+
+                RatioCollapseManager.cast(player, level);
+                player.getItemCooldownManager().set(this, 35);
             }
             return;
         }

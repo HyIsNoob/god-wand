@@ -264,8 +264,9 @@ public class SpatialDisplacementManager {
                             Vec3d lh = new Vec3d(lv.x, 0, lv.z);
                             lh = lh.lengthSquared() < 0.001 ? new Vec3d(1, 0, 0) : lh.normalize();
                             double lead = net.godwand.skill.SpatialPathWalker.getPlayerForwardLead(p);
-                            double spineDist = SpatialMath.distanceToAuraSpine(blockCenter, p.getPos().add(0, 1.1, 0), lh, lead);
-                            if (spineDist <= 3.5) {
+                            double holdingLead = Math.max(lead, 5.5);
+                            double spineDist = SpatialMath.distanceToAuraSpine(blockCenter, p.getPos().add(0, 1.1, 0), lh, holdingLead);
+                            if (spineDist <= 4.2) {
                                 record.interruptRestoration();
                                 if (display != null && display.isAlive()) {
                                     Vec3d rebound = SpatialMath.computeDynamicAuraOffset(record.pos, p.getPos(), lh, 2.1, record.ageTicks);
@@ -399,7 +400,8 @@ public class SpatialDisplacementManager {
                         Vec3d lh = new Vec3d(lv.x, 0, lv.z);
                         lh = lh.lengthSquared() < 0.001 ? new Vec3d(1, 0, 0) : lh.normalize();
                         double lead = net.godwand.skill.SpatialPathWalker.getPlayerForwardLead(p);
-                        double d = SpatialMath.distanceToAuraSpine(blockCenter, p.getPos().add(0, 1.1, 0), lh, lead);
+                        double holdingLead = Math.max(lead, 5.5);
+                        double d = SpatialMath.distanceToAuraSpine(blockCenter, p.getPos().add(0, 1.1, 0), lh, holdingLead);
                         if (d < minSpineDist) {
                             minSpineDist = d;
                             activeOwner = p;
@@ -407,8 +409,8 @@ public class SpatialDisplacementManager {
                     }
                 }
 
-                // Bán kính quét quanh trục là 3.3m, ngưỡng giữ mở quanh trục là 3.8m -> Không bao giờ bị đóng sập khi đang chạy nhanh
-                if (activeOwner != null && minSpineDist <= 3.8) {
+                // Bán kính quét quanh trục là 3.3m, ngưỡng giữ mở quanh trục là 4.2m với holdingLead 5.5m -> Giữ khối phía trước luôn mở lơ lửng khi đứng yên
+                if (activeOwner != null && minSpineDist <= 4.2) {
                     record.resetRestoreTick();
 
                     if (display != null && display.isAlive() && ((record.ageTicks + Math.abs(record.pos.hashCode())) % 3 == 0)) {

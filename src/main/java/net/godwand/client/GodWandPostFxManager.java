@@ -129,15 +129,20 @@ public class GodWandPostFxManager {
                     retinaBurn = Math.max(0.0f, 0.65f * baseIntensity * (1.0f - shockProg * 1.4f));
                 }
 
-                // 3D Singularity Gravitational Lensing & Lõi năng lượng duy trì cùng 45 Tether Beams
+                // 3D Singularity Gravitational Lensing & Lõi năng lượng duy trì:
+                // Nhỏ gọn hơn (base 0.72m thay vì 1.6m), dao động to/nhỏ chớp chớp kiểu tụ năng lượng sống động
+                float pulse = (float) (Math.sin(gTime * 18.0) * 0.16 + Math.sin(gTime * 34.0) * 0.08);
+                float activeCoreR = Math.max(0.35f, 0.72f + pulse);
+                float activeLensing = 1.35f + pulse * 1.4f;
+
                 if (progress < 0.94f) {
-                    coreRadius = 1.6f;
-                    lensingPower = 1.6f;
+                    coreRadius = activeCoreR;
+                    lensingPower = activeLensing;
                 } else {
                     // Ticks 106..112: Hút ngược chân không sụp đổ lõi
                     float snapProg = (progress - 0.94f) / 0.06f;
-                    coreRadius = MathHelper.lerp(snapProg, 1.6f, 0.0f);
-                    lensingPower = MathHelper.lerp(snapProg, 1.6f, 0.0f);
+                    coreRadius = MathHelper.lerp(snapProg, activeCoreR, 0.0f);
+                    lensingPower = MathHelper.lerp(snapProg, activeLensing, 0.0f);
                     zoomBlur = -0.05f * snapProg;
                 }
             }

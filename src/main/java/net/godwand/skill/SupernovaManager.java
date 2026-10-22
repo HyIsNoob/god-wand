@@ -462,8 +462,8 @@ public class SupernovaManager {
                     SpatialDisplacementManager.removeActiveRecord(world.getRegistryKey(), pos);
                 }
 
-                // 6. Chuẩn bị tạo Hố sâu tận thế (Impact Crater bán kính 40m)
-                int craterR = 40;
+                // 6. Chuẩn bị tạo Hố sâu tận thế (Impact Crater bán kính 55m, sâu tới 28m) - Hố vực thẳm khổng lồ
+                int craterR = 55;
                 BlockPos.Mutable cMut = new BlockPos.Mutable();
                 int centerGroundY = task.groundCenter.getY();
 
@@ -473,9 +473,15 @@ public class SupernovaManager {
                         if (distSq > craterR * craterR) continue;
 
                         double dist2D = Math.sqrt(distSq);
-                        int depth = (int) Math.round((1.0 - (dist2D / craterR)) * 14.0);
+                        // Biên hố răng cưa ngẫu nhiên tự nhiên
+                        double noise = (SpatialMath.hash01(new BlockPos(cx, 0, cz)) - 0.5) * 6.0;
+                        double effectiveR = craterR + noise;
+                        if (dist2D > effectiveR) continue;
 
-                        for (int cy = -depth; cy <= 3; cy++) {
+                        // Độ sâu cực lớn: 28m tại tâm, rơi dốc theo hàm mũ 1.35
+                        int depth = (int) Math.round((1.0 - Math.pow(Math.min(1.0, dist2D / effectiveR), 1.35)) * 28.0);
+
+                        for (int cy = -depth; cy <= 4; cy++) {
                             cMut.set(task.groundCenter.getX() + cx, centerGroundY + cy, task.groundCenter.getZ() + cz);
                             if (cMut.getY() < world.getBottomY() || cMut.getY() >= world.getTopY()) continue;
                             task.craterCarveBatch.add(cMut.toImmutable());
@@ -526,18 +532,30 @@ public class SupernovaManager {
                         if (currentState.getBlock() == Blocks.BEDROCK) continue;
 
                         double dist2D = Math.sqrt(pos.getSquaredDistance(task.groundCenter.getX(), pos.getY(), task.groundCenter.getZ()));
-                        int depth = (int) Math.round((1.0 - (dist2D / 40.0)) * 14.0);
+                        double noise = (SpatialMath.hash01(new BlockPos(pos.getX() - task.groundCenter.getX(), 0, pos.getZ() - task.groundCenter.getZ())) - 0.5) * 6.0;
+                        double effectiveR = 55.0 + noise;
+                        int depth = (int) Math.round((1.0 - Math.pow(Math.min(1.0, dist2D / effectiveR), 1.35)) * 28.0);
                         int floorY = task.groundCenter.getY() - depth;
 
-                        if (pos.getY() <= floorY + 1) {
-                            // Đáy hố bị nung chảy thành Magma, Obsidian, Crying Obsidian, Blackstone
-                            BlockState scorchState = (rng.nextFloat() < 0.40f) ? Blocks.MAGMA_BLOCK.getDefaultState() :
-                                    (rng.nextFloat() < 0.70f) ? Blocks.OBSIDIAN.getDefaultState() :
-                                            (rng.nextFloat() < 0.85f) ? Blocks.CRYING_OBSIDIAN.getDefaultState() :
-                                                    Blocks.BLACKSTONE.getDefaultState();
-                            world.setBlockState(pos, scorchState, Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
-                        } else {
+                        // 1. TẤT CẢ CÁC KHỐI PHÍA TRÊN ĐÁY HỐ ĐỀU BỊ BỐC HƠI HOÀN TOÀN THÀNH KHÔNG KHÍ (AIR)!
+                        if (pos.getY() > floorY) {
                             world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
+                        }
+                        // 2. TẠI ĐÚNG ĐÁY HỐ (pos.getY() == floorY):
+                        // CHỈ nung chảy nếu khối đó VỐN DĨ ĐANG LÀ ĐẤT ĐÁ ĐẶC (không tự sinh block trên không trung)!
+                        else if (pos.getY() == floorY && !currentState.isAir()) {
+                            float rVal = rng.nextFloat();
+                            BlockState scorchState;
+                            if (rVal < 0.20f) {
+                                scorchState = Blocks.MAGMA_BLOCK.getDefaultState();
+                            } else if (rVal < 0.35f) {
+                                scorchState = Blocks.CRYING_OBSIDIAN.getDefaultState();
+                            } else if (rVal < 0.55f) {
+                                scorchState = Blocks.OBSIDIAN.getDefaultState();
+                            } else {
+                                scorchState = (pos.getY() < 0) ? Blocks.DEEPSLATE.getDefaultState() : Blocks.BLACKSTONE.getDefaultState();
+                            }
+                            world.setBlockState(pos, scorchState, Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
                         }
                     }
                     task.craterIndex = endIndex;

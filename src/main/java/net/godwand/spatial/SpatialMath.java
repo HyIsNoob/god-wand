@@ -114,11 +114,31 @@ public final class SpatialMath {
         double archFactor = Math.max(0.0, 1.0 - (perpDist / 2.1));
         double archLift = 0.85 + (relY * 0.55) + (archFactor * 1.65) + spatialWave * 0.18;
 
-        return new Vec3d(
+        Vec3d fullArchOffset = new Vec3d(
             pushDir.x * pushOutDist,
             archLift,
             pushDir.z * pushOutDist
         );
+
+        // HIỆU ỨNG HỜ HỮNG LƠ LỬNG PHÍA TRƯỚC (ANTICIPATORY ALOOF HOVER)
+        // Khi forwardProj > 1.8m: Khối ở xa phía trước chưa mở toang thành vòm mà chỉ hờ hững lơ lửng gần chỗ cũ
+        if (forwardProj > 1.8) {
+            double approach = MathHelper.clamp((4.5 - forwardProj) / (4.5 - 1.8), 0.0, 1.0);
+            double t = approach * approach * (3.0 - 2.0 * approach); // Hermite smooth S-curve
+
+            // Trạng thái hờ hững (Aloof Hover): tách nhẹ 0.22m, bay nâng 0.32m, thở nhẹ theo nhịp
+            double aloofPush = 0.20 + 0.10 * Math.abs(spatialWave);
+            double aloofLift = 0.32 + 0.12 * Math.sin(pos.getX() * 0.5 + pos.getZ() * 0.5 + ageTicks * 0.14);
+            Vec3d aloofOffset = new Vec3d(
+                pushDir.x * aloofPush,
+                aloofLift,
+                pushDir.z * aloofPush
+            );
+
+            return aloofOffset.lerp(fullArchOffset, t);
+        }
+
+        return fullArchOffset;
     }
 
     /**
@@ -144,10 +164,27 @@ public final class SpatialMath {
         float peelAngle = (float) Math.toRadians((38.0 + relY * 14.0) * side);
         float wavePitch = (float) Math.sin(ageTicks * 0.14 + (pos.getX() + pos.getZ()) * 0.4) * 0.16f;
 
-        return new Quaternionf()
+        Quaternionf fullRot = new Quaternionf()
                 .rotateY((float) Math.atan2(lookDirHoriz.x, lookDirHoriz.z))
                 .rotateZ(peelAngle)
                 .rotateX(wavePitch);
+
+        // Nếu ở phía trước xa (> 1.8m): Xoay hờ hững nhẹ nhàng (12 độ) thay vì lật mạnh
+        double forwardProj = rel.x * lookDirHoriz.x + rel.z * lookDirHoriz.z;
+        if (forwardProj > 1.8) {
+            double approach = MathHelper.clamp((4.5 - forwardProj) / (4.5 - 1.8), 0.0, 1.0);
+            float t = (float) (approach * approach * (3.0 - 2.0 * approach));
+
+            float aloofAngle = (float) Math.toRadians(12.0 * side);
+            Quaternionf aloofRot = new Quaternionf()
+                    .rotateY((float) Math.atan2(lookDirHoriz.x, lookDirHoriz.z))
+                    .rotateZ(aloofAngle)
+                    .rotateX(wavePitch * 0.4f);
+
+            return new Quaternionf(aloofRot).slerp(fullRot, t);
+        }
+
+        return fullRot;
     }
 
     public static Vec3d computeAuraDisplacement(BlockPos pos, Vec3d playerPos, Vec3d lookDirHoriz, double auraRadius) {

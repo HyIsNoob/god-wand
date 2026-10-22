@@ -24,6 +24,7 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -38,6 +39,11 @@ public class RatioCollapseManager {
         public final ServerPlayerEntity caster;
         public final BlockPos center;
         public final double radius;
+        public final double boulderRadius;
+        public final int maxBlocks;
+        public final int craterRadius;
+        public final int craterDepth;
+        public final float damageMult;
         public int ageTicks = 0;
         public final int maxLifetimeTicks = 95;
         public boolean slammed = false;
@@ -49,36 +55,94 @@ public class RatioCollapseManager {
         public final Map<BlockPos, Vec3d> clusterOffset = new HashMap<>();
         public final Map<BlockPos, Quaternionf> baseRotation = new HashMap<>();
 
-        public RatioCollapseTask(ServerWorld world, ServerPlayerEntity caster, BlockPos center, double radius) {
+        public RatioCollapseTask(ServerWorld world, ServerPlayerEntity caster, BlockPos center, double radius,
+                                 double boulderRadius, int maxBlocks, int craterRadius, int craterDepth, float damageMult) {
             this.world = world;
             this.caster = caster;
             this.center = center.toImmutable();
             this.radius = radius;
+            this.boulderRadius = boulderRadius;
+            this.maxBlocks = maxBlocks;
+            this.craterRadius = craterRadius;
+            this.craterDepth = craterDepth;
+            this.damageMult = damageMult;
         }
     }
 
     private static final Queue<RatioCollapseTask> ACTIVE_TASKS = new ConcurrentLinkedQueue<>();
 
     public static void cast(ServerPlayerEntity player) {
+        cast(player, 1);
+    }
+
+    public static void cast(ServerPlayerEntity player, int chargeLevel) {
         ServerWorld world = player.getServerWorld();
 
-        HitResult hit = player.raycast(28.0, 0.0f, false);
+        double reach = switch (chargeLevel) {
+            case 2 -> 45.0;
+            case 3 -> 65.0;
+            default -> 28.0;
+        };
+
+        HitResult hit = player.raycast(reach, 0.0f, false);
         BlockPos targetPos;
         if (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult bHit) {
             targetPos = bHit.getBlockPos();
         } else {
-            Vec3d targetVec = player.getEyePos().add(player.getRotationVec(1.0f).multiply(16.0));
+            Vec3d targetVec = player.getEyePos().add(player.getRotationVec(1.0f).multiply(reach * 0.7));
             targetPos = BlockPos.ofFloored(targetVec);
             while (targetPos.getY() > world.getBottomY() && world.getBlockState(targetPos).isAir()) {
                 targetPos = targetPos.down();
             }
         }
 
-        launch(world, player, targetPos, 8.5);
+        double radius = switch (chargeLevel) {
+            case 2 -> 13.5;
+            case 3 -> 19.0;
+            default -> 8.5;
+        };
+
+        double boulderRadius = switch (chargeLevel) {
+            case 2 -> 3.8;
+            case 3 -> 5.5;
+            default -> 2.4;
+        };
+
+        int maxBlocks = switch (chargeLevel) {
+            case 2 -> 180;
+            case 3 -> 270;
+            default -> 110;
+        };
+
+        int craterRadius = switch (chargeLevel) {
+            case 2 -> 14;
+            case 3 -> 21;
+            default -> 9;
+        };
+
+        int craterDepth = switch (chargeLevel) {
+            case 2 -> 7;
+            case 3 -> 11;
+            default -> 4;
+        };
+
+        float damageMult = switch (chargeLevel) {
+            case 2 -> 1.6f;
+            case 3 -> 2.5f;
+            default -> 1.0f;
+        };
+
+        launch(world, player, targetPos, radius, boulderRadius, maxBlocks, craterRadius, craterDepth, damageMult);
     }
 
     public static void launch(ServerWorld world, ServerPlayerEntity player, BlockPos center, double radius) {
-        RatioCollapseTask task = new RatioCollapseTask(world, player, center, radius);
+        launch(world, player, center, radius, 2.4, 110, 9, 4, 1.0f);
+    }
+
+    public static void launch(ServerWorld world, ServerPlayerEntity player, BlockPos center,
+                              double radius, double boulderRadius, int maxBlocks,
+                              int craterRadius, int craterDepth, float damageMult) {
+        RatioCollapseTask task = new RatioCollapseTask(world, player, center, radius, boulderRadius, maxBlocks, craterRadius, craterDepth, damageMult);
 
         // Âm thanh nứt gãy địa chấn ban đầu
         world.playSound(null, center, SoundEvents.BLOCK_HEAVY_CORE_BREAK, SoundCategory.BLOCKS, 3.5f, 0.75f);
@@ -90,20 +154,19 @@ public class RatioCollapseManager {
         world.spawnParticles(new DustParticleEffect(new Vector3f(0.15f, 0.90f, 1.0f), 1.5f),
                 center.getX() + 0.5, center.getY() + 0.5, center.getZ() + 0.5, 40, 1.5, 0.3, 1.5, 0.25);
 
-        // Bóc tối đa 135 khối đất đá trong bán kính 8.5m
-        int intR = (int) Math.ceil(radius);
+        // Bóc tối đa task.maxBlocks khối đất đá trong bán kính task.radius
+        int intR = (int) Math.ceil(task.radius);
         BlockPos.Mutable mutable = new BlockPos.Mutable();
-        int maxBlocks = 135;
 
         List<BlockPos> validPositions = new ArrayList<>();
         for (int x = -intR; x <= intR; x++) {
             for (int z = -intR; z <= intR; z++) {
                 double dSq = x * x + z * z;
-                if (dSq > radius * radius) continue;
+                if (dSq > task.radius * task.radius) continue;
 
                 int startY = center.getY() + 3;
                 mutable.set(center.getX() + x, startY, center.getZ() + z);
-                while (mutable.getY() > center.getY() - 5 && world.getBlockState(mutable).isAir()) {
+                while (mutable.getY() > center.getY() - 6 && world.getBlockState(mutable).isAir()) {
                     mutable.move(0, -1, 0);
                 }
 
@@ -113,14 +176,14 @@ public class RatioCollapseManager {
             }
         }
 
-        // Chọn tối đa 135 khối
+        // Chọn tối đa task.maxBlocks khối
         Collections.shuffle(validPositions, new Random(center.asLong()));
-        int count = Math.min(maxBlocks, validPositions.size());
+        int count = Math.min(task.maxBlocks, validPositions.size());
 
         for (int i = 0; i < count; i++) {
             BlockPos pos = validPositions.get(i);
             float hash = (float) SpatialMath.hashCoordinateToPhase(pos.asLong());
-            float apexY = 5.5f + 3.0f * (float) Math.abs(Math.sin(hash));
+            float apexY = 5.5f + (float) (task.boulderRadius * 0.8) + 3.0f * (float) Math.abs(Math.sin(hash));
 
             // Góc xoay ngẫu nhiên
             Quaternionf rot = new Quaternionf()
@@ -159,17 +222,17 @@ public class RatioCollapseManager {
             Vec3d p1Disp = new Vec3d(-dx * 0.15, apexY, -dz * 0.15);
             task.phase1Displacement.put(pos, p1Disp);
 
-            // Tọa độ Fibonacci Sphere trong tảng thiên thạch bán kính 2.4m
-            Vec3d clusterOff = computeBoulderClusterOffset(i, count, 2.4);
+            // Tọa độ Fibonacci Sphere trong tảng thiên thạch bán kính task.boulderRadius
+            Vec3d clusterOff = computeBoulderClusterOffset(i, count, task.boulderRadius);
             task.clusterOffset.put(pos, clusterOff);
         }
 
         // Đẩy quái vật xung quanh lên trời
-        Box vortexBox = new Box(center).expand(radius * 1.25);
+        Box vortexBox = new Box(center).expand(task.radius * 1.25);
         for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, vortexBox, ent -> ent != player)) {
             e.addVelocity(0, 0.48, 0);
             e.velocityModified = true;
-            e.damage(world.getDamageSources().magic(), 4.0f);
+            e.damage(world.getDamageSources().magic(), 4.0f * task.damageMult);
         }
 
         ACTIVE_TASKS.add(task);
@@ -194,14 +257,15 @@ public class RatioCollapseManager {
             if (task.world != world) continue;
 
             task.ageTicks++;
-            Vec3d meteorCore = task.center.toCenterPos().add(0, 12.5, 0);
+            Vec3d meteorCore = task.center.toCenterPos().add(0, 11.0 + task.boulderRadius * 1.35, 0);
 
             // =========================================================================
-            // PHA 1: CẠY TUNG MẶT ĐẤT CÓ SỨC NẶNG (Ticks 1..28)
+            // PHA 1: CẠY TUNG MẶT ĐẤT CÓ SỨC NẶNG (Ticks 1..28) - NỘI SUY SINUSOIDAL MƯỢT MÀ
             // =========================================================================
             if (task.ageTicks <= 28) {
                 if (task.ageTicks % 2 == 0) {
-                    float u = (float) Math.pow(task.ageTicks / 28.0f, 2.0); // Hàm bậc hai có gia tốc
+                    float t = MathHelper.clamp(task.ageTicks / 28.0f, 0.0f, 1.0f);
+                    float u = 0.5f - 0.5f * (float) Math.cos(t * Math.PI); // Cosine ease-in-out S-curve êm ái
                     for (BlockPos pos : task.displacedPositions) {
                         DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
                         if (record == null || record.displayEntityUuid == null) continue;
@@ -227,10 +291,11 @@ public class RatioCollapseManager {
             // PHA 2: HỢP NHẤT THÀNH 1 TẢNG THIÊN THẠCH KHỔNG LỒ (Ticks 29..68)
             // =========================================================================
             else if (task.ageTicks <= 68) {
-                // Ticks 29..58 (30 ticks): Ép chặt 135 khối vào khối cầu meteorCore và phóng to 1.28x
+                // Ticks 29..58 (30 ticks): Ép chặt các khối vào khối cầu meteorCore với nội suy mượt mà
                 if (task.ageTicks <= 58) {
                     float cp = (task.ageTicks - 28) / 30.0f;
-                    float scaleVal = 1.0f + 0.28f * cp; // Phóng to 1.0x -> 1.28x để các khối đan khít vào nhau
+                    float smoothCp = 0.5f - 0.5f * (float) Math.cos(cp * Math.PI);
+                    float scaleVal = 1.0f + 0.28f * smoothCp; // Phóng to 1.0x -> 1.28x để các khối đan khít vào nhau
 
                     if ((task.ageTicks - 28) % 2 == 0) {
                         for (BlockPos pos : task.displacedPositions) {
@@ -245,7 +310,7 @@ public class RatioCollapseManager {
                             Vec3d finalClusterWorldPos = meteorCore.add(clusterOff);
                             Vec3d finalDisp = finalClusterWorldPos.subtract(Vec3d.ofCenter(pos));
 
-                            Vec3d curDisp = p1Disp.lerp(finalDisp, cp);
+                            Vec3d curDisp = p1Disp.lerp(finalDisp, smoothCp);
                             Quaternionf rot = task.baseRotation.getOrDefault(pos, new Quaternionf());
 
                             display.setStartInterpolation(0);
@@ -375,10 +440,10 @@ public class RatioCollapseManager {
                     Box slamBox = new Box(task.center).expand(task.radius * 1.4);
                     for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, slamBox, ent -> ent != task.caster)) {
                         double dist = e.getPos().distanceTo(task.center.toCenterPos());
-                        float dmg = (float) Math.max(16.0, (1.0 - (dist / (task.radius * 1.4))) * 42.0 + 10.0);
+                        float dmg = (float) Math.max(16.0, ((1.0 - (dist / (task.radius * 1.4))) * 42.0 + 10.0) * task.damageMult);
                         e.damage(world.getDamageSources().fallingBlock(task.caster), dmg);
 
-                        Vec3d diff = e.getPos().subtract(task.center.toCenterPos()).normalize().multiply(1.6).add(0, 0.65, 0);
+                        Vec3d diff = e.getPos().subtract(task.center.toCenterPos()).normalize().multiply(1.6 * task.damageMult).add(0, 0.65, 0);
                         e.addVelocity(diff.x, diff.y, diff.z);
                         e.velocityModified = true;
                     }
@@ -386,20 +451,21 @@ public class RatioCollapseManager {
                     // Shader Anime Impact Frame & Ground Seismic Shockwave (Ground Zero)
                     ImpactFxPayload slamPayload = new ImpactFxPayload(
                             task.center.getX() + 0.5, task.center.getY() + 0.5, task.center.getZ() + 0.5,
-                            ImpactFxPayload.TYPE_SEISMIC_SLAM, 20, 2.0f
+                            ImpactFxPayload.TYPE_SEISMIC_SLAM, 20, 2.0f * task.damageMult
                     );
                     CinematicFxPayload slamCinematic = new CinematicFxPayload(
                             CinematicFxPayload.EVENT_METEOR_SLAM,
                             task.center.getX() + 0.5, task.center.getY() + 0.5, task.center.getZ() + 0.5,
-                            0.95f, 24
+                            Math.min(1.0f, 0.95f * task.damageMult), 24
                     );
                     for (ServerPlayerEntity p : PlayerLookup.around(world, task.center.toCenterPos(), 96.0)) {
                         ServerPlayNetworking.send(p, slamPayload);
                         ServerPlayNetworking.send(p, slamCinematic);
                     }
 
-                    // TẠO HỐ VA CHẠM THIÊN THẠCH THỰC SỰ (Impact Crater bán kính 10m) - KHÔNG HOÀN TRẢ
-                    int craterR = 10;
+                    // TẠO HỐ VA CHẠM THIÊN THẠCH THỰC SỰ - KHÔNG HOÀN TRẢ
+                    int craterR = task.craterRadius;
+                    int maxD = task.craterDepth;
                     BlockPos.Mutable cMut = new BlockPos.Mutable();
                     Random rng = new Random(task.center.asLong());
 
@@ -409,7 +475,7 @@ public class RatioCollapseManager {
                             if (distSq > craterR * craterR) continue;
 
                             double dist2D = Math.sqrt(distSq);
-                            int depth = (int) Math.round((1.0 - (dist2D / craterR)) * 4.5);
+                            int depth = (int) Math.round((1.0 - (dist2D / craterR)) * maxD);
 
                             for (int cy = -depth; cy <= 1; cy++) {
                                 cMut.set(task.center.getX() + cx, task.center.getY() + cy, task.center.getZ() + cz);
@@ -430,11 +496,12 @@ public class RatioCollapseManager {
                         }
                     }
 
-                    // 40–50 khối của tảng thiên thạch văng tung tóe ra xung quanh rìa hố thành FallingBlockEntity
+                    // Khối của tảng thiên thạch văng tung tóe ra xung quanh rìa hố thành FallingBlockEntity
                     int flingCount = 0;
+                    int maxFling = Math.min(65, task.maxBlocks / 3);
                     for (BlockPos pos : task.displacedPositions) {
                         DisplacedBlockRecord record = SpatialDisplacementManager.removeActiveRecord(world.getRegistryKey(), pos);
-                        if (record != null && flingCount < 48 && rng.nextFloat() < 0.55f) {
+                        if (record != null && flingCount < maxFling && rng.nextFloat() < 0.55f) {
                             flingCount++;
                             double fAngle = rng.nextDouble() * Math.PI * 2.0;
                             double fSpeed = 0.45 + rng.nextDouble() * 0.75;
@@ -443,8 +510,8 @@ public class RatioCollapseManager {
                             double spawnZ = task.center.getZ() + 0.5 + Math.sin(fAngle) * 3.5;
 
                             FallingBlockEntity falling = FallingBlockEntity.spawnFromBlock(world,
-                                    BlockPos.ofFloored(spawnX, spawnY, spawnZ),
-                                    record.originalState);
+                                     BlockPos.ofFloored(spawnX, spawnY, spawnZ),
+                                     record.originalState);
                             falling.setVelocity(Math.cos(fAngle) * fSpeed, 0.45 + rng.nextDouble() * 0.45, Math.sin(fAngle) * fSpeed);
                             falling.velocityModified = true;
                         }

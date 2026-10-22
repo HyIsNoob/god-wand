@@ -110,7 +110,7 @@ public class ShockwaveSlicer {
                 double chaosJitter = SpatialMath.hash01(pos) * 0.35 - 0.175;
                 phi = MathHelper.clamp(phi + chaosJitter, -Math.PI * 0.48, Math.PI * 0.48);
 
-                double expandRadius = maxRadius * (0.65 + SpatialMath.hash01(pos) * 0.55);
+                double expandRadius = maxRadius * (1.35 + SpatialMath.hash01(pos) * 1.0);
                 Vec3d sphereDir = new Vec3d(
                         Math.cos(phi) * Math.cos(theta),
                         Math.sin(phi),
@@ -119,7 +119,7 @@ public class ShockwaveSlicer {
 
                 Vec3d targetWorldPos = orbCenter.add(sphereDir.multiply(expandRadius));
                 // Đảm bảo các mảnh vỡ nửa dưới cầu không bị chôn sâu dưới lòng đất mà lơ lửng quanh miệng hố
-                double minHoverY = center.getY() + 1.0 + SpatialMath.hash01(pos.up()) * 2.5;
+                double minHoverY = center.getY() + 1.2 + SpatialMath.hash01(pos.up()) * 3.0;
                 if (targetWorldPos.y < minHoverY) {
                     targetWorldPos = new Vec3d(
                             targetWorldPos.x,
@@ -231,23 +231,50 @@ public class ShockwaveSlicer {
             task.ageTicks++;
 
             // =========================================================================
-            // PHA 1: NỨT VỠ & BUNG NĂNG LƯỢNG (Ticks 1..18)
+            // PHA 1: NỨT VỠ & BUNG NĂNG LƯỢNG (Ticks 1..22) - MƯỢT MÀ VỚI CUBIC EASE-OUT
             // =========================================================================
-            if (task.ageTicks <= 18) {
+            if (task.ageTicks <= 22) {
                 if (task.ageTicks % 2 == 0) {
-                    double p = 0.65 * Math.sin((task.ageTicks / 18.0) * (Math.PI / 2.0));
+                    float t = task.ageTicks / 22.0f;
+                    double p = 1.0 - Math.pow(1.0 - t, 3.0);
                     updateBlockPositions(task, p, 2, false);
                 }
             }
 
             // =========================================================================
-            // PHA 2: LÀM CHẬM THỜI GIAN CỰC HẠN / BULLET-TIME DRIFT (Ticks 19..105)
+            // PHA 2: LÀM CHẬM THỜI GIAN CỰC HẠN / BULLET-TIME DRIFT & TETHER (Ticks 23..105)
             // =========================================================================
             else if (task.ageTicks <= 105) {
                 // Trôi dạt và xoay hỗn loạn (Chaotic Tumble) trong không gian 3D
-                if ((task.ageTicks - 18) % 4 == 0) {
-                    double p = 0.65 + 0.35 * ((task.ageTicks - 18) / 87.0);
+                if ((task.ageTicks - 22) % 4 == 0) {
+                    double p = 1.0 + 0.08 * ((task.ageTicks - 22) / 83.0);
                     updateBlockPositions(task, p, 4, true);
+                }
+
+                // Dây năng lượng điện siêu mỏng nối từ tâm orbCenter tới các khối lơ lửng xung quanh
+                int tetherBatch = Math.min(14, task.displayedPositions.size());
+                for (int k = 0; k < tetherBatch; k++) {
+                    int idx = (task.ageTicks * 5 + k * 23) % task.displayedPositions.size();
+                    BlockPos pPos = task.displayedPositions.get(idx);
+                    DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pPos);
+                    if (rec != null) {
+                        Vec3d blockWorld = Vec3d.ofCenter(pPos).add(rec.getCurrentOffset());
+                        Vec3d ray = blockWorld.subtract(task.orbCenter);
+                        double rayLen = ray.length();
+                        if (rayLen > 0.5) {
+                            int steps = Math.min(5, (int) (rayLen / 3.0) + 2);
+                            for (int s = 1; s < steps; s++) {
+                                double frac = (double) s / steps;
+                                Vec3d pt = task.orbCenter.add(ray.multiply(frac));
+                                if ((k + s) % 2 == 0) {
+                                    world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, pt.x, pt.y, pt.z, 1, 0.02, 0.02, 0.02, 0.01);
+                                } else {
+                                    world.spawnParticles(new DustParticleEffect(new Vector3f(0.15f, 0.92f, 1.0f), 0.5f),
+                                            pt.x, pt.y, pt.z, 1, 0.02, 0.02, 0.02, 0.0);
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Hiệu ứng ánh sáng ngưng đọng thời gian quanh quả cầu
@@ -260,17 +287,17 @@ public class ShockwaveSlicer {
             }
 
             // =========================================================================
-            // PHA 3: CO RÚT & THU HỒI NGƯỢC (Ticks 106..130)
+            // PHA 3: CO RÚT & THU HỒI NGƯỢC (Ticks 106..132) - NỘI SUY MƯỢT MÀ
             // =========================================================================
             else {
                 // Ticks 106..111: Anticipation (Kéo dạt thêm +6% lấy đà)
                 if (task.ageTicks == 106) {
                     world.playSound(null, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
                             SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, 3.0f, 1.5f);
-                    updateBlockPositions(task, 1.06, 5, false);
+                    updateBlockPositions(task, 1.10, 5, false);
                 }
 
-                // Ticks 112..126: Vacuum Snap-Back (Quả cầu co nhỏ, các khối giật về 0,0,0)
+                // Ticks 112..130: Vacuum Snap-Back (Quả cầu co nhỏ, các khối lướt mượt về 0,0,0 trong 18 ticks)
                 if (task.ageTicks == 112 && !task.snappedBack) {
                     task.snappedBack = true;
 
@@ -279,7 +306,7 @@ public class ShockwaveSlicer {
                     world.playSound(null, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
                             SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.BLOCKS, 3.0f, 1.8f);
 
-                    // Giật ngược toàn bộ khối đá về vị trí ban đầu trong 14 ticks
+                    // Lướt mượt toàn bộ khối đá về vị trí ban đầu trong 18 ticks
                     for (BlockPos pos : task.displayedPositions) {
                         DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
                         if (record == null || record.displayEntityUuid == null) continue;
@@ -289,13 +316,13 @@ public class ShockwaveSlicer {
 
                         float scale = task.blockScaleMap.getOrDefault(pos, 1.0f);
                         display.setStartInterpolation(0);
-                        display.setInterpolationDuration(14);
+                        display.setInterpolationDuration(18);
                         display.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), scale));
                     }
                 }
 
-                // Tick 128: Dọn dẹp thực thể và khôi phục địa hình 1:1
-                if (task.ageTicks >= 128 && !task.restored) {
+                // Tick 132: Dọn dẹp thực thể và khôi phục địa hình 1:1
+                if (task.ageTicks >= 132 && !task.restored) {
                     task.restored = true;
 
                     // Khôi phục 2-pass toàn bộ khối khớp kín miệng hố
