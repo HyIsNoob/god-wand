@@ -366,13 +366,13 @@ public class RatioCollapseManager {
             }
 
             // =========================================================================
-            // PHA 2: XOAY TỐC ĐỘ CAO THEO QUỸ ĐẠO QUANH QUẢ CẦU & GHÉP THÀNH KHỐI LỚN (Ticks 39..88)
+            // PHA 2: XOAY TỐC ĐỘ CAO & CÁC KHỐI ĐÁ TẬP HỢP TRỰC TIẾP THÀNH MŨI KHOAN (Ticks 39..88)
             // =========================================================================
             else if (task.ageTicks <= 88) {
                 float p2 = (task.ageTicks - 38) / 50.0f; // 0.0 -> 1.0
                 float smoothP2 = p2 * p2 * (3.0f - 2.0f * p2);
 
-                // Tốc độ xoay quỹ đạo tăng vọt khi các khối đá lao vào tâm cầu
+                // Tốc độ xoay quỹ đạo tăng dần
                 float currentSpinSpeed = 0.12f + p2 * 0.28f;
                 task.orbitAngle += currentSpinSpeed;
 
@@ -383,44 +383,38 @@ public class RatioCollapseManager {
                         BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
                         if (display == null || !display.isAlive()) continue;
 
+                        int idx = task.blockIndexMap.getOrDefault(pos, 0);
                         double initAngle = task.initialOrbitAngle.getOrDefault(pos, 0.0);
                         double initRad = task.initialOrbitRadius.getOrDefault(pos, 5.0);
                         double hoverY = task.hoverHeightOffset.getOrDefault(pos, 0.0);
 
-                        // Quỹ đạo xoáy ốc thu hẹp dần quanh quả cầu
+                        // Quỹ đạo xoáy ốc thu hẹp dần từ ngoài vào tâm mũi khoan
                         double curAngle = initAngle + task.orbitAngle;
-                        double curOrbitRad = MathHelper.lerp(smoothP2, initRad, task.boulderRadius);
+                        double curOrbitRad = MathHelper.lerp(smoothP2, initRad, task.boulderRadius * 1.4);
                         Vec3d swirlingOrbitOffset = new Vec3d(
                                 Math.cos(curAngle) * curOrbitRad,
                                 hoverY * (1.0 - smoothP2 * 0.5),
                                 Math.sin(curAngle) * curOrbitRad
                         );
 
-                        // Khối cầu lớn tự xoay quanh trục Y
-                        Vec3d baseSphereOff = task.sphereClusterOffset.getOrDefault(pos, Vec3d.ZERO);
-                        double cosA = Math.cos(task.orbitAngle);
-                        double sinA = Math.sin(task.orbitAngle);
-                        Vec3d rotatedSphereOff = new Vec3d(
-                                baseSphereOff.x * cosA - baseSphereOff.z * sinA,
-                                baseSphereOff.y,
-                                baseSphereOff.x * sinA + baseSphereOff.z * cosA
-                        );
+                        // Vị trí mục tiêu trực tiếp trên MŨI KHOAN XOẮN ỐC
+                        Vec3d drillTargetOff = computeSpiralDrillOffset(idx, totalBlocks, task.boulderRadius, task.orbitAngle);
 
-                        // Nội suy từ vòng quỹ đạo ngoài ép chặt thành 1 khối cầu lớn đang xoay
-                        Vec3d localOff = swirlingOrbitOffset.lerp(rotatedSphereOff, smoothP2);
+                        // Khối đá từ quỹ đạo ngoài bay thẳng vào ghép khớp đúng rãnh mũi khoan
+                        Vec3d localOff = swirlingOrbitOffset.lerp(drillTargetOff, smoothP2);
                         Vec3d finalDisp = task.meteorCore.add(localOff).subtract(Vec3d.ofCenter(pos));
 
-                        Quaternionf rot = new Quaternionf(task.baseRotation.getOrDefault(pos, new Quaternionf()))
-                                .rotateY(task.orbitAngle);
-                        float scaleVal = 1.0f + 0.28f * smoothP2;
+                        Quaternionf drillRot = new Quaternionf()
+                                .rotateY(-task.orbitAngle)
+                                .rotateX((float) Math.toRadians(35.0 * smoothP2));
 
                         display.setStartInterpolation(0);
                         display.setInterpolationDuration(2);
-                        display.setTransformation(SpatialMath.createPivotTransform(finalDisp, rot, scaleVal));
+                        display.setTransformation(SpatialMath.createPivotTransform(finalDisp, drillRot, 1.0f));
                     }
                 }
 
-                // Hút sinh vật xung quanh và tạo vệt gió xoáy quanh quả cầu
+                // Hút sinh vật xung quanh và tạo vệt gió xoáy quanh mũi khoan đang hình thành
                 if (task.ageTicks % 4 == 0) {
                     world.playSound(null, task.meteorCore.x, task.meteorCore.y, task.meteorCore.z,
                             SoundEvents.ENTITY_BREEZE_IDLE_AIR, SoundCategory.BLOCKS, 2.2f, 0.8f + p2 * 0.8f);
@@ -436,15 +430,13 @@ public class RatioCollapseManager {
             }
 
             // =========================================================================
-            // PHA 3: GIA TỐC CỰC HẠN -> HÓA ĐỎ NHIỆT HẠCH -> BIẾN HÌNH MŨI KHOAN (Ticks 89..134)
+            // PHA 3: MŨI KHOAN HOÀN TẤT -> CHỈ XOAY TỐC ĐỘ CAO (KHÔNG SCALE) (Ticks 89..134)
             // =========================================================================
             else if (task.ageTicks <= 134) {
                 float drillProg = (task.ageTicks - 88) / 46.0f; // 0.0 -> 1.0
-                float morphFactor = Math.min(1.0f, drillProg / 0.65f); // Ticks 89..118: Biến hình hoàn tất thành Mũi Khoan
-                float smoothMorph = morphFactor * morphFactor * (3.0f - 2.0f * morphFactor);
 
-                // Xoay nhanh gấp bội như mũi khoan siêu tốc!
-                float drillSpinSpeed = 0.42f + drillProg * 0.55f;
+                // Xoay nhanh gấp bội như mũi khoan siêu tốc, kích thước cố định hoàn toàn
+                float drillSpinSpeed = 0.45f + drillProg * 0.60f;
                 task.orbitAngle += drillSpinSpeed;
 
                 if (task.ageTicks == 89) {
@@ -467,32 +459,17 @@ public class RatioCollapseManager {
 
                         int idx = task.blockIndexMap.getOrDefault(pos, 0);
 
-                        // Tọa độ trên khối cầu đang xoay
-                        Vec3d baseSphereOff = task.sphereClusterOffset.getOrDefault(pos, Vec3d.ZERO);
-                        double cosA = Math.cos(task.orbitAngle);
-                        double sinA = Math.sin(task.orbitAngle);
-                        Vec3d rotSphere = new Vec3d(
-                                baseSphereOff.x * cosA - baseSphereOff.z * sinA,
-                                baseSphereOff.y,
-                                baseSphereOff.x * sinA + baseSphereOff.z * cosA
-                        );
-
-                        // Tọa độ trên MŨI KHOAN XOẮN ỐC (Spiral Drill) đang xoay cực đại
+                        // Tọa độ trên MŨI KHOAN XOẮN ỐC (Spiral Drill) - chỉ xoay theo orbitAngle
                         Vec3d drillOff = computeSpiralDrillOffset(idx, totalBlocks, task.boulderRadius, task.orbitAngle);
+                        Vec3d finalDisp = task.meteorCore.add(drillOff).subtract(Vec3d.ofCenter(pos));
 
-                        // Nội suy từ Khối Cầu -> Mũi Khoan Nhọn
-                        Vec3d currentShapeOff = rotSphere.lerp(drillOff, smoothMorph);
-                        Vec3d finalDisp = task.meteorCore.add(currentShapeOff).subtract(Vec3d.ofCenter(pos));
-
-                        // Góc nghiêng của từng viên đá xoắn theo rãnh mũi khoan
                         Quaternionf drillRot = new Quaternionf()
                                 .rotateY(-task.orbitAngle)
-                                .rotateX((float) Math.toRadians(35.0 * smoothMorph))
-                                .rotateZ((float) Math.toRadians(20.0 * smoothMorph));
+                                .rotateX((float) Math.toRadians(35.0));
 
                         display.setStartInterpolation(0);
                         display.setInterpolationDuration(2);
-                        display.setTransformation(SpatialMath.createPivotTransform(finalDisp, drillRot, 1.25f));
+                        display.setTransformation(SpatialMath.createPivotTransform(finalDisp, drillRot, 1.0f));
                     }
                 }
 
@@ -560,7 +537,7 @@ public class RatioCollapseManager {
 
                         display.setStartInterpolation(0);
                         display.setInterpolationDuration(1);
-                        display.setTransformation(SpatialMath.createPivotTransform(slamDisp, drillRot, 1.25f));
+                        display.setTransformation(SpatialMath.createPivotTransform(slamDisp, drillRot, 1.0f));
                     }
 
                     // Sát thương nghiền nát xuyên thấu khi mũi khoan cắm sâu xuống đất (Ticks 135..145)

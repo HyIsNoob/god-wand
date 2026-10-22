@@ -252,10 +252,9 @@ public class GodWandPostFxManager {
             }
             case ImpactFxPayload.TYPE_GRAVITY_CORE -> {
                 // Quả cầu năng lượng Chiêu 3: Khối cầu năng lượng màu đỏ bốc cháy (Blazing Crimson Fireball)
-                // Tuyệt đối không dùng hố đen, không thấu kính méo màn hình
-                float pulse = (float) (Math.sin(gTime * 16.0) * 0.05);
+                // Tuyệt đối không dùng hố đen, không thấu kính méo màn hình, không scale nhấp nhô
                 float grow = Math.min(1.0f, progress / 0.12f);
-                coreRadius = (1.15f + pulse) * grow * Math.min(1.8f, baseIntensity);
+                coreRadius = 1.15f * grow * Math.min(1.8f, baseIntensity);
                 lensingPower = 0.0f; // Không thấu kính méo hố đen
                 distortionPower = 0.0f; // Không bẻ cong méo hình
                 zoomBlur = 0.0f;

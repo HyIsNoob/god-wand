@@ -309,6 +309,7 @@ void main() {
     float wave2 = exp(-sqr(deltaDist - 0.048) / sqr(waveThickness * 0.85)) * 0.55;
     float wave3 = exp(-sqr(deltaDist + 0.048) / sqr(waveThickness * 0.85)) * 0.45;
     float railgunWave = wave1 + wave2 + wave3;
+    float wave = railgunWave;
 
     vec2 dir = (dist > 0.0001) ? normalize(aspectDiff) : vec2(0.0);
     vec2 uvOffset = vec2(dir.x / Aspect, dir.y) * railgunWave * DistortionPower;
