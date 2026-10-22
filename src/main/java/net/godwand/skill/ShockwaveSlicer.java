@@ -383,7 +383,36 @@ public class ShockwaveSlicer {
                         SpatialDisplacementManager.executeTwoPassRestoration(world, toRestore);
                     }
 
-                    world.playSound(null, task.center, SoundEvents.BLOCK_VAULT_OPEN_SHUTTER, SoundCategory.BLOCKS, 2.5f, 1.2f);
+                    // Hiệu ứng chớp sáng & rung chấn nhẹ khi địa hình khớp khít 1:1 liền mạch
+                    ImpactFxPayload snapFx = new ImpactFxPayload(task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
+                            ImpactFxPayload.TYPE_REASSEMBLY, 6, 1.0f);
+                    CinematicFxPayload snapShake = new CinematicFxPayload(
+                            CinematicFxPayload.EVENT_TRAUMA_SHAKE,
+                            task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
+                            0.38f, 7
+                    );
+                    CinematicFxPayload snapFov = new CinematicFxPayload(
+                            CinematicFxPayload.EVENT_FOV_PUNCH,
+                            task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
+                            1.06f, 5
+                    );
+                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.orbCenter, 64.0)) {
+                        ServerPlayNetworking.send(p, snapFx);
+                        ServerPlayNetworking.send(p, snapShake);
+                        ServerPlayNetworking.send(p, snapFov);
+                    }
+
+                    world.spawnParticles(ParticleTypes.FLASH, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z, 2, 0.2, 0.2, 0.2, 0.0);
+                    for (int s = 0; s < 36; s++) {
+                        double ang = (s / 36.0) * Math.PI * 2.0;
+                        double dist = task.maxRadius * 0.75 + (world.random.nextDouble() - 0.5) * 3.0;
+                        double px = task.center.getX() + 0.5 + Math.cos(ang) * dist;
+                        double pz = task.center.getZ() + 0.5 + Math.sin(ang) * dist;
+                        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, px, task.center.getY() + 1.1, pz, 1, 0, 0.1, 0, 0.04);
+                    }
+
+                    world.playSound(null, task.center, SoundEvents.BLOCK_VAULT_OPEN_SHUTTER, SoundCategory.BLOCKS, 2.8f, 1.3f);
+                    world.playSound(null, task.center, SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.BLOCKS, 2.2f, 1.8f);
                     it.remove();
                 }
             }

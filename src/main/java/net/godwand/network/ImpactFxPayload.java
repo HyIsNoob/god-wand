@@ -16,6 +16,7 @@ public record ImpactFxPayload(double x, double y, double z, int type, int durati
     public static final int TYPE_BLACK_HOLE = 4;
     public static final int TYPE_SEISMIC_SLAM = 5;
     public static final int TYPE_GRAVITY_CORE = 6;
+    public static final int TYPE_REASSEMBLY = 7;
 
     public static final PacketCodec<RegistryByteBuf, ImpactFxPayload> CODEC = PacketCodec.tuple(
             PacketCodecs.DOUBLE, ImpactFxPayload::x,

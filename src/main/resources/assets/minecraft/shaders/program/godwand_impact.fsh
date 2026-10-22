@@ -164,7 +164,7 @@ void main() {
                 }
             }
 
-            // 3. Volumetric Relativistic Pulsar Jets (Từ không có -> mỏng -> to dần theo CoreRadius)
+            // 3. Volumetric Relativistic Pulsar Jets (Từ không có -> to rõ, rực sáng uy lực theo yêu cầu)
             float jetScale = clamp((CoreRadius - 0.85) / (5.2 - 0.85), 0.0, 1.0);
             if (jetScale > 0.005) {
                 vec2 jetXZ = bhRel.xz;
@@ -174,51 +174,80 @@ void main() {
                     vec3 pJet = rd * tJet;
                     float dJet = length(pJet.xz - bhRel.xz);
                     float hJet = pJet.y - bhRel.y;
-                    float maxDown = -22.0 * jetScale;
-                    float maxUp = 48.0 * jetScale;
+                    float maxDown = -90.0 * jetScale;
+                    float maxUp = 160.0 * jetScale;
                     if (hJet > maxDown && hJet < maxUp) {
-                        // Độ rộng tia tỷ lệ thuận với jetScale (từ tia chỉ siêu mỏng -> cột sáng tối đa)
-                        float wFactor = max(0.04, jetScale);
-                        float jetCore = exp(-dJet / (0.12 * wFactor));
-                        float jetSheath = exp(-dJet / (0.75 * wFactor)) * 0.45 * jetScale;
-                        float jetAura = exp(-dJet / (2.8 * wFactor)) * 0.15 * jetScale;
-                        float jetFade = smoothstep(maxDown, maxDown * 0.8, hJet) * (1.0 - smoothstep(maxUp * 0.7, maxUp, hJet));
-                        vec3 jetColor = (vec3(1.0, 0.98, 0.95) * jetCore * 4.0 +
-                                         vec3(0.05, 0.88, 1.0) * jetSheath * 2.2 +
-                                         vec3(0.55, 0.15, 1.0) * jetAura * 1.2) * jetFade * jetScale;
-                        addGlow += jetColor * (0.85 + 0.15 * sin(GTime * 25.0));
+                        // Độ rộng tia tỷ lệ thuận với jetScale (làm to rõ, rực sáng uy lực theo yêu cầu)
+                        float wFactor = max(0.35, pow(jetScale, 0.55) * 3.2);
+                        float jetCore = exp(-dJet / (2.2 * wFactor));
+                        float jetSheath = exp(-dJet / (5.5 * wFactor)) * 0.85 * jetScale;
+                        float jetAura = exp(-dJet / (15.0 * wFactor)) * 0.45 * jetScale;
+                        float jetFade = smoothstep(maxDown, maxDown * 0.85, hJet) * (1.0 - smoothstep(maxUp * 0.75, maxUp, hJet));
+                        vec3 jetColor = (vec3(1.0, 0.98, 0.95) * jetCore * 6.5 +
+                                         vec3(0.12, 0.92, 1.0) * jetSheath * 3.8 +
+                                         vec3(0.65, 0.22, 1.0) * jetAura * 2.2) * jetFade * jetScale;
+                        addGlow += jetColor * (1.2 + 0.3 * sin(GTime * 28.0));
                     }
                 }
             }
         }
         // =========================================================================
         // NHÁNH 2: CHIÊU 4 - ĐẠI VỤ NỔ SIÊU TÂN TINH (FxType == 3.0: TYPE_SUPERNOVA)
-        // Multi-Shell Volumetric Blast Wave 3D bẻ cong không gian và bức xạ nhiệt
+        // Volumetric 3D Mushroom Cloud & Hemispherical Fireball
+        // Tuyệt đối không phẳng 2D, không lạm dụng distortion
         // =========================================================================
         else if (FxType > 2.5 && FxType < 3.5 && inFront) {
             if (CoreRadius > 0.5) {
-                float dSphere = impactParam;
-                float outerLimit = CoreRadius * 1.35;
-                if (dSphere < outerLimit && sceneDist > (tBH - outerLimit)) {
-                    // Tính biến dạng méo 3D để không bao giờ có viền tròn phẳng kiểu PNG
-                    float angle3D = atan(pClosest.y - bhRel.y, pClosest.x - bhRel.x);
-                    float turb = sin(angle3D * 5.0 + GTime * 12.0) * 0.12 + cos(angle3D * 9.0 - GTime * 18.0) * 0.08;
-                    float noisyRadius = CoreRadius * (1.0 + turb);
-                    float normD = dSphere / max(0.1, noisyRadius);
+                // Toán học giao tia với Khối Cầu Lửa 3D (Ray - 3D Sphere Intersection)
+                // Tâm khối cầu tại bhRel, bán kính CoreRadius
+                float tClosest = dot(bhRel, rd);
+                float dPerpSq = dot(bhRel, bhRel) - sqr(tClosest);
+                float sphereRSq = sqr(CoreRadius);
 
-                    // Bẻ cong khúc xạ không gian 3D quanh vỏ cầu nổ
-                    float shellRing = exp(-sqr(normD - 0.85) / 0.045);
-                    vec2 blastDir = (dist > 0.0001) ? normalize(aspectDiff) : vec2(0.0);
-                    lensOffset += vec2(blastDir.x / Aspect, blastDir.y) * shellRing * 0.12 * ImpactIntensity;
+                if (dPerpSq < sphereRSq && tClosest > 0.0) {
+                    float halfChord = sqrt(max(0.0, sphereRSq - dPerpSq));
+                    float tEntry = max(0.0, tClosest - halfChord);
+                    float tExit = min(sceneDist, tClosest + halfChord);
 
-                    // Chỉ tỏa sáng lõi năng lượng rực rỡ trong 1.2 giây đầu (khi CoreRadius < 22m), sau đó nhường chỗ cho khói bụi 3D trong thế giới
-                    float flashFade = clamp(1.0 - (CoreRadius - 5.2) / 28.0, 0.0, 1.0);
-                    float coreGlow = exp(-normD * 2.2) * flashFade;
-                    float shockRim = shellRing * clamp(1.0 - (CoreRadius - 5.2) / 34.0, 0.0, 1.0);
+                    // Nếu địa hình trong game ở ngay trước khối cầu -> Không bị vẽ đè xuyên núi!
+                    if (tExit > tEntry) {
+                        float depthThickness = tExit - tEntry;
+                        vec3 pMid = rd * tClosest;
+                        vec3 relHit = pMid - bhRel;
 
-                    vec3 fireCol = blackbody(clamp(coreGlow * 1.4 + shockRim * 0.9, 0.0, 1.2));
-                    float depthMask = smoothstep(tBH - outerLimit, tBH + outerLimit * 0.25, sceneDist);
-                    addGlow += fireCol * (coreGlow * 5.5 + shockRim * 3.2) * ImpactIntensity * depthMask;
+                        // Tọa độ 3D chuẩn hóa trong quả cầu
+                        float r3D = length(relHit) / CoreRadius;
+
+                        // 1. VỎ CẦU LỬA BUNG NỞ 3D (3D Spherical Fireball Shell)
+                        // Bổ sung nhiễu 3D theo góc phương vị và độ cao để tạo cuộn lửa thật
+                        float theta = atan(relHit.z, relHit.x);
+                        float phi = asin(clamp(relHit.y / max(0.1, length(relHit)), -1.0, 1.0));
+                        float noise3D = sin(theta * 6.0 + GTime * 8.0) * cos(phi * 5.0 - GTime * 6.0) * 0.15 +
+                                        sin(phi * 9.0 + GTime * 14.0) * 0.08;
+                        float noisyR = r3D + noise3D;
+
+                        float shell3D = exp(-sqr(noisyR - 0.78) / 0.06) * (depthThickness / (CoreRadius * 1.5));
+                        float core3D = exp(-r3D * 1.8) * (depthThickness / (CoreRadius * 2.0));
+
+                        // 2. CỘT KHÓI NẤM 3D (Volumetric Mushroom Stem & Anvil Cap)
+                        // Cột nấm bốc cao dọc theo trục Y (+Y) từ tâm nổ
+                        float stemDist = length(relHit.xz);
+                        float stemR = CoreRadius * (0.28 + max(0.0, relHit.y / CoreRadius) * 0.45);
+                        float stemDensity = exp(-sqr(stemDist / max(0.1, stemR))) * smoothstep(-CoreRadius, CoreRadius * 0.8, relHit.y);
+
+                        // Màu sắc bức xạ nhiệt chân thực từ Lõi trắng -> Lửa cam -> Tro bụi đen đỏ
+                        float heatEnergy = clamp((core3D * 1.8 + shell3D * 1.4 + stemDensity * 0.9) * ImpactIntensity, 0.0, 2.0);
+                        vec3 fireCol = blackbody(heatEnergy * 0.7);
+
+                        // Độ sáng phân rã dần theo thời gian sau nổ
+                        float flashDecay = clamp(1.0 - (CoreRadius - 5.2) / 33.0, 0.0, 1.0);
+                        vec3 novaFire = fireCol * (shell3D * 4.2 + core3D * 6.5 + stemDensity * 3.0) * flashDecay * ImpactIntensity;
+
+                        // Ánh sáng phản chiếu tro bụi vũ trụ
+                        vec3 ashColor = vec3(0.12, 0.06, 0.04) * (1.0 - flashDecay) * (shell3D + stemDensity) * 1.5;
+
+                        addGlow += (novaFire + ashColor);
+                    }
                 }
             }
         }

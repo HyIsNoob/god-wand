@@ -321,6 +321,38 @@ public class SupernovaManager {
                             SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 3.5f, 0.6f + (float) progress * 1.0f);
                 }
 
+                // Cột hạt ánh sáng Relativistic Pulsar Jet to rõ dọc trục Y
+                if (task.ageTicks >= 160 && task.ageTicks % 2 == 0) {
+                    float jetScale = (float) Math.min(1.0, (task.ageTicks - 160) / 150.0);
+                    for (int j = 0; j < 8; j++) {
+                        double beamY = task.corePos.y + (world.random.nextDouble() - 0.3) * 85.0;
+                        double rBeam = (0.2 + world.random.nextDouble() * 2.2) * jetScale;
+                        double aBeam = world.random.nextDouble() * Math.PI * 2.0;
+                        world.spawnParticles(ParticleTypes.END_ROD,
+                                task.corePos.x + Math.cos(aBeam) * rBeam, beamY, task.corePos.z + Math.sin(aBeam) * rBeam,
+                                1, 0, 0.25, 0, 0.05);
+                        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK,
+                                task.corePos.x + Math.cos(aBeam) * (rBeam * 1.5), beamY, task.corePos.z + Math.sin(aBeam) * (rBeam * 1.5),
+                                1, 0, 0.1, 0, 0.04);
+                    }
+                }
+
+                // Tiền chấn dồn dập trước vụ nổ (Ticks 260..309): Báo hiệu khoảnh khắc tận thế
+                if (task.ageTicks >= 260 && task.ageTicks < 310 && task.ageTicks % 8 == 0) {
+                    float preRumble = (task.ageTicks - 260) / 50.0f;
+                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 120.0)) {
+                        ServerPlayNetworking.send(p, new CinematicFxPayload(
+                                CinematicFxPayload.EVENT_TRAUMA_SHAKE,
+                                task.corePos.x, task.corePos.y, task.corePos.z,
+                                0.22f + preRumble * 0.45f, 9
+                        ));
+                    }
+                    world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
+                            SoundEvents.BLOCK_PORTAL_TRIGGER, SoundCategory.PLAYERS, 2.2f + preRumble * 1.5f, 0.6f + preRumble * 1.2f);
+                    world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
+                            SoundEvents.BLOCK_CONDUIT_ACTIVATE, SoundCategory.PLAYERS, 2.5f, 0.8f + preRumble * 0.8f);
+                }
+
                 // Sóng âm thanh chân không im lặng tại Tick 310 (Chuẩn bị điểm nổ cao trào)
                 if (task.ageTicks == 310) {
                     CinematicFxPayload silencePayload = new CinematicFxPayload(
@@ -367,12 +399,24 @@ public class SupernovaManager {
                 world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
                         SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.PLAYERS, 5.0f, 0.5f);
 
-                // 3. VFX vụ nổ chói lòa
-                world.spawnParticles(ParticleTypes.FLASH, task.corePos.x, task.corePos.y, task.corePos.z, 24, 2.0, 2.0, 2.0, 0.0);
-                world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, task.corePos.x, task.corePos.y, task.corePos.z, 20, 4.0, 4.0, 4.0, 0.0);
-                world.spawnParticles(ParticleTypes.SONIC_BOOM, task.corePos.x, task.corePos.y, task.corePos.z, 12, 2.5, 2.5, 2.5, 0.0);
+                // 3. VFX vụ nổ chói lòa & Quả cầu lửa 3D phóng đa hướng
+                world.spawnParticles(ParticleTypes.FLASH, task.corePos.x, task.corePos.y, task.corePos.z, 36, 4.0, 4.0, 4.0, 0.0);
+                world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, task.corePos.x, task.corePos.y, task.corePos.z, 35, 5.0, 5.0, 5.0, 0.0);
+                world.spawnParticles(ParticleTypes.SONIC_BOOM, task.corePos.x, task.corePos.y, task.corePos.z, 16, 3.5, 3.5, 3.5, 0.0);
                 world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.65f, 0.15f), 3.8f),
-                        task.corePos.x, task.corePos.y, task.corePos.z, 260, 10.0, 10.0, 10.0, 0.9);
+                        task.corePos.x, task.corePos.y, task.corePos.z, 300, 12.0, 12.0, 12.0, 0.9);
+
+                Random blastRng = new Random(task.groundCenter.asLong());
+                for (int b = 0; b < 140; b++) {
+                    double bTheta = blastRng.nextDouble() * Math.PI * 2.0;
+                    double bPhi = (blastRng.nextDouble() - 0.2) * Math.PI * 0.5; // Bán cầu 3D bung nở
+                    double bSpd = 1.6 + blastRng.nextDouble() * 3.4;
+                    double vx = Math.cos(bPhi) * Math.cos(bTheta) * bSpd;
+                    double vy = Math.sin(bPhi) * bSpd + 0.6;
+                    double vz = Math.cos(bPhi) * Math.sin(bTheta) * bSpd;
+                    world.spawnParticles(ParticleTypes.FLAME, task.corePos.x, task.corePos.y, task.corePos.z, 1, vx, vy, vz, 0.35);
+                    world.spawnParticles(ParticleTypes.LAVA, task.corePos.x, task.corePos.y, task.corePos.z, 1, vx * 0.7, vy * 0.7, vz * 0.7, 0.2);
+                }
 
                 // 4. Sát thương Calamity hủy diệt (150 - 350 damage) trong bán kính 65m
                 Box blastBox = new Box(task.groundCenter).expand(65.0);
@@ -551,20 +595,39 @@ public class SupernovaManager {
                             px, surfaceY + 1.0, pz, 5, 0.8, 0.5, 0.8, 0.25);
                 }
 
-                // 3. Cột Nấm & Khói Bốc Thẳng từ Tâm
-                for (int k = 0; k < 5; k++) {
-                    double stemH = rng.nextDouble() * 48.0;
-                    double stemR = 1.0 + (stemH / 48.0) * 3.5;
+                // 3. Cột Nấm & Đỉnh Nấm Anvil Khổng Lồ 3D (Towering Volumetric Mushroom Cloud)
+                // Cột nấm bốc thẳng từ đáy hố lên cao 55m
+                for (int k = 0; k < 10; k++) {
+                    double stemH = rng.nextDouble() * 55.0;
+                    double stemR = 1.2 + (stemH / 55.0) * 4.0;
                     double sAngle = rng.nextDouble() * Math.PI * 2.0;
                     double sx = task.groundCenter.getX() + 0.5 + Math.cos(sAngle) * (rng.nextDouble() * stemR);
                     double sy = task.groundCenter.getY() + stemH;
                     double sz = task.groundCenter.getZ() + 0.5 + Math.sin(sAngle) * (rng.nextDouble() * stemR);
 
-                    if (stemH < 12.0) {
-                        world.spawnParticles(ParticleTypes.LAVA, sx, sy, sz, 1, 0, 0.1, 0, 0.02);
-                        world.spawnParticles(ParticleTypes.FLAME, sx, sy, sz, 1, 0, 0.15, 0, 0.05);
+                    if (stemH < 18.0) {
+                        world.spawnParticles(ParticleTypes.LAVA, sx, sy, sz, 1, 0, 0.12, 0, 0.02);
+                        world.spawnParticles(ParticleTypes.FLAME, sx, sy, sz, 1, 0, 0.20, 0, 0.05);
                     }
-                    world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, sx, sy, sz, 1, 0, 0.35, 0, 0.02);
+                    world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, sx, sy, sz, 1, 0, 0.35, 0, 0.03);
+                }
+
+                // Đỉnh nấm xòe ngang (Anvil Cap) ở độ cao 45m..58m bung rộng ra bán kính 16m..28m
+                double capAge = Math.min(1.0, (task.ageTicks - DETONATION_TICK) / 100.0);
+                double capMaxR = 8.0 + capAge * 20.0;
+                for (int c = 0; c < 8; c++) {
+                    double cAng = rng.nextDouble() * Math.PI * 2.0;
+                    double cR = capMaxR * (0.35 + rng.nextDouble() * 0.65);
+                    double cx = task.groundCenter.getX() + 0.5 + Math.cos(cAng) * cR;
+                    double cy = task.groundCenter.getY() + 45.0 + (rng.nextDouble() - 0.3) * 12.0;
+                    double cz = task.groundCenter.getZ() + 0.5 + Math.sin(cAng) * cR;
+
+                    double outVx = Math.cos(cAng) * 0.18;
+                    double outVz = Math.sin(cAng) * 0.18;
+                    world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, cx, cy, cz, 2, outVx, 0.05, outVz, 0.02);
+                    if (rng.nextFloat() < 0.4f) {
+                        world.spawnParticles(ParticleTypes.FLAME, cx, cy, cz, 1, outVx * 0.5, 0.05, outVz * 0.5, 0.02);
+                    }
                 }
 
                 // 4. Âm thanh sấm rền và tiếng gầm vũ trụ vang vọng xa dần trong 7 giây

@@ -214,15 +214,14 @@ public class GodWandPostFxManager {
                     impactFrame = 0.0f;
                 }
 
-                // Relativistic shockwave expands across the entire sky
-                shockwaveRadius = (float) Math.pow(progress, 0.42) * 2.8f;
-                float distCurve = (float) Math.sin(progress * Math.PI);
-                distortionPower = 0.085f * baseIntensity * distCurve * (1.0f - progress * 0.7f);
-                chromaticAmount = 0.055f * baseIntensity * (1.0f - progress);
+                // Không lạm dụng Distortion bẻ méo màn hình gây khó chịu cho người chơi
+                shockwaveRadius = 0.0f;
+                distortionPower = 0.0f;
+                chromaticAmount = 0.035f * baseIntensity * (1.0f - progress);
 
-                // Zoom Blur & Retina Burn: cực đại lúc nổ rồi tan dần mượt mà
-                zoomBlur = 0.12f * baseIntensity * (float) Math.sin(progress * Math.PI) * (1.0f - progress * 0.5f);
-                retinaBurn = Math.max(0.0f, 1.0f * baseIntensity * (1.0f - progress * 2.0f));
+                // Zoom Blur & Retina Burn: chỉ chớp cực đại lúc vừa nổ trong 0.3s rồi trả lại màn hình rõ nét
+                zoomBlur = (progress < 0.05f) ? (0.05f * (1.0f - progress / 0.05f) * baseIntensity) : 0.0f;
+                retinaBurn = Math.max(0.0f, 1.0f * baseIntensity * (1.0f - progress * 2.5f));
 
                 // Quả cầu lửa & đám mây nấm vũ trụ:
                 // Ticks 0..35 (progress 0..0.25): Bung nở cực nhanh từ 5.2m lên 38.0m
@@ -244,22 +243,31 @@ public class GodWandPostFxManager {
                 zoomBlur = -0.025f * progress;
             }
             case ImpactFxPayload.TYPE_GRAVITY_CORE -> {
-                // Quả cầu năng lượng Chiêu 3 (86 ticks):
-                // Ticks 0..58 (progress 0.0 -> 0.67): Màu Vàng Hổ Phách / Cam Trọng Lực hút đá xoay vòng
-                // Ticks 59..86 (progress 0.67 -> 1.0): Hóa Đỏ Nhiệt Hạch (Crimson Overheat) đồng bộ với Mũi Khoan!
+                // Quả cầu năng lượng Chiêu 3 (Kéo dài 135 ticks mượt mà):
+                // Ticks 0..88 (progress 0.0 -> 0.65): Màu Vàng Hổ Phách / Cam Trọng Lực hút đá xoay vòng
+                // Ticks 89..135 (progress 0.65 -> 1.0): Hóa Đỏ Nhiệt Hạch (Crimson Overheat) đồng bộ với Mũi Khoan!
                 float pulse = (float) (Math.sin(gTime * 22.0) * 0.14);
-                if (progress < 0.67f) {
+                if (progress < 0.65f) {
                     float grow = Math.min(1.0f, progress / 0.18f);
                     coreRadius = (0.85f + pulse) * grow * Math.min(1.6f, baseIntensity);
                     lensingPower = 1.2f * grow;
                     impactIntensity = 1.0f; // Encode heat < 1.5 cho màu Vàng Hổ Phách
                 } else {
-                    float redProg = (progress - 0.67f) / 0.33f;
+                    float redProg = (progress - 0.65f) / 0.35f;
                     coreRadius = (1.05f + pulse * 1.5f) * (1.0f - redProg * 0.35f) * Math.min(1.6f, baseIntensity);
                     lensingPower = 1.8f + redProg * 1.2f;
                     zoomBlur = -0.035f * redProg;
                     impactIntensity = 1.0f + redProg * 1.5f; // Tăng từ 1.0 -> 2.5 để Shader chuyển sang Đỏ Nhiệt Hạch!
                 }
+            }
+            case ImpactFxPayload.TYPE_REASSEMBLY -> {
+                // Chiêu 2: Hiệu ứng chớp nhẹ và shimmer khi toàn bộ khối ghép khớp khít 1:1 (duration 6 ticks)
+                float flash = (1.0f - progress) * baseIntensity;
+                retinaBurn = flash * 0.35f;
+                chromaticAmount = flash * 0.008f;
+                zoomBlur = (progress < 0.35f) ? (0.015f * (1.0f - progress / 0.35f) * baseIntensity) : 0.0f;
+                distortionPower = 0.0f;
+                shockwaveRadius = 0.0f;
             }
         }
 

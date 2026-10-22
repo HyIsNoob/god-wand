@@ -152,7 +152,7 @@ public class RatioCollapseManager {
         // 1. Kích hoạt Quả Cầu Năng Lượng Trọng Lực trên không (Đổi màu từ Vàng Cam -> Đỏ Nhiệt Hạch ở pha Mũi Khoan)
         ImpactFxPayload gravityCorePayload = new ImpactFxPayload(
                 task.meteorCore.x, task.meteorCore.y, task.meteorCore.z,
-                ImpactFxPayload.TYPE_GRAVITY_CORE, 86, (float) (boulderRadius / 2.5)
+                ImpactFxPayload.TYPE_GRAVITY_CORE, 135, (float) (boulderRadius / 2.5)
         );
         for (ServerPlayerEntity p : PlayerLookup.around(world, task.meteorCore, 96.0)) {
             ServerPlayNetworking.send(p, gravityCorePayload);
@@ -301,10 +301,10 @@ public class RatioCollapseManager {
             int totalBlocks = Math.max(1, task.displacedPositions.size());
 
             // =========================================================================
-            // PHA 1: BAY LƠ LỬNG LÊN NGANG QUẢ CẦU NĂNG LƯỢNG (Ticks 1..24)
+            // PHA 1: BAY LƠ LỬNG LÊN NGANG QUẢ CẦU NĂNG LƯỢNG (Ticks 1..38)
             // =========================================================================
-            if (task.ageTicks <= 24) {
-                float t = task.ageTicks / 24.0f;
+            if (task.ageTicks <= 38) {
+                float t = task.ageTicks / 38.0f;
                 float smoothT = 0.5f - 0.5f * (float) Math.cos(t * Math.PI); // S-curve mượt
 
                 if (task.ageTicks % 2 == 0) {
@@ -339,14 +339,14 @@ public class RatioCollapseManager {
             }
 
             // =========================================================================
-            // PHA 2: XOAY TỐC ĐỘ CAO THEO QUỸ ĐẠO QUANH QUẢ CẦU & GHÉP THÀNH KHỐI LỚN (Ticks 25..58)
+            // PHA 2: XOAY TỐC ĐỘ CAO THEO QUỸ ĐẠO QUANH QUẢ CẦU & GHÉP THÀNH KHỐI LỚN (Ticks 39..88)
             // =========================================================================
-            else if (task.ageTicks <= 58) {
-                float p2 = (task.ageTicks - 24) / 34.0f; // 0.0 -> 1.0
+            else if (task.ageTicks <= 88) {
+                float p2 = (task.ageTicks - 38) / 50.0f; // 0.0 -> 1.0
                 float smoothP2 = p2 * p2 * (3.0f - 2.0f * p2);
 
                 // Tốc độ xoay quỹ đạo tăng vọt khi các khối đá lao vào tâm cầu
-                float currentSpinSpeed = 0.14f + p2 * 0.28f;
+                float currentSpinSpeed = 0.12f + p2 * 0.28f;
                 task.orbitAngle += currentSpinSpeed;
 
                 if (task.ageTicks % 2 == 0) {
@@ -409,22 +409,22 @@ public class RatioCollapseManager {
             }
 
             // =========================================================================
-            // PHA 3: GIA TỐC CỰC HẠN -> HÓA ĐỎ NHIỆT HẠCH -> BIẾN HÌNH MŨI KHOAN (Ticks 59..84)
+            // PHA 3: GIA TỐC CỰC HẠN -> HÓA ĐỎ NHIỆT HẠCH -> BIẾN HÌNH MŨI KHOAN (Ticks 89..134)
             // =========================================================================
-            else if (task.ageTicks <= 84) {
-                float drillProg = (task.ageTicks - 58) / 26.0f; // 0.0 -> 1.0
-                float morphFactor = Math.min(1.0f, drillProg / 0.65f); // Ticks 59..75: Biến hình hoàn tất thành Mũi Khoan
+            else if (task.ageTicks <= 134) {
+                float drillProg = (task.ageTicks - 88) / 46.0f; // 0.0 -> 1.0
+                float morphFactor = Math.min(1.0f, drillProg / 0.65f); // Ticks 89..118: Biến hình hoàn tất thành Mũi Khoan
                 float smoothMorph = morphFactor * morphFactor * (3.0f - 2.0f * morphFactor);
 
                 // Xoay nhanh gấp bội như mũi khoan siêu tốc!
                 float drillSpinSpeed = 0.42f + drillProg * 0.55f;
                 task.orbitAngle += drillSpinSpeed;
 
-                if (task.ageTicks == 59) {
+                if (task.ageTicks == 89) {
                     CinematicFxPayload focusPayload = new CinematicFxPayload(
                             CinematicFxPayload.EVENT_METEOR_FOCUS,
                             task.meteorCore.x, task.meteorCore.y, task.meteorCore.z,
-                            0.86f, 26
+                            0.86f, 46
                     );
                     for (ServerPlayerEntity p : PlayerLookup.around(world, task.meteorCore, 96.0)) {
                         ServerPlayNetworking.send(p, focusPayload);
@@ -499,10 +499,10 @@ public class RatioCollapseManager {
             }
 
             // =========================================================================
-            // PHA 4: MŨI KHOAN ĐÂM XUYÊN MẶT ĐẤT & PHÁ HỦY DẠNG KHOAN SÂU (Ticks 85..95)
+            // PHA 4: MŨI KHOAN ĐÂM XUYÊN MẶT ĐẤT & PHÁ HỦY DẠNG KHOAN SÂU (Ticks 135..152)
             // =========================================================================
-            else if (task.ageTicks <= 95) {
-                float boreProg = (task.ageTicks - 84) / 8.0f; // Lao cắm sâu xuống đất trong 8 ticks (85..93)
+            else if (task.ageTicks <= 152) {
+                float boreProg = (task.ageTicks - 134) / 10.0f; // Lao cắm sâu xuống đất trong 10 ticks (135..145)
                 float clampedBore = MathHelper.clamp(boreProg, 0.0f, 1.0f);
                 task.orbitAngle += 0.95f; // Vẫn xoay cực nhanh trong lúc đâm xuyên xuống đất!
 
@@ -510,13 +510,13 @@ public class RatioCollapseManager {
                 Vec3d drillTargetCenter = task.center.toCenterPos().subtract(0, task.craterDepth * 0.35, 0);
                 Vec3d currentDrillCenter = task.meteorCore.lerp(drillTargetCenter, clampedBore * clampedBore);
 
-                if (task.ageTicks == 85) {
+                if (task.ageTicks == 135) {
                     world.playSound(null, task.center, SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST, SoundCategory.BLOCKS, 3.5f, 0.5f);
                     world.playSound(null, task.center, SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.BLOCKS, 3.5f, 1.2f);
                 }
 
                 // Cập nhật Mũi Khoan vừa xoay vừa cắm xuyên xuống lòng đất mỗi tick!
-                if (task.ageTicks <= 93) {
+                if (task.ageTicks <= 145) {
                     for (BlockPos pos : task.displacedPositions) {
                         DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
                         if (record == null || record.displayEntityUuid == null) continue;
@@ -542,8 +542,8 @@ public class RatioCollapseManager {
                             25, task.boulderRadius * 0.6, 1.5, task.boulderRadius * 0.6, 0.1);
                 }
 
-                // TẠI TICK 91 (Khi mũi nhọn khoan xuyên qua mặt đất): KÍCH HOẠT ĐẠI ĐỊA CHẤN & HỐ KHOAN SÂU!
-                if (task.ageTicks == 91 && !task.slammed) {
+                // TẠI TICK 143 (Khi mũi nhọn khoan xuyên qua mặt đất): KÍCH HOẠT ĐẠI ĐỊA CHẤN & HỐ KHOAN SÂU!
+                if (task.ageTicks == 143 && !task.slammed) {
                     task.slammed = true;
 
                     // Âm thanh khoan thủng lòng đất
@@ -642,8 +642,8 @@ public class RatioCollapseManager {
                     }
                 }
 
-                // Tại Tick 94: Xóa các BlockDisplay của mũi khoan (đã chui sâu vào lòng đất) và bắn đá nóng chảy văng lên miệng hố
-                if (task.ageTicks == 94) {
+                // Tại Tick 148: Xóa các BlockDisplay của mũi khoan (đã chui sâu vào lòng đất) và bắn đá nóng chảy văng lên miệng hố
+                if (task.ageTicks == 148) {
                     Random rng = new Random(task.center.asLong());
                     int flingCount = 0;
                     int maxFling = Math.min(65, task.maxBlocks / 3);
@@ -669,7 +669,7 @@ public class RatioCollapseManager {
             }
 
             // =========================================================================
-            // PHA 5: KẾT THÚC (Tick 96+)
+            // PHA 5: KẾT THÚC (Tick 153+)
             // =========================================================================
             else {
                 it.remove();
