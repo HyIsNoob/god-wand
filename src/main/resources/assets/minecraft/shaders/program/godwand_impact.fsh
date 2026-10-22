@@ -274,22 +274,23 @@ void main() {
             }
         }
         // =========================================================================
-        // NHÁNH 4: CHIÊU 3 - KHỐI CẦU NĂNG LƯỢNG MA PHÁP (FxType == 6.0: TYPE_GRAVITY_CORE)
-        // Chuẩn giống Chiêu 2 theo yêu cầu: Cầu Arcane Plasma rực sáng với tia chớp điện quanh khối
-        // Tuyệt đối không hố đen, không bên trong Event Horizon, không bẻ cong méo màn hình!
+        // NHÁNH 4: CHIÊU 3 - KHỐI CẦU NĂNG LƯỢNG ĐỎ RỰC (FxType == 6.0: TYPE_GRAVITY_CORE)
+        // Cầu Plasma Đỏ Ruby / Crimson Red rực sáng với các tia chớp điện đỏ bao quanh
+        // Tuyệt đối không cam, không vàng, không hố đen, chuẩn màu đỏ rực theo yêu cầu!
         // =========================================================================
         else if (FxType > 5.5 && inFront && !coreOccluded && CoreRadius > 0.05) {
             float dSphere = impactParam;
             if (dSphere < CoreRadius * 1.55 && sceneDist > (tBH - CoreRadius)) {
                 float coreGrad = smoothstep(CoreRadius * 1.35, 0.0, dSphere);
-                float electric = 0.90 + 0.10 * sin(dSphere * 18.0 - GTime * 14.0 + hash12(texCoord * 120.0) * 2.0);
+                float electric = 0.90 + 0.10 * sin(dSphere * 18.0 - GTime * 16.0 + hash12(texCoord * 120.0) * 2.0);
 
-                // Màu Arcane Plasma rực sáng phong cách Chiêu 2
-                vec3 plasmaCore = vec3(0.98, 0.98, 1.0) * exp(-dSphere / (CoreRadius * 0.38)) * 3.8;
-                vec3 plasmaCorona = vec3(0.12, 0.88, 1.0) * exp(-dSphere / (CoreRadius * 0.82)) * 2.4;
-                vec3 plasmaAura = vec3(0.65, 0.28, 1.0) * coreGrad * electric * 1.3;
+                // Màu Đỏ Rực (Pure Crimson Ruby Red): Tâm trắng hồng siêu nhiệt -> Vành đỏ thẫm ruby rực cháy
+                vec3 plasmaCore = vec3(1.0, 0.40, 0.48) * exp(-dSphere / (CoreRadius * 0.35)) * 4.5;
+                vec3 plasmaCorona = vec3(1.0, 0.02, 0.06) * exp(-dSphere / (CoreRadius * 0.78)) * 3.8;
+                vec3 plasmaAura = vec3(0.88, 0.01, 0.04) * coreGrad * electric * 2.2;
+                vec3 plasmaSparks = vec3(1.0, 0.15, 0.20) * electric * coreGrad * 1.6;
 
-                addGlow += (plasmaCore + plasmaCorona + plasmaAura) * min(ImpactIntensity * 1.2, 1.6);
+                addGlow += (plasmaCore + plasmaCorona + plasmaAura + plasmaSparks) * min(ImpactIntensity * 1.3, 1.8);
             }
         }
     }

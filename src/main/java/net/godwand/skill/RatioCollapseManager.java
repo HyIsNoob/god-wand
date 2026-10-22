@@ -321,7 +321,8 @@ public class RatioCollapseManager {
             int totalBlocks = Math.max(1, task.displacedPositions.size());
 
             // =========================================================================
-            // KHỐI CẦU NĂNG LƯỢNG ĐỎ BỐC CHÁY (Blazing Crimson Fireball Particles Ticks 1..134)
+            // KHỐI CẦU NĂNG LƯỢNG ĐỎ RỰC (Pure Crimson Ruby Energy Core Ticks 1..134)
+            // Tuyệt đối không dùng Flame/Lava màu cam, thuần bụi đỏ huyết và tia chớp ruby!
             // =========================================================================
             if (task.ageTicks <= 134) {
                 double coreR = task.boulderRadius * 0.72;
@@ -331,12 +332,13 @@ public class RatioCollapseManager {
                     double fx = task.meteorCore.x + Math.cos(elev) * Math.cos(ang) * coreR;
                     double fy = task.meteorCore.y + Math.sin(elev) * coreR;
                     double fz = task.meteorCore.z + Math.cos(elev) * Math.sin(ang) * coreR;
-                    world.spawnParticles(ParticleTypes.FLAME, fx, fy, fz, 1, 0, 0.05, 0, 0.02);
-                    world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.12f, 0.02f), 1.6f),
+                    world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.02f, 0.05f), 1.8f),
                             fx, fy, fz, 1, 0, 0.02, 0, 0.05);
-                }
-                if (task.ageTicks % 4 == 0) {
-                    world.spawnParticles(ParticleTypes.LAVA, task.meteorCore.x, task.meteorCore.y, task.meteorCore.z, 2, 0.25, 0.25, 0.25, 0.04);
+                    if (f % 2 == 0) {
+                        world.spawnParticles(new DustParticleEffect(new Vector3f(0.85f, 0.0f, 0.12f), 1.5f),
+                                fx, fy, fz, 1, 0, 0.01, 0, 0.03);
+                        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, fx, fy, fz, 1, 0.02, 0.02, 0.02, 0.02);
+                    }
                 }
             }
 
@@ -496,14 +498,15 @@ public class RatioCollapseManager {
                     double py = task.meteorCore.y + (h - 0.62) * drillLen;
                     double pz = task.meteorCore.z + Math.sin(ang) * coneR;
 
-                    // Hạt bụi năng lượng Đỏ Rực / Cam Nhiệt Hạch xoáy quanh thân mũi khoan
-                    world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.12f + (float) (1.0 - drillProg) * 0.35f, 0.05f), 2.1f),
+                    // Hạt bụi năng lượng Đỏ Rực (Pure Crimson Ruby) xoáy quanh thân mũi khoan
+                    world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.02f, 0.05f), 2.2f),
                             px, py, pz, 1, 0.05, 0.05, 0.05, 0.0);
-                    if (k % 3 == 0) {
-                        world.spawnParticles(ParticleTypes.FLAME, px, py, pz, 1, -Math.sin(ang) * 0.25, 0.05, Math.cos(ang) * 0.25, 0.02);
+                    if (k % 2 == 0) {
+                        world.spawnParticles(new DustParticleEffect(new Vector3f(0.85f, 0.0f, 0.12f), 1.6f),
+                                px, py, pz, 1, -Math.sin(ang) * 0.25, 0.05, Math.cos(ang) * 0.25, 0.02);
+                        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, px, py, pz, 1, 0.04, 0.04, 0.04, 0.03);
                     }
                 }
-                world.spawnParticles(ParticleTypes.LAVA, task.meteorCore.x, task.meteorCore.y - drillLen * 0.5, task.meteorCore.z, 3, 0.4, 0.4, 0.4, 0.1);
 
                 // Âm thanh khoan ma thuật & nạp nhiệt hạch dồn dập
                 if (task.ageTicks % 4 == 0) {

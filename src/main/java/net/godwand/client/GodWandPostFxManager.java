@@ -111,10 +111,10 @@ public class GodWandPostFxManager {
         switch (fxType) {
             case ImpactFxPayload.TYPE_DETONATION -> {
                 // Calamity Detonation:
-                // Ticks 0..4: 36 Anime Impact Frames cycle: Six-Eyes Cyan -> Crimson Invert -> Ink-Wash -> Prism Line-Art
-                if (tickIdx < 5) {
-                    impactFrame = 1.0f - ((float) tickIdx / 5.0f);
-                    int[] detModes = {3, 2, 0, 33, 3};
+                // Ticks 0..11 (12 ticks = 0.6s): Chu kỳ 36 Anime Impact Frame lâu hơn, mỗi frame 3 ticks rõ nét
+                if (tickIdx < 12) {
+                    impactFrame = 1.0f - ((float) tickIdx / 12.0f);
+                    int[] detModes = {3, 3, 3, 2, 2, 2, 0, 0, 0, 33, 33, 33};
                     impactMode = detModes[tickIdx];
                 }
 
@@ -128,14 +128,11 @@ public class GodWandPostFxManager {
                     zoomBlur = 0.070f * baseIntensity * (1.0f - shockProg);
                     retinaBurn = Math.max(0.0f, 0.75f * baseIntensity * (1.0f - shockProg * 1.3f));
                 }
-                // Ticks 106..131: Sóng năng lượng co rút thu vô kiểu Orbital Railgun lúc hồi phục
-                else if (tickIdx >= 106 && tickIdx <= 131) {
-                    float inProg = (float) (tickIdx - 106) / 25.0f; // 0.0 -> 1.0
-                    shockwaveRadius = (1.0f - (float) Math.pow(inProg, 1.35)) * 1.55f; // Thu nhỏ từ 1.55m về 0.0m
-                    float inCurve = (float) Math.sin(inProg * Math.PI);
-                    distortionPower = -0.045f * baseIntensity * inCurve; // Hút ngược vào tâm
-                    chromaticAmount = 0.030f * inProg * baseIntensity;
-                    zoomBlur = -0.045f * inProg * baseIntensity;
+                // BỎ HOÀN TOÀN sóng shockwave co rút lúc thu về theo yêu cầu!
+                else {
+                    shockwaveRadius = 0.0f;
+                    distortionPower = 0.0f;
+                    zoomBlur = 0.0f;
                 }
 
                 // 3D Singularity Lõi năng lượng duy trì:
@@ -253,13 +250,23 @@ public class GodWandPostFxManager {
                 impactIntensity = 1.6f + (float) (Math.sin(gTime * 12.0) * 0.25); // Nhấp nháy ngọn lửa sống động
             }
             case ImpactFxPayload.TYPE_REASSEMBLY -> {
-                // Chiêu 2: Hiệu ứng chớp nhẹ và shimmer khi toàn bộ khối ghép khớp khít 1:1 (duration 6 ticks)
+                // Chiêu 2 Reassembly Climax: Cực kỳ impact khi hàng trăm khối đá khóa sập vào đúng vị trí 1:1
+                // 1. Chớp 3 frames Manga Inked Impact Frame sắc lẹm (Mode 33: Prism Inked Line-art / Mode 0: Ink Wash)
+                if (tickIdx < 4) {
+                    impactFrame = 1.0f - ((float) tickIdx / 4.0f);
+                    impactMode = (tickIdx % 2 == 0) ? 33.0f : 0.0f;
+                } else {
+                    impactFrame = 0.0f;
+                }
+                // 2. Chớp trắng lóa mắt Retinal Flash nung chảy mối nối không gian
                 float flash = (1.0f - progress) * baseIntensity;
-                retinaBurn = flash * 0.35f;
-                chromaticAmount = flash * 0.008f;
-                zoomBlur = (progress < 0.35f) ? (0.015f * (1.0f - progress / 0.35f) * baseIntensity) : 0.0f;
-                distortionPower = 0.0f;
+                retinaBurn = flash * 0.92f;
+                chromaticAmount = flash * 0.035f;
+                zoomBlur = 0.0f; // Tuyệt đối không nhòe
+                distortionPower = 0.0f; // Bỏ shockwave méo hình lúc thu về
                 shockwaveRadius = 0.0f;
+                coreRadius = 0.0f;
+                lensingPower = 0.0f;
             }
         }
 

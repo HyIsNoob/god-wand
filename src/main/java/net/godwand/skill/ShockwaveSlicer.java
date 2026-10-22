@@ -339,29 +339,21 @@ public class ShockwaveSlicer {
             // PHA 3: THU HỒI KHỚP 1:1 THEO LỚP TỪ DƯỚI LÊN (Ticks 106..132)
             // =========================================================================
             else {
-                // Sóng năng lượng thu vô kiểu Orbital Railgun co rút mạnh về tâm (Ticks 106..130)
+                // Ticks 106..130: Lực từ trường không gian co kéo căng như dây cung (Magnetic Tension / Pre-Snap Recall)
+                // Tuyệt đối không dùng sóng shockwave co rút gây rối mắt!
                 if (task.ageTicks >= 106 && task.ageTicks <= 130) {
-                    double inProg = (task.ageTicks - 106) / 24.0;
-                    double shockInR = Math.max(0.3, task.maxRadius * 1.35 * (1.0 - inProg * inProg));
-                    int inPoints = 36;
-                    for (int pt = 0; pt < inPoints; pt++) {
-                        double ang = (pt / (double) inPoints) * Math.PI * 2.0;
-                        double px = task.orbCenter.x + Math.cos(ang) * shockInR;
-                        double pz = task.orbCenter.z + Math.sin(ang) * shockInR;
-                        double py = task.orbCenter.y + Math.sin(ang * 4.0 + task.ageTicks * 0.5) * 0.25;
-
-                        double vx = -Math.cos(ang) * 0.60;
-                        double vy = (task.orbCenter.y - py) * 0.15;
-                        double vz = -Math.sin(ang) * 0.60;
-
-                        world.spawnParticles(new DustParticleEffect(new Vector3f(0.12f, 0.95f, 1.0f), 1.6f),
-                                px, py, pz, 1, vx, vy, vz, 0.12);
-                        if (pt % 4 == 0) {
-                            world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, px, py, pz, 1, vx * 0.5, vy, vz * 0.5, 0.06);
+                    if (task.ageTicks % 4 == 0) {
+                        for (int k = 0; k < 6; k++) {
+                            if (!task.displayedPositions.isEmpty()) {
+                                BlockPos rPos = task.displayedPositions.get(world.random.nextInt(task.displayedPositions.size()));
+                                Vec3d curOff = task.lastOffsetMap.getOrDefault(rPos, Vec3d.ZERO);
+                                Vec3d bPos = Vec3d.ofCenter(rPos).add(curOff);
+                                world.spawnParticles(ParticleTypes.ELECTRIC_SPARK,
+                                        bPos.x, bPos.y, bPos.z, 2, 0.05, 0.05, 0.05, 0.04);
+                                world.spawnParticles(new DustParticleEffect(new Vector3f(0.0f, 0.96f, 1.0f), 1.2f),
+                                        bPos.x, bPos.y, bPos.z, 1, 0, 0.02, 0, 0.01);
+                            }
                         }
-                    }
-                    if (task.ageTicks % 6 == 0) {
-                        world.spawnParticles(ParticleTypes.SONIC_BOOM, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z, 1, 0, 0, 0, 0);
                     }
                 }
 
@@ -427,36 +419,46 @@ public class ShockwaveSlicer {
                         SpatialDisplacementManager.executeTwoPassRestoration(world, toRestore);
                     }
 
-                    // Hiệu ứng chớp sáng & rung chấn nhẹ khi địa hình khớp khít 1:1 liền mạch
+                    // Hiệu ứng chớp sáng Manga & rung chấn cực mạnh khi địa hình khóa sập 1:1 liền mạch
                     ImpactFxPayload snapFx = new ImpactFxPayload(task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
-                            ImpactFxPayload.TYPE_REASSEMBLY, 6, 1.0f);
+                            ImpactFxPayload.TYPE_REASSEMBLY, 10, 1.35f);
                     CinematicFxPayload snapShake = new CinematicFxPayload(
                             CinematicFxPayload.EVENT_TRAUMA_SHAKE,
                             task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
-                            0.38f, 7
+                            0.82f, 12
                     );
                     CinematicFxPayload snapFov = new CinematicFxPayload(
                             CinematicFxPayload.EVENT_FOV_PUNCH,
                             task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
-                            1.06f, 5
+                            0.90f, 6
                     );
-                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.orbCenter, 64.0)) {
+                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.orbCenter, 96.0)) {
                         ServerPlayNetworking.send(p, snapFx);
                         ServerPlayNetworking.send(p, snapShake);
                         ServerPlayNetworking.send(p, snapFov);
                     }
 
-                    world.spawnParticles(ParticleTypes.FLASH, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z, 2, 0.2, 0.2, 0.2, 0.0);
-                    for (int s = 0; s < 36; s++) {
-                        double ang = (s / 36.0) * Math.PI * 2.0;
-                        double dist = task.maxRadius * 0.75 + (world.random.nextDouble() - 0.5) * 3.0;
+                    // Chớp sáng Flash & Mạng lưới hàn gắn địa chấn mặt đất (Seam Fusion Sparks)
+                    world.spawnParticles(ParticleTypes.FLASH, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z, 4, 0.4, 0.4, 0.4, 0.0);
+                    world.spawnParticles(ParticleTypes.SONIC_BOOM, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z, 1, 0, 0, 0, 0);
+
+                    for (int s = 0; s < 54; s++) {
+                        double ang = (s / 54.0) * Math.PI * 2.0;
+                        double dist = task.maxRadius * (0.35 + world.random.nextDouble() * 0.75);
                         double px = task.center.getX() + 0.5 + Math.cos(ang) * dist;
                         double pz = task.center.getZ() + 0.5 + Math.sin(ang) * dist;
-                        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, px, task.center.getY() + 1.1, pz, 1, 0, 0.1, 0, 0.04);
+                        world.spawnParticles(ParticleTypes.FLASH, px, task.center.getY() + 1.05, pz, 1, 0, 0, 0, 0);
+                        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, px, task.center.getY() + 1.1, pz, 2, 0.1, 0.1, 0.1, 0.05);
+                        world.spawnParticles(new DustParticleEffect(new Vector3f(0.0f, 0.95f, 1.0f), 1.5f),
+                                px, task.center.getY() + 1.1, pz, 1, 0, 0.05, 0, 0.02);
                     }
 
-                    world.playSound(null, task.center, SoundEvents.BLOCK_VAULT_OPEN_SHUTTER, SoundCategory.BLOCKS, 2.8f, 1.3f);
-                    world.playSound(null, task.center, SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.BLOCKS, 2.2f, 1.8f);
+                    // Dàn âm thanh cơ học khóa sập cực kỳ uy lực
+                    world.playSound(null, task.center, SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.BLOCKS, 3.5f, 1.05f);
+                    world.playSound(null, task.center, SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.BLOCKS, 3.0f, 1.4f);
+                    world.playSound(null, task.center, SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.BLOCKS, 3.2f, 1.7f);
+                    world.playSound(null, task.center, SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.BLOCKS, 3.0f, 1.35f);
+                    world.playSound(null, task.center, SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.BLOCKS, 2.8f, 1.8f);
                     it.remove();
                 }
             }
