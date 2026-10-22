@@ -5,11 +5,14 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.godwand.GodWandMod;
 import net.godwand.network.ImpactFxPayload;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.JsonEffectShaderProgram;
+import net.minecraft.client.gl.PostEffectPass;
 import net.minecraft.client.gl.PostEffectProcessor;
 import net.minecraft.client.render.Camera;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -98,6 +101,8 @@ public class GodWandPostFxManager {
         float chromaticAmount = 0.0f;
         float zoomBlur = 0.0f;
         float retinaBurn = 0.0f;
+        float coreRadius = 0.0f;
+        float lensingPower = 0.0f;
         float gTime = (float) ((System.currentTimeMillis() % 10000000L) / 1000.0);
 
         int tickIdx = Math.max(0, maxTicks - currentTick);
@@ -125,6 +130,10 @@ public class GodWandPostFxManager {
                 // Directional Zoom Blur & Retinal Flash Afterglow
                 zoomBlur = 0.065f * baseIntensity * (1.0f - progress);
                 retinaBurn = Math.max(0.0f, 0.65f * baseIntensity * (1.0f - progress * 1.4f));
+
+                // 3D Singularity Gravitational Lensing
+                coreRadius = (1.0f - progress) * 1.8f;
+                lensingPower = (1.0f - progress) * 1.8f;
             }
             case ImpactFxPayload.TYPE_IMPLOSION -> {
                 // Epicenter Calamity Implosion:
@@ -135,6 +144,8 @@ public class GodWandPostFxManager {
                     shockwaveRadius = 0.7f * (1.0f - suckCurve);
                     zoomBlur = -0.052f * baseIntensity * suckCurve; // Hút hướng tâm
                     impactMode = 4.0f; // Shadow Blue
+                    coreRadius = suckCurve * 1.5f;
+                    lensingPower = 1.6f * suckCurve;
                 } else {
                     // Phase 2 (progress 0.30..0.55): Slam Impact Frame flash
                     float slamProg = (progress - 0.30f) / 0.70f;
@@ -146,6 +157,8 @@ public class GodWandPostFxManager {
                     distortionPower = 0.052f * baseIntensity * (1.0f - slamProg);
                     zoomBlur = 0.048f * baseIntensity * (1.0f - slamProg);
                     retinaBurn = Math.max(0.0f, 0.45f * baseIntensity * (1.0f - slamProg * 1.5f));
+                    coreRadius = Math.max(0.0f, (1.0f - slamProg) * 1.5f);
+                    lensingPower = Math.max(0.0f, 2.2f * (1.0f - slamProg));
                 }
                 chromaticAmount = 0.030f * baseIntensity * (1.0f - progress);
             }
@@ -159,9 +172,11 @@ public class GodWandPostFxManager {
                 distortionPower = 0.028f * baseIntensity * (1.0f - progress);
                 chromaticAmount = 0.016f * baseIntensity * (1.0f - progress);
                 zoomBlur = 0.025f * baseIntensity * (1.0f - progress);
+                coreRadius = (1.0f - progress) * 0.9f;
+                lensingPower = (1.0f - progress) * 1.2f;
             }
             case ImpactFxPayload.TYPE_SUPERNOVA -> {
-                // Cataclysmic Cosmic Supernova:
+                // Cataclysmic Cosmic Supernova (Burst phase):
                 // Ticks 0..7: Chuỗi chuyển đổi 36 Anime Impact Frame liên tục:
                 // Isometric 30° Grid (35) -> Spectral Bands (34) -> Prism 7-Color Line-Art (33) -> Crimson (2) -> Six-Eyes Cyan (3) -> Stark Ink (0)
                 if (progress < 0.32f) {
@@ -178,6 +193,37 @@ public class GodWandPostFxManager {
                 // Cực đại Zoom Blur và Lưu ảnh võng mạc (Retina Burn)
                 zoomBlur = 0.098f * baseIntensity * (float) Math.sin(progress * Math.PI);
                 retinaBurn = Math.max(0.0f, 1.0f * baseIntensity * (1.0f - progress * 1.15f));
+
+                // Expanding Fireball Singularity
+                coreRadius = MathHelper.lerp(progress, 1.2f, 8.5f);
+                lensingPower = (1.0f - progress) * 2.8f;
+            }
+            case ImpactFxPayload.TYPE_BLACK_HOLE -> {
+                // 3D Raymarched Black Hole Accretion & Collapse Progression (186 ticks)
+                impactIntensity = 1.0f;
+                // Progression 0.0 to 0.75 (Ticks 0..140): Growth & Steady Accretion
+                if (progress < 0.75f) {
+                    float grow = Math.min(1.0f, progress / 0.20f);
+                    coreRadius = 2.4f * (float) Math.sin(grow * Math.PI * 0.5);
+                    lensingPower = 1.4f * grow;
+                    shockwaveRadius = 0.0f;
+                    distortionPower = 0.0f;
+                }
+                // Progression 0.75 to 0.94 (Ticks 140..175): Gravitational Collapse / Inward Compression
+                else if (progress < 0.94f) {
+                    float collapseProg = (progress - 0.75f) / 0.19f;
+                    coreRadius = MathHelper.lerp(collapseProg, 2.4f, 0.45f);
+                    lensingPower = MathHelper.lerp(collapseProg, 1.4f, 4.2f);
+                    zoomBlur = -0.045f * collapseProg; // Inward gravitational suction
+                    distortionPower = -0.035f * collapseProg;
+                }
+                // Progression 0.94 to 1.0 (Ticks 176..186): Vacuum Silence & Horizon Jitter
+                else {
+                    coreRadius = 0.40f + 0.04f * (float) Math.sin(gTime * 50.0);
+                    lensingPower = 4.8f;
+                    zoomBlur = -0.06f;
+                    distortionPower = -0.05f;
+                }
             }
         }
 
@@ -209,6 +255,21 @@ public class GodWandPostFxManager {
 
         float aspect = (float) fbWidth / (float) fbHeight;
 
+        Camera camera = client.gameRenderer.getCamera();
+        Vec3d camPos = (camera != null) ? camera.getPos() : Vec3d.ZERO;
+        Matrix4f invProj = new Matrix4f(context.projectionMatrix()).invert();
+        Matrix4f invView = new Matrix4f(context.positionMatrix()).invert();
+
+        for (PostEffectPass pass : postProcessor.passes) {
+            JsonEffectShaderProgram prog = pass.getProgram();
+            prog.getUniformByNameOrDummy("InvProjMat").set(invProj);
+            prog.getUniformByNameOrDummy("InvViewMat").set(invView);
+            prog.getUniformByNameOrDummy("CameraPos").set((float) camPos.x, (float) camPos.y, (float) camPos.z);
+            prog.getUniformByNameOrDummy("BlastCenter").set((float) blastCenter.x, (float) blastCenter.y, (float) blastCenter.z);
+            prog.getUniformByNameOrDummy("CoreRadius").set(coreRadius);
+            prog.getUniformByNameOrDummy("LensingPower").set(lensingPower);
+        }
+
         postProcessor.setUniforms("ImpactIntensity", impactIntensity);
         postProcessor.setUniforms("ImpactFrame", impactFrame);
         postProcessor.setUniforms("ImpactMode", impactMode);
@@ -221,6 +282,8 @@ public class GodWandPostFxManager {
         postProcessor.setUniforms("CenterY", centerY);
         postProcessor.setUniforms("Aspect", aspect);
         postProcessor.setUniforms("GTime", gTime);
+        postProcessor.setUniforms("CoreRadius", coreRadius);
+        postProcessor.setUniforms("LensingPower", lensingPower);
 
         RenderSystem.disableBlend();
         RenderSystem.disableDepthTest();

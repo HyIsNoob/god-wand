@@ -67,35 +67,9 @@ public class ShockwaveSlicer {
         SingularityTask task = new SingularityTask(world, center, maxRadius, orbCenter);
 
         // 1. Quả Cầu Năng Lượng Trung Tâm (2 BlockDisplayEntity lồng nhau)
-        // Lõi trong: SEA_LANTERN 1.3f phát sáng Cyan (0x00F0FF)
-        BlockDisplayEntity innerCore = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
-        innerCore.addCommandTag("godwand_displaced");
-        innerCore.setPosition(orbCenter.x - 0.5, orbCenter.y - 0.5, orbCenter.z - 0.5);
-        innerCore.setBlockState(Blocks.SEA_LANTERN.getDefaultState());
-        innerCore.setGlowing(true);
-        innerCore.setGlowColorOverride(0x00F0FF);
-        innerCore.setBrightness(new Brightness(15, 15));
-        innerCore.setStartInterpolation(0);
-        innerCore.setInterpolationDuration(0);
-        innerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 1.3f));
-        world.spawnEntity(innerCore);
-        task.innerCoreUuid = innerCore.getUuid();
-        SpatialDisplacementManager.trackEntity(innerCore.getUuid(), innerCore);
-
-        // Vỏ ngoài: PURPLE_STAINED_GLASS 1.9f phát sáng Tím (0xA855F7)
-        BlockDisplayEntity outerCore = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
-        outerCore.addCommandTag("godwand_displaced");
-        outerCore.setPosition(orbCenter.x - 0.5, orbCenter.y - 0.5, orbCenter.z - 0.5);
-        outerCore.setBlockState(Blocks.PURPLE_STAINED_GLASS.getDefaultState());
-        outerCore.setGlowing(true);
-        outerCore.setGlowColorOverride(0xA855F7);
-        outerCore.setBrightness(new Brightness(15, 15));
-        outerCore.setStartInterpolation(0);
-        outerCore.setInterpolationDuration(0);
-        outerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 1.9f));
-        world.spawnEntity(outerCore);
-        task.outerCoreUuid = outerCore.getUuid();
-        SpatialDisplacementManager.trackEntity(outerCore.getUuid(), outerCore);
+        // 1. Quả cầu năng lượng trung tâm được kết xuất trực tiếp bằng 3D Raymarched Shader
+        task.innerCoreUuid = null;
+        task.outerCoreUuid = null;
 
         // 2. Bóc tách các khối đất đá trong hình cầu maxRadius
         int intR = (int) Math.ceil(maxRadius);

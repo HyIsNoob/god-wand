@@ -1,10 +1,18 @@
 #version 150
 
 uniform sampler2D DiffuseSampler;
+uniform sampler2D MainDepthSampler;
 
 in vec2 texCoord;
 
 uniform vec2 OutSize;
+uniform mat4 InvProjMat;
+uniform mat4 InvViewMat;
+uniform vec3 CameraPos;
+uniform vec3 BlastCenter;
+uniform float CoreRadius;
+uniform float LensingPower;
+
 uniform float ImpactIntensity;
 uniform float ImpactFrame;
 uniform float ImpactMode;
@@ -81,6 +89,98 @@ void main() {
     float dist = length(aspectDiff);
 
     // =========================================================================
+    // 0. 3D RAYMARCHING, DEPTH RECONSTRUCTION & GRAVITATIONAL LENSING
+    // =========================================================================
+    vec2 lensOffset = vec2(0.0);
+    vec3 addGlow = vec3(0.0);
+    bool insideHorizon = false;
+    float impactParamVal = 999.0;
+
+    if (CoreRadius > 0.005) {
+        // Construct 3D camera ray in camera-relative world space
+        vec2 ndc = texCoord * 2.0 - 1.0;
+        vec4 viewFar = InvProjMat * vec4(ndc, 1.0, 1.0);
+        viewFar.xyz /= viewFar.w;
+        vec3 rd = normalize((InvViewMat * vec4(viewFar.xyz, 0.0)).xyz);
+
+        // Reconstruct scene depth from Minecraft's main depth buffer
+        float rawDepth = texture(MainDepthSampler, texCoord).r;
+        vec4 viewHit = InvProjMat * vec4(ndc, rawDepth * 2.0 - 1.0, 1.0);
+        viewHit.xyz /= viewHit.w;
+        vec4 worldHitRel = InvViewMat * vec4(viewHit.xyz, 1.0);
+        float sceneDist = (rawDepth >= 0.99999) ? 1e6 : length(worldHitRel.xyz);
+
+        // Black Hole center relative to camera
+        vec3 bhRel = BlastCenter - CameraPos;
+        float distToBH = length(bhRel);
+        float tBH = dot(bhRel, rd);
+        vec3 pClosest = rd * tBH;
+        float impactParam = length(pClosest - bhRel);
+        impactParamVal = impactParam;
+
+        bool inFront = (tBH > -CoreRadius);
+        bool occluded = (sceneDist < (distToBH - CoreRadius * 1.1));
+
+        if (inFront && !occluded) {
+            // Gravitational Lensing UV deflection (Einstein deflection)
+            vec2 lensDir = (dist > 0.0001) ? normalize(aspectDiff) : vec2(0.0);
+            float lensShift = (LensingPower * sqr(CoreRadius)) / (sqr(impactParam) + 0.06);
+            lensShift = clamp(lensShift, 0.0, 0.35);
+            lensOffset = vec2(lensDir.x / Aspect, lensDir.y) * lensShift;
+
+            // Event Horizon check
+            if (impactParam < CoreRadius && sceneDist > (tBH - CoreRadius * 0.8)) {
+                insideHorizon = true;
+            }
+
+            // Einstein Ring (Photon Sphere Arc at ~1.35x CoreRadius)
+            float ringDist = abs(impactParam - CoreRadius * 1.35);
+            float einsteinRing = exp(-sqr(ringDist) / 0.035) * LensingPower;
+            vec3 ringCol = (vec3(0.85, 0.95, 1.0) * 2.6 + blackbody(1.15) * 1.4) * einsteinRing;
+            addGlow += ringCol;
+
+            // Relativistic Accretion Disk (Equatorial plane Y = bhRel.y)
+            if (abs(rd.y) > 0.0005) {
+                float tDisk = bhRel.y / rd.y;
+                if (tDisk > 0.0 && tDisk < sceneDist && (!insideHorizon || tDisk < tBH)) {
+                    vec3 pDisk = rd * tDisk;
+                    float rDisk = length((pDisk - bhRel).xz);
+                    if (rDisk > CoreRadius * 1.05 && rDisk < CoreRadius * 4.5) {
+                        float diskAngle = atan(pDisk.z - bhRel.z, pDisk.x - bhRel.x) + GTime * 3.5;
+                        float swirl = 0.75 + 0.25 * sin(diskAngle * 5.0 - rDisk * 4.0);
+                        vec3 orbVel = vec3(-sin(diskAngle), 0.0, cos(diskAngle));
+                        float doppler = 1.0 + 0.45 * dot(rd, orbVel);
+                        float diskHeat = saturate(1.2 - (rDisk - CoreRadius) / (CoreRadius * 3.45));
+                        float diskAlpha = smoothstep(CoreRadius * 1.05, CoreRadius * 1.3, rDisk) *
+                                          (1.0 - smoothstep(CoreRadius * 3.2, CoreRadius * 4.5, rDisk));
+                        addGlow += blackbody(diskHeat) * swirl * doppler * 3.5 * diskAlpha;
+                    }
+                }
+            }
+
+            // Volumetric Relativistic Pulsar Jets (Vertical Y axis)
+            vec2 jetXZ = bhRel.xz;
+            float denom = max(dot(rd.xz, rd.xz), 1e-6);
+            float tJet = dot(jetXZ, rd.xz) / denom;
+            if (tJet > 0.0 && tJet < sceneDist) {
+                vec3 pJet = rd * tJet;
+                float dJet = length(pJet.xz - bhRel.xz);
+                float hJet = pJet.y - bhRel.y;
+                if (hJet > -22.0 && hJet < 48.0) {
+                    float jetCore = exp(-dJet / 0.12);
+                    float jetSheath = exp(-dJet / 0.75) * 0.45;
+                    float jetAura = exp(-dJet / 2.8) * 0.15;
+                    float jetFade = smoothstep(-22.0, -18.0, hJet) * (1.0 - smoothstep(32.0, 48.0, hJet));
+                    vec3 jetColor = (vec3(1.0, 0.98, 0.95) * jetCore * 4.0 +
+                                     vec3(0.05, 0.88, 1.0) * jetSheath * 2.2 +
+                                     vec3(0.55, 0.15, 1.0) * jetAura * 1.2) * jetFade;
+                    addGlow += jetColor * (0.8 + 0.2 * sin(GTime * 25.0));
+                }
+            }
+        }
+    }
+
+    // =========================================================================
     // 1. SÓNG XUNG KÍCH BẺ CONG KHÚC XẠ (Shockwave Refraction Ring)
     // =========================================================================
     float waveThickness = 0.068;
@@ -88,13 +188,13 @@ void main() {
     float wave = exp(-sqr(deltaDist) / sqr(waveThickness));
     vec2 dir = (dist > 0.0001) ? normalize(aspectDiff) : vec2(0.0);
     vec2 uvOffset = vec2(dir.x / Aspect, dir.y) * wave * DistortionPower;
-    vec2 baseUV = clamp(texCoord + uvOffset, 0.001, 0.999);
+    vec2 baseUV = clamp(texCoord - lensOffset + uvOffset, 0.001, 0.999);
 
     // =========================================================================
     // 2. RADIAL ZOOM BLUR (Hút / Đẩy đa tầng hướng tâm)
     // =========================================================================
     vec3 col = texture(DiffuseSampler, baseUV).rgb;
-    if (ZoomBlur > 0.001) {
+    if (abs(ZoomBlur) > 0.001) {
         vec3 acc = col;
         float total = 1.0;
         for (int i = 1; i < 8; i++) {
@@ -106,6 +206,13 @@ void main() {
         }
         col = acc / total;
     }
+
+    // Swallowing light inside Event Horizon
+    if (insideHorizon) {
+        float horizonEdge = smoothstep(CoreRadius * 0.88, CoreRadius, impactParamVal);
+        col *= horizonEdge;
+    }
+    col += addGlow;
 
     // =========================================================================
     // 3. SẮC SAI KHÔNG GIAN (Radial Chromatic Aberration)

@@ -8,10 +8,13 @@
     "fragment": "godwand_impact",
     "attributes": [ "Position" ],
     "samplers": [
-        { "name": "DiffuseSampler" }
+        { "name": "DiffuseSampler" },
+        { "name": "MainDepthSampler" }
     ],
     "uniforms": [
         { "name": "ProjMat",          "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "InvProjMat",       "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "InvViewMat",       "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
         { "name": "InSize",           "type": "float",     "count": 2,  "values": [ 1.0, 1.0 ] },
         { "name": "OutSize",          "type": "float",     "count": 2,  "values": [ 1.0, 1.0 ] },
         { "name": "ImpactIntensity",  "type": "float",     "count": 1,  "values": [ 0.0 ] },
@@ -25,6 +28,10 @@
         { "name": "CenterX",          "type": "float",     "count": 1,  "values": [ 0.5 ] },
         { "name": "CenterY",          "type": "float",     "count": 1,  "values": [ 0.5 ] },
         { "name": "Aspect",           "type": "float",     "count": 1,  "values": [ 1.7777 ] },
-        { "name": "GTime",            "type": "float",     "count": 1,  "values": [ 0.0 ] }
+        { "name": "GTime",            "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "CoreRadius",       "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "LensingPower",     "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "CameraPos",        "type": "float",     "count": 3,  "values": [ 0.0, 0.0, 0.0 ] },
+        { "name": "BlastCenter",      "type": "float",     "count": 3,  "values": [ 0.0, 0.0, 0.0 ] }
     ]
 }

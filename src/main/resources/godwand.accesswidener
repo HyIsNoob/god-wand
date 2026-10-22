@@ -6,3 +6,4 @@ accessible method net/minecraft/entity/decoration/DisplayEntity setStartInterpol
 accessible method net/minecraft/entity/decoration/DisplayEntity setBrightness (Lnet/minecraft/entity/decoration/Brightness;)V
 accessible method net/minecraft/entity/decoration/DisplayEntity setGlowColorOverride (I)V
 accessible method net/minecraft/entity/decoration/DisplayEntity$BlockDisplayEntity setBlockState (Lnet/minecraft/block/BlockState;)V
+accessible field net/minecraft/client/gl/PostEffectProcessor passes Ljava/util/List;

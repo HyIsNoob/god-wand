@@ -85,65 +85,19 @@ public class SupernovaManager {
         Vec3d corePos = groundCenter.toCenterPos().add(0, 9.5, 0);
         SupernovaTask task = new SupernovaTask(world, player, groundCenter, corePos);
 
-        // 1. Spawn Quả Cầu Lõi Kép (Inner Crying Obsidian + Outer Cyan Stained Glass)
-        BlockDisplayEntity innerCore = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
-        innerCore.addCommandTag("godwand_displaced");
-        innerCore.setPosition(corePos.x - 0.5, corePos.y - 0.5, corePos.z - 0.5);
-        innerCore.setBlockState(Blocks.CRYING_OBSIDIAN.getDefaultState());
-        innerCore.setGlowing(true);
-        innerCore.setGlowColorOverride(0x9B59B6);
-        innerCore.setBrightness(new Brightness(15, 15));
-        innerCore.setStartInterpolation(0);
-        innerCore.setInterpolationDuration(0);
-        innerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 1.6f));
-        world.spawnEntity(innerCore);
-        task.innerCoreUuid = innerCore.getUuid();
-        SpatialDisplacementManager.trackEntity(innerCore.getUuid(), innerCore);
-
-        BlockDisplayEntity outerCore = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
-        outerCore.addCommandTag("godwand_displaced");
-        outerCore.setPosition(corePos.x - 0.5, corePos.y - 0.5, corePos.z - 0.5);
-        outerCore.setBlockState(Blocks.CYAN_STAINED_GLASS.getDefaultState());
-        outerCore.setGlowing(true);
-        outerCore.setGlowColorOverride(0x00F0FF);
-        outerCore.setBrightness(new Brightness(15, 15));
-        outerCore.setStartInterpolation(0);
-        outerCore.setInterpolationDuration(0);
-        outerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 2.4f));
-        world.spawnEntity(outerCore);
-        task.outerCoreUuid = outerCore.getUuid();
-        SpatialDisplacementManager.trackEntity(outerCore.getUuid(), outerCore);
-
-        // 2. Spawn 2 Luồng Năng Lượng Bắn Lên Trời & Cắm Xuống Đáy (Relativistic Pulsar Jets)
-        // Upper Beam: Bắn thẳng lên trời 38m
-        BlockDisplayEntity upperBeam = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
-        upperBeam.addCommandTag("godwand_displaced");
-        upperBeam.setPosition(corePos.x, corePos.y, corePos.z);
-        upperBeam.setBlockState(Blocks.SEA_LANTERN.getDefaultState());
-        upperBeam.setGlowing(true);
-        upperBeam.setGlowColorOverride(0x00F5FF);
-        upperBeam.setBrightness(new Brightness(15, 15));
-        upperBeam.setStartInterpolation(0);
-        upperBeam.setInterpolationDuration(0);
-        upperBeam.setTransformation(SpatialMath.createThinBeamTransform(corePos, corePos.add(0, 38.0, 0), 0.08f));
-        world.spawnEntity(upperBeam);
-        task.upperBeamUuid = upperBeam.getUuid();
-        SpatialDisplacementManager.trackEntity(upperBeam.getUuid(), upperBeam);
-
-        // Lower Beam: Cắm thẳng xuống đất 18m
-        BlockDisplayEntity lowerBeam = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
-        lowerBeam.addCommandTag("godwand_displaced");
-        lowerBeam.setPosition(corePos.x, corePos.y, corePos.z);
-        lowerBeam.setBlockState(Blocks.SEA_LANTERN.getDefaultState());
-        lowerBeam.setGlowing(true);
-        lowerBeam.setGlowColorOverride(0x00F5FF);
-        lowerBeam.setBrightness(new Brightness(15, 15));
-        lowerBeam.setStartInterpolation(0);
-        lowerBeam.setInterpolationDuration(0);
-        lowerBeam.setTransformation(SpatialMath.createThinBeamTransform(corePos, corePos.subtract(0, 18.0, 0), 0.08f));
-        world.spawnEntity(lowerBeam);
-        task.lowerBeamUuid = lowerBeam.getUuid();
-        SpatialDisplacementManager.trackEntity(lowerBeam.getUuid(), lowerBeam);
+        // 1 & 2. 3D Raymarched Black Hole & Relativistic Pulsar Jets Shader
+        // Kích hoạt Shader Hố Đen 3D & Khúc xạ ánh sáng hấp dẫn (Einstein Ring + Accretion Disk + Pulsar Jets)
+        ImpactFxPayload blackHolePayload = new ImpactFxPayload(
+                corePos.x, corePos.y, corePos.z,
+                ImpactFxPayload.TYPE_BLACK_HOLE, 186, 1.0f
+        );
+        for (ServerPlayerEntity p : PlayerLookup.around(world, corePos, 128.0)) {
+            ServerPlayNetworking.send(p, blackHolePayload);
+        }
+        task.innerCoreUuid = null;
+        task.outerCoreUuid = null;
+        task.upperBeamUuid = null;
+        task.lowerBeamUuid = null;
 
         // 3. Quét hình cầu bán kính R = 16.0 quanh groundCenter, lấy tối đa 400 khối
         int intR = (int) Math.ceil(task.maxRadius);
