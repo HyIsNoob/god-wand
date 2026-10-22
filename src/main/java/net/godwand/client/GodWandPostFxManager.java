@@ -3,6 +3,7 @@ package net.godwand.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.godwand.GodWandMod;
+import net.godwand.mixin.PostEffectProcessorAccessor;
 import net.godwand.network.ImpactFxPayload;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.JsonEffectShaderProgram;
@@ -111,29 +112,34 @@ public class GodWandPostFxManager {
             case ImpactFxPayload.TYPE_DETONATION -> {
                 // Calamity Detonation:
                 // Ticks 0..4: 36 Anime Impact Frames cycle: Six-Eyes Cyan -> Crimson Invert -> Ink-Wash -> Prism Line-Art
-                if (progress < 0.26f) {
-                    impactFrame = (1.0f - (progress / 0.26f));
+                if (tickIdx < 5) {
+                    impactFrame = 1.0f - ((float) tickIdx / 5.0f);
                     int[] detModes = {3, 2, 0, 33, 3};
-                    impactMode = detModes[Math.min(tickIdx, detModes.length - 1)];
+                    impactMode = detModes[tickIdx];
                 }
 
-                // Shockwave expands rapidly outwards across screen
-                shockwaveRadius = (float) Math.pow(progress, 0.65) * 1.35f;
+                // Ticks 0..15: Sóng xung kích bùng nổ, quang sai và lóa võng mạc
+                if (tickIdx < 16) {
+                    float shockProg = (float) tickIdx / 16.0f;
+                    shockwaveRadius = (float) Math.pow(shockProg, 0.65) * 1.35f;
+                    float distCurve = (float) Math.sin(shockProg * Math.PI);
+                    distortionPower = 0.048f * baseIntensity * distCurve;
+                    chromaticAmount = 0.024f * baseIntensity * (1.0f - shockProg);
+                    zoomBlur = 0.065f * baseIntensity * (1.0f - shockProg);
+                    retinaBurn = Math.max(0.0f, 0.65f * baseIntensity * (1.0f - shockProg * 1.4f));
+                }
 
-                // Distortion peaks right after impact frame, then dissipates
-                float distCurve = (float) Math.sin(progress * Math.PI);
-                distortionPower = 0.048f * baseIntensity * distCurve;
-
-                // Chromatic Aberration decays exponentially
-                chromaticAmount = 0.024f * baseIntensity * (1.0f - progress);
-
-                // Directional Zoom Blur & Retinal Flash Afterglow
-                zoomBlur = 0.065f * baseIntensity * (1.0f - progress);
-                retinaBurn = Math.max(0.0f, 0.65f * baseIntensity * (1.0f - progress * 1.4f));
-
-                // 3D Singularity Gravitational Lensing
-                coreRadius = (1.0f - progress) * 1.8f;
-                lensingPower = (1.0f - progress) * 1.8f;
+                // 3D Singularity Gravitational Lensing & Lõi năng lượng duy trì cùng 45 Tether Beams
+                if (progress < 0.94f) {
+                    coreRadius = 1.6f;
+                    lensingPower = 1.6f;
+                } else {
+                    // Ticks 106..112: Hút ngược chân không sụp đổ lõi
+                    float snapProg = (progress - 0.94f) / 0.06f;
+                    coreRadius = MathHelper.lerp(snapProg, 1.6f, 0.0f);
+                    lensingPower = MathHelper.lerp(snapProg, 1.6f, 0.0f);
+                    zoomBlur = -0.05f * snapProg;
+                }
             }
             case ImpactFxPayload.TYPE_IMPLOSION -> {
                 // Epicenter Calamity Implosion:
@@ -260,7 +266,7 @@ public class GodWandPostFxManager {
         Matrix4f invProj = new Matrix4f(context.projectionMatrix()).invert();
         Matrix4f invView = new Matrix4f(context.positionMatrix()).invert();
 
-        for (PostEffectPass pass : postProcessor.passes) {
+        for (PostEffectPass pass : ((PostEffectProcessorAccessor) postProcessor).getPasses()) {
             JsonEffectShaderProgram prog = pass.getProgram();
             prog.getUniformByNameOrDummy("InvProjMat").set(invProj);
             prog.getUniformByNameOrDummy("InvViewMat").set(invView);

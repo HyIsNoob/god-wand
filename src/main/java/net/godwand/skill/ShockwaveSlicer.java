@@ -37,9 +37,6 @@ public class ShockwaveSlicer {
         public final double maxRadius;
         public final Vec3d orbCenter;
 
-        public UUID innerCoreUuid;
-        public UUID outerCoreUuid;
-
         public final List<BlockPos> displayedPositions = new ArrayList<>();
         public final List<BlockPos> interiorPositions = new ArrayList<>();
         public final Map<BlockPos, Vec3d> fullExpansionMap = new HashMap<>();
@@ -66,11 +63,7 @@ public class ShockwaveSlicer {
         Vec3d orbCenter = center.toCenterPos().add(0, 2.2 + maxRadius * 0.2, 0);
         SingularityTask task = new SingularityTask(world, center, maxRadius, orbCenter);
 
-        // 1. Quả Cầu Năng Lượng Trung Tâm (2 BlockDisplayEntity lồng nhau)
-        // 1. Quả cầu năng lượng trung tâm được kết xuất trực tiếp bằng 3D Raymarched Shader
-        task.innerCoreUuid = null;
-        task.outerCoreUuid = null;
-
+        // 1. Quả cầu năng lượng trung tâm được kết xuất trực tiếp bằng 3D Raymarched Shader (TYPE_DETONATION)
         // 2. Bóc tách các khối đất đá trong hình cầu maxRadius
         int intR = (int) Math.ceil(maxRadius);
         double maxRadiusSq = maxRadius * maxRadius;
@@ -214,15 +207,15 @@ public class ShockwaveSlicer {
         }
 
         ImpactFxPayload detPayload = new ImpactFxPayload(
-                center.getX() + 0.5, center.getY() + 0.5, center.getZ() + 0.5,
-                ImpactFxPayload.TYPE_DETONATION, 15, (float) Math.max(1.0, maxRadius / 10.0)
+                task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
+                ImpactFxPayload.TYPE_DETONATION, 112, (float) Math.max(1.0, maxRadius / 10.0)
         );
         CinematicFxPayload detCinematic = new CinematicFxPayload(
                 CinematicFxPayload.EVENT_TRAUMA_SHAKE,
-                center.getX() + 0.5, center.getY() + 0.5, center.getZ() + 0.5,
+                task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
                 0.65f, 16
         );
-        for (ServerPlayerEntity p : PlayerLookup.around(world, center.toCenterPos(), 96.0)) {
+        for (ServerPlayerEntity p : PlayerLookup.around(world, task.orbCenter, 96.0)) {
             ServerPlayNetworking.send(p, detPayload);
             ServerPlayNetworking.send(p, detCinematic);
         }
@@ -237,27 +230,6 @@ public class ShockwaveSlicer {
             if (task.world != world) continue;
 
             task.ageTicks++;
-
-            BlockDisplayEntity innerCore = SpatialDisplacementManager.getActiveEntity(task.innerCoreUuid);
-            BlockDisplayEntity outerCore = SpatialDisplacementManager.getActiveEntity(task.outerCoreUuid);
-
-            // Xoay 2 lớp quả cầu trung tâm mỗi 2 ticks
-            if (task.ageTicks % 2 == 0 && task.ageTicks < 112) {
-                float spin = task.ageTicks * 0.05f;
-                Quaternionf innerRot = new Quaternionf().rotateY(spin * 1.5f).rotateX(spin);
-                Quaternionf outerRot = new Quaternionf().rotateY(-spin * 1.2f).rotateZ(-spin * 0.8f);
-
-                if (innerCore != null && innerCore.isAlive()) {
-                    innerCore.setStartInterpolation(0);
-                    innerCore.setInterpolationDuration(2);
-                    innerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, innerRot, 1.3f));
-                }
-                if (outerCore != null && outerCore.isAlive()) {
-                    outerCore.setStartInterpolation(0);
-                    outerCore.setInterpolationDuration(2);
-                    outerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, outerRot, 1.9f));
-                }
-            }
 
             // =========================================================================
             // PHA 1: NỨT VỠ & BUNG NĂNG LƯỢNG (Ticks 1..18)
@@ -308,18 +280,6 @@ public class ShockwaveSlicer {
                     world.playSound(null, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
                             SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.BLOCKS, 3.0f, 1.8f);
 
-                    // Co rút quả cầu trung tâm về 0.05f trong 12 ticks
-                    if (innerCore != null && innerCore.isAlive()) {
-                        innerCore.setStartInterpolation(0);
-                        innerCore.setInterpolationDuration(12);
-                        innerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 0.05f));
-                    }
-                    if (outerCore != null && outerCore.isAlive()) {
-                        outerCore.setStartInterpolation(0);
-                        outerCore.setInterpolationDuration(12);
-                        outerCore.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 0.05f));
-                    }
-
                     // Giật ngược toàn bộ khối đá và tia laser về vị trí ban đầu trong 14 ticks
                     for (BlockPos pos : task.displayedPositions) {
                         DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
@@ -358,16 +318,6 @@ public class ShockwaveSlicer {
                         SpatialDisplacementManager.untrackEntity(beamUuid);
                     }
                     task.tetherBeamMap.clear();
-
-                    // Hủy lõi quả cầu
-                    if (innerCore != null && innerCore.isAlive()) {
-                        innerCore.discard();
-                        SpatialDisplacementManager.untrackEntity(task.innerCoreUuid);
-                    }
-                    if (outerCore != null && outerCore.isAlive()) {
-                        outerCore.discard();
-                        SpatialDisplacementManager.untrackEntity(task.outerCoreUuid);
-                    }
 
                     // Khôi phục 2-pass toàn bộ khối
                     List<DisplacedBlockRecord> toRestore = new ArrayList<>();
@@ -437,17 +387,6 @@ public class ShockwaveSlicer {
                 SpatialDisplacementManager.untrackEntity(beamUuid);
             }
             task.tetherBeamMap.clear();
-
-            if (task.innerCoreUuid != null) {
-                BlockDisplayEntity inner = SpatialDisplacementManager.getActiveEntity(task.innerCoreUuid);
-                if (inner != null && inner.isAlive()) inner.discard();
-                SpatialDisplacementManager.untrackEntity(task.innerCoreUuid);
-            }
-            if (task.outerCoreUuid != null) {
-                BlockDisplayEntity outer = SpatialDisplacementManager.getActiveEntity(task.outerCoreUuid);
-                if (outer != null && outer.isAlive()) outer.discard();
-                SpatialDisplacementManager.untrackEntity(task.outerCoreUuid);
-            }
         }
         ACTIVE_TASKS.clear();
     }

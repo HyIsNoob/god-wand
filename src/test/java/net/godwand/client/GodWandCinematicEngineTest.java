@@ -53,6 +53,32 @@ public class GodWandCinematicEngineTest {
     }
 
     @Test
+    public void testFovFocusContraction() {
+        GodWandCinematicEngine.reset();
+        assertEquals(1.0, GodWandCinematicEngine.getFovMultiplier(1.0f), 0.001);
+
+        // Simulate EVENT_METEOR_FOCUS payload (target = 0.88f, hold = 16 ticks)
+        net.godwand.network.CinematicFxPayload focus = new net.godwand.network.CinematicFxPayload(
+                net.godwand.network.CinematicFxPayload.EVENT_METEOR_FOCUS,
+                0, 0, 0, 0.88f, 16
+        );
+        GodWandCinematicEngine.onCinematicEvent(focus);
+
+        // Tick 6 times, FOV should contract below 1.0 towards 0.88
+        for (int i = 0; i < 6; i++) {
+            GodWandCinematicEngine.onClientTick();
+        }
+        double fovDuringFocus = GodWandCinematicEngine.getFovMultiplier(1.0f);
+        assertTrue(fovDuringFocus < 0.95f, "FOV should contract below 0.95 during focus, was: " + fovDuringFocus);
+
+        // After all hold ticks + recovery, FOV should return to 1.0
+        for (int i = 0; i < 50; i++) {
+            GodWandCinematicEngine.onClientTick();
+        }
+        assertEquals(1.0, GodWandCinematicEngine.getFovMultiplier(1.0f), 0.01);
+    }
+
+    @Test
     public void testVacuumSilenceTimer() {
         assertFalse(GodWandCinematicEngine.isVacuumSilenceActive());
 

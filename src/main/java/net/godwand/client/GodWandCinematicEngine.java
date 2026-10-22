@@ -40,19 +40,19 @@ public class GodWandCinematicEngine {
      * Kích hoạt sự kiện điện ảnh từ gói mạng CinematicFxPayload
      */
     public static void onCinematicEvent(CinematicFxPayload payload) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.player == null) return;
-
-        // Tính toán suy giảm chấn động theo khoảng cách 3D từ tâm nổ tới người chơi
-        double distSq = client.player.squaredDistanceTo(payload.x(), payload.y(), payload.z());
         float distFactor = 1.0f;
-        if (payload.x() != 0 || payload.y() != 0 || payload.z() != 0) {
-            double dist = Math.sqrt(distSq);
-            double maxDist = 64.0;
-            if (dist > maxDist) {
-                distFactor = 0.0f;
-            } else if (dist > 8.0) {
-                distFactor = (float) (1.0 - ((dist - 8.0) / (maxDist - 8.0)));
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null && client.player != null) {
+            // Tính toán suy giảm chấn động theo khoảng cách 3D từ tâm nổ tới người chơi
+            double distSq = client.player.squaredDistanceTo(payload.x(), payload.y(), payload.z());
+            if (payload.x() != 0 || payload.y() != 0 || payload.z() != 0) {
+                double dist = Math.sqrt(distSq);
+                double maxDist = 64.0;
+                if (dist > maxDist) {
+                    distFactor = 0.0f;
+                } else if (dist > 8.0) {
+                    distFactor = (float) (1.0 - ((dist - 8.0) / (maxDist - 8.0)));
+                }
             }
         }
 
@@ -72,9 +72,7 @@ public class GodWandCinematicEngine {
             case CinematicFxPayload.EVENT_METEOR_FOCUS -> {
                 // Chiêu 3: Co FOV lại để tạo cảm giác tập trung năng lượng cực hạn
                 if (distFactor > 0.2f) {
-                    targetFovMultiplier = payload.intensity(); // ~0.88f
-                    fovHoldTicks = payload.durationTicks();
-                    fovRecoverySpeed = 0.12f;
+                    setFovFocus(payload.intensity(), payload.durationTicks(), 0.12f);
                 }
             }
             case CinematicFxPayload.EVENT_METEOR_SLAM -> {
@@ -85,9 +83,7 @@ public class GodWandCinematicEngine {
             case CinematicFxPayload.EVENT_SUPERNOVA_COMPRESS -> {
                 // Chiêu 4: Sụp đổ hấp dẫn - Rung nhịp tim dồn dập
                 addTrauma(0.45f * distFactor, payload.durationTicks());
-                targetFovMultiplier = 0.92f;
-                fovHoldTicks = payload.durationTicks();
-                fovRecoverySpeed = 0.06f;
+                setFovFocus(0.92f, payload.durationTicks(), 0.06f);
             }
             case CinematicFxPayload.EVENT_SUPERNOVA_BURST -> {
                 // Chiêu 4: Đại nổ siêu tân tinh - Rung chấn cực đại + bung FOV toàn cảnh
@@ -95,6 +91,12 @@ public class GodWandCinematicEngine {
                 setFovPunch(1.0f + 0.32f * distFactor, 24);
             }
         }
+    }
+
+    public static void setFovFocus(float targetMultiplier, int holdTicks, float recoverySpeed) {
+        targetFovMultiplier = targetMultiplier;
+        fovHoldTicks = holdTicks;
+        fovRecoverySpeed = recoverySpeed;
     }
 
     public static void addTrauma(float amount, int durationTicks) {
@@ -129,6 +131,8 @@ public class GodWandCinematicEngine {
         prevFovMultiplier = currentFovMultiplier;
         if (fovHoldTicks > 0) {
             fovHoldTicks--;
+            // Nội suy mượt từ FOV hiện tại về targetFovMultiplier trong lúc nén lực
+            currentFovMultiplier = MathHelper.lerp(0.25f, currentFovMultiplier, targetFovMultiplier);
         } else {
             // Hồi phục dần về trạng thái bình thường (1.0f)
             currentFovMultiplier = MathHelper.lerp(fovRecoverySpeed, currentFovMultiplier, 1.0f);
