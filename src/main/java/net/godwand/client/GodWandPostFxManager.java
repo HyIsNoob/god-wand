@@ -216,9 +216,9 @@ public class GodWandPostFxManager {
                 distortionPower = 0.0f;
                 chromaticAmount = 0.035f * baseIntensity * (1.0f - progress);
 
-                // Zoom Blur & Retina Burn: chỉ chớp cực đại lúc vừa nổ trong 0.3s rồi trả lại màn hình rõ nét
-                zoomBlur = (progress < 0.05f) ? (0.05f * (1.0f - progress / 0.05f) * baseIntensity) : 0.0f;
-                retinaBurn = Math.max(0.0f, 1.0f * baseIntensity * (1.0f - progress * 2.5f));
+                // Bỏ hoàn toàn retinaBurn và flash chớp nháy giật cục, để CustomImpactFrameOverlay xử lý fadeout trắng điện ảnh
+                zoomBlur = 0.0f;
+                retinaBurn = 0.0f;
 
                 // Quả cầu lửa & đám mây nấm vũ trụ:
                 // Ticks 0..35 (progress 0..0.25): Bung nở cực nhanh từ 5.2m lên 38.0m
@@ -240,10 +240,10 @@ public class GodWandPostFxManager {
                 zoomBlur = -0.025f * progress;
             }
             case ImpactFxPayload.TYPE_GRAVITY_CORE -> {
-                // Quả cầu năng lượng Chiêu 3: Khối cầu năng lượng màu đỏ bốc cháy (Blazing Crimson Fireball)
+                // Quả cầu năng lượng Chiêu 3: Thu nhỏ gọn gàng, tinh thể Ruby đỏ rực rỡ (Dense Crimson Core)
                 // Tuyệt đối không dùng hố đen, không thấu kính méo màn hình, không scale nhấp nhô
                 float grow = Math.min(1.0f, progress / 0.12f);
-                coreRadius = 1.15f * grow * Math.min(1.8f, baseIntensity);
+                coreRadius = 0.52f * grow * Math.min(1.1f, baseIntensity);
                 lensingPower = 0.0f; // Không thấu kính méo hố đen
                 distortionPower = 0.0f; // Không bẻ cong méo hình
                 zoomBlur = 0.0f;

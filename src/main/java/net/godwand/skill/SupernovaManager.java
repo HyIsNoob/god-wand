@@ -178,8 +178,18 @@ public class SupernovaManager {
                 SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 3.5f, 0.45f);
 
         world.spawnParticles(ParticleTypes.SONIC_BOOM, corePos.x, corePos.y, corePos.z, 2, 0, 0, 0, 0);
-        world.spawnParticles(ParticleTypes.FLASH, corePos.x, corePos.y, corePos.z, 3, 0.2, 0.2, 0.2, 0.0);
+        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, corePos.x, corePos.y, corePos.z, 25, 0.4, 0.4, 0.4, 0.1);
         world.spawnParticles(ParticleTypes.REVERSE_PORTAL, corePos.x, corePos.y, corePos.z, 80, 1.5, 1.5, 1.5, 0.35);
+
+        // Rung chấn dữ dội ngay khi kích hoạt tạo Hố Đen
+        CinematicFxPayload castShake = new CinematicFxPayload(
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE,
+                corePos.x, corePos.y, corePos.z,
+                0.85f, 28
+        );
+        for (ServerPlayerEntity p : PlayerLookup.around(world, corePos, 120.0)) {
+            ServerPlayNetworking.send(p, castShake);
+        }
 
         ACTIVE_TASKS.add(task);
     }
@@ -421,7 +431,7 @@ public class SupernovaManager {
                 CinematicFxPayload burstCinematic = new CinematicFxPayload(
                         CinematicFxPayload.EVENT_SUPERNOVA_BURST,
                         task.corePos.x, task.corePos.y, task.corePos.z,
-                        1.0f, 70
+                        1.0f, 90
                 );
                 for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 160.0)) {
                     ServerPlayNetworking.send(p, novaPayload);
@@ -441,9 +451,11 @@ public class SupernovaManager {
                         SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.PLAYERS, 5.0f, 0.5f);
 
                 // 3. VFX vụ nổ chói lòa & Quả cầu lửa 3D phóng đa hướng
-                world.spawnParticles(ParticleTypes.FLASH, task.corePos.x, task.corePos.y, task.corePos.z, 36, 4.0, 4.0, 4.0, 0.0);
-                world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, task.corePos.x, task.corePos.y, task.corePos.z, 35, 5.0, 5.0, 5.0, 0.0);
-                world.spawnParticles(ParticleTypes.SONIC_BOOM, task.corePos.x, task.corePos.y, task.corePos.z, 16, 3.5, 3.5, 3.5, 0.0);
+                // BỎ ParticleTypes.FLASH theo yêu cầu! Thay bằng tia sét hồ quang và tàn nham rực cháy
+                world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, task.corePos.x, task.corePos.y, task.corePos.z, 80, 5.0, 5.0, 5.0, 0.35);
+                world.spawnParticles(ParticleTypes.LAVA, task.corePos.x, task.corePos.y, task.corePos.z, 60, 4.0, 4.0, 4.0, 0.45);
+                world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, task.corePos.x, task.corePos.y, task.corePos.z, 40, 6.0, 6.0, 6.0, 0.0);
+                world.spawnParticles(ParticleTypes.SONIC_BOOM, task.corePos.x, task.corePos.y, task.corePos.z, 18, 4.0, 4.0, 4.0, 0.0);
                 world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.65f, 0.15f), 3.8f),
                         task.corePos.x, task.corePos.y, task.corePos.z, 300, 12.0, 12.0, 12.0, 0.9);
 
@@ -581,6 +593,17 @@ public class SupernovaManager {
             // GIAI ĐOẠN 3: AFTERMATH, SÓNG THẦN ĐẤT ĐÁ CUỘN TRẢI DÀI (Ticks 341..500)
             // =========================================================================
             else if (task.ageTicks > DETONATION_TICK) {
+                // Rung chấn mặt đất cuồn cuộn kéo dài sau đại nổ (Ticks 341..368)
+                if (task.ageTicks <= DETONATION_TICK + 28 && task.ageTicks % 4 == 0) {
+                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 160.0)) {
+                        ServerPlayNetworking.send(p, new CinematicFxPayload(
+                                CinematicFxPayload.EVENT_TRAUMA_SHAKE,
+                                task.corePos.x, task.corePos.y, task.corePos.z,
+                                0.75f, 16
+                        ));
+                    }
+                }
+
                 // Tại Tick 355: Dọn dẹp các khối hiển thị văng sau khi hoàn tất animation siêu thanh
                 if (task.ageTicks == 355) {
                     for (BlockPos pos : task.blastFlingPositions) {

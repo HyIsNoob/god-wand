@@ -322,22 +322,40 @@ public class RatioCollapseManager {
 
             // =========================================================================
             // KHỐI CẦU NĂNG LƯỢNG ĐỎ RỰC (Pure Crimson Ruby Energy Core Ticks 1..134)
-            // Tuyệt đối không dùng Flame/Lava màu cam, thuần bụi đỏ huyết và tia chớp ruby!
+            // Thu nhỏ tinh gọn, đậm đặc, kèm hiệu ứng hút vật chất & năng lượng vào tâm
             // =========================================================================
             if (task.ageTicks <= 134) {
-                double coreR = task.boulderRadius * 0.72;
+                double coreR = Math.max(0.38, task.boulderRadius * 0.26); // Khối cầu nhỏ lại theo yêu cầu!
                 for (int f = 0; f < 3; f++) {
                     double ang = world.random.nextDouble() * Math.PI * 2.0;
                     double elev = (world.random.nextDouble() - 0.5) * Math.PI;
                     double fx = task.meteorCore.x + Math.cos(elev) * Math.cos(ang) * coreR;
                     double fy = task.meteorCore.y + Math.sin(elev) * coreR;
                     double fz = task.meteorCore.z + Math.cos(elev) * Math.sin(ang) * coreR;
-                    world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.02f, 0.05f), 1.8f),
-                            fx, fy, fz, 1, 0, 0.02, 0, 0.05);
+                    world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.05f, 0.12f), 1.6f),
+                            fx, fy, fz, 1, 0, 0.02, 0, 0.04);
                     if (f % 2 == 0) {
-                        world.spawnParticles(new DustParticleEffect(new Vector3f(0.85f, 0.0f, 0.12f), 1.5f),
-                                fx, fy, fz, 1, 0, 0.01, 0, 0.03);
-                        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, fx, fy, fz, 1, 0.02, 0.02, 0.02, 0.02);
+                        world.spawnParticles(new DustParticleEffect(new Vector3f(0.90f, 0.0f, 0.18f), 1.3f),
+                                fx, fy, fz, 1, 0, 0.01, 0, 0.02);
+                        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, fx, fy, fz, 1, 0.01, 0.01, 0.01, 0.02);
+                    }
+                }
+
+                // HIỆU ỨNG HÚT VẬT CHẤT & NĂNG LƯỢNG VÀO BÊN TRONG LÕI
+                for (int s = 0; s < 4; s++) {
+                    double spawnDist = 2.8 + world.random.nextDouble() * 4.5;
+                    double sTheta = world.random.nextDouble() * Math.PI * 2.0;
+                    double sPhi = (world.random.nextDouble() - 0.5) * Math.PI;
+                    double sx = task.meteorCore.x + Math.cos(sPhi) * Math.cos(sTheta) * spawnDist;
+                    double sy = task.meteorCore.y + Math.sin(sPhi) * spawnDist;
+                    double sz = task.meteorCore.z + Math.cos(sPhi) * Math.sin(sTheta) * spawnDist;
+
+                    Vec3d toCenter = task.meteorCore.subtract(sx, sy, sz).normalize().multiply(0.40);
+                    world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.10f, 0.22f), 1.2f),
+                            sx, sy, sz, 0, toCenter.x, toCenter.y, toCenter.z, 0.40);
+                    if (s % 2 == 0) {
+                        world.spawnParticles(ParticleTypes.REVERSE_PORTAL,
+                                sx, sy, sz, 1, toCenter.x * 0.35, toCenter.y * 0.35, toCenter.z * 0.35, 0.06);
                     }
                 }
             }
@@ -360,6 +378,7 @@ public class RatioCollapseManager {
                         BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
                         if (display == null || !display.isAlive()) continue;
 
+                        int idx = task.blockIndexMap.getOrDefault(pos, 0);
                         double initAngle = task.initialOrbitAngle.getOrDefault(pos, 0.0);
                         double initRad = task.initialOrbitRadius.getOrDefault(pos, 5.0);
                         double hoverY = task.hoverHeightOffset.getOrDefault(pos, 0.0);
@@ -379,6 +398,26 @@ public class RatioCollapseManager {
                         display.setStartInterpolation(0);
                         display.setInterpolationDuration(2);
                         display.setTransformation(SpatialMath.createPivotTransform(curDisp, rot, 1.0f));
+
+                        // Sợi dây năng lượng siêu nhỏ điều khiển khối đá bay lên (Mana Control Filaments)
+                        if (idx % Math.max(1, totalBlocks / 14) == 0) {
+                            Vec3d blockWorld = Vec3d.ofCenter(pos).add(curDisp);
+                            Vec3d thread = blockWorld.subtract(task.meteorCore);
+                            double dLen = thread.length();
+                            if (dLen > 0.8) {
+                                int steps = Math.min(8, Math.max(3, (int) (dLen * 1.2)));
+                                for (int st = 1; st < steps; st++) {
+                                    double fr = (double) st / steps;
+                                    world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.22f, 0.38f), 0.35f),
+                                            task.meteorCore.x + thread.x * fr,
+                                            task.meteorCore.y + thread.y * fr,
+                                            task.meteorCore.z + thread.z * fr,
+                                            1, 0, 0, 0, 0.0);
+                                }
+                                world.spawnParticles(ParticleTypes.ELECTRIC_SPARK,
+                                        blockWorld.x, blockWorld.y, blockWorld.z, 1, 0.01, 0.01, 0.01, 0.01);
+                            }
+                        }
                     }
 
                     if (task.ageTicks % 6 == 0) {
@@ -436,6 +475,26 @@ public class RatioCollapseManager {
                         display.setStartInterpolation(0);
                         display.setInterpolationDuration(2);
                         display.setTransformation(SpatialMath.createPivotTransform(finalDisp, drillRot, 1.0f));
+
+                        // Sợi dây năng lượng siêu nhỏ dệt và kéo khối đá khớp vào rãnh mũi khoan
+                        if (idx % Math.max(1, totalBlocks / 14) == 0) {
+                            Vec3d blockWorld = task.meteorCore.add(localOff);
+                            Vec3d thread = blockWorld.subtract(task.meteorCore);
+                            double dLen = thread.length();
+                            if (dLen > 0.8) {
+                                int steps = Math.min(8, Math.max(3, (int) (dLen * 1.2)));
+                                for (int st = 1; st < steps; st++) {
+                                    double fr = (double) st / steps;
+                                    world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.22f, 0.38f), 0.35f),
+                                            task.meteorCore.x + thread.x * fr,
+                                            task.meteorCore.y + thread.y * fr,
+                                            task.meteorCore.z + thread.z * fr,
+                                            1, 0, 0, 0, 0.0);
+                                }
+                                world.spawnParticles(ParticleTypes.ELECTRIC_SPARK,
+                                        blockWorld.x, blockWorld.y, blockWorld.z, 1, 0.01, 0.01, 0.01, 0.01);
+                            }
+                        }
                     }
                 }
 
