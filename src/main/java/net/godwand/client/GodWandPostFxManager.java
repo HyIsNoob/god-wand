@@ -189,14 +189,20 @@ public class GodWandPostFxManager {
                 lensingPower = 0.0f;
             }
             case ImpactFxPayload.TYPE_SEISMIC_SLAM -> {
-                // Chiêu 3: Ground Seismic Slam (Mũi khoan ma đạn cắm xuống)
-                // Hoàn toàn bỏ các filter nhòe màn hình (zoom blur, distortion, retina burn, impact frame)
-                impactFrame = 0.0f;
+                // Chiêu 3: Ground Seismic Slam (Mũi khoan ma đạn cắm xuống đất)
+                // Anime Impact Frame 12 ticks sắc nét chuẩn phong cách Chiêu 2 (mỗi frame 3 ticks rõ nét)
+                if (tickIdx < 12) {
+                    impactFrame = 1.0f - ((float) tickIdx / 12.0f);
+                    int[] slamModes = {2, 2, 2, 0, 0, 0, 33, 33, 33, 2, 2, 2};
+                    impactMode = slamModes[tickIdx];
+                } else {
+                    impactFrame = 0.0f;
+                }
                 shockwaveRadius = (float) Math.pow(progress, 0.45) * 1.6f;
                 distortionPower = 0.0f; // Bỏ méo màn hình
-                chromaticAmount = 0.0f;
+                chromaticAmount = 0.025f * baseIntensity * (1.0f - progress);
                 zoomBlur = 0.0f; // Bỏ nhòe màn hình
-                retinaBurn = 0.0f;
+                retinaBurn = Math.max(0.0f, 0.85f * baseIntensity * (1.0f - progress * 2.0f));
                 coreRadius = 0.0f; // Tuyệt đối không có hố đen
                 lensingPower = 0.0f;
             }
