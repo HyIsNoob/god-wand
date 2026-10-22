@@ -2,6 +2,7 @@ package net.godwand.skill;
 
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.godwand.network.CinematicFxPayload;
 import net.godwand.network.ImpactFxPayload;
 import net.godwand.spatial.DisplacedBlockRecord;
 import net.godwand.spatial.SpatialDisplacementManager;
@@ -284,6 +285,17 @@ public class RatioCollapseManager {
                     world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.15f, 0.15f), 1.6f),
                             meteorCore.x, meteorCore.y, meteorCore.z, 6, 1.5, 1.5, 1.5, 0.1);
 
+                    if (task.ageTicks == 59) {
+                        CinematicFxPayload focusPayload = new CinematicFxPayload(
+                                CinematicFxPayload.EVENT_METEOR_FOCUS,
+                                meteorCore.x, meteorCore.y, meteorCore.z,
+                                0.88f, 10
+                        );
+                        for (ServerPlayerEntity p : PlayerLookup.around(world, meteorCore, 96.0)) {
+                            ServerPlayNetworking.send(p, focusPayload);
+                        }
+                    }
+
                     if (task.ageTicks == 60) {
                         world.playSound(null, meteorCore.x, meteorCore.y, meteorCore.z,
                                 SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.BLOCKS, 3.5f, 0.65f);
@@ -364,13 +376,19 @@ public class RatioCollapseManager {
                         e.velocityModified = true;
                     }
 
-                    // Shader Anime Impact Frame
+                    // Shader Anime Impact Frame & Cinematic Camera Shake
                     ImpactFxPayload slamPayload = new ImpactFxPayload(
                             task.center.getX() + 0.5, task.center.getY() + 0.5, task.center.getZ() + 0.5,
                             ImpactFxPayload.TYPE_DETONATION, 18, 1.8f
                     );
+                    CinematicFxPayload slamCinematic = new CinematicFxPayload(
+                            CinematicFxPayload.EVENT_METEOR_SLAM,
+                            task.center.getX() + 0.5, task.center.getY() + 0.5, task.center.getZ() + 0.5,
+                            0.85f, 22
+                    );
                     for (ServerPlayerEntity p : PlayerLookup.around(world, task.center.toCenterPos(), 96.0)) {
                         ServerPlayNetworking.send(p, slamPayload);
+                        ServerPlayNetworking.send(p, slamCinematic);
                     }
                 }
             }

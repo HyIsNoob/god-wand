@@ -2,6 +2,7 @@ package net.godwand.skill;
 
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.godwand.network.CinematicFxPayload;
 import net.godwand.network.ImpactFxPayload;
 import net.godwand.spatial.DisplacedBlockRecord;
 import net.godwand.spatial.SpatialDisplacementManager;
@@ -242,8 +243,14 @@ public class ShockwaveSlicer {
                 center.getX() + 0.5, center.getY() + 0.5, center.getZ() + 0.5,
                 ImpactFxPayload.TYPE_DETONATION, 15, (float) Math.max(1.0, maxRadius / 10.0)
         );
+        CinematicFxPayload detCinematic = new CinematicFxPayload(
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE,
+                center.getX() + 0.5, center.getY() + 0.5, center.getZ() + 0.5,
+                0.65f, 16
+        );
         for (ServerPlayerEntity p : PlayerLookup.around(world, center.toCenterPos(), 96.0)) {
             ServerPlayNetworking.send(p, detPayload);
+            ServerPlayNetworking.send(p, detCinematic);
         }
 
         ACTIVE_TASKS.add(task);

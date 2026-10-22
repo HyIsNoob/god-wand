@@ -5,6 +5,10 @@
   "mixins": [
     "FlowableFluidMixin"
   ],
+  "client": [
+    "GameRendererMixin",
+    "SoundSystemMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

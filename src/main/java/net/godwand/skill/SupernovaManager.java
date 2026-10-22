@@ -2,6 +2,7 @@ package net.godwand.skill;
 
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.godwand.network.CinematicFxPayload;
 import net.godwand.network.ImpactFxPayload;
 import net.godwand.spatial.DisplacedBlockRecord;
 import net.godwand.spatial.SpatialDisplacementManager;
@@ -355,6 +356,28 @@ public class SupernovaManager {
             // GIAI ĐOẠN 3: SỤP ĐỔ HẤP DẪN VÀO TÂM LỖ ĐEN (Ticks 151..185 / 7.5s - 9.25s)
             // =========================================================================
             else if (task.ageTicks <= 185) {
+                if (task.ageTicks == 151) {
+                    CinematicFxPayload compressCinematic = new CinematicFxPayload(
+                            CinematicFxPayload.EVENT_SUPERNOVA_COMPRESS,
+                            task.corePos.x, task.corePos.y, task.corePos.z,
+                            0.65f, 35
+                    );
+                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 128.0)) {
+                        ServerPlayNetworking.send(p, compressCinematic);
+                    }
+                }
+
+                if (task.ageTicks == 176) {
+                    CinematicFxPayload silencePayload = new CinematicFxPayload(
+                            CinematicFxPayload.EVENT_VACUUM_SILENCE,
+                            task.corePos.x, task.corePos.y, task.corePos.z,
+                            1.0f, 10
+                    );
+                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 128.0)) {
+                        ServerPlayNetworking.send(p, silencePayload);
+                    }
+                }
+
                 float shrinkProgress = (task.ageTicks - 150) / 35.0f;
                 float radiusScale = 1.0f - (shrinkProgress * 0.88f); // Bán kính co rút mạnh từ 1.0 về 0.12!
                 task.swirlAngle += 0.25f;
@@ -411,13 +434,19 @@ public class SupernovaManager {
                         SpatialDisplacementManager.untrackEntity(task.lowerBeamUuid);
                     }
 
-                    // Kích hoạt Shader Siêu Tân Tinh
+                    // Kích hoạt Shader Siêu Tân Tinh & Đại Rung Chấn Điện Ảnh
                     ImpactFxPayload novaPayload = new ImpactFxPayload(
                             task.corePos.x, task.corePos.y, task.corePos.z,
                             ImpactFxPayload.TYPE_SUPERNOVA, 28, 2.2f
                     );
+                    CinematicFxPayload burstCinematic = new CinematicFxPayload(
+                            CinematicFxPayload.EVENT_SUPERNOVA_BURST,
+                            task.corePos.x, task.corePos.y, task.corePos.z,
+                            1.0f, 35
+                    );
                     for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 128.0)) {
                         ServerPlayNetworking.send(p, novaPayload);
+                        ServerPlayNetworking.send(p, burstCinematic);
                     }
 
                     // Âm thanh tận thế

@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.godwand.GodWandMod;
+import net.godwand.network.CinematicFxPayload;
 import net.godwand.network.ImpactFxPayload;
 
 public class GodWandClientMod implements ClientModInitializer {
@@ -24,14 +25,27 @@ public class GodWandClientMod implements ClientModInitializer {
             });
         });
 
+        // Register S2C Cinematic FX receiver (Trauma Shake, Dynamic FOV Zoom, Vacuum Silence)
+        ClientPlayNetworking.registerGlobalReceiver(CinematicFxPayload.ID, (payload, context) -> {
+            context.client().execute(() -> {
+                GodWandCinematicEngine.onCinematicEvent(payload);
+            });
+        });
+
         // Register Post-Processing Shader Render Hook (renders right after translucent pass)
         WorldRenderEvents.AFTER_TRANSLUCENT.register(GodWandPostFxManager::onWorldRender);
 
-        // Register Client Tick for Shader Animation Progress
-        ClientTickEvents.END_CLIENT_TICK.register(client -> GodWandPostFxManager.onClientTick());
+        // Register Client Tick for Shader & Cinematic Animation Progress
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            GodWandPostFxManager.onClientTick();
+            GodWandCinematicEngine.onClientTick();
+        });
 
         // Cleanup on Client Stopping
-        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> GodWandPostFxManager.reset());
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            GodWandPostFxManager.reset();
+            GodWandCinematicEngine.reset();
+        });
     }
 }
 

@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.godwand.entity.ArcaneOrbEntity;
 import net.godwand.item.GodWandItem;
+import net.godwand.network.CinematicFxPayload;
 import net.godwand.network.ImpactFxPayload;
 import net.godwand.skill.RatioCollapseManager;
 import net.godwand.skill.ShockwaveSlicer;
@@ -52,6 +53,7 @@ public class GodWandMod implements ModInitializer {
         );
 
         PayloadTypeRegistry.playS2C().register(ImpactFxPayload.ID, ImpactFxPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(CinematicFxPayload.ID, CinematicFxPayload.CODEC);
 
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.COMBAT).register(entries -> entries.add(GOD_WAND_ITEM));
 
