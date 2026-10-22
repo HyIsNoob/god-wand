@@ -2,6 +2,7 @@ package net.godwand.skill;
 
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.godwand.network.CinematicFxPayload;
 import net.godwand.network.ImpactFxPayload;
 import net.godwand.spatial.DisplacedBlockRecord;
 import net.godwand.spatial.SpatialDisplacementManager;
@@ -83,13 +84,47 @@ public class SpatialPathWalker {
             ACTIVE_PLAYERS.add(player.getUuid());
             player.sendMessage(Text.literal("§d§l[✦ SPATIAL PATH: §aACTIVE §d§l✦]"), true);
 
+            // Audio kích hoạt uy lực
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 1.8f, 1.4f);
+                    SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 2.2f, 1.35f);
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.PLAYERS, 2.5f, 1.1f);
-            world.spawnParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 1.0, player.getZ(), 20, 0.5, 0.5, 0.5, 0.15);
-            world.spawnParticles(new DustParticleEffect(new Vector3f(0.3f, 0.9f, 1.0f), 1.0f),
-                    player.getX(), player.getY() + 1.0, player.getZ(), 25, 0.5, 0.8, 0.5, 0.1);
+                    SoundEvents.BLOCK_RESPAWN_ANCHOR_SET_SPAWN, SoundCategory.PLAYERS, 2.0f, 1.4f);
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.PLAYERS, 2.5f, 1.2f);
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.PLAYERS, 1.2f, 1.8f);
+
+            // Rung chấn nhẹ tức thời (Subtle Camera Pop Shake)
+            CinematicFxPayload actShake = new CinematicFxPayload(
+                    CinematicFxPayload.EVENT_TRAUMA_SHAKE,
+                    player.getX(), player.getY(), player.getZ(),
+                    0.32f, 8
+            );
+            ServerPlayNetworking.send(player, actShake);
+
+            // Sóng năng lượng dưới chân bung tỏa ra từ người chơi (Concentric Ground Shockwave)
+            double feetY = player.getY() + 0.08;
+            world.spawnParticles(ParticleTypes.FLASH, player.getX(), feetY + 0.1, player.getZ(), 2, 0.05, 0.05, 0.05, 0.0);
+            world.spawnParticles(ParticleTypes.SONIC_BOOM, player.getX(), feetY + 0.15, player.getZ(), 1, 0, 0, 0, 0);
+
+            for (int step = 1; step <= 3; step++) {
+                double r = step * 1.25;
+                int points = 16 * step;
+                for (int i = 0; i < points; i++) {
+                    double ang = (Math.PI * 2.0 * i) / points;
+                    double px = player.getX() + Math.cos(ang) * r;
+                    double pz = player.getZ() + Math.sin(ang) * r;
+                    world.spawnParticles(new DustParticleEffect(new Vector3f(0.0f, 0.95f, 1.0f), 1.2f),
+                            px, feetY, pz, 1, Math.cos(ang) * 0.16, 0.02, Math.sin(ang) * 0.16, 0.08);
+                    if (i % 2 == 0) {
+                        world.spawnParticles(new DustParticleEffect(new Vector3f(0.70f, 0.25f, 1.0f), 1.2f),
+                                px, feetY, pz, 1, Math.cos(ang) * 0.14, 0.03, Math.sin(ang) * 0.14, 0.06);
+                        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, px, feetY + 0.05, pz, 1, Math.cos(ang) * 0.08, 0.02, Math.sin(ang) * 0.08, 0.04);
+                    }
+                }
+            }
+
+            world.spawnParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 0.8, player.getZ(), 25, 0.6, 0.6, 0.6, 0.15);
         }
     }
 
@@ -227,13 +262,37 @@ public class SpatialPathWalker {
             }
         }
 
-        // Vòng hạt ma pháp xoay quanh chân người chơi mỗi 2 ticks
+        // Vòng ma pháp & sóng năng lượng huyền ảo trong bán kính ảnh hưởng mỗi 2 ticks
         if (player.age % 2 == 0) {
-            double angle = (player.age * 0.25) % (Math.PI * 2.0);
-            double rx = Math.cos(angle) * 2.1;
-            double rz = Math.sin(angle) * 2.1;
-            world.spawnParticles(ParticleTypes.END_ROD, playerPos.x + rx, playerPos.y + 0.2, playerPos.z + rz, 1, 0, 0.05, 0, 0.0);
-            world.spawnParticles(ParticleTypes.ENCHANT, playerPos.x - rx, playerPos.y + 0.3, playerPos.z - rz, 2, 0.1, 0.1, 0.1, 0.05);
+            double baseFeetY = floorY + 0.05;
+
+            // 1. Vòng tròn ma pháp chân người chơi (Vòng trong R=1.3m xoay thuận, Vòng ngoài R=2.5m xoay ngược)
+            double t = player.age * 0.18;
+            for (int i = 0; i < 6; i++) {
+                double aIn = t + (i * Math.PI / 3.0);
+                double rxIn = Math.cos(aIn) * 1.35;
+                double rzIn = Math.sin(aIn) * 1.35;
+                world.spawnParticles(new DustParticleEffect(new Vector3f(0.0f, 0.95f, 1.0f), 0.9f),
+                        playerPos.x + rxIn, baseFeetY, playerPos.z + rzIn, 1, 0, 0.01, 0, 0);
+
+                double aOut = -t * 0.85 + (i * Math.PI / 3.0);
+                double rxOut = Math.cos(aOut) * 2.5;
+                double rzOut = Math.sin(aOut) * 2.5;
+                world.spawnParticles(new DustParticleEffect(new Vector3f(0.72f, 0.28f, 1.0f), 0.95f),
+                        playerPos.x + rxOut, baseFeetY, playerPos.z + rzOut, 1, 0, 0.015, 0, 0);
+            }
+
+            // 2. Ký tự ma pháp cổ ngữ (Enchant & End Rod) bay lơ lửng trong bán kính ảnh hưởng
+            world.spawnParticles(ParticleTypes.ENCHANT,
+                    playerPos.x + (Math.random() - 0.5) * 3.5, baseFeetY + 0.15, playerPos.z + (Math.random() - 0.5) * 3.5,
+                    4, 0.1, 0.2, 0.1, 0.08);
+
+            // 3. Tia dẫn hướng năng lượng gợn sóng về phía trước trên mặt đất
+            for (double d = 1.6; d <= forwardLead + 2.4; d += 1.4) {
+                double fx = playerPos.x + lookDirHoriz.x * d;
+                double fz = playerPos.z + lookDirHoriz.z * d;
+                world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, fx, baseFeetY + 0.04, fz, 1, 0, 0.01, 0, 0.02);
+            }
         }
     }
 }

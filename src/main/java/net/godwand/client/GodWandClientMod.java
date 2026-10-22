@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.godwand.GodWandMod;
 import net.godwand.network.CinematicFxPayload;
@@ -22,6 +23,9 @@ public class GodWandClientMod implements ClientModInitializer {
                         payload.x(), payload.y(), payload.z(),
                         payload.type(), payload.durationTicks(), payload.intensity()
                 );
+                if (payload.type() == ImpactFxPayload.TYPE_SUPERNOVA) {
+                    CustomImpactFrameOverlay.trigger(12);
+                }
             });
         });
 
@@ -32,6 +36,9 @@ public class GodWandClientMod implements ClientModInitializer {
             });
         });
 
+        // Register 2D Hand-drawn Anime Impact Frame Overlay
+        HudRenderCallback.EVENT.register(CustomImpactFrameOverlay::render);
+
         // Register Post-Processing Shader Render Hook (renders right after translucent pass)
         WorldRenderEvents.AFTER_TRANSLUCENT.register(GodWandPostFxManager::onWorldRender);
 
@@ -39,12 +46,14 @@ public class GodWandClientMod implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             GodWandPostFxManager.onClientTick();
             GodWandCinematicEngine.onClientTick();
+            CustomImpactFrameOverlay.onClientTick();
         });
 
         // Cleanup on Client Stopping
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             GodWandPostFxManager.reset();
             GodWandCinematicEngine.reset();
+            CustomImpactFrameOverlay.reset();
         });
     }
 }

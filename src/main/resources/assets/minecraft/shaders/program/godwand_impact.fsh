@@ -124,8 +124,9 @@ void main() {
 
         // =========================================================================
         // NHÁNH 1: CHIÊU 4 - ĐỘC QUYỀN HỐ ĐEN (FxType == 4.0: TYPE_BLACK_HOLE)
+        // Tuyệt đối chỉ chạy khi FxType đúng bằng 4.0, không lọt sang Chiêu 3 (FxType 6.0)
         // =========================================================================
-        if (FxType > 3.5 && inFront) {
+        if (FxType > 3.5 && FxType < 4.5 && inFront) {
             // 1. Lensing, Event Horizon & Einstein Ring chỉ hiện khi tâm Hố Đen không bị che
             if (!coreOccluded) {
                 vec2 lensDir = (dist > 0.0001) ? normalize(aspectDiff) : vec2(0.0);
@@ -273,28 +274,22 @@ void main() {
             }
         }
         // =========================================================================
-        // NHÁNH 4: CHIÊU 3 - KHỐI CẦU NĂNG LƯỢNG ĐỎ BỐC CHÁY (FxType == 6.0: TYPE_GRAVITY_CORE)
-        // Cầu lửa rực đỏ bốc cháy dữ dội, không hố đen, không bẻ cong không gian méo mó
+        // NHÁNH 4: CHIÊU 3 - KHỐI CẦU NĂNG LƯỢNG MA PHÁP (FxType == 6.0: TYPE_GRAVITY_CORE)
+        // Chuẩn giống Chiêu 2 theo yêu cầu: Cầu Arcane Plasma rực sáng với tia chớp điện quanh khối
+        // Tuyệt đối không hố đen, không bên trong Event Horizon, không bẻ cong méo màn hình!
         // =========================================================================
         else if (FxType > 5.5 && inFront && !coreOccluded && CoreRadius > 0.05) {
             float dSphere = impactParam;
-            if (dSphere < CoreRadius * 2.0 && sceneDist > (tBH - CoreRadius)) {
-                // Tuyệt đối không dùng lensOffset bẻ cong méo màn hình kiểu hố đen!
-                float coreGrad = smoothstep(CoreRadius * 1.8, 0.0, dSphere);
+            if (dSphere < CoreRadius * 1.55 && sceneDist > (tBH - CoreRadius)) {
+                float coreGrad = smoothstep(CoreRadius * 1.35, 0.0, dSphere);
+                float electric = 0.90 + 0.10 * sin(dSphere * 18.0 - GTime * 14.0 + hash12(texCoord * 120.0) * 2.0);
 
-                // Sóng lửa cuộn trào bốc cháy chuyển động liên tục
-                float flameNoise1 = sin(dSphere * 16.0 - GTime * 32.0 + hash12(texCoord * 90.0) * 3.0);
-                float flameNoise2 = cos(dSphere * 24.0 + GTime * 26.0);
-                float fireWave = 0.85 + 0.15 * (flameNoise1 * 0.6 + flameNoise2 * 0.4);
+                // Màu Arcane Plasma rực sáng phong cách Chiêu 2
+                vec3 plasmaCore = vec3(0.98, 0.98, 1.0) * exp(-dSphere / (CoreRadius * 0.38)) * 3.8;
+                vec3 plasmaCorona = vec3(0.12, 0.88, 1.0) * exp(-dSphere / (CoreRadius * 0.82)) * 2.4;
+                vec3 plasmaAura = vec3(0.65, 0.28, 1.0) * coreGrad * electric * 1.3;
 
-                // Màu sắc cầu lửa đỏ bốc cháy:
-                // Tâm trắng nóng cháy rực -> Lửa đỏ cam -> Vành hào quang đỏ thẫm rực lửa
-                vec3 fireCore = vec3(1.0, 0.85, 0.45) * exp(-dSphere / (CoreRadius * 0.35)) * 4.2;
-                vec3 fireCorona = vec3(1.0, 0.18, 0.02) * exp(-dSphere / (CoreRadius * 0.75)) * 3.6;
-                vec3 fireAura = vec3(0.85, 0.05, 0.01) * coreGrad * fireWave * 2.2;
-                vec3 fireSparks = vec3(1.0, 0.45, 0.05) * pow(clamp(flameNoise1, 0.0, 1.0), 3.0) * 1.5;
-
-                addGlow += (fireCore + fireCorona + fireAura + fireSparks) * ImpactIntensity;
+                addGlow += (plasmaCore + plasmaCorona + plasmaAura) * min(ImpactIntensity * 1.2, 1.6);
             }
         }
     }

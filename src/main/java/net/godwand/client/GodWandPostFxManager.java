@@ -182,32 +182,24 @@ public class GodWandPostFxManager {
                 chromaticAmount = 0.030f * baseIntensity * (1.0f - progress);
             }
             case ImpactFxPayload.TYPE_COLLAPSE -> {
-                // Spatial Path Collapse: Snappy, sharp tactical burst
-                if (progress < 0.35f) {
-                    impactFrame = 0.85f * (1.0f - (progress / 0.35f));
-                    impactMode = (tickIdx % 2 == 0) ? 3.0f : 0.0f;
-                }
+                // Spatial Path Collapse: Hoàn toàn không dùng filter impact frame hay méo hình
+                impactFrame = 0.0f;
                 shockwaveRadius = progress * 1.1f;
-                distortionPower = 0.022f * baseIntensity * (1.0f - progress);
-                chromaticAmount = 0.012f * baseIntensity * (1.0f - progress);
+                distortionPower = 0.0f;
+                chromaticAmount = 0.0f;
                 zoomBlur = 0.0f;
                 coreRadius = 0.0f; // Tuyệt đối không vẽ hố đen
                 lensingPower = 0.0f;
             }
             case ImpactFxPayload.TYPE_SEISMIC_SLAM -> {
-                // Chiêu 3: Ground Seismic Slam (Thiên thạch giáng sập)
-                // 2-3 frame Anime Impact Frame sắc lạnh trắng đen
-                if (tickIdx < 4) {
-                    impactFrame = 1.0f - ((float) tickIdx / 4.0f);
-                    int[] slamModes = {0, 1, 33, 0};
-                    impactMode = slamModes[tickIdx];
-                }
-                // Sóng xung kích mặt đất lan rộng nhanh
+                // Chiêu 3: Ground Seismic Slam (Mũi khoan ma đạn cắm xuống)
+                // Hoàn toàn bỏ các filter nhòe màn hình (zoom blur, distortion, retina burn, impact frame)
+                impactFrame = 0.0f;
                 shockwaveRadius = (float) Math.pow(progress, 0.45) * 1.6f;
-                distortionPower = 0.065f * baseIntensity * (1.0f - progress);
-                chromaticAmount = 0.025f * baseIntensity * (1.0f - progress);
-                zoomBlur = 0.045f * baseIntensity * (1.0f - progress);
-                retinaBurn = Math.max(0.0f, 0.45f * baseIntensity * (1.0f - progress * 1.5f));
+                distortionPower = 0.0f; // Bỏ méo màn hình
+                chromaticAmount = 0.0f;
+                zoomBlur = 0.0f; // Bỏ nhòe màn hình
+                retinaBurn = 0.0f;
                 coreRadius = 0.0f; // Tuyệt đối không có hố đen
                 lensingPower = 0.0f;
             }

@@ -156,7 +156,20 @@ public class RatioCollapseManager {
                               int craterRadius, int craterDepth, float damageMult) {
         RatioCollapseTask task = new RatioCollapseTask(world, player, center, radius, boulderRadius, maxBlocks, craterRadius, craterDepth, damageMult);
 
-        // 1. Kích hoạt Quả Cầu Năng Lượng Trọng Lực trên không (Đổi màu từ Vàng Cam -> Đỏ Nhiệt Hạch ở pha Mũi Khoan)
+        // 1. Camera Shake rung chấn màn hình khi vừa xuất chiêu (Trauma Shake on Cast)
+        CinematicFxPayload castShake = new CinematicFxPayload(
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE,
+                player.getX(), player.getY(), player.getZ(),
+                Math.min(1.0f, 0.65f * damageMult), 14
+        );
+        ServerPlayNetworking.send(player, castShake);
+        for (ServerPlayerEntity p : PlayerLookup.around(world, player.getPos(), 48.0)) {
+            if (p != player) {
+                ServerPlayNetworking.send(p, castShake);
+            }
+        }
+
+        // 2. Kích hoạt Quả Cầu Năng Lượng Ma Pháp trên không (Arcane Energy Core tương tự Chiêu 2)
         ImpactFxPayload gravityCorePayload = new ImpactFxPayload(
                 task.meteorCore.x, task.meteorCore.y, task.meteorCore.z,
                 ImpactFxPayload.TYPE_GRAVITY_CORE, 135, (float) (boulderRadius / 2.5)
