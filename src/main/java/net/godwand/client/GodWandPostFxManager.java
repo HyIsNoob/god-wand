@@ -118,15 +118,24 @@ public class GodWandPostFxManager {
                     impactMode = detModes[tickIdx];
                 }
 
-                // Ticks 0..15: Sóng xung kích bùng nổ, quang sai và lóa võng mạc
-                if (tickIdx < 16) {
-                    float shockProg = (float) tickIdx / 16.0f;
-                    shockwaveRadius = (float) Math.pow(shockProg, 0.65) * 1.35f;
+                // Ticks 0..22: Sóng năng lượng bung tỏa kiểu Orbital Railgun lúc bắn
+                if (tickIdx < 22) {
+                    float shockProg = (float) tickIdx / 22.0f;
+                    shockwaveRadius = (float) Math.pow(shockProg, 0.65) * 1.55f;
                     float distCurve = (float) Math.sin(shockProg * Math.PI);
-                    distortionPower = 0.048f * baseIntensity * distCurve;
-                    chromaticAmount = 0.024f * baseIntensity * (1.0f - shockProg);
-                    zoomBlur = 0.065f * baseIntensity * (1.0f - shockProg);
-                    retinaBurn = Math.max(0.0f, 0.65f * baseIntensity * (1.0f - shockProg * 1.4f));
+                    distortionPower = 0.052f * baseIntensity * distCurve;
+                    chromaticAmount = 0.028f * baseIntensity * (1.0f - shockProg);
+                    zoomBlur = 0.070f * baseIntensity * (1.0f - shockProg);
+                    retinaBurn = Math.max(0.0f, 0.75f * baseIntensity * (1.0f - shockProg * 1.3f));
+                }
+                // Ticks 106..131: Sóng năng lượng co rút thu vô kiểu Orbital Railgun lúc hồi phục
+                else if (tickIdx >= 106 && tickIdx <= 131) {
+                    float inProg = (float) (tickIdx - 106) / 25.0f; // 0.0 -> 1.0
+                    shockwaveRadius = (1.0f - (float) Math.pow(inProg, 1.35)) * 1.55f; // Thu nhỏ từ 1.55m về 0.0m
+                    float inCurve = (float) Math.sin(inProg * Math.PI);
+                    distortionPower = -0.045f * baseIntensity * inCurve; // Hút ngược vào tâm
+                    chromaticAmount = 0.030f * inProg * baseIntensity;
+                    zoomBlur = -0.045f * inProg * baseIntensity;
                 }
 
                 // 3D Singularity Gravitational Lensing & Lõi năng lượng duy trì:
@@ -135,15 +144,14 @@ public class GodWandPostFxManager {
                 float activeCoreR = Math.max(0.35f, 0.72f + pulse);
                 float activeLensing = 1.35f + pulse * 1.4f;
 
-                if (progress < 0.94f) {
+                if (progress < 0.80f) {
                     coreRadius = activeCoreR;
                     lensingPower = activeLensing;
                 } else {
-                    // Ticks 106..112: Hút ngược chân không sụp đổ lõi
-                    float snapProg = (progress - 0.94f) / 0.06f;
+                    // Ticks 106..131: Hút ngược chân không sụp đổ lõi
+                    float snapProg = MathHelper.clamp((progress - 0.80f) / 0.20f, 0.0f, 1.0f);
                     coreRadius = MathHelper.lerp(snapProg, activeCoreR, 0.0f);
                     lensingPower = MathHelper.lerp(snapProg, activeLensing, 0.0f);
-                    zoomBlur = -0.05f * snapProg;
                 }
             }
             case ImpactFxPayload.TYPE_IMPLOSION -> {

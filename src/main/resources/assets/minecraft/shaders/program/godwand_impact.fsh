@@ -302,14 +302,26 @@ void main() {
     }
 
     // =========================================================================
-    // 1. SÓNG XUNG KÍCH BẺ CONG KHÚC XẠ (Shockwave Refraction Ring)
+    // 1. SÓNG XUNG KÍCH PHÁO ĐIỆN TỪ QUỸ ĐẠO (Orbital Railgun Shockwave Rings)
+    // Sóng năng lượng đa tầng: bung tỏa lúc bắn và co rút lúc thu về
     // =========================================================================
-    float waveThickness = 0.068;
+    float waveThickness = 0.042;
     float deltaDist = dist - ShockwaveRadius;
-    float wave = exp(-sqr(deltaDist) / sqr(waveThickness));
+    float wave1 = exp(-sqr(deltaDist) / sqr(waveThickness));
+    float wave2 = exp(-sqr(deltaDist - 0.048) / sqr(waveThickness * 0.85)) * 0.55;
+    float wave3 = exp(-sqr(deltaDist + 0.048) / sqr(waveThickness * 0.85)) * 0.45;
+    float railgunWave = wave1 + wave2 + wave3;
+
     vec2 dir = (dist > 0.0001) ? normalize(aspectDiff) : vec2(0.0);
-    vec2 uvOffset = vec2(dir.x / Aspect, dir.y) * wave * DistortionPower;
+    vec2 uvOffset = vec2(dir.x / Aspect, dir.y) * railgunWave * DistortionPower;
     vec2 baseUV = clamp(texCoord - lensOffset + uvOffset, 0.001, 0.999);
+
+    // Vành đai Plasma Ion hóa phát quang kiểu Orbital Railgun (Cyan & Neon White)
+    if (ShockwaveRadius > 0.02 && abs(DistortionPower) > 0.002) {
+        vec3 railgunColor = mix(vec3(0.08, 0.92, 1.0), vec3(1.0, 1.0, 1.0), wave1 * 0.8);
+        float ringIntensity = clamp(abs(DistortionPower) * 24.0, 0.0, 2.2);
+        addGlow += railgunColor * (wave1 * 3.8 + wave2 * 1.8 + wave3 * 1.2) * ringIntensity;
+    }
 
     // =========================================================================
     // 2. RADIAL ZOOM BLUR (Hút / Đẩy đa tầng hướng tâm)

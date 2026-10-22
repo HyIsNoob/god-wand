@@ -220,7 +220,7 @@ public class ShockwaveSlicer {
 
         ImpactFxPayload detPayload = new ImpactFxPayload(
                 task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
-                ImpactFxPayload.TYPE_DETONATION, 112, (float) Math.max(1.0, maxRadius / 10.0)
+                ImpactFxPayload.TYPE_DETONATION, 132, (float) Math.max(1.0, maxRadius / 10.0)
         );
         CinematicFxPayload detCinematic = new CinematicFxPayload(
                 CinematicFxPayload.EVENT_TRAUMA_SHAKE,
@@ -303,6 +303,24 @@ public class ShockwaveSlicer {
                     float t = task.ageTicks / 22.0f;
                     double p = 1.0 - Math.pow(1.0 - t, 3.0);
                     updateBlockPositions(task, p, 2, false);
+
+                    // Sóng năng lượng bung tỏa kiểu Orbital Railgun phóng ra ngoài
+                    double outProg = task.ageTicks / 22.0;
+                    double shockOutR = 0.8 + Math.pow(outProg, 0.65) * (task.maxRadius * 1.35);
+                    int outPoints = 36;
+                    for (int pt = 0; pt < outPoints; pt++) {
+                        double ang = (pt / (double) outPoints) * Math.PI * 2.0;
+                        double px = task.orbCenter.x + Math.cos(ang) * shockOutR;
+                        double pz = task.orbCenter.z + Math.sin(ang) * shockOutR;
+                        double py = task.orbCenter.y;
+                        double vx = Math.cos(ang) * 0.45;
+                        double vz = Math.sin(ang) * 0.45;
+                        world.spawnParticles(new DustParticleEffect(new Vector3f(0.08f, 0.92f, 1.0f), 1.6f),
+                                px, py, pz, 1, vx, 0.05, vz, 0.15);
+                        if (pt % 4 == 0) {
+                            world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, px, py, pz, 1, vx, 0.1, vz, 0.05);
+                        }
+                    }
                 }
             }
 
@@ -321,6 +339,32 @@ public class ShockwaveSlicer {
             // PHA 3: THU HỒI KHỚP 1:1 THEO LỚP TỪ DƯỚI LÊN (Ticks 106..132)
             // =========================================================================
             else {
+                // Sóng năng lượng thu vô kiểu Orbital Railgun co rút mạnh về tâm (Ticks 106..130)
+                if (task.ageTicks >= 106 && task.ageTicks <= 130) {
+                    double inProg = (task.ageTicks - 106) / 24.0;
+                    double shockInR = Math.max(0.3, task.maxRadius * 1.35 * (1.0 - inProg * inProg));
+                    int inPoints = 36;
+                    for (int pt = 0; pt < inPoints; pt++) {
+                        double ang = (pt / (double) inPoints) * Math.PI * 2.0;
+                        double px = task.orbCenter.x + Math.cos(ang) * shockInR;
+                        double pz = task.orbCenter.z + Math.sin(ang) * shockInR;
+                        double py = task.orbCenter.y + Math.sin(ang * 4.0 + task.ageTicks * 0.5) * 0.25;
+
+                        double vx = -Math.cos(ang) * 0.60;
+                        double vy = (task.orbCenter.y - py) * 0.15;
+                        double vz = -Math.sin(ang) * 0.60;
+
+                        world.spawnParticles(new DustParticleEffect(new Vector3f(0.12f, 0.95f, 1.0f), 1.6f),
+                                px, py, pz, 1, vx, vy, vz, 0.12);
+                        if (pt % 4 == 0) {
+                            world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, px, py, pz, 1, vx * 0.5, vy, vz * 0.5, 0.06);
+                        }
+                    }
+                    if (task.ageTicks % 6 == 0) {
+                        world.spawnParticles(ParticleTypes.SONIC_BOOM, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z, 1, 0, 0, 0, 0);
+                    }
+                }
+
                 // Ticks 106..111: Nhích nhẹ lấy đà (+4%) từ ĐÚNG vị trí & góc xoay hiện tại (không reset góc xoay gây giật!)
                 if (task.ageTicks == 106) {
                     world.playSound(null, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
