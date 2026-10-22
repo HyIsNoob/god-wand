@@ -14,6 +14,8 @@ import net.minecraft.util.hit.HitResult;
  * Sci-Fi Anime Aiming Reticle & Lock-On Ground Zero Cursor for Cosmic Supernova (Chiêu 4).
  * Displays a high-tech crosshair bracket, real-time distance readout (up to 180m),
  * and target lock indicator when aiming at terrain.
+ * Automatically hides when the skill is used (on cooldown) to keep the screen clean,
+ * and reappears when cooldown completes.
  */
 public class SupernovaReticleOverlay {
 
@@ -33,6 +35,12 @@ public class SupernovaReticleOverlay {
         }
 
         if (activeStack == null) return;
+
+        // Khi sài xong (đang cooldown), ẩn hoàn toàn con trỏ lock cursor để đỡ che màn hình
+        // Nào cooldown xong thì hiện ra lại
+        if (client.player.getItemCooldownManager().isCoolingDown(activeStack.getItem())) {
+            return;
+        }
 
         // Bỏ qua nếu đang mở GUI khác (như inventory, chat, menu)
         if (client.currentScreen != null) return;
@@ -55,7 +63,6 @@ public class SupernovaReticleOverlay {
 
         // Màu sắc: Khóa mục tiêu (Đỏ rực neon 0xFFFF3344), Tầm xa (Cyan neon 0xFF55DDFF)
         int primaryColor = locked ? 0xFFFF3344 : 0xFF55DDFF;
-        int dimColor = locked ? 0x88FF3344 : 0x8855DDFF;
 
         int bracketSize = isCharging ? 14 : 18;
         int armLength = 5;
