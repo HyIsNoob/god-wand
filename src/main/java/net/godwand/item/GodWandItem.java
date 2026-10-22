@@ -221,7 +221,7 @@ public class GodWandItem extends Item {
             // KHI VẬN ĐỦ 140 TICKS (7 GIÂY) -> PHÁT ĐỘNG SIÊU TÂN TINH CẤP CALAMITY!
             if (chargeTicks >= 140) {
                 SupernovaManager.cast(player);
-                player.getItemCooldownManager().set(this, 260); // Cooldown 13s
+                player.getItemCooldownManager().set(this, 520); // Cooldown 26s bao trọn toàn bộ đại chiêu
                 player.clearActiveItem();
                 player.sendMessage(Text.literal("§4§l[☠ ĐẠI CHIÊU SIÊU TÂN TINH KHỞI ĐỘNG! ☠]"), true);
             }

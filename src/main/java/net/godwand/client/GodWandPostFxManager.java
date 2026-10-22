@@ -199,52 +199,55 @@ public class GodWandPostFxManager {
                 lensingPower = 0.0f;
             }
             case ImpactFxPayload.TYPE_SUPERNOVA -> {
-                // Cataclysmic Cosmic Supernova (Burst phase):
-                // Ticks 0..7: Chuỗi chuyển đổi 36 Anime Impact Frame liên tục:
-                // Isometric 30° Grid (35) -> Spectral Bands (34) -> Prism 7-Color Line-Art (33) -> Crimson (2) -> Six-Eyes Cyan (3) -> Stark Ink (0)
-                if (progress < 0.32f) {
-                    impactFrame = 1.0f - (progress / 0.32f);
+                // Cataclysmic Cosmic Supernova (Burst & Lingering Mushroom Aftermath - 140 ticks / 7.0s duration):
+                // Ticks 0..11 (progress < 0.08f): Chuỗi 36 Anime Impact Frame liên tục
+                if (progress < 0.08f) {
+                    impactFrame = 1.0f - (progress / 0.08f);
                     int[] novaModes = {35, 34, 33, 2, 3, 0, 1, 33};
                     impactMode = novaModes[Math.min(tickIdx, novaModes.length - 1)];
+                } else {
+                    impactFrame = 0.0f;
                 }
+
                 // Relativistic shockwave expands across the entire sky
-                shockwaveRadius = (float) Math.pow(progress, 0.52) * 1.75f;
+                shockwaveRadius = (float) Math.pow(progress, 0.42) * 2.8f;
                 float distCurve = (float) Math.sin(progress * Math.PI);
-                distortionPower = 0.085f * baseIntensity * distCurve;
-                chromaticAmount = 0.045f * baseIntensity * (1.0f - progress);
+                distortionPower = 0.085f * baseIntensity * distCurve * (1.0f - progress * 0.7f);
+                chromaticAmount = 0.055f * baseIntensity * (1.0f - progress);
 
-                // Cực đại Zoom Blur và Lưu ảnh võng mạc (Retina Burn)
-                zoomBlur = 0.11f * baseIntensity * (float) Math.sin(progress * Math.PI);
-                retinaBurn = Math.max(0.0f, 1.0f * baseIntensity * (1.0f - progress * 1.15f));
+                // Zoom Blur & Retina Burn: cực đại lúc nổ rồi tan dần mượt mà
+                zoomBlur = 0.12f * baseIntensity * (float) Math.sin(progress * Math.PI) * (1.0f - progress * 0.5f);
+                retinaBurn = Math.max(0.0f, 1.0f * baseIntensity * (1.0f - progress * 2.0f));
 
-                // Expanding Calamity Fireball Singularity phóng từ 1.5m lên 32.0m bao trùm toàn bộ bầu trời
-                coreRadius = MathHelper.lerp(progress, 1.5f, 32.0f);
-                lensingPower = (1.0f - progress) * 2.8f;
+                // Quả cầu lửa & đám mây nấm vũ trụ:
+                // Ticks 0..35 (progress 0..0.25): Bung nở cực nhanh từ 5.2m lên 38.0m
+                // Ticks 36..140 (progress 0.25..1.0): Duy trì kích thước khổng lồ 38m trong khi chuyển thành khói bụi & tan dần
+                float expandT = Math.min(1.0f, progress / 0.25f);
+                coreRadius = MathHelper.lerp((float) Math.sin(expandT * Math.PI * 0.5), 5.2f, 38.0f);
+                lensingPower = Math.max(0.0f, (1.0f - progress) * 2.5f);
+
+                // AFTERMATH: Không biến mất đột ngột! Cường độ mờ dần từ từ trong 140 ticks (7 giây)
+                impactIntensity = baseIntensity * (1.0f - (float) Math.pow(progress, 2.2));
             }
             case ImpactFxPayload.TYPE_BLACK_HOLE -> {
                 impactIntensity = 1.0f;
-                // Ticks 0..120 (progress 0.0 -> 0.645): Hố Đen to dần từ từ (0.6f -> 4.5f) đồng bộ với việc cuốn đất
-                if (progress < 0.645f) {
-                    float grow = progress / 0.645f;
-                    coreRadius = MathHelper.lerp((float) Math.pow(grow, 0.85), 0.6f, 4.5f);
-                    lensingPower = MathHelper.lerp(grow, 0.8f, 2.2f);
+                // Ticks 0..340 (progress 0.0 -> 0.944): Hố Đen to dần từ 1 chấm (0.15f) lên cực đại (5.2f)
+                // ĐƠN ĐIỆU LIÊN TỤC - TUYỆT ĐỐI KHÔNG CO RÚT HOẶC DAO ĐỘNG!
+                if (progress < 0.944f) {
+                    float grow = progress / 0.944f;
+                    // Đường cong nở mượt: lúc đầu nhỏ nở chậm, càng về sau càng nở to uy nghi
+                    coreRadius = MathHelper.lerp((float) Math.pow(grow, 0.92), 0.15f, 5.2f);
+                    lensingPower = MathHelper.lerp(grow, 0.4f, 3.2f);
                     shockwaveRadius = 0.0f;
                     distortionPower = 0.0f;
+                    zoomBlur = -0.015f * grow;
                 }
-                // Ticks 121..175 (progress 0.645 -> 0.94): Sụp đổ hấp dẫn, co rút từ 4.5f về 0.65f
-                else if (progress < 0.94f) {
-                    float collapseProg = (progress - 0.645f) / 0.295f;
-                    coreRadius = MathHelper.lerp(collapseProg, 4.5f, 0.65f);
-                    lensingPower = MathHelper.lerp(collapseProg, 2.2f, 4.5f);
-                    zoomBlur = -0.055f * collapseProg;
-                    distortionPower = -0.04f * collapseProg;
-                }
-                // Ticks 176..186 (progress 0.94 -> 1.0): Vacuum Silence & Co giật chân không
+                // Ticks 341..360 (progress 0.944 -> 1.0): Chân không im lặng (Vacuum Silence) & Tích tụ năng lượng cực hạn trước nổ
                 else {
-                    coreRadius = 0.55f + 0.08f * (float) Math.sin(gTime * 60.0);
-                    lensingPower = 5.0f;
+                    coreRadius = 5.2f + 0.05f * (float) Math.sin(gTime * 40.0);
+                    lensingPower = 5.5f;
                     zoomBlur = -0.075f;
-                    distortionPower = -0.06f;
+                    distortionPower = -0.05f;
                 }
             }
         }

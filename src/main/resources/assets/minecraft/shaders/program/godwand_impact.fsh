@@ -186,25 +186,59 @@ void main() {
         }
         // =========================================================================
         // NHÁNH 2: CHIÊU 4 - ĐẠI VỤ NỔ SIÊU TÂN TINH (FxType == 3.0: TYPE_SUPERNOVA)
+        // Vụ nổ siêu quy mô: Quả cầu lửa bức xạ vật đen + Cột năng lượng nấm (Mushroom Stem)
         // =========================================================================
         else if (FxType > 2.5 && FxType < 3.5 && inFront) {
             if (CoreRadius > 0.5) {
                 float dSphere = impactParam;
-                float outerCorona = CoreRadius * 1.45;
+                float outerCorona = CoreRadius * 1.5;
+
+                // 1. Quả cầu lửa trung tâm (Explosion Fireball)
                 if (dSphere < outerCorona && sceneDist > (tBH - outerCorona)) {
                     float normD = dSphere / CoreRadius;
                     float coreMask = saturate(1.0 - normD);
-                    float coronaFalloff = exp(-max(0.0, dSphere - CoreRadius * 0.7) / (CoreRadius * 0.35));
+                    float coronaFalloff = exp(-max(0.0, dSphere - CoreRadius * 0.6) / (CoreRadius * 0.35));
 
-                    // Nhiễu plasma bức xạ mặt trời trên bề mặt cầu
-                    float solarNoise = 0.8 + 0.2 * sin(normD * 18.0 - GTime * 22.0 + atan(pClosest.y - bhRel.y, pClosest.x - bhRel.x) * 8.0);
-                    float temp = saturate(coreMask * 1.25 * solarNoise);
+                    // Nhiễu plasma cuộn xoáy trên bề mặt lửa
+                    float solarNoise = 0.8 + 0.2 * sin(normD * 16.0 - GTime * 14.0 + atan(pClosest.y - bhRel.y, pClosest.x - bhRel.x) * 6.0);
+                    float temp = saturate(coreMask * 1.35 * solarNoise);
 
-                    vec3 fireCol = blackbody(temp * 1.2);
-                    fireCol = mix(fireCol, vec3(0.75, 0.96, 1.0), smoothstep(0.75, 1.0, coreMask));
+                    vec3 fireCol = blackbody(temp * 1.25);
+                    // Lõi nhiệt độ cực cao: Trắng - Hồng phấn - Vàng rực rỡ
+                    fireCol = mix(fireCol, vec3(0.85, 0.95, 1.0), smoothstep(0.70, 1.0, coreMask));
 
-                    float alphaDepth = smoothstep(tBH - outerCorona, tBH + outerCorona * 0.5, sceneDist);
-                    addGlow += fireCol * (coreMask * coreMask * 5.5 + coronaFalloff * 2.8) * ImpactIntensity * alphaDepth;
+                    float alphaDepth = smoothstep(tBH - outerCorona, tBH + outerCorona * 0.4, sceneDist);
+                    float fireballGlow = (coreMask * coreMask * 6.0 + coronaFalloff * 2.8) * alphaDepth;
+                    addGlow += fireCol * fireballGlow * ImpactIntensity;
+                }
+
+                // 2. Cột khói nấm & Cột nhiệt bốc thẳng lên trời (Mushroom Cloud Column)
+                vec2 stemXZ = bhRel.xz;
+                float denomStem = max(dot(rd.xz, rd.xz), 1e-6);
+                float tStem = dot(stemXZ, rd.xz) / denomStem;
+                if (tStem > 0.0 && tStem < sceneDist) {
+                    vec3 pStem = rd * tStem;
+                    float dStem = length(pStem.xz - bhRel.xz);
+                    float hStem = pStem.y - bhRel.y; // Độ cao so với tâm nổ
+
+                    // Thân nấm vươn cao từ chân vụ nổ lên tới CoreRadius * 2.2
+                    float maxStemH = CoreRadius * 2.2;
+                    if (hStem > -CoreRadius * 0.5 && hStem < maxStemH) {
+                        float hNorm = saturate((hStem + CoreRadius * 0.5) / (maxStemH + CoreRadius * 0.5));
+                        float stemRadius = CoreRadius * (0.28 + 0.12 * (1.0 - hNorm) + 0.75 * smoothstep(0.65, 1.0, hNorm));
+
+                        if (dStem < stemRadius * 1.4) {
+                            float stemMask = saturate(1.0 - (dStem / stemRadius));
+                            float stemNoise = 0.75 + 0.25 * sin(pStem.y * 0.45 - GTime * 8.0 + atan(pStem.z - bhRel.z, pStem.x - bhRel.x) * 4.0);
+                            float stemHeat = stemMask * stemNoise * (1.0 - hNorm * 0.45);
+
+                            vec3 stemColor = blackbody(stemHeat * 0.95);
+                            stemColor = mix(stemColor, vec3(0.20, 0.08, 0.05), smoothstep(0.35, 0.85, hNorm));
+                            float stemFade = smoothstep(-CoreRadius * 0.5, 0.0, hStem) * (1.0 - smoothstep(maxStemH * 0.85, maxStemH, hStem));
+
+                            addGlow += stemColor * (stemMask * stemMask * 3.5) * stemFade * ImpactIntensity * 0.75;
+                        }
+                    }
                 }
             }
         }
