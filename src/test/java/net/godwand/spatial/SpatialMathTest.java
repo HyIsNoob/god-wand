@@ -141,8 +141,8 @@ public class SpatialMathTest {
         net.minecraft.util.math.Vec3d offset = SpatialMath.computeCanopyVortexOffset(craterBottom, blastCenter, 10.0, 0);
 
         // Crater bottom is at Y=50, blastCenter Y=64 (depth = 14)
-        // Offset Y must lift it up above crater center (> 14m)
-        assertTrue(offset.y >= 14.0 + 3.8, "Debris at crater bottom must be lifted above crater rim");
+        // Offset Y must lift it up towards core level
+        assertTrue(offset.y >= 14.0 - 5.0, "Debris at crater bottom must be lifted towards core level");
     }
 
     @Test

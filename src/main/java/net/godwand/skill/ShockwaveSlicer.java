@@ -69,7 +69,7 @@ public class ShockwaveSlicer {
         // Lõi trong: SEA_LANTERN 1.3f phát sáng Cyan (0x00F0FF)
         BlockDisplayEntity innerCore = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
         innerCore.addCommandTag("godwand_displaced");
-        innerCore.setPosition(orbCenter.x, orbCenter.y, orbCenter.z);
+        innerCore.setPosition(orbCenter.x - 0.5, orbCenter.y - 0.5, orbCenter.z - 0.5);
         innerCore.setBlockState(Blocks.SEA_LANTERN.getDefaultState());
         innerCore.setGlowing(true);
         innerCore.setGlowColorOverride(0x00F0FF);
@@ -84,7 +84,7 @@ public class ShockwaveSlicer {
         // Vỏ ngoài: PURPLE_STAINED_GLASS 1.9f phát sáng Tím (0xA855F7)
         BlockDisplayEntity outerCore = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
         outerCore.addCommandTag("godwand_displaced");
-        outerCore.setPosition(orbCenter.x, orbCenter.y, orbCenter.z);
+        outerCore.setPosition(orbCenter.x - 0.5, orbCenter.y - 0.5, orbCenter.z - 0.5);
         outerCore.setBlockState(Blocks.PURPLE_STAINED_GLASS.getDefaultState());
         outerCore.setGlowing(true);
         outerCore.setGlowColorOverride(0xA855F7);
@@ -119,11 +119,12 @@ public class ShockwaveSlicer {
             }
         }
 
-        // Ưu tiên chọn tối đa 180 khối đại diện (ưu tiên vỏ ngoài và bề mặt) để tạo BlockDisplayEntity
+        // Trộn ngẫu nhiên trước khi chia tầng bán kính để 180 khối và 45 tia phân bổ đều 360 độ
+        Collections.shuffle(candidatePositions, new Random(center.asLong()));
         candidatePositions.sort((a, b) -> {
-            double da = a.getSquaredDistance(task.center);
-            double db = b.getSquaredDistance(task.center);
-            return Double.compare(db, da); // Sắp xếp từ ngoài vào trong
+            int bandA = (int) (Math.sqrt(a.getSquaredDistance(task.center)) / 2.0);
+            int bandB = (int) (Math.sqrt(b.getSquaredDistance(task.center)) / 2.0);
+            return Integer.compare(bandB, bandA);
         });
 
         int maxDisplays = Math.min(180, candidatePositions.size());

@@ -329,6 +329,16 @@ public class SpatialDisplacementManager {
             }
 
             // ==========================================
+            // 1.5. CÁCH LY HOÀN TOÀN CUSTOM_SCRIPTED (Chiêu 2 / Chiêu 3 / Chiêu 4)
+            // ==========================================
+            if (record.mode == DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED) {
+                if (record.ageTicks >= record.maxLifetimeTicks + 20) {
+                    record.beginRestoration();
+                }
+                continue;
+            }
+
+            // ==========================================
             // 2. VÒNG ĐỜI SPAWN 2-TICK & BẢO VỆ MỞ ĐƯỜNG ĐẦU TIÊN
             // ==========================================
             if (record.spawnTickDelay > 0) {
@@ -463,16 +473,6 @@ public class SpatialDisplacementManager {
                     display.setStartInterpolation(0);
                     display.setInterpolationDuration(3);
                     display.setTransformation(SpatialMath.createPivotTransform(smoothedVortex, rot, record.targetScale.x));
-                }
-                continue;
-            }
-
-            // ==========================================
-            // 4.5. BẢO HIỂM WATCHDOG CHO CUSTOM_SCRIPTED (Chiêu 3 / Chiêu 4)
-            // ==========================================
-            if (record.mode == DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED) {
-                if (record.ageTicks >= record.maxLifetimeTicks + 20) {
-                    record.beginRestoration();
                 }
                 continue;
             }

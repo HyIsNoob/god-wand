@@ -248,10 +248,9 @@ public final class SpatialMath {
         double finalY = y1 * Math.cos(rotX) - z1 * Math.sin(rotX);
         double finalZ = y1 * Math.sin(rotX) + z1 * Math.cos(rotX);
 
-        double centerElevation = blastCenter.y + 3.2 + blastRadius * 0.35;
-
+        // Tâm của 3 vành đai hội tụ chính xác tại blastCenter (corePos)
         double targetWorldX = blastCenter.x + finalX;
-        double targetWorldY = Math.max(blastCenter.y + 1.2, centerElevation + finalY);
+        double targetWorldY = Math.max(blastCenter.y - blastRadius * 0.45, blastCenter.y + finalY);
         double targetWorldZ = blastCenter.z + finalZ;
 
         return new Vec3d(

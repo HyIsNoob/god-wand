@@ -87,7 +87,7 @@ public class SupernovaManager {
         // 1. Spawn Quả Cầu Lõi Kép (Inner Crying Obsidian + Outer Cyan Stained Glass)
         BlockDisplayEntity innerCore = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
         innerCore.addCommandTag("godwand_displaced");
-        innerCore.setPosition(corePos.x, corePos.y, corePos.z);
+        innerCore.setPosition(corePos.x - 0.5, corePos.y - 0.5, corePos.z - 0.5);
         innerCore.setBlockState(Blocks.CRYING_OBSIDIAN.getDefaultState());
         innerCore.setGlowing(true);
         innerCore.setGlowColorOverride(0x9B59B6);
@@ -101,7 +101,7 @@ public class SupernovaManager {
 
         BlockDisplayEntity outerCore = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
         outerCore.addCommandTag("godwand_displaced");
-        outerCore.setPosition(corePos.x, corePos.y, corePos.z);
+        outerCore.setPosition(corePos.x - 0.5, corePos.y - 0.5, corePos.z - 0.5);
         outerCore.setBlockState(Blocks.CYAN_STAINED_GLASS.getDefaultState());
         outerCore.setGlowing(true);
         outerCore.setGlowColorOverride(0x00F0FF);
@@ -166,11 +166,12 @@ public class SupernovaManager {
             }
         }
 
-        // Ưu tiên chọn 400 khối phân bổ từ ngoài vào trong
+        // Trộn ngẫu nhiên trước khi chia tầng bán kính 2.5m để 400 khối phân bổ đều 360 độ
+        Collections.shuffle(candidatePositions, new Random(groundCenter.asLong()));
         candidatePositions.sort((a, b) -> {
-            double da = a.getSquaredDistance(task.groundCenter);
-            double db = b.getSquaredDistance(task.groundCenter);
-            return Double.compare(db, da);
+            int bandA = (int) (Math.sqrt(a.getSquaredDistance(task.groundCenter)) / 2.5);
+            int bandB = (int) (Math.sqrt(b.getSquaredDistance(task.groundCenter)) / 2.5);
+            return Integer.compare(bandB, bandA);
         });
 
         int maxDisplays = Math.min(400, candidatePositions.size());
@@ -258,7 +259,6 @@ public class SupernovaManager {
             // GIAI ĐOẠN 1: RUNG CHẤN & TÁCH KHỐI TỪ TỪ (Ticks 1..50 / 0s - 2.5s)
             // =========================================================================
             if (task.ageTicks <= 50) {
-                float u = (float) Math.pow(task.ageTicks / 50.0f, 2.0); // Tách từ từ theo hàm bậc hai
                 float beamThick = 0.08f + (task.ageTicks / 50.0f) * 0.27f; // Tia beam nhen nhóm 0.08m -> 0.35m
 
                 if (task.ageTicks % 2 == 0) {
@@ -268,6 +268,10 @@ public class SupernovaManager {
 
                         BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
                         if (display == null || !display.isAlive()) continue;
+
+                        double distRatio = Math.min(1.0, Math.sqrt(pos.getSquaredDistance(task.groundCenter)) / task.maxRadius);
+                        double localProgress = Math.max(0.0, Math.min(1.0, (task.ageTicks / 50.0 - distRatio * 0.45) / 0.55));
+                        float u = (float) (localProgress * localProgress);
 
                         Vec3d lift = task.stage1UpliftMap.getOrDefault(pos, Vec3d.ZERO).multiply(u);
                         Quaternionf rot = task.baseRotationMap.getOrDefault(pos, new Quaternionf());
