@@ -252,10 +252,14 @@ public class GodWandPostFxManager {
                 float aspect = (float) fbWidth / (float) fbHeight;
                 float projX = 0.5f + (local.x / (-local.z * tanFov * aspect)) * 0.5f;
                 float projY = 0.5f - (local.y / (-local.z * tanFov)) * 0.5f;
-                if (projX >= -0.2f && projX <= 1.2f && projY >= -0.2f && projY <= 1.2f) {
-                    centerX = MathHelper.clamp(projX, 0.02f, 0.98f);
-                    centerY = MathHelper.clamp(projY, 0.02f, 0.98f);
-                }
+                centerX = MathHelper.clamp(projX, -2.0f, 3.0f);
+                centerY = MathHelper.clamp(projY, -2.0f, 3.0f);
+            } else {
+                // Khi vụ nổ ở sau lưng người chơi: trượt tâm ra xa khỏi màn hình thay vì nhảy về giữa tâm ngắm
+                float signX = (local.x >= 0.0f) ? 1.0f : -1.0f;
+                float signY = (local.y >= 0.0f) ? -1.0f : 1.0f;
+                centerX = 0.5f + signX * 5.0f;
+                centerY = 0.5f + signY * 5.0f;
             }
         }
 

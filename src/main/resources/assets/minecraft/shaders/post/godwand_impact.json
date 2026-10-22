@@ -12,24 +12,6 @@
                     "name": "MainDepthSampler",
                     "id": "minecraft:main:depth"
                 }
-            ],
-            "uniforms": [
-                { "name": "ImpactIntensity",  "values": [ 0.0 ] },
-                { "name": "ImpactFrame",      "values": [ 0.0 ] },
-                { "name": "ImpactMode",       "values": [ 0.0 ] },
-                { "name": "ShockwaveRadius",  "values": [ 0.0 ] },
-                { "name": "DistortionPower",  "values": [ 0.0 ] },
-                { "name": "ChromaticAmount",  "values": [ 0.0 ] },
-                { "name": "ZoomBlur",         "values": [ 0.0 ] },
-                { "name": "RetinaBurn",       "values": [ 0.0 ] },
-                { "name": "CenterX",          "values": [ 0.5 ] },
-                { "name": "CenterY",          "values": [ 0.5 ] },
-                { "name": "Aspect",           "values": [ 1.7777 ] },
-                { "name": "GTime",            "values": [ 0.0 ] },
-                { "name": "CoreRadius",       "values": [ 0.0 ] },
-                { "name": "LensingPower",     "values": [ 0.0 ] },
-                { "name": "CameraPos",        "values": [ 0.0, 0.0, 0.0 ] },
-                { "name": "BlastCenter",      "values": [ 0.0, 0.0, 0.0 ] }
             ]
         },
         {

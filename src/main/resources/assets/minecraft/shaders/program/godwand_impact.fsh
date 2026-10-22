@@ -119,36 +119,38 @@ void main() {
         impactParamVal = impactParam;
 
         bool inFront = (tBH > -CoreRadius);
-        bool occluded = (sceneDist < (distToBH - CoreRadius * 1.1));
+        bool coreOccluded = (sceneDist < (tBH - CoreRadius * 1.1));
 
-        if (inFront && !occluded) {
-            // Gravitational Lensing UV deflection (Einstein deflection)
-            vec2 lensDir = (dist > 0.0001) ? normalize(aspectDiff) : vec2(0.0);
-            float lensShift = (LensingPower * sqr(CoreRadius)) / (sqr(impactParam) + 0.06);
-            lensShift = clamp(lensShift, 0.0, 0.35);
-            lensOffset = vec2(lensDir.x / Aspect, lensDir.y) * lensShift;
+        if (inFront) {
+            // 1. Lensing, Event Horizon & Einstein Ring chỉ hiện khi tâm Hố Đen không bị che
+            if (!coreOccluded) {
+                vec2 lensDir = (dist > 0.0001) ? normalize(aspectDiff) : vec2(0.0);
+                float lensShift = (LensingPower * sqr(CoreRadius)) / (sqr(impactParam) + 0.06);
+                lensShift = clamp(lensShift, 0.0, 0.35);
+                lensOffset = vec2(lensDir.x / Aspect, lensDir.y) * lensShift;
 
-            // Event Horizon check
-            if (impactParam < CoreRadius && sceneDist > (tBH - CoreRadius * 0.8)) {
-                insideHorizon = true;
+                if (impactParam < CoreRadius && sceneDist > (tBH - CoreRadius * 0.8)) {
+                    insideHorizon = true;
+                }
+
+                float ringDist = abs(impactParam - CoreRadius * 1.35);
+                float einsteinRing = exp(-sqr(ringDist) / 0.035) * LensingPower;
+                vec3 ringCol = (vec3(0.85, 0.95, 1.0) * 2.6 + blackbody(1.15) * 1.4) * einsteinRing;
+                addGlow += ringCol;
             }
 
-            // Einstein Ring (Photon Sphere Arc at ~1.35x CoreRadius)
-            float ringDist = abs(impactParam - CoreRadius * 1.35);
-            float einsteinRing = exp(-sqr(ringDist) / 0.035) * LensingPower;
-            vec3 ringCol = (vec3(0.85, 0.95, 1.0) * 2.6 + blackbody(1.15) * 1.4) * einsteinRing;
-            addGlow += ringCol;
-
-            // Relativistic Accretion Disk (Equatorial plane Y = bhRel.y)
-            if (abs(rd.y) > 0.0005) {
-                float tDisk = bhRel.y / rd.y;
+            // 2. Relativistic Accretion Disk (Đĩa bồi tụ nghiêng 18 độ, xoay chao sống động quanh tâm)
+            vec3 diskNormal = normalize(vec3(sin(GTime * 0.35) * 0.26, 0.96, cos(GTime * 0.35) * 0.26));
+            float denomDisk = dot(rd, diskNormal);
+            if (abs(denomDisk) > 0.0005) {
+                float tDisk = dot(bhRel, diskNormal) / denomDisk;
                 if (tDisk > 0.0 && tDisk < sceneDist && (!insideHorizon || tDisk < tBH)) {
-                    vec3 pDisk = rd * tDisk;
-                    float rDisk = length((pDisk - bhRel).xz);
+                    vec3 relDisk = (rd * tDisk) - bhRel;
+                    float rDisk = length(relDisk);
                     if (rDisk > CoreRadius * 1.05 && rDisk < CoreRadius * 4.5) {
-                        float diskAngle = atan(pDisk.z - bhRel.z, pDisk.x - bhRel.x) + GTime * 3.5;
+                        float diskAngle = atan(relDisk.z, relDisk.x) + GTime * 3.5;
                         float swirl = 0.75 + 0.25 * sin(diskAngle * 5.0 - rDisk * 4.0);
-                        vec3 orbVel = vec3(-sin(diskAngle), 0.0, cos(diskAngle));
+                        vec3 orbVel = normalize(cross(diskNormal, relDisk));
                         float doppler = 1.0 + 0.45 * dot(rd, orbVel);
                         float diskHeat = saturate(1.2 - (rDisk - CoreRadius) / (CoreRadius * 3.45));
                         float diskAlpha = smoothstep(CoreRadius * 1.05, CoreRadius * 1.3, rDisk) *
@@ -158,7 +160,7 @@ void main() {
                 }
             }
 
-            // Volumetric Relativistic Pulsar Jets (Vertical Y axis)
+            // 3. Volumetric Relativistic Pulsar Jets (Vertical Y axis)
             vec2 jetXZ = bhRel.xz;
             float denom = max(dot(rd.xz, rd.xz), 1e-6);
             float tJet = dot(jetXZ, rd.xz) / denom;
@@ -207,23 +209,25 @@ void main() {
         col = acc / total;
     }
 
-    // Swallowing light inside Event Horizon
+    // =========================================================================
+    // 3. SẮC SAI KHÔNG GIAN (Radial Chromatic Aberration - Chạy trên cảnh nền)
+    // =========================================================================
+    if (ChromaticAmount > 0.001) {
+        vec2 caDir = (baseUV - vec2(0.5)) * ChromaticAmount * (1.0 + wave * 2.2);
+        float r = texture(DiffuseSampler, clamp(baseUV + caDir, 0.001, 0.999)).r;
+        float b = texture(DiffuseSampler, clamp(baseUV - caDir, 0.001, 0.999)).b;
+        col.r = mix(col.r, r, 0.75);
+        col.b = mix(col.b, b, 0.75);
+    }
+
+    // =========================================================================
+    // ĐẶT HỐ ĐEN & TIA PULSAR Ở ĐÂY ĐỂ KHÔNG BỊ CHROMATIC ABERRATION GHI ĐÈ
+    // =========================================================================
     if (insideHorizon) {
         float horizonEdge = smoothstep(CoreRadius * 0.88, CoreRadius, impactParamVal);
         col *= horizonEdge;
     }
     col += addGlow;
-
-    // =========================================================================
-    // 3. SẮC SAI KHÔNG GIAN (Radial Chromatic Aberration)
-    // =========================================================================
-    if (ChromaticAmount > 0.001) {
-        vec2 caDir = (baseUV - vec2(0.5)) * ChromaticAmount * (1.0 + wave * 2.2);
-        float r = texture(DiffuseSampler, clamp(baseUV + caDir, 0.001, 0.999)).r;
-        float g = col.g;
-        float b = texture(DiffuseSampler, clamp(baseUV - caDir, 0.001, 0.999)).b;
-        col = vec3(r, g, b);
-    }
 
     // =========================================================================
     // 4. JIMENEZ-STYLE DUAL-FILTER SOFT BLOOM (Hào quang không cháy trắng)
