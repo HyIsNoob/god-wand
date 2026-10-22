@@ -13,6 +13,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.entity.FallingBlockEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity;
+import net.minecraft.particle.BlockStateParticleEffect;
 import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -23,7 +24,9 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.Heightmap;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -32,30 +35,30 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class SupernovaManager {
 
-    public static final int DETONATION_TICK = 360;
+    public static final int DETONATION_TICK = 340;
     public static final int MAX_LIFETIME_TICKS = 500;
+    public static final int MAX_DISPLAYS_CAP = 900;
 
     public static class SupernovaTask {
         public final ServerWorld world;
         public final ServerPlayerEntity caster;
         public final BlockPos groundCenter;
         public final Vec3d corePos;
-        public final double maxRadius = 38.0; // Calamity scale!
+        public final double maxRadius = 40.0; // Calamity scale!
 
         public int ageTicks = 0;
         public float swirlAngle = 0.0f;
         public boolean exploded = false;
 
-        // Progressive Peeling & Accretion Escalation (Ticks 1..280)
+        // Progressive Peeling & Accretion Escalation (Ticks 1..340)
         public final List<BlockPos> candidatePositions = new ArrayList<>();
         public final Set<BlockPos> peeledPositions = new HashSet<>();
         public final Map<BlockPos, Integer> peelTickMap = new HashMap<>();
 
         public final List<BlockPos> displayedPositions = new ArrayList<>();
         public final List<BlockPos> interiorPositions = new ArrayList<>();
-        public final Set<BlockPos> swallowedPositions = new HashSet<>();
+        public final List<BlockPos> blastFlingPositions = new ArrayList<>();
 
-        public final Map<BlockPos, Vec3d> stage1UpliftMap = new HashMap<>();
         public final Map<BlockPos, Quaternionf> baseRotationMap = new HashMap<>();
         public final Map<BlockPos, Float> blockScaleMap = new HashMap<>();
 
@@ -92,8 +95,7 @@ public class SupernovaManager {
         Vec3d corePos = groundCenter.toCenterPos().add(0, 20.0, 0);
         SupernovaTask task = new SupernovaTask(world, player, groundCenter, corePos);
 
-        // 1. Kích hoạt Shader Hố Đen 3D độc quyền của Chiêu 4 (Thời lượng 360 ticks = 18 giây tích tụ)
-        // Bắt đầu từ 1 chấm siêu nhỏ (0.15m) nở to dần đơn điệu liên tục đến lúc nổ!
+        // 1. Kích hoạt Shader Hố Đen 3D độc quyền của Chiêu 4 (340 ticks tích tụ đơn điệu)
         ImpactFxPayload blackHolePayload = new ImpactFxPayload(
                 corePos.x, corePos.y, corePos.z,
                 ImpactFxPayload.TYPE_BLACK_HOLE, DETONATION_TICK, 1.0f
@@ -102,23 +104,21 @@ public class SupernovaManager {
             ServerPlayNetworking.send(p, blackHolePayload);
         }
 
-        // 2. Thu thập danh sách khối ứng viên trong bán kính Calamity R = 38.0m
-        // QUY TẮC CỐT LÕI: KHÔNG bóc khối nào ở Tick 0. Khối sẽ bóc từ từ từ tâm lan ra ngoài (từ vài khối -> vài chục -> vài trăm)
+        // 2. Thu thập danh sách khối ứng viên trong bán kính Calamity R = 40.0m
+        // QUÉT CẢ VÙNG NÚI NON PHÍA TRÊN (groundY - 28 lên tới groundY + 48)
         int intR = (int) Math.ceil(task.maxRadius);
         double maxRadiusSq = task.maxRadius * task.maxRadius;
         BlockPos.Mutable mutable = new BlockPos.Mutable();
 
         List<BlockPos> candidates = new ArrayList<>();
         int groundY = groundCenter.getY();
+        int minY = Math.max(world.getBottomY(), groundY - 28);
+        int maxY = Math.min(world.getTopY() - 1, groundY + 48);
 
         for (int x = -intR; x <= intR; x++) {
             for (int z = -intR; z <= intR; z++) {
                 double dSq2D = x * x + z * z;
                 if (dSq2D > maxRadiusSq) continue;
-                double dist2D = Math.sqrt(dSq2D);
-                int maxDepth = (int) Math.round((1.0 - (dist2D / task.maxRadius)) * 14.0);
-                int minY = Math.max(world.getBottomY(), groundY - maxDepth);
-                int maxY = Math.min(world.getTopY() - 1, groundY + 4);
 
                 for (int y = maxY; y >= minY; y--) {
                     mutable.set(groundCenter.getX() + x, y, groundCenter.getZ() + z);
@@ -165,17 +165,18 @@ public class SupernovaManager {
             task.ageTicks++;
 
             // =========================================================================
-            // GIAI ĐOẠN 1 & 2: BÓC ĐẤT LŨY TIẾN & 3 VÀNH ĐAI BỒI TỤ (Ticks 1..280 / 14s)
-            // Từ 1 vài block -> vài chục block -> vài trăm block, tốc độ tăng dần mượt mà
+            // GIAI ĐOẠN 1: BÓC ĐẤT NÚI TỶ LỆ THUẬN & HÚT XOẮN ỐC LIÊN TỤC (Ticks 1..340)
             // =========================================================================
-            if (task.ageTicks <= 280) {
-                // Bán kính bóc tách mở rộng theo đường cong lũy thừa:
-                // Ticks 1..60: Bán kính nhỏ (1m - 4m) -> Chỉ vài block nâng lên nhẹ
-                // Ticks 61..180: Bán kính trung (5m - 20m) -> Vài chục block
-                // Ticks 181..280: Bán kính đại (20m - 38m) -> Vài trăm block
-                double progress = task.ageTicks / 280.0;
-                double currentRadius = task.maxRadius * Math.pow(progress, 1.4);
-                double currentRadiusSq = currentRadius * currentRadius;
+            if (task.ageTicks < DETONATION_TICK) {
+                double progress = task.ageTicks / (double) DETONATION_TICK; // 0.0 -> 1.0
+
+                // 1. Độ to Hố Đen & Bán kính vùng đất núi bị hút mở rộng dần theo tỷ lệ thuận
+                double bhScale = Math.pow(progress, 1.25);
+                double currentPeelRadius = 2.5 + (task.maxRadius - 2.5) * bhScale;
+                double currentRadiusSq = currentPeelRadius * currentPeelRadius;
+
+                // 2. Hạn ngạch số khối BlockDisplayEntity tối đa trên bầu trời tăng dần lên 900 khối
+                int maxDisplaysNow = 12 + (int) (888 * Math.pow(progress, 1.55));
 
                 int peeledThisTick = 0;
                 for (BlockPos pos : task.candidatePositions) {
@@ -188,18 +189,14 @@ public class SupernovaManager {
                         task.peelTickMap.put(pos, task.ageTicks);
                         peeledThisTick++;
 
-                        // Tối đa 450 khối hiển thị BlockDisplayEntity
-                        if (task.displayedPositions.size() < 450) {
+                        if (task.displayedPositions.size() < maxDisplaysNow && task.displayedPositions.size() < MAX_DISPLAYS_CAP) {
                             float hash = (float) SpatialMath.hash01(pos);
-                            float liftY = 0.6f + hash * 2.8f;
-                            Vec3d stage1Lift = new Vec3d((hash - 0.5) * 0.5, liftY, (SpatialMath.hash01(pos.up()) - 0.5) * 0.5);
 
                             Quaternionf rot = new Quaternionf()
                                     .rotateY((float) (hash * Math.PI * 2.0))
                                     .rotateX((float) Math.toRadians(20.0 + hash * 25.0));
                             float scale = 0.85f + hash * 0.55f;
 
-                            // KHÔNG DÙNG setGlowing, chỉ dùng Brightness(15, 15)
                             SpatialDisplacementManager.displaceBlock(
                                     world,
                                     pos,
@@ -221,17 +218,16 @@ public class SupernovaManager {
                             }
 
                             task.displayedPositions.add(pos);
-                            task.stage1UpliftMap.put(pos, stage1Lift);
                             task.baseRotationMap.put(pos, rot);
                             task.blockScaleMap.put(pos, scale);
 
                             if (peeledThisTick <= 6) {
                                 world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
                                         pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5,
-                                        1, 0, 0.06, 0, 0.02);
+                                        1, 0, 0.08, 0, 0.02);
                             }
                         } else {
-                            // Các khối lòng đất bên trong: Đào thành AIR không tốn Entity
+                            // Các khối lòng đất sâu/phần dư: Bóc thành AIR không tốn Entity
                             SpatialDisplacementManager.displaceBlock(
                                     world,
                                     pos,
@@ -257,12 +253,18 @@ public class SupernovaManager {
                     }
                 }
 
-                // Tốc độ góc tăng dần mượt mà theo hàm thời gian (không giật đột ngột)
-                float overallProgress = task.ageTicks / 340.0f;
-                float angularSpeed = 0.004f + (float) Math.pow(overallProgress, 2.0) * 0.075f;
+                // 3. Tốc độ góc tăng dần liên tục lên cực hạn (0.008 -> 0.26)
+                float angularSpeed = 0.008f + (float) Math.pow(progress, 2.2) * 0.25f;
                 task.swirlAngle += angularSpeed;
 
-                // Cập nhật chuyển động nội suy cho toàn bộ khối hiển thị mỗi 2 ticks
+                // 4. Hệ số co rút Hấp dẫn (Collapse Factor) ở 70 ticks cao trào cuối (Ticks 270..340)
+                double collapseFactor = 1.0;
+                if (task.ageTicks >= 270) {
+                    double cp = (task.ageTicks - 270) / 70.0;
+                    collapseFactor = Math.max(0.08, 1.0 - Math.pow(cp, 1.35) * 0.92);
+                }
+
+                // 5. Cập nhật quỹ đạo xoắn ốc 3D tỷ lệ thuận với Hố Đen cho toàn bộ khối hiển thị
                 if (task.ageTicks % 2 == 0) {
                     for (BlockPos pos : task.displayedPositions) {
                         DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
@@ -271,152 +273,82 @@ public class SupernovaManager {
                         BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
                         if (display == null || !display.isAlive()) continue;
 
-                        int peelTick = task.peelTickMap.getOrDefault(pos, 0);
+                        int peelTick = task.peelTickMap.getOrDefault(pos, task.ageTicks);
                         int ticksSincePeel = task.ageTicks - peelTick;
+                        float entryProgress = MathHelper.clamp(ticksSincePeel / 30.0f, 0.0f, 1.0f);
 
-                        Vec3d stage1Lift = task.stage1UpliftMap.getOrDefault(pos, Vec3d.ZERO);
-                        Vec3d ringOffset = SpatialMath.computeCanopyVortexOffset(pos, task.corePos, task.maxRadius, task.swirlAngle, 1.0);
+                        Vec3d dynamicOffset = SpatialMath.computeDynamicBlackHoleOrbit(
+                                pos, task.corePos, currentPeelRadius, task.swirlAngle, entryProgress, collapseFactor);
 
-                        Vec3d finalOffset;
-                        Quaternionf rot = new Quaternionf(task.baseRotationMap.getOrDefault(pos, new Quaternionf()));
+                        Vec3d currentBlockWorld = Vec3d.ofCenter(pos).add(dynamicOffset);
+                        double distToCore = currentBlockWorld.distanceTo(task.corePos);
 
-                        if (ticksSincePeel < 35) {
-                            // 35 ticks đầu sau khi bóc: Nhấc bổng từ tốn khỏi mặt đất
-                            float liftProgress = ticksSincePeel / 35.0f;
-                            float u = liftProgress * liftProgress;
-                            finalOffset = stage1Lift.multiply(u);
+                        Quaternionf rot = new Quaternionf(task.baseRotationMap.getOrDefault(pos, new Quaternionf()))
+                                .rotateY(task.swirlAngle * 1.3f);
+
+                        // Khi các khối lao sát chân trời sự kiện: Thu nhỏ mượt mà theo collapseFactor
+                        float baseScale = task.blockScaleMap.getOrDefault(pos, 1.0f);
+                        float scale;
+                        if (distToCore < 4.2 || collapseFactor < 0.22) {
+                            scale = baseScale * (float) Math.max(0.08, collapseFactor);
                         } else {
-                            // Sau 35 ticks: Hòa mượt vào 3 vành đai bồi tụ
-                            float mergeProgress = Math.min(1.0f, (ticksSincePeel - 35) / 45.0f);
-                            finalOffset = stage1Lift.lerp(ringOffset, mergeProgress);
-                            rot.rotateY(task.swirlAngle * 0.85f);
+                            scale = baseScale;
                         }
 
-                        float scale = task.blockScaleMap.getOrDefault(pos, 1.0f);
                         display.setStartInterpolation(0);
                         display.setInterpolationDuration(2);
-                        display.setTransformation(SpatialMath.createPivotTransform(finalOffset, rot, scale));
+                        display.setTransformation(SpatialMath.createPivotTransform(dynamicOffset, rot, scale));
                     }
                 }
 
-                // Lực hút hấp dẫn kéo thực thể xung quanh vào tâm hố đen
+                // Lực hút kéo thực thể
                 if (task.ageTicks % 6 == 0) {
-                    Box suctionBox = new Box(task.groundCenter).expand(task.maxRadius * 1.35);
+                    Box suctionBox = new Box(task.groundCenter).expand(currentPeelRadius * 1.4);
                     for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, suctionBox, ent -> ent != task.caster)) {
-                        Vec3d pull = task.corePos.subtract(e.getPos()).normalize().multiply(0.25 + progress * 0.20);
+                        Vec3d pull = task.corePos.subtract(e.getPos()).normalize().multiply(0.22 + progress * 0.35);
                         e.addVelocity(pull.x, pull.y, pull.z);
                         e.velocityModified = true;
                     }
                 }
 
-                // Âm thanh nhịp đập & cộng hưởng tăng dần cao độ theo thời gian
+                // Âm thanh Warden & Beacon tăng dần tần số và cao độ
                 if (task.ageTicks % 16 == 0) {
                     world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 3.0f, 0.5f + (float) progress * 1.0f);
+                            SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 3.2f, 0.5f + (float) progress * 1.1f);
                 }
-                if (task.ageTicks % 40 == 0) {
+                if (task.ageTicks % 36 == 0) {
                     world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 3.0f, 0.6f + (float) progress * 0.8f);
-                }
-            }
-
-            // =========================================================================
-            // GIAI ĐOẠN 3: SỤP ĐỔ HẤP DẪN & NUỐT CHỬNG SIÊU MƯỢT (Ticks 281..340 / 3s)
-            // Hố đen giữ nguyên kích thước cực đại (KHÔNG co rút, KHÔNG dựt dựt)
-            // Toàn bộ khối đá xoắn ốc lao thẳng vào chân trời sự kiện và thu nhỏ dần
-            // =========================================================================
-            else if (task.ageTicks <= 340) {
-                if (task.ageTicks == 285) {
-                    CinematicFxPayload compressCinematic = new CinematicFxPayload(
-                            CinematicFxPayload.EVENT_SUPERNOVA_COMPRESS,
-                            task.corePos.x, task.corePos.y, task.corePos.z,
-                            0.75f, 50
-                    );
-                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 160.0)) {
-                        ServerPlayNetworking.send(p, compressCinematic);
-                    }
+                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 3.5f, 0.6f + (float) progress * 1.0f);
                 }
 
-                float collapseProgress = (task.ageTicks - 280) / 60.0f; // 0.0 -> 1.0
-                double radiusScale = Math.max(0.04, 1.0 - Math.pow(collapseProgress, 1.4) * 0.96);
-                task.swirlAngle += 0.12f; // Xoáy cực nhanh
-
-                if ((task.ageTicks - 280) % 2 == 0) {
-                    for (BlockPos pos : task.displayedPositions) {
-                        if (task.swallowedPositions.contains(pos)) continue;
-
-                        DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                        if (record == null || record.displayEntityUuid == null) continue;
-
-                        BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
-                        if (display == null || !display.isAlive()) continue;
-
-                        Vec3d ringOffset = SpatialMath.computeCanopyVortexOffset(pos, task.corePos, task.maxRadius, task.swirlAngle, radiusScale);
-                        Vec3d displayWorldPos = Vec3d.ofCenter(pos).add(ringOffset);
-                        double distToCore = displayWorldPos.distanceTo(task.corePos);
-
-                        Quaternionf rot = new Quaternionf(task.baseRotationMap.getOrDefault(pos, new Quaternionf()))
-                                .rotateY(task.swirlAngle);
-
-                        // Khi chạm vào rìa Chân trời sự kiện (< 4.8m): Thu nhỏ mượt mà về 0 (Spaghettification)
-                        if (distToCore < 4.8 || collapseProgress > 0.90f) {
-                            task.swallowedPositions.add(pos);
-                            display.setStartInterpolation(0);
-                            display.setInterpolationDuration(4);
-                            display.setTransformation(SpatialMath.createPivotTransform(task.corePos.subtract(Vec3d.ofCenter(pos)), rot, 0.0f));
-                        } else {
-                            float scale = task.blockScaleMap.getOrDefault(pos, 1.0f) * (float) Math.max(0.12, radiusScale);
-                            display.setStartInterpolation(0);
-                            display.setInterpolationDuration(2);
-                            display.setTransformation(SpatialMath.createPivotTransform(ringOffset, rot, scale));
-                        }
-                    }
-                }
-
-                world.spawnParticles(ParticleTypes.ELECTRIC_SPARK,
-                        task.corePos.x, task.corePos.y, task.corePos.z, 25, 2.0, 2.0, 2.0, 0.4);
-
-                if (task.ageTicks % 8 == 0) {
-                    world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 4.0f, 1.8f);
-                }
-            }
-
-            // =========================================================================
-            // GIAI ĐOẠN 4: KHOẢNG LẶNG CHÂN KHÔNG (VACUUM SILENCE) (Ticks 341..359 / 1s)
-            // =========================================================================
-            else if (task.ageTicks < DETONATION_TICK) {
-                if (task.ageTicks == 341) {
+                // Sóng âm thanh chân không im lặng tại Tick 310 (Chuẩn bị điểm nổ cao trào)
+                if (task.ageTicks == 310) {
                     CinematicFxPayload silencePayload = new CinematicFxPayload(
                             CinematicFxPayload.EVENT_VACUUM_SILENCE,
                             task.corePos.x, task.corePos.y, task.corePos.z,
-                            1.0f, 20
+                            1.0f, 30
                     );
                     for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 160.0)) {
                         ServerPlayNetworking.send(p, silencePayload);
                     }
                 }
-
-                // Tuyệt đối im lặng, Hố Đen tỏa hào quang chói lòa trước khi nổ
-                world.spawnParticles(ParticleTypes.REVERSE_PORTAL,
-                        task.corePos.x, task.corePos.y, task.corePos.z, 30, 0.5, 0.5, 0.5, 0.9);
             }
 
             // =========================================================================
-            // GIAI ĐOẠN 5: ĐẠI VỤ NỔ SIÊU TÂN TINH TẠI TICK 360
+            // GIAI ĐOẠN 2: ĐẠI VỤ NỔ SIÊU TÂN TINH NGAY ĐỈNH CAO (TICK 340)
             // =========================================================================
             else if (task.ageTicks == DETONATION_TICK && !task.exploded) {
                 task.exploded = true;
 
-                // 1. Kích hoạt Shader Siêu Tân Tinh (Kéo dài 140 ticks / 7 giây Aftermath với Cột Nấm & Quả Cầu Lửa)
+                // 1. Kích hoạt Shader Siêu Tân Tinh (160 ticks / 8 giây Aftermath)
                 ImpactFxPayload novaPayload = new ImpactFxPayload(
                         task.corePos.x, task.corePos.y, task.corePos.z,
-                        ImpactFxPayload.TYPE_SUPERNOVA, 140, 2.8f
+                        ImpactFxPayload.TYPE_SUPERNOVA, 160, 3.0f
                 );
                 CinematicFxPayload burstCinematic = new CinematicFxPayload(
                         CinematicFxPayload.EVENT_SUPERNOVA_BURST,
                         task.corePos.x, task.corePos.y, task.corePos.z,
-                        1.0f, 60
+                        1.0f, 70
                 );
                 for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 160.0)) {
                     ServerPlayNetworking.send(p, novaPayload);
@@ -436,36 +368,67 @@ public class SupernovaManager {
                         SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.PLAYERS, 5.0f, 0.5f);
 
                 // 3. VFX vụ nổ chói lòa
-                world.spawnParticles(ParticleTypes.FLASH, task.corePos.x, task.corePos.y, task.corePos.z, 20, 1.5, 1.5, 1.5, 0.0);
-                world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, task.corePos.x, task.corePos.y, task.corePos.z, 15, 3.0, 3.0, 3.0, 0.0);
-                world.spawnParticles(ParticleTypes.SONIC_BOOM, task.corePos.x, task.corePos.y, task.corePos.z, 10, 2.0, 2.0, 2.0, 0.0);
-                world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.65f, 0.15f), 3.5f),
-                        task.corePos.x, task.corePos.y, task.corePos.z, 200, 8.0, 8.0, 8.0, 0.9);
+                world.spawnParticles(ParticleTypes.FLASH, task.corePos.x, task.corePos.y, task.corePos.z, 24, 2.0, 2.0, 2.0, 0.0);
+                world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, task.corePos.x, task.corePos.y, task.corePos.z, 20, 4.0, 4.0, 4.0, 0.0);
+                world.spawnParticles(ParticleTypes.SONIC_BOOM, task.corePos.x, task.corePos.y, task.corePos.z, 12, 2.5, 2.5, 2.5, 0.0);
+                world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.65f, 0.15f), 3.8f),
+                        task.corePos.x, task.corePos.y, task.corePos.z, 260, 10.0, 10.0, 10.0, 0.9);
 
-                // 4. Sát thương Calamity hủy diệt (150 - 300 damage) và lực hất văng cực mạnh trong bán kính 60m
-                Box blastBox = new Box(task.groundCenter).expand(60.0);
+                // 4. Sát thương Calamity hủy diệt (150 - 350 damage) trong bán kính 65m
+                Box blastBox = new Box(task.groundCenter).expand(65.0);
                 for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, blastBox, ent -> ent != task.caster)) {
                     double dist = e.getPos().distanceTo(task.corePos);
-                    float dmg = (float) Math.max(50.0, (1.0 - (dist / 60.0)) * 250.0 + 50.0);
+                    float dmg = (float) Math.max(60.0, (1.0 - (dist / 65.0)) * 290.0 + 60.0);
                     e.damage(world.getDamageSources().explosion(null, task.caster), dmg);
 
-                    Vec3d push = e.getPos().subtract(task.corePos).normalize().multiply(3.8).add(0, 1.5, 0);
+                    Vec3d push = e.getPos().subtract(task.corePos).normalize().multiply(4.2).add(0, 1.8, 0);
                     e.addVelocity(push.x, push.y, push.z);
                     e.velocityModified = true;
                 }
 
-                // 5. Xóa bỏ hoàn toàn bản ghi để không bao giờ khôi phục lại mặt đất
-                for (BlockPos pos : task.displayedPositions) {
+                // 5. HIỆU ỨNG VỤ NỔ VẬT LÝ 3D:
+                // Giữ lại tối đa 350 BlockDisplayEntity và phóng văng siêu thanh ra bán kính 45m - 68m!
+                Random rng = new Random(task.groundCenter.asLong());
+                int flingDisplayCount = Math.min(350, task.displayedPositions.size());
+                for (int i = 0; i < task.displayedPositions.size(); i++) {
+                    BlockPos pos = task.displayedPositions.get(i);
+                    if (i < flingDisplayCount) {
+                        DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+                        if (record != null && record.displayEntityUuid != null) {
+                            BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
+                            if (display != null && display.isAlive()) {
+                                double fAngle = rng.nextDouble() * Math.PI * 2.0;
+                                double fDist = 45.0 + rng.nextDouble() * 23.0;
+                                double targetX = task.corePos.x + Math.cos(fAngle) * fDist;
+                                double targetY = task.groundCenter.getY() + 2.0 + rng.nextDouble() * 12.0;
+                                double targetZ = task.corePos.z + Math.sin(fAngle) * fDist;
+
+                                Vec3d flingDisp = new Vec3d(targetX, targetY, targetZ).subtract(Vec3d.ofCenter(pos));
+                                Quaternionf flingRot = new Quaternionf()
+                                        .rotateY((float) (rng.nextDouble() * Math.PI * 2.0))
+                                        .rotateX((float) (rng.nextDouble() * Math.PI));
+
+                                display.setStartInterpolation(0);
+                                display.setInterpolationDuration(12);
+                                display.setTransformation(SpatialMath.createPivotTransform(flingDisp, flingRot, 0.9f));
+
+                                task.blastFlingPositions.add(pos);
+                                continue;
+                            }
+                        }
+                    }
                     SpatialDisplacementManager.removeActiveRecord(world.getRegistryKey(), pos);
                 }
+
                 for (BlockPos pos : task.interiorPositions) {
                     SpatialDisplacementManager.removeActiveRecord(world.getRegistryKey(), pos);
                 }
 
-                // 6. Chuẩn bị tạo Hố sâu tận thế (Impact Crater bán kính 55m, sâu tới 28m) - Hố vực thẳm khổng lồ
+                // 6. Chuẩn bị tạo Hố sâu tận thế & San phẳng núi non (Bán kính 55m, sâu -28m, cao tới +48m)
                 int craterR = 55;
                 BlockPos.Mutable cMut = new BlockPos.Mutable();
                 int centerGroundY = task.groundCenter.getY();
+                int topCutY = Math.min(world.getTopY() - 1, centerGroundY + 48);
 
                 for (int cx = -craterR; cx <= craterR; cx++) {
                     for (int cz = -craterR; cz <= craterR; cz++) {
@@ -473,36 +436,35 @@ public class SupernovaManager {
                         if (distSq > craterR * craterR) continue;
 
                         double dist2D = Math.sqrt(distSq);
-                        // Biên hố răng cưa ngẫu nhiên tự nhiên
                         double noise = (SpatialMath.hash01(new BlockPos(cx, 0, cz)) - 0.5) * 6.0;
                         double effectiveR = craterR + noise;
                         if (dist2D > effectiveR) continue;
 
-                        // Độ sâu cực lớn: 28m tại tâm, rơi dốc theo hàm mũ 1.35
                         int depth = (int) Math.round((1.0 - Math.pow(Math.min(1.0, dist2D / effectiveR), 1.35)) * 28.0);
+                        int floorY = centerGroundY - depth;
 
-                        for (int cy = -depth; cy <= 4; cy++) {
-                            cMut.set(task.groundCenter.getX() + cx, centerGroundY + cy, task.groundCenter.getZ() + cz);
+                        for (int y = floorY; y <= topCutY; y++) {
+                            cMut.set(task.groundCenter.getX() + cx, y, task.groundCenter.getZ() + cz);
                             if (cMut.getY() < world.getBottomY() || cMut.getY() >= world.getTopY()) continue;
                             task.craterCarveBatch.add(cMut.toImmutable());
                         }
                     }
                 }
 
-                // 7. Phóng 80 khối đá nóng chảy và dung nham bay vọt ra bán kính 50m - 60m
-                Random rng = new Random(task.groundCenter.asLong());
-                int fallingBlocksCount = 80;
+                // 7. Phóng 160 FallingBlockEntity đá nóng chảy và dung nham bay vọt ra bán kính 60m
+                int fallingBlocksCount = 160;
                 BlockState[] moltenStates = new BlockState[] {
                         Blocks.MAGMA_BLOCK.getDefaultState(),
                         Blocks.OBSIDIAN.getDefaultState(),
                         Blocks.CRYING_OBSIDIAN.getDefaultState(),
                         Blocks.BLACKSTONE.getDefaultState(),
-                        Blocks.COBBLESTONE.getDefaultState()
+                        Blocks.COBBLESTONE.getDefaultState(),
+                        Blocks.DEEPSLATE.getDefaultState()
                 };
 
                 for (int i = 0; i < fallingBlocksCount; i++) {
                     double fAngle = rng.nextDouble() * Math.PI * 2.0;
-                    double fSpeed = 1.0 + rng.nextDouble() * 1.6;
+                    double fSpeed = 1.1 + rng.nextDouble() * 1.8;
                     double spawnX = task.groundCenter.getX() + 0.5 + Math.cos(fAngle) * 4.0;
                     double spawnY = task.groundCenter.getY() + 3.0;
                     double spawnZ = task.groundCenter.getZ() + 0.5 + Math.sin(fAngle) * 4.0;
@@ -511,16 +473,24 @@ public class SupernovaManager {
                     FallingBlockEntity falling = FallingBlockEntity.spawnFromBlock(world,
                             BlockPos.ofFloored(spawnX, spawnY, spawnZ),
                             flingState);
-                    falling.setVelocity(Math.cos(fAngle) * fSpeed, 0.8 + rng.nextDouble() * 1.0, Math.sin(fAngle) * fSpeed);
+                    falling.setVelocity(Math.cos(fAngle) * fSpeed, 0.8 + rng.nextDouble() * 1.2, Math.sin(fAngle) * fSpeed);
                     falling.velocityModified = true;
                 }
             }
 
             // =========================================================================
-            // GIAI ĐOẠN 6: AFTERMATH & CỘT NẤM KHỔNG LỒ (Ticks 361..500 / 7 GIÂY SAU NỔ)
+            // GIAI ĐOẠN 3: AFTERMATH, SÓNG THẦN ĐẤT ĐÁ CUỘN TRẢI DÀI (Ticks 341..500)
             // =========================================================================
             else if (task.ageTicks > DETONATION_TICK) {
-                // 1. Đào hố tận thế chia theo mẻ (Async / Batched Carving trong 20 sub-ticks)
+                // Tại Tick 355: Dọn dẹp 350 khối hiển thị văng sau khi hoàn tất animation siêu thanh
+                if (task.ageTicks == 355) {
+                    for (BlockPos pos : task.blastFlingPositions) {
+                        SpatialDisplacementManager.removeActiveRecord(world.getRegistryKey(), pos);
+                    }
+                    task.blastFlingPositions.clear();
+                }
+
+                // 1. Đào hố tận thế và san phẳng quả núi phía trên chia theo mẻ (20 sub-ticks)
                 if (task.craterIndex < task.craterCarveBatch.size()) {
                     int batchSize = (task.craterCarveBatch.size() / 20) + 1;
                     int endIndex = Math.min(task.craterCarveBatch.size(), task.craterIndex + batchSize);
@@ -537,12 +507,11 @@ public class SupernovaManager {
                         int depth = (int) Math.round((1.0 - Math.pow(Math.min(1.0, dist2D / effectiveR), 1.35)) * 28.0);
                         int floorY = task.groundCenter.getY() - depth;
 
-                        // 1. TẤT CẢ CÁC KHỐI PHÍA TRÊN ĐÁY HỐ ĐỀU BỊ BỐC HƠI HOÀN TOÀN THÀNH KHÔNG KHÍ (AIR)!
+                        // TẤT CẢ các khối trên floorY (bao gồm cả nguyên quả núi phía trên) đều bị bốc hơi thành AIR!
                         if (pos.getY() > floorY) {
                             world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
                         }
-                        // 2. TẠI ĐÚNG ĐÁY HỐ (pos.getY() == floorY):
-                        // CHỈ nung chảy nếu khối đó VỐN DĨ ĐANG LÀ ĐẤT ĐÁ ĐẶC (không tự sinh block trên không trung)!
+                        // Tại đúng đáy floorY: Nung chảy nếu khối vốn là đá đặc
                         else if (pos.getY() == floorY && !currentState.isAir()) {
                             float rVal = rng.nextFloat();
                             BlockState scorchState;
@@ -561,9 +530,28 @@ public class SupernovaManager {
                     task.craterIndex = endIndex;
                 }
 
-                // 2. VỤ NỔ HÌNH NẤM 3D (3D MUSHROOM CLOUD PARTICLE SYSTEM):
-                // A. Thân Nấm (Mushroom Stem): Cột khói & lửa bốc thẳng cuồn cuộn từ lòng hố lên cao 50m
+                // 2. SÓNG THẦN ĐẤT ĐÁ & BÃO KHÓI BỤI CUỘN TRẢI DÀI TRÊN MẶT ĐẤT (Rolling Pyroclastic Surge):
+                // Lan tỏa từ tâm 4m ra 65m quét dọc theo bề mặt thực tế của địa hình
                 Random rng = new Random();
+                double surgeProgress = Math.min(1.0, (task.ageTicks - DETONATION_TICK) / 90.0);
+                double surgeRadius = 4.0 + surgeProgress * 62.0;
+
+                for (int s = 0; s < 24; s++) {
+                    double ang = rng.nextDouble() * Math.PI * 2.0;
+                    double r = surgeRadius + (rng.nextDouble() - 0.5) * 8.0;
+                    double px = task.groundCenter.getX() + 0.5 + Math.cos(ang) * r;
+                    double pz = task.groundCenter.getZ() + 0.5 + Math.sin(ang) * r;
+                    int surfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING, (int) px, (int) pz);
+                    double vx = Math.cos(ang) * 0.45;
+                    double vz = Math.sin(ang) * 0.45;
+
+                    world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, px, surfaceY + 0.8, pz, 2, vx, 0.12, vz, 0.08);
+                    world.spawnParticles(ParticleTypes.LARGE_SMOKE, px, surfaceY + 0.5, pz, 2, vx, 0.08, vz, 0.05);
+                    world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, Blocks.COBBLESTONE.getDefaultState()),
+                            px, surfaceY + 1.0, pz, 5, 0.8, 0.5, 0.8, 0.25);
+                }
+
+                // 3. Cột Nấm & Khói Bốc Thẳng từ Tâm
                 for (int k = 0; k < 5; k++) {
                     double stemH = rng.nextDouble() * 48.0;
                     double stemR = 1.0 + (stemH / 48.0) * 3.5;
@@ -579,28 +567,8 @@ public class SupernovaManager {
                     world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, sx, sy, sz, 1, 0, 0.35, 0, 0.02);
                 }
 
-                // B. Tán Nấm (Mushroom Cap): Đám mây nấm khổng lồ bung tỏa hình vành xuyến ở độ cao 45m - 55m
+                // 4. Âm thanh sấm rền và tiếng gầm vũ trụ vang vọng xa dần trong 7 giây
                 float capProgress = Math.min(1.0f, (task.ageTicks - DETONATION_TICK) / 140.0f);
-                double capRadius = 6.0 + capProgress * 24.0; // Bán kính tán nấm xòe rộng từ 6m ra 30m!
-
-                for (int j = 0; j < 8; j++) {
-                    double cAngle = rng.nextDouble() * Math.PI * 2.0;
-                    double rOffset = (rng.nextDouble() - 0.5) * 5.0;
-                    double r = capRadius + rOffset;
-                    double cx = task.groundCenter.getX() + 0.5 + Math.cos(cAngle) * r;
-                    double cy = task.groundCenter.getY() + 48.0 + (rng.nextDouble() - 0.5) * 6.0;
-                    double cz = task.groundCenter.getZ() + 0.5 + Math.sin(cAngle) * r;
-
-                    double outVx = Math.cos(cAngle) * 0.18;
-                    double outVz = Math.sin(cAngle) * 0.18;
-
-                    world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, cx, cy, cz, 1, outVx, 0.04, outVz, 0.02);
-                    if (capProgress < 0.45f && rng.nextFloat() < 0.35f) {
-                        world.spawnParticles(ParticleTypes.EXPLOSION, cx, cy, cz, 1, outVx, 0.02, outVz, 0.0);
-                    }
-                }
-
-                // C. Âm thanh sấm rền và tiếng gầm vũ trụ vang vọng xa dần trong 7 giây
                 if ((task.ageTicks - DETONATION_TICK) % 25 == 0) {
                     float decayVol = Math.max(0.6f, 3.5f * (1.0f - capProgress));
                     world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,

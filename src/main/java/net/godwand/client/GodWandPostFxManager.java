@@ -236,24 +236,12 @@ public class GodWandPostFxManager {
             }
             case ImpactFxPayload.TYPE_BLACK_HOLE -> {
                 impactIntensity = 1.0f;
-                // Ticks 0..340 (progress 0.0 -> 0.944): Hố Đen to dần từ 1 chấm (0.15f) lên cực đại (5.2f)
-                // ĐƠN ĐIỆU LIÊN TỤC - TUYỆT ĐỐI KHÔNG CO RÚT HOẶC DAO ĐỘNG!
-                if (progress < 0.944f) {
-                    float grow = progress / 0.944f;
-                    // Đường cong nở mượt: lúc đầu nhỏ nở chậm, càng về sau càng nở to uy nghi
-                    coreRadius = MathHelper.lerp((float) Math.pow(grow, 0.92), 0.15f, 5.2f);
-                    lensingPower = MathHelper.lerp(grow, 0.4f, 3.2f);
-                    shockwaveRadius = 0.0f;
-                    distortionPower = 0.0f;
-                    zoomBlur = -0.015f * grow;
-                }
-                // Ticks 341..360 (progress 0.944 -> 1.0): Chân không im lặng (Vacuum Silence) & Tích tụ năng lượng cực hạn trước nổ
-                else {
-                    coreRadius = 5.2f + 0.05f * (float) Math.sin(gTime * 40.0);
-                    lensingPower = 5.5f;
-                    zoomBlur = -0.075f;
-                    distortionPower = -0.05f;
-                }
+                // Suốt từ progress 0.0 đến 1.0 (Ticks 1..340): Hố Đen to dần ĐƠN ĐIỆU từ 0.15m lên 5.2m cực đại
+                coreRadius = MathHelper.lerp((float) Math.pow(progress, 0.95), 0.15f, 5.2f);
+                lensingPower = MathHelper.lerp(progress, 0.4f, 3.6f);
+                shockwaveRadius = 0.0f;
+                distortionPower = 0.0f;
+                zoomBlur = -0.025f * progress;
             }
         }
 

@@ -164,81 +164,61 @@ void main() {
                 }
             }
 
-            // 3. Volumetric Relativistic Pulsar Jets (Vertical Y axis)
-            vec2 jetXZ = bhRel.xz;
-            float denom = max(dot(rd.xz, rd.xz), 1e-6);
-            float tJet = dot(jetXZ, rd.xz) / denom;
-            if (tJet > 0.0 && tJet < sceneDist) {
-                vec3 pJet = rd * tJet;
-                float dJet = length(pJet.xz - bhRel.xz);
-                float hJet = pJet.y - bhRel.y;
-                if (hJet > -22.0 && hJet < 48.0) {
-                    float jetCore = exp(-dJet / 0.12);
-                    float jetSheath = exp(-dJet / 0.75) * 0.45;
-                    float jetAura = exp(-dJet / 2.8) * 0.15;
-                    float jetFade = smoothstep(-22.0, -18.0, hJet) * (1.0 - smoothstep(32.0, 48.0, hJet));
-                    vec3 jetColor = (vec3(1.0, 0.98, 0.95) * jetCore * 4.0 +
-                                     vec3(0.05, 0.88, 1.0) * jetSheath * 2.2 +
-                                     vec3(0.55, 0.15, 1.0) * jetAura * 1.2) * jetFade;
-                    addGlow += jetColor * (0.8 + 0.2 * sin(GTime * 25.0));
+            // 3. Volumetric Relativistic Pulsar Jets (Từ không có -> mỏng -> to dần theo CoreRadius)
+            float jetScale = clamp((CoreRadius - 0.85) / (5.2 - 0.85), 0.0, 1.0);
+            if (jetScale > 0.005) {
+                vec2 jetXZ = bhRel.xz;
+                float denom = max(dot(rd.xz, rd.xz), 1e-6);
+                float tJet = dot(jetXZ, rd.xz) / denom;
+                if (tJet > 0.0 && tJet < sceneDist) {
+                    vec3 pJet = rd * tJet;
+                    float dJet = length(pJet.xz - bhRel.xz);
+                    float hJet = pJet.y - bhRel.y;
+                    float maxDown = -22.0 * jetScale;
+                    float maxUp = 48.0 * jetScale;
+                    if (hJet > maxDown && hJet < maxUp) {
+                        // Độ rộng tia tỷ lệ thuận với jetScale (từ tia chỉ siêu mỏng -> cột sáng tối đa)
+                        float wFactor = max(0.04, jetScale);
+                        float jetCore = exp(-dJet / (0.12 * wFactor));
+                        float jetSheath = exp(-dJet / (0.75 * wFactor)) * 0.45 * jetScale;
+                        float jetAura = exp(-dJet / (2.8 * wFactor)) * 0.15 * jetScale;
+                        float jetFade = smoothstep(maxDown, maxDown * 0.8, hJet) * (1.0 - smoothstep(maxUp * 0.7, maxUp, hJet));
+                        vec3 jetColor = (vec3(1.0, 0.98, 0.95) * jetCore * 4.0 +
+                                         vec3(0.05, 0.88, 1.0) * jetSheath * 2.2 +
+                                         vec3(0.55, 0.15, 1.0) * jetAura * 1.2) * jetFade * jetScale;
+                        addGlow += jetColor * (0.85 + 0.15 * sin(GTime * 25.0));
+                    }
                 }
             }
         }
         // =========================================================================
         // NHÁNH 2: CHIÊU 4 - ĐẠI VỤ NỔ SIÊU TÂN TINH (FxType == 3.0: TYPE_SUPERNOVA)
-        // Vụ nổ siêu quy mô: Quả cầu lửa bức xạ vật đen + Cột năng lượng nấm (Mushroom Stem)
+        // Multi-Shell Volumetric Blast Wave 3D bẻ cong không gian và bức xạ nhiệt
         // =========================================================================
         else if (FxType > 2.5 && FxType < 3.5 && inFront) {
             if (CoreRadius > 0.5) {
                 float dSphere = impactParam;
-                float outerCorona = CoreRadius * 1.5;
+                float outerLimit = CoreRadius * 1.35;
+                if (dSphere < outerLimit && sceneDist > (tBH - outerLimit)) {
+                    // Tính biến dạng méo 3D để không bao giờ có viền tròn phẳng kiểu PNG
+                    float angle3D = atan(pClosest.y - bhRel.y, pClosest.x - bhRel.x);
+                    float turb = sin(angle3D * 5.0 + GTime * 12.0) * 0.12 + cos(angle3D * 9.0 - GTime * 18.0) * 0.08;
+                    float noisyRadius = CoreRadius * (1.0 + turb);
+                    float normD = dSphere / max(0.1, noisyRadius);
 
-                // 1. Quả cầu lửa trung tâm (Explosion Fireball)
-                if (dSphere < outerCorona && sceneDist > (tBH - outerCorona)) {
-                    float normD = dSphere / CoreRadius;
-                    float coreMask = saturate(1.0 - normD);
-                    float coronaFalloff = exp(-max(0.0, dSphere - CoreRadius * 0.6) / (CoreRadius * 0.35));
+                    // Bẻ cong khúc xạ không gian 3D quanh vỏ cầu nổ
+                    float shellRing = exp(-sqr(normD - 0.85) / 0.045);
+                    vec2 blastDir = (dist > 0.0001) ? normalize(aspectDiff) : vec2(0.0);
+                    lensOffset += vec2(blastDir.x / Aspect, blastDir.y) * shellRing * 0.12 * ImpactIntensity;
 
-                    // Nhiễu plasma cuộn xoáy trên bề mặt lửa
-                    float solarNoise = 0.8 + 0.2 * sin(normD * 16.0 - GTime * 14.0 + atan(pClosest.y - bhRel.y, pClosest.x - bhRel.x) * 6.0);
-                    float temp = saturate(coreMask * 1.35 * solarNoise);
+                    // Chỉ tỏa sáng lõi năng lượng rực rỡ trong 1.2 giây đầu (khi CoreRadius < 22m), sau đó nhường chỗ cho khói bụi 3D trong thế giới
+                    float flashFade = clamp(1.0 - (CoreRadius - 5.2) / 28.0, 0.0, 1.0);
+                    float coreGlow = exp(-normD * 2.2) * flashFade;
+                    float shockRim = shellRing * clamp(1.0 - (CoreRadius - 5.2) / 34.0, 0.0, 1.0);
 
-                    vec3 fireCol = blackbody(temp * 1.25);
-                    // Lõi nhiệt độ cực cao: Trắng - Hồng phấn - Vàng rực rỡ
-                    fireCol = mix(fireCol, vec3(0.85, 0.95, 1.0), smoothstep(0.70, 1.0, coreMask));
-
-                    float alphaDepth = smoothstep(tBH - outerCorona, tBH + outerCorona * 0.4, sceneDist);
-                    float fireballGlow = (coreMask * coreMask * 6.0 + coronaFalloff * 2.8) * alphaDepth;
-                    addGlow += fireCol * fireballGlow * ImpactIntensity;
-                }
-
-                // 2. Cột khói nấm & Cột nhiệt bốc thẳng lên trời (Mushroom Cloud Column)
-                vec2 stemXZ = bhRel.xz;
-                float denomStem = max(dot(rd.xz, rd.xz), 1e-6);
-                float tStem = dot(stemXZ, rd.xz) / denomStem;
-                if (tStem > 0.0 && tStem < sceneDist) {
-                    vec3 pStem = rd * tStem;
-                    float dStem = length(pStem.xz - bhRel.xz);
-                    float hStem = pStem.y - bhRel.y; // Độ cao so với tâm nổ
-
-                    // Thân nấm vươn cao từ chân vụ nổ lên tới CoreRadius * 2.2
-                    float maxStemH = CoreRadius * 2.2;
-                    if (hStem > -CoreRadius * 0.5 && hStem < maxStemH) {
-                        float hNorm = saturate((hStem + CoreRadius * 0.5) / (maxStemH + CoreRadius * 0.5));
-                        float stemRadius = CoreRadius * (0.28 + 0.12 * (1.0 - hNorm) + 0.75 * smoothstep(0.65, 1.0, hNorm));
-
-                        if (dStem < stemRadius * 1.4) {
-                            float stemMask = saturate(1.0 - (dStem / stemRadius));
-                            float stemNoise = 0.75 + 0.25 * sin(pStem.y * 0.45 - GTime * 8.0 + atan(pStem.z - bhRel.z, pStem.x - bhRel.x) * 4.0);
-                            float stemHeat = stemMask * stemNoise * (1.0 - hNorm * 0.45);
-
-                            vec3 stemColor = blackbody(stemHeat * 0.95);
-                            stemColor = mix(stemColor, vec3(0.20, 0.08, 0.05), smoothstep(0.35, 0.85, hNorm));
-                            float stemFade = smoothstep(-CoreRadius * 0.5, 0.0, hStem) * (1.0 - smoothstep(maxStemH * 0.85, maxStemH, hStem));
-
-                            addGlow += stemColor * (stemMask * stemMask * 3.5) * stemFade * ImpactIntensity * 0.75;
-                        }
-                    }
+                    vec3 fireCol = blackbody(clamp(coreGlow * 1.4 + shockRim * 0.9, 0.0, 1.2));
+                    float depthMask = smoothstep(tBH - outerLimit, tBH + outerLimit * 0.25, sceneDist);
+                    addGlow += fireCol * (coreGlow * 5.5 + shockRim * 3.2) * ImpactIntensity * depthMask;
                 }
             }
         }

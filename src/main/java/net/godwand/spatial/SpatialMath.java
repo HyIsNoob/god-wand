@@ -297,6 +297,71 @@ public final class SpatialMath {
         );
     }
 
+    /**
+     * Quỹ đạo Hố Đen Chiêu 4:
+     * - Khối đất vừa bóc ra lập tức vừa bay lên vừa xoay xoắn ốc quanh Hố Đen.
+     * - Bán kính quỹ đạo tỷ lệ thuận với currentInfluenceRadius (hố đen càng to, vòng xoáy càng rộng).
+     */
+    public static Vec3d computeDynamicBlackHoleOrbit(
+            BlockPos pos, Vec3d corePos, double currentInfluenceRadius,
+            float swirlAngle, float entryProgress, double collapseFactor) {
+
+        Vec3d blockCenter = Vec3d.ofCenter(pos);
+        double dx = blockCenter.x - corePos.x;
+        double dz = blockCenter.z - corePos.z;
+        double initialHorizDist = Math.sqrt(dx * dx + dz * dz);
+        double hash = hash01(pos);
+
+        int ringIndex = (int) (Math.abs(pos.asLong()) % 3);
+        double baseAngle = Math.atan2(dz, dx) + hash * 0.8;
+        double dir = (ringIndex == 1 ? -1.0 : 1.0);
+
+        // Ngay từ lúc mới tách (entryProgress 0 -> 1), khối đá đã bắt đầu xoay quanh trục Hố Đen!
+        double theta = baseAngle + swirlAngle * dir * (0.80 + hash * 0.45);
+
+        // Bán kính vành đai tỷ lệ thuận với độ to hiện tại của Hố Đen & Vùng ảnh hưởng
+        double targetOrbitR = switch (ringIndex) {
+            case 0 -> currentInfluenceRadius * (0.55 + hash * 0.35);
+            case 1 -> currentInfluenceRadius * (0.42 + hash * 0.28);
+            default -> currentInfluenceRadius * (0.68 + hash * 0.38);
+        };
+        targetOrbitR = Math.max(2.5, targetOrbitR) * collapseFactor;
+
+        // Nội suy mượt từ bán kính mặt đất ban đầu vào bán kính quỹ đạo
+        double smoothEntry = entryProgress * entryProgress * (3.0 - 2.0 * entryProgress);
+        double currentR = MathHelper.lerp(smoothEntry, initialHorizDist * collapseFactor, targetOrbitR);
+
+        double lx = Math.cos(theta) * currentR;
+        double lz = Math.sin(theta) * currentR;
+        double ly = ((hash - 0.5) * 3.2 + Math.sin(theta * 2.0) * 0.65) * collapseFactor;
+
+        double rotX = (ringIndex == 1) ? Math.toRadians(28.0) : (ringIndex == 2 ? Math.toRadians(-22.0) : 0.0);
+        double rotZ = (ringIndex == 0) ? Math.toRadians(28.0) : (ringIndex == 2 ? Math.toRadians(-22.0) : 0.0);
+
+        double x1 = lx * Math.cos(rotZ) - ly * Math.sin(rotZ);
+        double y1 = lx * Math.sin(rotZ) + ly * Math.cos(rotZ);
+        double z1 = lz;
+
+        double finalX = x1;
+        double finalY = y1 * Math.cos(rotX) - z1 * Math.sin(rotX);
+        double finalZ = y1 * Math.sin(rotX) + z1 * Math.cos(rotX);
+
+        double targetWorldX = corePos.x + finalX;
+        double targetWorldY = corePos.y + finalY;
+        double targetWorldZ = corePos.z + finalZ;
+
+        // Khi mới tách (smoothEntry < 1.0): Bay xoắn ốc từ mặt đất lên độ cao quỹ đạo corePos
+        double currentWorldX = MathHelper.lerp(Math.min(1.0, smoothEntry * 1.35), blockCenter.x + lx * 0.25, targetWorldX);
+        double currentWorldY = MathHelper.lerp(smoothEntry, blockCenter.y + 0.8, targetWorldY);
+        double currentWorldZ = MathHelper.lerp(Math.min(1.0, smoothEntry * 1.35), blockCenter.z + lz * 0.25, targetWorldZ);
+
+        return new Vec3d(
+            currentWorldX - blockCenter.x,
+            currentWorldY - blockCenter.y,
+            currentWorldZ - blockCenter.z
+        );
+    }
+
     public static Vec3d computeSpiralReturnOffset(Vec3d currentOffset, BlockPos pos) {
         double angle = 0.55 * (((pos.asLong() & 1) == 0) ? 1.0 : -1.0);
         double cos = Math.cos(angle);
