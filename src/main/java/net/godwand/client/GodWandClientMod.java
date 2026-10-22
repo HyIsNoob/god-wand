@@ -15,6 +15,7 @@ public class GodWandClientMod implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         EntityRendererRegistry.register(GodWandMod.ARCANE_ORB_ENTITY_TYPE, ArcaneOrbEntityRenderer::new);
+        EntityRendererRegistry.register(GodWandMod.STONE_CANNON_ENTITY_TYPE, StoneCannonEntityRenderer::new);
 
         // Register S2C Impact FX receiver
         ClientPlayNetworking.registerGlobalReceiver(ImpactFxPayload.ID, (payload, context) -> {
