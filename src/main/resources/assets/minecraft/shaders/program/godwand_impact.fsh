@@ -240,12 +240,12 @@ void main() {
                         float heatEnergy = clamp((core3D * 1.8 + shell3D * 1.4 + stemDensity * 0.9) * ImpactIntensity, 0.0, 2.0);
                         vec3 fireCol = blackbody(heatEnergy * 0.7);
 
-                        // Độ sáng phân rã dần theo thời gian sau nổ
-                        float flashDecay = clamp(1.0 - (CoreRadius - 5.2) / 33.0, 0.0, 1.0);
-                        vec3 novaFire = fireCol * (shell3D * 4.2 + core3D * 6.5 + stemDensity * 3.0) * flashDecay * ImpactIntensity;
+                        // Độ sáng phân rã dần từ từ theo cường độ vụ nổ (Fadeout mượt mà, không bị tắt phụt khi quả cầu phình to)
+                        float fireFactor = clamp(ImpactIntensity / 1.6, 0.0, 1.0);
+                        vec3 novaFire = fireCol * (shell3D * 4.2 + core3D * 6.5 + stemDensity * 3.0) * (0.30 + 0.70 * fireFactor) * ImpactIntensity;
 
-                        // Ánh sáng phản chiếu tro bụi vũ trụ
-                        vec3 ashColor = vec3(0.12, 0.06, 0.04) * (1.0 - flashDecay) * (shell3D + stemDensity) * 1.5;
+                        // Ánh sáng phản chiếu tro bụi và tinh vân vũ trụ mờ ảo sau nổ
+                        vec3 ashColor = vec3(0.16, 0.08, 0.05) * (1.0 - fireFactor * 0.7) * (shell3D + stemDensity) * min(ImpactIntensity, 1.3);
 
                         addGlow += (novaFire + ashColor);
                     }

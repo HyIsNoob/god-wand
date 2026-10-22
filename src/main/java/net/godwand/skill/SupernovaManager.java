@@ -423,15 +423,15 @@ public class SupernovaManager {
             else if (task.ageTicks == DETONATION_TICK && !task.exploded) {
                 task.exploded = true;
 
-                // 1. Kích hoạt Shader Siêu Tân Tinh (160 ticks / 8 giây Aftermath)
+                // 1. Kích hoạt Shader Siêu Tân Tinh khổng lồ 98m (240 ticks / 12 giây phình to & tan biến dần dần)
                 ImpactFxPayload novaPayload = new ImpactFxPayload(
                         task.corePos.x, task.corePos.y, task.corePos.z,
-                        ImpactFxPayload.TYPE_SUPERNOVA, 160, 3.0f
+                        ImpactFxPayload.TYPE_SUPERNOVA, 240, 3.5f
                 );
                 CinematicFxPayload burstCinematic = new CinematicFxPayload(
                         CinematicFxPayload.EVENT_SUPERNOVA_BURST,
                         task.corePos.x, task.corePos.y, task.corePos.z,
-                        1.0f, 90
+                        1.0f, 110
                 );
                 for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 160.0)) {
                     ServerPlayNetworking.send(p, novaPayload);
@@ -450,25 +450,25 @@ public class SupernovaManager {
                 world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
                         SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.PLAYERS, 5.0f, 0.5f);
 
-                // 3. VFX vụ nổ chói lòa & Quả cầu lửa 3D phóng đa hướng
+                // 3. VFX vụ nổ chói lòa & Quả cầu lửa 3D phóng đa hướng quy mô cực đại
                 // BỎ ParticleTypes.FLASH theo yêu cầu! Thay bằng tia sét hồ quang và tàn nham rực cháy
-                world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, task.corePos.x, task.corePos.y, task.corePos.z, 80, 5.0, 5.0, 5.0, 0.35);
-                world.spawnParticles(ParticleTypes.LAVA, task.corePos.x, task.corePos.y, task.corePos.z, 60, 4.0, 4.0, 4.0, 0.45);
-                world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, task.corePos.x, task.corePos.y, task.corePos.z, 40, 6.0, 6.0, 6.0, 0.0);
-                world.spawnParticles(ParticleTypes.SONIC_BOOM, task.corePos.x, task.corePos.y, task.corePos.z, 18, 4.0, 4.0, 4.0, 0.0);
-                world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.65f, 0.15f), 3.8f),
-                        task.corePos.x, task.corePos.y, task.corePos.z, 300, 12.0, 12.0, 12.0, 0.9);
+                world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, task.corePos.x, task.corePos.y, task.corePos.z, 120, 8.0, 8.0, 8.0, 0.45);
+                world.spawnParticles(ParticleTypes.LAVA, task.corePos.x, task.corePos.y, task.corePos.z, 90, 6.0, 6.0, 6.0, 0.55);
+                world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, task.corePos.x, task.corePos.y, task.corePos.z, 50, 8.0, 8.0, 8.0, 0.0);
+                world.spawnParticles(ParticleTypes.SONIC_BOOM, task.corePos.x, task.corePos.y, task.corePos.z, 24, 6.0, 6.0, 6.0, 0.0);
+                world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.65f, 0.15f), 4.0f),
+                        task.corePos.x, task.corePos.y, task.corePos.z, 450, 18.0, 18.0, 18.0, 1.2);
 
                 Random blastRng = new Random(task.groundCenter.asLong());
-                for (int b = 0; b < 140; b++) {
+                for (int b = 0; b < 220; b++) {
                     double bTheta = blastRng.nextDouble() * Math.PI * 2.0;
                     double bPhi = (blastRng.nextDouble() - 0.2) * Math.PI * 0.5; // Bán cầu 3D bung nở
-                    double bSpd = 1.6 + blastRng.nextDouble() * 3.4;
+                    double bSpd = 2.0 + blastRng.nextDouble() * 4.2;
                     double vx = Math.cos(bPhi) * Math.cos(bTheta) * bSpd;
-                    double vy = Math.sin(bPhi) * bSpd + 0.6;
+                    double vy = Math.sin(bPhi) * bSpd + 0.8;
                     double vz = Math.cos(bPhi) * Math.sin(bTheta) * bSpd;
-                    world.spawnParticles(ParticleTypes.FLAME, task.corePos.x, task.corePos.y, task.corePos.z, 1, vx, vy, vz, 0.35);
-                    world.spawnParticles(ParticleTypes.LAVA, task.corePos.x, task.corePos.y, task.corePos.z, 1, vx * 0.7, vy * 0.7, vz * 0.7, 0.2);
+                    world.spawnParticles(ParticleTypes.FLAME, task.corePos.x, task.corePos.y, task.corePos.z, 1, vx, vy, vz, 0.4);
+                    world.spawnParticles(ParticleTypes.LAVA, task.corePos.x, task.corePos.y, task.corePos.z, 1, vx * 0.8, vy * 0.8, vz * 0.8, 0.25);
                 }
 
                 // 4. Sát thương Calamity hủy diệt (150 - 350 damage) trong bán kính 65m

@@ -21,8 +21,8 @@ public class CustomImpactFrameOverlay {
             Identifier.of("godwand", "textures/vfx/impact_frame_3.png")
     };
 
-    public static final int IMPACT_FRAME_TICKS = 6;
-    public static final int FADEOUT_TICKS = 16;
+    public static final int IMPACT_FRAME_TICKS = 4;
+    public static final int FADEOUT_TICKS = 18;
     public static final int TOTAL_DURATION = IMPACT_FRAME_TICKS + FADEOUT_TICKS;
 
     private static int currentTick = 0;

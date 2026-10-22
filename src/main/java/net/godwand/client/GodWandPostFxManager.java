@@ -220,15 +220,18 @@ public class GodWandPostFxManager {
                 zoomBlur = 0.0f;
                 retinaBurn = 0.0f;
 
-                // Quả cầu lửa & đám mây nấm vũ trụ:
-                // Ticks 0..35 (progress 0..0.25): Bung nở cực nhanh từ 5.2m lên 38.0m
-                // Ticks 36..140 (progress 0.25..1.0): Duy trì kích thước khổng lồ 38m trong khi chuyển thành khói bụi & tan dần
-                float expandT = Math.min(1.0f, progress / 0.25f);
-                coreRadius = MathHelper.lerp((float) Math.sin(expandT * Math.PI * 0.5), 5.2f, 38.0f);
-                lensingPower = Math.max(0.0f, (1.0f - progress) * 2.5f);
+                // Quả cầu lửa vũ trụ khổng lồ & đám mây nấm tận thế (Supernova Cosmic Blast):
+                // Pha 1 (progress 0..0.20): Bung nổ thần tốc từ 5.2m lên 68.0m
+                // Pha 2 (progress 0.20..0.85): Tiếp tục phình to cuồn cuộn ra tận 98.0m bao trùm toàn bộ bầu trời
+                float burstProg = Math.min(1.0f, progress / 0.20f);
+                float burstR = MathHelper.lerp((float) Math.sin(burstProg * Math.PI * 0.5), 5.2f, 68.0f);
+                float swellProg = MathHelper.clamp((progress - 0.20f) / 0.65f, 0.0f, 1.0f);
+                coreRadius = MathHelper.lerp((float) Math.sin(swellProg * Math.PI * 0.5), burstR, 98.0f);
 
-                // AFTERMATH: Không biến mất đột ngột! Cường độ mờ dần từ từ trong 140 ticks (7 giây)
-                impactIntensity = baseIntensity * (1.0f - (float) Math.pow(progress, 2.2));
+                lensingPower = Math.max(0.0f, (1.0f - progress) * 1.8f);
+
+                // AFTERMATH: Biến mất từ từ êm ái, chuyển từ plasma trắng-vàng sang tro bụi & tinh vân mờ ảo
+                impactIntensity = baseIntensity * (float) Math.pow(1.0f - progress, 1.45);
             }
             case ImpactFxPayload.TYPE_BLACK_HOLE -> {
                 impactIntensity = 1.0f;

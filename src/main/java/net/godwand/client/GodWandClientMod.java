@@ -24,8 +24,8 @@ public class GodWandClientMod implements ClientModInitializer {
                         payload.type(), payload.durationTicks(), payload.intensity()
                 );
                 if (payload.type() == ImpactFxPayload.TYPE_SUPERNOVA) {
-                    // Anime impact frames siêu nhanh 6 ticks (0.3s) kèm lớp phủ trắng fadeout êm ái
-                    CustomImpactFrameOverlay.trigger(6);
+                    // Anime impact frames siêu nhanh 4 ticks (0.2s - 1 tick/frame) kèm lớp phủ trắng fadeout êm ái
+                    CustomImpactFrameOverlay.trigger(4);
                 }
             });
         });
