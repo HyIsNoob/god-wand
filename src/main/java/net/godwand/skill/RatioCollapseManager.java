@@ -185,7 +185,7 @@ public class RatioCollapseManager {
         world.playSound(null, center, SoundEvents.ITEM_MACE_SMASH_GROUND, SoundCategory.BLOCKS, 3.0f, 0.8f);
 
         world.spawnParticles(ParticleTypes.SONIC_BOOM, task.meteorCore.x, task.meteorCore.y, task.meteorCore.z, 1, 0, 0, 0, 0);
-        world.spawnParticles(ParticleTypes.FLASH, task.meteorCore.x, task.meteorCore.y, task.meteorCore.z, 3, 0.2, 0.2, 0.2, 0.0);
+        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, task.meteorCore.x, task.meteorCore.y, task.meteorCore.z, 20, 0.4, 0.4, 0.4, 0.1);
 
         // 2. Bóc các khối đất đá từ mặt đất
         int intR = (int) Math.ceil(task.radius);
@@ -349,6 +349,10 @@ public class RatioCollapseManager {
                 float t = task.ageTicks / 38.0f;
                 float smoothT = 0.5f - 0.5f * (float) Math.cos(t * Math.PI); // S-curve mượt
 
+                // Tốc độ xoay bắt đầu tăng tốc mượt từ 0.0 lên 0.12 rad/tick tại Tick 38
+                float spinSpeed1 = 0.12f * (t * t);
+                task.orbitAngle += spinSpeed1;
+
                 if (task.ageTicks % 2 == 0) {
                     for (BlockPos pos : task.displacedPositions) {
                         DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
@@ -360,14 +364,17 @@ public class RatioCollapseManager {
                         double initRad = task.initialOrbitRadius.getOrDefault(pos, 5.0);
                         double hoverY = task.hoverHeightOffset.getOrDefault(pos, 0.0);
 
-                        // Điểm đích Pha 1: Bay thẳng lên độ cao ngang với Quả Cầu Năng Lượng (meteorCore.y + hoverY)
+                        // Điểm đích Pha 1: Bay lên xoay theo quỹ đạo vòng ngoài (curAngle) ngang tầm meteorCore
+                        double curAngle = initAngle + task.orbitAngle;
                         Vec3d targetHoverWorld = new Vec3d(
-                                task.meteorCore.x + Math.cos(initAngle) * initRad,
+                                task.meteorCore.x + Math.cos(curAngle) * initRad,
                                 task.meteorCore.y + hoverY,
-                                task.meteorCore.z + Math.sin(initAngle) * initRad
+                                task.meteorCore.z + Math.sin(curAngle) * initRad
                         );
                         Vec3d curDisp = targetHoverWorld.subtract(Vec3d.ofCenter(pos)).multiply(smoothT);
-                        Quaternionf rot = task.baseRotation.getOrDefault(pos, new Quaternionf());
+
+                        Quaternionf baseRot = task.baseRotation.getOrDefault(pos, new Quaternionf());
+                        Quaternionf rot = new Quaternionf(baseRot).rotateY(-task.orbitAngle);
 
                         display.setStartInterpolation(0);
                         display.setInterpolationDuration(2);
@@ -387,7 +394,7 @@ public class RatioCollapseManager {
                 float p2 = (task.ageTicks - 38) / 50.0f; // 0.0 -> 1.0
                 float smoothP2 = p2 * p2 * (3.0f - 2.0f * p2);
 
-                // Tốc độ xoay quỹ đạo tăng dần
+                // Tốc độ xoay quỹ đạo nối tiếp mượt mà từ 0.12 lên 0.40 rad/tick
                 float currentSpinSpeed = 0.12f + p2 * 0.28f;
                 task.orbitAngle += currentSpinSpeed;
 
@@ -419,9 +426,12 @@ public class RatioCollapseManager {
                         Vec3d localOff = swirlingOrbitOffset.lerp(drillTargetOff, smoothP2);
                         Vec3d finalDisp = task.meteorCore.add(localOff).subtract(Vec3d.ofCenter(pos));
 
-                        Quaternionf drillRot = new Quaternionf()
+                        Quaternionf baseRot = task.baseRotation.getOrDefault(pos, new Quaternionf());
+                        Quaternionf targetDrillRot = new Quaternionf()
                                 .rotateY(-task.orbitAngle)
-                                .rotateX((float) Math.toRadians(35.0 * smoothP2));
+                                .rotateX((float) Math.toRadians(35.0));
+                        Quaternionf startRot = new Quaternionf(baseRot).rotateY(-task.orbitAngle);
+                        Quaternionf drillRot = new Quaternionf(startRot).slerp(targetDrillRot, smoothP2);
 
                         display.setStartInterpolation(0);
                         display.setInterpolationDuration(2);
@@ -450,42 +460,31 @@ public class RatioCollapseManager {
             else if (task.ageTicks <= 134) {
                 float drillProg = (task.ageTicks - 88) / 46.0f; // 0.0 -> 1.0
 
-                // Xoay nhanh gấp bội như mũi khoan siêu tốc, kích thước cố định hoàn toàn
-                float drillSpinSpeed = 0.45f + drillProg * 0.60f;
+                // Xoay nhanh dần đều từ 0.40 lên 0.85 rad/tick, kích thước hoàn toàn cố định
+                float drillSpinSpeed = 0.40f + drillProg * 0.45f;
                 task.orbitAngle += drillSpinSpeed;
 
-                if (task.ageTicks == 89) {
-                    CinematicFxPayload focusPayload = new CinematicFxPayload(
-                            CinematicFxPayload.EVENT_METEOR_FOCUS,
-                            task.meteorCore.x, task.meteorCore.y, task.meteorCore.z,
-                            0.86f, 46
-                    );
-                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.meteorCore, 96.0)) {
-                        ServerPlayNetworking.send(p, focusPayload);
-                    }
-                }
+                // Cập nhật mỗi tick với duration 1 để khử triệt để hiện tượng hụt dây cung (chord-cutting),
+                // giữ nguyên vẹn 100% bán kính mũi khoan, không co giãn to nhỏ!
+                for (BlockPos pos : task.displacedPositions) {
+                    DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+                    if (record == null || record.displayEntityUuid == null) continue;
+                    BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
+                    if (display == null || !display.isAlive()) continue;
 
-                if (task.ageTicks % 2 == 0) {
-                    for (BlockPos pos : task.displacedPositions) {
-                        DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                        if (record == null || record.displayEntityUuid == null) continue;
-                        BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
-                        if (display == null || !display.isAlive()) continue;
+                    int idx = task.blockIndexMap.getOrDefault(pos, 0);
 
-                        int idx = task.blockIndexMap.getOrDefault(pos, 0);
+                    // Tọa độ trên MŨI KHOAN XOẮN ỐC (Spiral Drill) - chỉ xoay theo orbitAngle
+                    Vec3d drillOff = computeSpiralDrillOffset(idx, totalBlocks, task.boulderRadius, task.orbitAngle);
+                    Vec3d finalDisp = task.meteorCore.add(drillOff).subtract(Vec3d.ofCenter(pos));
 
-                        // Tọa độ trên MŨI KHOAN XOẮN ỐC (Spiral Drill) - chỉ xoay theo orbitAngle
-                        Vec3d drillOff = computeSpiralDrillOffset(idx, totalBlocks, task.boulderRadius, task.orbitAngle);
-                        Vec3d finalDisp = task.meteorCore.add(drillOff).subtract(Vec3d.ofCenter(pos));
+                    Quaternionf drillRot = new Quaternionf()
+                            .rotateY(-task.orbitAngle)
+                            .rotateX((float) Math.toRadians(35.0));
 
-                        Quaternionf drillRot = new Quaternionf()
-                                .rotateY(-task.orbitAngle)
-                                .rotateX((float) Math.toRadians(35.0));
-
-                        display.setStartInterpolation(0);
-                        display.setInterpolationDuration(2);
-                        display.setTransformation(SpatialMath.createPivotTransform(finalDisp, drillRot, 1.0f));
-                    }
+                    display.setStartInterpolation(0);
+                    display.setInterpolationDuration(1);
+                    display.setTransformation(SpatialMath.createPivotTransform(finalDisp, drillRot, 1.0f));
                 }
 
                 // HIỆU ỨNG HÓA ĐỎ NHIỆT HẠCH (RED-HOT OVERHEAT PARTICLES) BAO QUANH MŨI KHOAN
@@ -581,8 +580,9 @@ public class RatioCollapseManager {
                     world.playSound(null, task.center, SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.BLOCKS, 3.8f, 1.1f);
 
                     // VFX sóng xung kích mặt đất & cột dung nham phụt lên từ miệng lỗ khoan
-                    world.spawnParticles(ParticleTypes.FLASH,
-                            task.center.getX() + 0.5, task.center.getY() + 0.5, task.center.getZ() + 0.5, 8, 0.4, 0.4, 0.4, 0.0);
+                    // BỎ hoàn toàn ParticleTypes.FLASH theo yêu cầu để tránh lóa trắng màn hình, dùng tia chớp điện Ruby sắc bén
+                    world.spawnParticles(ParticleTypes.ELECTRIC_SPARK,
+                            task.center.getX() + 0.5, task.center.getY() + 0.5, task.center.getZ() + 0.5, 30, 0.8, 0.8, 0.8, 0.15);
                     world.spawnParticles(ParticleTypes.SONIC_BOOM,
                             task.center.getX() + 0.5, task.center.getY() + 1.0, task.center.getZ() + 0.5, 4, 0.2, 0.5, 0.2, 0.0);
                     world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER,

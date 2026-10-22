@@ -193,7 +193,7 @@ public class GodWandPostFxManager {
                 // Anime Impact Frame 12 ticks sắc nét chuẩn phong cách Chiêu 2 (mỗi frame 3 ticks rõ nét)
                 if (tickIdx < 12) {
                     impactFrame = 1.0f - ((float) tickIdx / 12.0f);
-                    int[] slamModes = {2, 2, 2, 0, 0, 0, 33, 33, 33, 2, 2, 2};
+                    int[] slamModes = {3, 3, 3, 2, 2, 2, 0, 0, 0, 33, 33, 33};
                     impactMode = slamModes[tickIdx];
                 } else {
                     impactFrame = 0.0f;
@@ -202,7 +202,7 @@ public class GodWandPostFxManager {
                 distortionPower = 0.0f; // Bỏ méo màn hình
                 chromaticAmount = 0.025f * baseIntensity * (1.0f - progress);
                 zoomBlur = 0.0f; // Bỏ nhòe màn hình
-                retinaBurn = Math.max(0.0f, 0.85f * baseIntensity * (1.0f - progress * 2.0f));
+                retinaBurn = 0.0f; // Bỏ hoàn toàn flash trắng xóa màn hình theo yêu cầu!
                 coreRadius = 0.0f; // Tuyệt đối không có hố đen
                 lensingPower = 0.0f;
             }
