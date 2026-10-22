@@ -32,6 +32,7 @@
         { "name": "CoreRadius",       "type": "float",     "count": 1,  "values": [ 0.0 ] },
         { "name": "LensingPower",     "type": "float",     "count": 1,  "values": [ 0.0 ] },
         { "name": "CameraPos",        "type": "float",     "count": 3,  "values": [ 0.0, 0.0, 0.0 ] },
-        { "name": "BlastCenter",      "type": "float",     "count": 3,  "values": [ 0.0, 0.0, 0.0 ] }
+        { "name": "BlastCenter",      "type": "float",     "count": 3,  "values": [ 0.0, 0.0, 0.0 ] },
+        { "name": "FxType",           "type": "float",     "count": 1,  "values": [ 0.0 ] }
     ]
 }

@@ -7,9 +7,10 @@ import net.godwand.network.ImpactFxPayload;
 import net.godwand.spatial.DisplacedBlockRecord;
 import net.godwand.spatial.SpatialDisplacementManager;
 import net.godwand.spatial.SpatialMath;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.entity.EntityType;
+import net.minecraft.entity.FallingBlockEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.decoration.Brightness;
 import net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity;
@@ -37,20 +38,27 @@ public class SupernovaManager {
         public final ServerPlayerEntity caster;
         public final BlockPos groundCenter;
         public final Vec3d corePos;
-        public final double maxRadius = 16.0;
+        public final double maxRadius = 36.0; // Calamity scale!
 
         public int ageTicks = 0;
-        public final int maxLifetimeTicks = 260;
+        public final int maxLifetimeTicks = 250;
         public float swirlAngle = 0.0f;
         public boolean exploded = false;
-        public boolean rewindTriggered = false;
-        public boolean restored = false;
 
+        // Progressive Peeling & Ring Dispersal (Ticks 1..120)
+        public final List<BlockPos> candidatePositions = new ArrayList<>();
+        public final Set<BlockPos> peeledPositions = new HashSet<>();
         public final List<BlockPos> displayedPositions = new ArrayList<>();
         public final List<BlockPos> interiorPositions = new ArrayList<>();
+        public final Set<BlockPos> swallowedPositions = new HashSet<>();
+
         public final Map<BlockPos, Vec3d> stage1UpliftMap = new HashMap<>();
         public final Map<BlockPos, Quaternionf> baseRotationMap = new HashMap<>();
         public final Map<BlockPos, Float> blockScaleMap = new HashMap<>();
+
+        // Batched permanent crater carving at Tick 186
+        public final List<BlockPos> craterCarveBatch = new ArrayList<>();
+        public int craterIndex = 0;
 
         public SupernovaTask(ServerWorld world, ServerPlayerEntity caster, BlockPos groundCenter, Vec3d corePos) {
             this.world = world;
@@ -65,125 +73,82 @@ public class SupernovaManager {
     public static void cast(ServerPlayerEntity player) {
         ServerWorld world = player.getServerWorld();
 
-        HitResult hit = player.raycast(36.0, 0.0f, false);
+        HitResult hit = player.raycast(45.0, 0.0f, false);
         BlockPos groundCenter;
         if (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult bHit) {
             groundCenter = bHit.getBlockPos();
         } else {
-            Vec3d forward = player.getEyePos().add(player.getRotationVec(1.0f).multiply(20.0));
+            Vec3d forward = player.getEyePos().add(player.getRotationVec(1.0f).multiply(24.0));
             groundCenter = BlockPos.ofFloored(forward);
             while (groundCenter.getY() > world.getBottomY() && world.getBlockState(groundCenter).isAir()) {
                 groundCenter = groundCenter.down();
             }
         }
 
-        Vec3d corePos = groundCenter.toCenterPos().add(0, 9.5, 0);
+        // Hố đen lơ lửng cách mặt đất 20.0m (Quy mô Calamity)
+        Vec3d corePos = groundCenter.toCenterPos().add(0, 20.0, 0);
         SupernovaTask task = new SupernovaTask(world, player, groundCenter, corePos);
 
-        // 1 & 2. 3D Raymarched Black Hole & Relativistic Pulsar Jets Shader
-        // Kích hoạt Shader Hố Đen 3D & Khúc xạ ánh sáng hấp dẫn (Einstein Ring + Accretion Disk + Pulsar Jets)
+        // 1. Kích hoạt Shader Hố Đen 3D độc quyền của Chiêu 4 (Accretion Disk + Pulsar Jets)
         ImpactFxPayload blackHolePayload = new ImpactFxPayload(
                 corePos.x, corePos.y, corePos.z,
                 ImpactFxPayload.TYPE_BLACK_HOLE, 186, 1.0f
         );
-        for (ServerPlayerEntity p : PlayerLookup.around(world, corePos, 128.0)) {
+        for (ServerPlayerEntity p : PlayerLookup.around(world, corePos, 160.0)) {
             ServerPlayNetworking.send(p, blackHolePayload);
         }
 
-        // 3. Quét hình cầu bán kính R = 16.0 quanh groundCenter, lấy tối đa 400 khối
+        // 2. Thu thập danh sách khối ứng viên trong bán kính Calamity R = 36.0m
+        // QUY TẮC CỐT LÕI: KHÔNG bóc khối nào ở Tick 0 (Chống lỗi ăn chặn phase).
+        // Khối sẽ được bóc tách từ từ (Progressive Peel) trong suốt Ticks 1..120.
         int intR = (int) Math.ceil(task.maxRadius);
         double maxRadiusSq = task.maxRadius * task.maxRadius;
         BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-        List<BlockPos> candidatePositions = new ArrayList<>();
-        for (int x = -intR; x <= intR; x++) {
-            for (int y = -intR; y <= intR; y++) {
-                int targetY = groundCenter.getY() + y;
-                if (targetY < world.getBottomY() || targetY >= world.getTopY()) continue;
-                for (int z = -intR; z <= intR; z++) {
-                    double dSq = x * x + y * y + z * z;
-                    if (dSq > maxRadiusSq) continue;
+        List<BlockPos> candidates = new ArrayList<>();
+        int groundY = groundCenter.getY();
 
-                    mutable.set(groundCenter.getX() + x, targetY, groundCenter.getZ() + z);
+        for (int x = -intR; x <= intR; x++) {
+            for (int z = -intR; z <= intR; z++) {
+                double dSq2D = x * x + z * z;
+                if (dSq2D > maxRadiusSq) continue;
+                double dist2D = Math.sqrt(dSq2D);
+                int maxDepth = (int) Math.round((1.0 - (dist2D / task.maxRadius)) * 14.0);
+                int minY = Math.max(world.getBottomY(), groundY - maxDepth);
+                int maxY = Math.min(world.getTopY() - 1, groundY + 4);
+
+                for (int y = maxY; y >= minY; y--) {
+                    mutable.set(groundCenter.getX() + x, y, groundCenter.getZ() + z);
                     BlockState state = world.getBlockState(mutable);
+                    if (state.isAir() || state.getBlock() == Blocks.BEDROCK) continue;
                     if (!SpatialDisplacementManager.canDisplace(world, mutable, state)) continue;
-                    candidatePositions.add(mutable.toImmutable());
+                    candidates.add(mutable.toImmutable());
                 }
             }
         }
 
-        // Trộn ngẫu nhiên trước khi chia tầng bán kính 2.5m để 400 khối phân bổ đều 360 độ
-        Collections.shuffle(candidatePositions, new Random(groundCenter.asLong()));
-        candidatePositions.sort((a, b) -> {
-            int bandA = (int) (Math.sqrt(a.getSquaredDistance(task.groundCenter)) / 2.5);
-            int bandB = (int) (Math.sqrt(b.getSquaredDistance(task.groundCenter)) / 2.5);
-            return Integer.compare(bandB, bandA);
+        // Sắp xếp bóc tách theo lớp: Từ tầng trên cùng xuống sâu dần (Y giảm dần), và từ tâm lan ra ngoài
+        candidates.sort((a, b) -> {
+            int yComp = Integer.compare(b.getY(), a.getY());
+            if (yComp != 0) return yComp;
+            double distA = a.getSquaredDistance(task.groundCenter.getX(), a.getY(), task.groundCenter.getZ());
+            double distB = b.getSquaredDistance(task.groundCenter.getX(), b.getY(), task.groundCenter.getZ());
+            return Double.compare(distA, distB);
         });
 
-        int maxDisplays = Math.min(400, candidatePositions.size());
-        for (int i = 0; i < candidatePositions.size(); i++) {
-            BlockPos pos = candidatePositions.get(i);
-            boolean isDisplay = (i < maxDisplays);
+        task.candidatePositions.addAll(candidates);
 
-            if (isDisplay) {
-                float hash = (float) SpatialMath.hash01(pos);
-                float liftY = 0.4f + hash * 2.4f; // Nâng chậm 0.4m -> 2.8m ở Giai đoạn 1
-                Vec3d stage1Lift = new Vec3d((hash - 0.5) * 0.4, liftY, (SpatialMath.hash01(pos.up()) - 0.5) * 0.4);
-
-                Quaternionf rot = new Quaternionf()
-                        .rotateY((float) (hash * Math.PI * 2.0))
-                        .rotateX((float) Math.toRadians(20.0 + hash * 25.0));
-                float scale = 0.65f + hash * 0.42f;
-
-                SpatialDisplacementManager.displaceBlock(
-                        world,
-                        pos,
-                        new Vector3f(0, 0, 0),
-                        rot,
-                        new Vector3f(scale, scale, scale),
-                        265,
-                        0x00F5FF,
-                        true,
-                        DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED,
-                        player.getUuid(),
-                        null,
-                        0.0
-                );
-
-                task.displayedPositions.add(pos);
-                task.stage1UpliftMap.put(pos, stage1Lift);
-                task.baseRotationMap.put(pos, rot);
-                task.blockScaleMap.put(pos, scale);
-            } else {
-                SpatialDisplacementManager.displaceBlock(
-                        world,
-                        pos,
-                        new Vector3f(0, 0, 0),
-                        new Quaternionf(),
-                        new Vector3f(1.0f, 1.0f, 1.0f),
-                        265,
-                        0,
-                        false,
-                        DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE,
-                        null,
-                        null,
-                        0.0
-                );
-                task.interiorPositions.add(pos);
-            }
-        }
-
-        // Âm thanh khởi sinh hố đen vũ trụ
+        // Âm thanh khởi sinh Hố Đen Tận Thế
         world.playSound(null, corePos.x, corePos.y, corePos.z,
-                SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 3.5f, 0.5f);
+                SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 4.0f, 0.5f);
         world.playSound(null, corePos.x, corePos.y, corePos.z,
-                SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 3.0f, 0.7f);
+                SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 3.5f, 0.6f);
         world.playSound(null, corePos.x, corePos.y, corePos.z,
-                SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 3.0f, 0.6f);
+                SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 3.5f, 0.5f);
 
-        world.spawnParticles(ParticleTypes.SONIC_BOOM, corePos.x, corePos.y, corePos.z, 1, 0, 0, 0, 0);
-        world.spawnParticles(ParticleTypes.FLASH, corePos.x, corePos.y, corePos.z, 2, 0.1, 0.1, 0.1, 0.0);
-        world.spawnParticles(ParticleTypes.REVERSE_PORTAL, corePos.x, corePos.y, corePos.z, 50, 1.5, 1.5, 1.5, 0.35);
+        world.spawnParticles(ParticleTypes.SONIC_BOOM, corePos.x, corePos.y, corePos.z, 2, 0, 0, 0, 0);
+        world.spawnParticles(ParticleTypes.FLASH, corePos.x, corePos.y, corePos.z, 3, 0.2, 0.2, 0.2, 0.0);
+        world.spawnParticles(ParticleTypes.REVERSE_PORTAL, corePos.x, corePos.y, corePos.z, 80, 2.0, 2.0, 2.0, 0.4);
 
         ACTIVE_TASKS.add(task);
     }
@@ -197,118 +162,180 @@ public class SupernovaManager {
             task.ageTicks++;
 
             // =========================================================================
-            // GIAI ĐOẠN 1: RUNG CHẤN & TÁCH KHỐI TỪ TỪ (Ticks 1..50 / 0s - 2.5s)
+            // GIAI ĐOẠN 1 & 2: BÓC TÁCH ĐỊA HÌNH THEO THỜI GIAN & 3 VÀNH ĐAI BỒI TỤ (Ticks 1..120)
             // =========================================================================
-            if (task.ageTicks <= 50) {
-                if (task.ageTicks % 2 == 0) {
-                    for (BlockPos pos : task.displayedPositions) {
-                        DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                        if (record == null || record.displayEntityUuid == null) continue;
+            if (task.ageTicks <= 120) {
+                // Bán kính bóc tách mở rộng từ từ theo thời gian R(t) = maxRadius * (t / 120.0)
+                double currentRadius = task.maxRadius * (task.ageTicks / 120.0);
+                double currentRadiusSq = currentRadius * currentRadius;
 
-                        BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
-                        if (display == null || !display.isAlive()) continue;
+                int peeledThisTick = 0;
+                for (BlockPos pos : task.candidatePositions) {
+                    if (task.peeledPositions.contains(pos)) continue;
 
-                        double distRatio = Math.min(1.0, Math.sqrt(pos.getSquaredDistance(task.groundCenter)) / task.maxRadius);
-                        double localProgress = Math.max(0.0, Math.min(1.0, (task.ageTicks / 50.0 - distRatio * 0.45) / 0.55));
-                        float u = (float) (localProgress * localProgress);
+                    double dx = pos.getX() - task.groundCenter.getX();
+                    double dz = pos.getZ() - task.groundCenter.getZ();
+                    if (dx * dx + dz * dz <= currentRadiusSq) {
+                        task.peeledPositions.add(pos);
+                        peeledThisTick++;
 
-                        Vec3d lift = task.stage1UpliftMap.getOrDefault(pos, Vec3d.ZERO).multiply(u);
-                        Quaternionf rot = task.baseRotationMap.getOrDefault(pos, new Quaternionf());
-                        float scale = task.blockScaleMap.getOrDefault(pos, 1.0f);
+                        // Tối đa 450 khối BlockDisplayEntity trên 3 vành đai thiên thạch
+                        if (task.displayedPositions.size() < 450) {
+                            float hash = (float) SpatialMath.hash01(pos);
+                            float liftY = 0.5f + hash * 2.8f;
+                            Vec3d stage1Lift = new Vec3d((hash - 0.5) * 0.5, liftY, (SpatialMath.hash01(pos.up()) - 0.5) * 0.5);
 
-                        display.setStartInterpolation(0);
-                        display.setInterpolationDuration(2);
-                        display.setTransformation(SpatialMath.createPivotTransform(lift, rot, scale));
-                    }
-                }
+                            Quaternionf rot = new Quaternionf()
+                                    .rotateY((float) (hash * Math.PI * 2.0))
+                                    .rotateX((float) Math.toRadians(20.0 + hash * 25.0));
+                            float scale = 0.85f + hash * 0.55f; // Khối to rõ 0.85x - 1.40x
 
-                if (task.ageTicks % 15 == 0) {
-                    world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 2.5f, 0.7f + (task.ageTicks / 100.0f));
-                }
-            }
+                            // KHÔNG DÙNG setGlowing, chỉ dùng Brightness(15, 15)
+                            SpatialDisplacementManager.displaceBlock(
+                                    world,
+                                    pos,
+                                    new Vector3f(0, 0, 0),
+                                    rot,
+                                    new Vector3f(scale, scale, scale),
+                                    280,
+                                    0, // glowColor = 0 (tắt glowing)
+                                    true,
+                                    DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED,
+                                    task.caster.getUuid(),
+                                    null,
+                                    0.0
+                            );
 
-            // =========================================================================
-            // GIAI ĐOẠN 2: ĐI VÀO 3 VÀNH ĐAI & TĂNG TỐC CỰC HẠN (Ticks 51..150 / 2.5s - 7.5s)
-            // =========================================================================
-            else if (task.ageTicks <= 150) {
-                float accelProgress = (task.ageTicks - 50) / 100.0f; // 0.0 -> 1.0
-                float currentAngularSpeed = 0.008f + (accelProgress * accelProgress * 0.24f); // Tăng tốc cấp số nhân
-                task.swirlAngle += currentAngularSpeed;
+                            task.displayedPositions.add(pos);
+                            task.stage1UpliftMap.put(pos, stage1Lift);
+                            task.baseRotationMap.put(pos, rot);
+                            task.blockScaleMap.put(pos, scale);
 
-                float lerpProgress = Math.min(1.0f, (task.ageTicks - 50) / 35.0f); // Ticks 51..85 nhập mượt vào quỹ đạo
-                float beamThick = 0.35f + (accelProgress * 0.90f); // Phình to lên 1.25m!
-
-                if ((task.ageTicks - 50) % 2 == 0) {
-                    for (BlockPos pos : task.displayedPositions) {
-                        DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                        if (record == null || record.displayEntityUuid == null) continue;
-
-                        BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
-                        if (display == null || !display.isAlive()) continue;
-
-                        Vec3d ringOffset = SpatialMath.computeCanopyVortexOffset(pos, task.corePos, task.maxRadius, task.swirlAngle, 1.0);
-                        Vec3d finalOffset;
-                        if (lerpProgress < 1.0f) {
-                            Vec3d stage1Lift = task.stage1UpliftMap.getOrDefault(pos, Vec3d.ZERO);
-                            finalOffset = stage1Lift.lerp(ringOffset, lerpProgress);
+                            if (peeledThisTick <= 6) {
+                                world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
+                                        pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5,
+                                        1, 0, 0.06, 0, 0.02);
+                            }
                         } else {
-                            finalOffset = ringOffset;
+                            // Các khối lòng đất bên trong: Đào thành AIR không tốn Entity
+                            SpatialDisplacementManager.displaceBlock(
+                                    world,
+                                    pos,
+                                    new Vector3f(0, 0, 0),
+                                    new Quaternionf(),
+                                    new Vector3f(1.0f, 1.0f, 1.0f),
+                                    280,
+                                    0,
+                                    false,
+                                    DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED,
+                                    null,
+                                    null,
+                                    0.0
+                            );
+                            task.interiorPositions.add(pos);
                         }
-
-                        Quaternionf rot = new Quaternionf(task.baseRotationMap.getOrDefault(pos, new Quaternionf()))
-                                .rotateY(task.swirlAngle * 0.8f);
-                        float scale = task.blockScaleMap.getOrDefault(pos, 1.0f);
-
-                        display.setStartInterpolation(0);
-                        display.setInterpolationDuration(2);
-                        display.setTransformation(SpatialMath.createPivotTransform(finalOffset, rot, scale));
                     }
                 }
 
-                // Hút các thực thể xung quanh vào đĩa bồi tụ
+                // Cập nhật tọa độ nội suy cho các khối hiển thị
+                if (task.ageTicks <= 45) {
+                    // Ticks 1..45: Nhấc bổng nhẹ khỏi mặt đất
+                    if (task.ageTicks % 2 == 0) {
+                        for (BlockPos pos : task.displayedPositions) {
+                            DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+                            if (record == null || record.displayEntityUuid == null) continue;
+
+                            BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
+                            if (display == null || !display.isAlive()) continue;
+
+                            double distRatio = Math.min(1.0, Math.sqrt(pos.getSquaredDistance(task.groundCenter)) / task.maxRadius);
+                            double localProgress = Math.max(0.0, Math.min(1.0, (task.ageTicks / 45.0 - distRatio * 0.4) / 0.6));
+                            float u = (float) (localProgress * localProgress);
+
+                            Vec3d lift = task.stage1UpliftMap.getOrDefault(pos, Vec3d.ZERO).multiply(u);
+                            Quaternionf rot = task.baseRotationMap.getOrDefault(pos, new Quaternionf());
+                            float scale = task.blockScaleMap.getOrDefault(pos, 1.0f);
+
+                            display.setStartInterpolation(0);
+                            display.setInterpolationDuration(2);
+                            display.setTransformation(SpatialMath.createPivotTransform(lift, rot, scale));
+                        }
+                    }
+                } else {
+                    // Ticks 46..120: Cuốn xoáy vào 3 vành đai bồi tụ và tăng tốc độ góc
+                    float accelProgress = (task.ageTicks - 45) / 75.0f; // 0.0 -> 1.0
+                    float currentAngularSpeed = 0.012f + (accelProgress * accelProgress * 0.28f);
+                    task.swirlAngle += currentAngularSpeed;
+
+                    float lerpProgress = Math.min(1.0f, (task.ageTicks - 45) / 30.0f);
+
+                    if ((task.ageTicks - 45) % 2 == 0) {
+                        for (BlockPos pos : task.displayedPositions) {
+                            DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+                            if (record == null || record.displayEntityUuid == null) continue;
+
+                            BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
+                            if (display == null || !display.isAlive()) continue;
+
+                            Vec3d ringOffset = SpatialMath.computeCanopyVortexOffset(pos, task.corePos, task.maxRadius, task.swirlAngle, 1.0);
+                            Vec3d finalOffset;
+                            if (lerpProgress < 1.0f) {
+                                Vec3d stage1Lift = task.stage1UpliftMap.getOrDefault(pos, Vec3d.ZERO);
+                                finalOffset = stage1Lift.lerp(ringOffset, lerpProgress);
+                            } else {
+                                finalOffset = ringOffset;
+                            }
+
+                            Quaternionf rot = new Quaternionf(task.baseRotationMap.getOrDefault(pos, new Quaternionf()))
+                                    .rotateY(task.swirlAngle * 0.85f);
+                            float scale = task.blockScaleMap.getOrDefault(pos, 1.0f);
+
+                            display.setStartInterpolation(0);
+                            display.setInterpolationDuration(2);
+                            display.setTransformation(SpatialMath.createPivotTransform(finalOffset, rot, scale));
+                        }
+                    }
+                }
+
+                // Lực hút hấp dẫn kéo thực thể xung quanh vào tâm hố đen
                 if (task.ageTicks % 6 == 0) {
                     Box suctionBox = new Box(task.groundCenter).expand(task.maxRadius * 1.35);
                     for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, suctionBox, ent -> ent != task.caster)) {
-                        Vec3d pull = task.corePos.subtract(e.getPos()).normalize().multiply(0.24);
+                        Vec3d pull = task.corePos.subtract(e.getPos()).normalize().multiply(0.28);
                         e.addVelocity(pull.x, pull.y, pull.z);
                         e.velocityModified = true;
                     }
                 }
+
+                if (task.ageTicks % 14 == 0) {
+                    world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
+                            SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 3.0f, 0.6f + (task.ageTicks / 100.0f));
+                }
             }
 
             // =========================================================================
-            // GIAI ĐOẠN 3: SỤP ĐỔ HẤP DẪN VÀO TÂM LỖ ĐEN (Ticks 151..185 / 7.5s - 9.25s)
+            // GIAI ĐOẠN 3: SỤP ĐỔ HẤP DẪN & NUỐT CHỬNG VÀO CHÂN TRỜI SỰ KIỆN (Ticks 121..175)
             // =========================================================================
-            else if (task.ageTicks <= 185) {
+            else if (task.ageTicks <= 175) {
                 if (task.ageTicks == 151) {
                     CinematicFxPayload compressCinematic = new CinematicFxPayload(
                             CinematicFxPayload.EVENT_SUPERNOVA_COMPRESS,
                             task.corePos.x, task.corePos.y, task.corePos.z,
-                            0.65f, 35
+                            0.75f, 35
                     );
-                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 128.0)) {
+                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 160.0)) {
                         ServerPlayNetworking.send(p, compressCinematic);
                     }
                 }
 
-                if (task.ageTicks == 176) {
-                    CinematicFxPayload silencePayload = new CinematicFxPayload(
-                            CinematicFxPayload.EVENT_VACUUM_SILENCE,
-                            task.corePos.x, task.corePos.y, task.corePos.z,
-                            1.0f, 10
-                    );
-                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 128.0)) {
-                        ServerPlayNetworking.send(p, silencePayload);
-                    }
-                }
+                float shrinkProgress = (task.ageTicks - 120) / 55.0f; // 0.0 -> 1.0
+                float radiusScale = Math.max(0.04f, 1.0f - (shrinkProgress * 0.96f)); // Co rút cực hạn về 0.04
+                task.swirlAngle += 0.28f;
 
-                float shrinkProgress = (task.ageTicks - 150) / 35.0f;
-                float radiusScale = 1.0f - (shrinkProgress * 0.88f); // Bán kính co rút mạnh từ 1.0 về 0.12!
-                task.swirlAngle += 0.25f;
-
-                if ((task.ageTicks - 150) % 2 == 0) {
+                if ((task.ageTicks - 120) % 2 == 0) {
                     for (BlockPos pos : task.displayedPositions) {
+                        if (task.swallowedPositions.contains(pos)) continue;
+
                         DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
                         if (record == null || record.displayEntityUuid == null) continue;
 
@@ -316,157 +343,198 @@ public class SupernovaManager {
                         if (display == null || !display.isAlive()) continue;
 
                         Vec3d ringOffset = SpatialMath.computeCanopyVortexOffset(pos, task.corePos, task.maxRadius, task.swirlAngle, radiusScale);
-                        Quaternionf rot = new Quaternionf(task.baseRotationMap.getOrDefault(pos, new Quaternionf()))
-                                .rotateY(task.swirlAngle);
-                        float scale = task.blockScaleMap.getOrDefault(pos, 1.0f);
+                        Vec3d displayWorldPos = Vec3d.ofCenter(pos).add(ringOffset);
+                        double distToCore = displayWorldPos.distanceTo(task.corePos);
 
-                        display.setStartInterpolation(0);
-                        display.setInterpolationDuration(2);
-                        display.setTransformation(SpatialMath.createPivotTransform(ringOffset, rot, scale));
+                        // Khi chạm vào tâm Chân trời sự kiện (< 3.2m): Nuốt chửng hoàn toàn!
+                        if (distToCore < 3.2 || radiusScale < 0.10f) {
+                            task.swallowedPositions.add(pos);
+                            display.setStartInterpolation(0);
+                            display.setInterpolationDuration(2);
+                            display.setTransformation(SpatialMath.createPivotTransform(ringOffset, new Quaternionf(), 0.0f));
+                            SpatialDisplacementManager.removeActiveRecord(world.getRegistryKey(), pos);
+                        } else {
+                            Quaternionf rot = new Quaternionf(task.baseRotationMap.getOrDefault(pos, new Quaternionf()))
+                                    .rotateY(task.swirlAngle);
+                            float scale = task.blockScaleMap.getOrDefault(pos, 1.0f) * Math.max(0.15f, radiusScale);
+
+                            display.setStartInterpolation(0);
+                            display.setInterpolationDuration(2);
+                            display.setTransformation(SpatialMath.createPivotTransform(ringOffset, rot, scale));
+                        }
                     }
                 }
 
                 world.spawnParticles(ParticleTypes.ELECTRIC_SPARK,
-                        task.corePos.x, task.corePos.y, task.corePos.z, 14, 1.2, 1.2, 1.2, 0.3);
+                        task.corePos.x, task.corePos.y, task.corePos.z, 20, 1.8, 1.8, 1.8, 0.4);
 
-                // Im lặng chân không tuyệt đối trong 10 ticks trước đại nổ (Ticks 174..185)
-                if (task.ageTicks < 174 && task.ageTicks % 8 == 0) {
+                if (task.ageTicks % 8 == 0) {
                     world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 3.5f, 1.8f);
+                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 4.0f, 1.8f);
                 }
             }
 
             // =========================================================================
-            // GIAI ĐOẠN 4: ĐẠI VỤ NỔ SIÊU TÂN TINH & NGHỊCH ĐẢO THỜI GIAN (Ticks 186..260)
+            // GIAI ĐOẠN 3B: KHOẢNG LẶNG CHÂN KHÔNG (VACUUM SILENCE) (Ticks 176..185)
+            // =========================================================================
+            else if (task.ageTicks <= 185) {
+                if (task.ageTicks == 176) {
+                    CinematicFxPayload silencePayload = new CinematicFxPayload(
+                            CinematicFxPayload.EVENT_VACUUM_SILENCE,
+                            task.corePos.x, task.corePos.y, task.corePos.z,
+                            1.0f, 10
+                    );
+                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 160.0)) {
+                        ServerPlayNetworking.send(p, silencePayload);
+                    }
+                }
+
+                // Tuyệt đối im lặng, Hố Đen co giật cực mạnh trước khi phát nổ
+                world.spawnParticles(ParticleTypes.REVERSE_PORTAL,
+                        task.corePos.x, task.corePos.y, task.corePos.z, 25, 0.4, 0.4, 0.4, 0.8);
+            }
+
+            // =========================================================================
+            // GIAI ĐOẠN 4: ĐẠI VỤ NỔ SIÊU TÂN TINH & PHÁ HỦY BẢN ĐỒ VĨNH VIỄN (Ticks 186..250)
             // =========================================================================
             else {
-                // Tại Tick 186: ĐẠI VỤ NỔ SIÊU TÂN TINH
+                // TẠI TICK 186: ĐẠI NỔ SIÊU TÂN TINH CẤP CALAMITY
                 if (task.ageTicks == 186 && !task.exploded) {
                     task.exploded = true;
 
-                    // Kích hoạt Shader Siêu Tân Tinh & Đại Rung Chấn Điện Ảnh
+                    // Kích hoạt Shader Siêu Tân Tinh (Quả cầu lửa khổng lồ 32m + 8-10 Anime Impact Frames)
                     ImpactFxPayload novaPayload = new ImpactFxPayload(
                             task.corePos.x, task.corePos.y, task.corePos.z,
-                            ImpactFxPayload.TYPE_SUPERNOVA, 28, 2.2f
+                            ImpactFxPayload.TYPE_SUPERNOVA, 45, 2.5f
                     );
                     CinematicFxPayload burstCinematic = new CinematicFxPayload(
                             CinematicFxPayload.EVENT_SUPERNOVA_BURST,
                             task.corePos.x, task.corePos.y, task.corePos.z,
-                            1.0f, 35
+                            1.0f, 45
                     );
-                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 128.0)) {
+                    for (ServerPlayerEntity p : PlayerLookup.around(world, task.corePos, 160.0)) {
                         ServerPlayNetworking.send(p, novaPayload);
                         ServerPlayNetworking.send(p, burstCinematic);
                     }
 
-                    // Âm thanh tận thế
+                    // Âm thanh tận thế đa tầng
                     world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.PLAYERS, 5.0f, 0.5f);
+                            SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.PLAYERS, 6.0f, 0.5f);
                     world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.PLAYERS, 5.0f, 0.6f);
+                            SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.PLAYERS, 5.5f, 0.55f);
                     world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.PLAYERS, 4.0f, 0.8f);
+                            SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.PLAYERS, 5.0f, 0.75f);
                     world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.PLAYERS, 4.0f, 0.5f);
+                            SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.PLAYERS, 5.0f, 0.5f);
                     world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.PLAYERS, 4.0f, 0.55f);
+                            SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.PLAYERS, 5.0f, 0.5f);
 
-                    world.spawnParticles(ParticleTypes.FLASH, task.corePos.x, task.corePos.y, task.corePos.z, 10, 0.8, 0.8, 0.8, 0.0);
-                    world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, task.corePos.x, task.corePos.y, task.corePos.z, 6, 1.5, 1.5, 1.5, 0.0);
-                    world.spawnParticles(ParticleTypes.SONIC_BOOM, task.corePos.x, task.corePos.y, task.corePos.z, 5, 0.8, 0.8, 0.8, 0.0);
-                    world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.85f, 0.25f), 2.2f),
-                            task.corePos.x, task.corePos.y, task.corePos.z, 120, 4.0, 4.0, 4.0, 0.6);
+                    // VFX vụ nổ chói lòa
+                    world.spawnParticles(ParticleTypes.FLASH, task.corePos.x, task.corePos.y, task.corePos.z, 15, 1.2, 1.2, 1.2, 0.0);
+                    world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, task.corePos.x, task.corePos.y, task.corePos.z, 10, 2.5, 2.5, 2.5, 0.0);
+                    world.spawnParticles(ParticleTypes.SONIC_BOOM, task.corePos.x, task.corePos.y, task.corePos.z, 8, 1.5, 1.5, 1.5, 0.0);
+                    world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.65f, 0.15f), 3.0f),
+                            task.corePos.x, task.corePos.y, task.corePos.z, 160, 6.0, 6.0, 6.0, 0.8);
 
-                    // Phóng 400 khối nổ tung ra bán kính 42m trong không gian 3D
-                    for (BlockPos pos : task.displayedPositions) {
-                        DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                        if (record == null || record.displayEntityUuid == null) continue;
-
-                        BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
-                        if (display == null || !display.isAlive()) continue;
-
-                        Vec3d blockWorldCenter = Vec3d.ofCenter(pos);
-                        Vec3d diff = blockWorldCenter.subtract(task.corePos);
-                        if (diff.lengthSquared() < 0.01) diff = new Vec3d(0, 1, 0);
-                        Vec3d blastDir = diff.normalize();
-
-                        double blastDist = 28.0 + SpatialMath.hash01(pos) * 16.0; // 28m -> 44m
-                        Vec3d blastWorldPos = task.corePos.add(blastDir.multiply(blastDist));
-                        Vec3d blastDisp = blastWorldPos.subtract(blockWorldCenter);
-
-                        Quaternionf tumble = new Quaternionf().rotateAxis(
-                                (float) Math.toRadians(75), (float) blastDir.z, (float) blastDir.x, (float) blastDir.y);
-
-                        display.setStartInterpolation(0);
-                        display.setInterpolationDuration(10); // Phóng bung ra trong 10 ticks
-                        display.setTransformation(SpatialMath.createPivotTransform(blastDisp, tumble, 1.25f));
-                    }
-
-                    // Sát thương khủng khiếp và lực đẩy
-                    Box blastBox = new Box(task.groundCenter).expand(32.0);
+                    // Sát thương Calamity hủy diệt (150 - 300 damage) và lực hất văng cực mạnh trong bán kính 60m
+                    Box blastBox = new Box(task.groundCenter).expand(60.0);
                     for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, blastBox, ent -> ent != task.caster)) {
                         double dist = e.getPos().distanceTo(task.corePos);
-                        float dmg = (float) Math.max(25.0, (1.0 - (dist / 32.0)) * 75.0 + 15.0);
+                        float dmg = (float) Math.max(50.0, (1.0 - (dist / 60.0)) * 250.0 + 50.0);
                         e.damage(world.getDamageSources().explosion(null, task.caster), dmg);
 
-                        Vec3d push = e.getPos().subtract(task.corePos).normalize().multiply(2.5).add(0, 0.95, 0);
+                        Vec3d push = e.getPos().subtract(task.corePos).normalize().multiply(3.5).add(0, 1.4, 0);
                         e.addVelocity(push.x, push.y, push.z);
                         e.velocityModified = true;
                     }
-                }
 
-                // Ticks 196..220: Mảnh vỡ trôi lơ lửng trong không gian hậu vụ nổ
-                if (task.ageTicks >= 196 && task.ageTicks < 221) {
-                    if (task.ageTicks % 6 == 0) {
-                        world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                                SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.BLOCKS, 2.5f, 1.2f);
-                        world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                                SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.BLOCKS, 2.0f, 0.9f);
-                    }
-                }
-
-                // Tại Tick 221: TUA NGƯỢC THỜI GIAN (Chrono Reversal)
-                if (task.ageTicks >= 221 && !task.rewindTriggered) {
-                    task.rewindTriggered = true;
-
-                    world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.PLAYERS, 4.0f, 1.35f);
-                    world.playSound(null, task.corePos.x, task.corePos.y, task.corePos.z,
-                            SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 3.5f, 1.6f);
-
+                    // XÓA BỎ TOÀN BỘ BẢN GHI KHÔI PHỤC: Không bao giờ phục hồi lại mặt đất!
                     for (BlockPos pos : task.displayedPositions) {
-                        DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                        if (record == null || record.displayEntityUuid == null) continue;
-
-                        BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
-                        if (display == null || !display.isAlive()) continue;
-
-                        display.setStartInterpolation(0);
-                        display.setInterpolationDuration(22); // Bay lùi mượt mà về lại 0,0,0 trong 22 ticks
-                        display.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 1.0f));
-                    }
-                }
-
-                // Tại Tick 246+: Khôi phục địa hình hoàn chỉnh
-                if (task.ageTicks >= 246 && !task.restored) {
-                    task.restored = true;
-
-                    List<DisplacedBlockRecord> toRestore = new ArrayList<>();
-                    for (BlockPos pos : task.displayedPositions) {
-                        DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                        if (rec != null) toRestore.add(rec);
+                        SpatialDisplacementManager.removeActiveRecord(world.getRegistryKey(), pos);
                     }
                     for (BlockPos pos : task.interiorPositions) {
-                        DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                        if (rec != null) toRestore.add(rec);
+                        SpatialDisplacementManager.removeActiveRecord(world.getRegistryKey(), pos);
                     }
 
-                    if (!toRestore.isEmpty()) {
-                        SpatialDisplacementManager.executeTwoPassRestoration(world, toRestore);
+                    // CHUẨN BỊ TẠO HỐ SÂU TẬN THẾ THẬT SỰ (Impact Crater bán kính 40m)
+                    int craterR = 40;
+                    BlockPos.Mutable cMut = new BlockPos.Mutable();
+                    int centerGroundY = task.groundCenter.getY();
+
+                    for (int cx = -craterR; cx <= craterR; cx++) {
+                        for (int cz = -craterR; cz <= craterR; cz++) {
+                            double distSq = cx * cx + cz * cz;
+                            if (distSq > craterR * craterR) continue;
+
+                            double dist2D = Math.sqrt(distSq);
+                            int depth = (int) Math.round((1.0 - (dist2D / craterR)) * 14.0);
+
+                            for (int cy = -depth; cy <= 3; cy++) {
+                                cMut.set(task.groundCenter.getX() + cx, centerGroundY + cy, task.groundCenter.getZ() + cz);
+                                if (cMut.getY() < world.getBottomY() || cMut.getY() >= world.getTopY()) continue;
+                                task.craterCarveBatch.add(cMut.toImmutable());
+                            }
+                        }
                     }
 
-                    world.playSound(null, task.groundCenter, SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.BLOCKS, 3.0f, 1.8f);
-                    world.playSound(null, task.groundCenter, SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.BLOCKS, 3.0f, 1.2f);
+                    // Phóng 60–80 khối đá nóng chảy và dung nham bay vọt ra bán kính 50m - 60m
+                    Random rng = new Random(task.groundCenter.asLong());
+                    int fallingBlocksCount = 70;
+                    BlockState[] moltenStates = new BlockState[] {
+                            Blocks.MAGMA_BLOCK.getDefaultState(),
+                            Blocks.OBSIDIAN.getDefaultState(),
+                            Blocks.CRYING_OBSIDIAN.getDefaultState(),
+                            Blocks.BLACKSTONE.getDefaultState(),
+                            Blocks.COBBLESTONE.getDefaultState()
+                    };
+
+                    for (int i = 0; i < fallingBlocksCount; i++) {
+                        double fAngle = rng.nextDouble() * Math.PI * 2.0;
+                        double fSpeed = 1.0 + rng.nextDouble() * 1.5; // Tốc độ phóng cực nhanh
+                        double spawnX = task.groundCenter.getX() + 0.5 + Math.cos(fAngle) * 4.0;
+                        double spawnY = task.groundCenter.getY() + 3.0;
+                        double spawnZ = task.groundCenter.getZ() + 0.5 + Math.sin(fAngle) * 4.0;
+
+                        BlockState flingState = moltenStates[rng.nextInt(moltenStates.length)];
+                        FallingBlockEntity falling = FallingBlockEntity.spawnFromBlock(world,
+                                BlockPos.ofFloored(spawnX, spawnY, spawnZ),
+                                flingState);
+                        falling.setVelocity(Math.cos(fAngle) * fSpeed, 0.8 + rng.nextDouble() * 0.9, Math.sin(fAngle) * fSpeed);
+                        falling.velocityModified = true;
+                    }
+                }
+
+                // Ticks 186..198: Đào hố tận thế chia theo mẻ (Async / Batched Carving trong 12 sub-ticks)
+                if (task.ageTicks >= 186 && task.craterIndex < task.craterCarveBatch.size()) {
+                    int batchSize = (task.craterCarveBatch.size() / 12) + 1;
+                    int endIndex = Math.min(task.craterCarveBatch.size(), task.craterIndex + batchSize);
+                    Random rng = new Random();
+
+                    for (int i = task.craterIndex; i < endIndex; i++) {
+                        BlockPos pos = task.craterCarveBatch.get(i);
+                        BlockState currentState = world.getBlockState(pos);
+                        if (currentState.getBlock() == Blocks.BEDROCK) continue;
+
+                        double dist2D = Math.sqrt(pos.getSquaredDistance(task.groundCenter.getX(), pos.getY(), task.groundCenter.getZ()));
+                        int depth = (int) Math.round((1.0 - (dist2D / 40.0)) * 14.0);
+                        int floorY = task.groundCenter.getY() - depth;
+
+                        if (pos.getY() <= floorY + 1) {
+                            // Đáy hố bị nung chảy thành Magma, Obsidian, Crying Obsidian, Blackstone
+                            BlockState scorchState = (rng.nextFloat() < 0.40f) ? Blocks.MAGMA_BLOCK.getDefaultState() :
+                                    (rng.nextFloat() < 0.70f) ? Blocks.OBSIDIAN.getDefaultState() :
+                                            (rng.nextFloat() < 0.85f) ? Blocks.CRYING_OBSIDIAN.getDefaultState() :
+                                                    Blocks.BLACKSTONE.getDefaultState();
+                            world.setBlockState(pos, scorchState, Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
+                        } else {
+                            world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
+                        }
+                    }
+                    task.craterIndex = endIndex;
+                }
+
+                // Kết thúc task tại Tick 200: Hiện trường hủy diệt vĩnh viễn, không phục hồi
+                if (task.ageTicks >= 200) {
                     it.remove();
                 }
             }

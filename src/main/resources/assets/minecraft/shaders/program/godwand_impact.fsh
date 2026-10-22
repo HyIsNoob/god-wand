@@ -25,6 +25,7 @@ uniform float CenterX;
 uniform float CenterY;
 uniform float Aspect;
 uniform float GTime;
+uniform float FxType;
 
 out vec4 fragColor;
 
@@ -121,7 +122,10 @@ void main() {
         bool inFront = (tBH > -CoreRadius);
         bool coreOccluded = (sceneDist < (tBH - CoreRadius * 1.1));
 
-        if (inFront) {
+        // =========================================================================
+        // NHÁNH 1: CHIÊU 4 - ĐỘC QUYỀN HỐ ĐEN (FxType == 4.0: TYPE_BLACK_HOLE)
+        // =========================================================================
+        if (FxType > 3.5 && inFront) {
             // 1. Lensing, Event Horizon & Einstein Ring chỉ hiện khi tâm Hố Đen không bị che
             if (!coreOccluded) {
                 vec2 lensDir = (dist > 0.0001) ? normalize(aspectDiff) : vec2(0.0);
@@ -178,6 +182,41 @@ void main() {
                                      vec3(0.55, 0.15, 1.0) * jetAura * 1.2) * jetFade;
                     addGlow += jetColor * (0.8 + 0.2 * sin(GTime * 25.0));
                 }
+            }
+        }
+        // =========================================================================
+        // NHÁNH 2: CHIÊU 4 - ĐẠI VỤ NỔ SIÊU TÂN TINH (FxType == 3.0: TYPE_SUPERNOVA)
+        // =========================================================================
+        else if (FxType > 2.5 && FxType < 3.5 && inFront) {
+            if (CoreRadius > 0.5) {
+                float dSphere = impactParam;
+                if (dSphere < CoreRadius && sceneDist > (tBH - CoreRadius)) {
+                    float fireGrad = 1.0 - (dSphere / CoreRadius);
+                    vec3 fireCol = mix(vec3(1.0, 0.22, 0.05), vec3(1.0, 0.92, 0.70), smoothstep(0.35, 0.92, fireGrad));
+                    fireCol = mix(fireCol, vec3(0.65, 0.95, 1.0), smoothstep(0.85, 1.0, fireGrad));
+                    addGlow += fireCol * (fireGrad * fireGrad * 6.5 + 2.0) * ImpactIntensity;
+                }
+            }
+        }
+        // =========================================================================
+        // NHÁNH 3: CHIÊU 2 - CẦU NĂNG LƯỢNG MA PHÁP (FxType == 0.0: TYPE_DETONATION)
+        // Không lỗ đen, không đĩa bồi tụ, không cột Pulsar
+        // =========================================================================
+        else if (FxType < 0.5 && inFront && !coreOccluded && CoreRadius > 0.05) {
+            float dSphere = impactParam;
+            if (dSphere < CoreRadius * 1.65 && sceneDist > (tBH - CoreRadius)) {
+                vec2 lensDir = (dist > 0.0001) ? normalize(aspectDiff) : vec2(0.0);
+                float lensShift = (LensingPower * sqr(CoreRadius)) / (sqr(dSphere) + 0.10);
+                lensOffset = vec2(lensDir.x / Aspect, lensDir.y) * clamp(lensShift, 0.0, 0.16);
+
+                float coreGrad = smoothstep(CoreRadius * 1.4, 0.0, dSphere);
+                float electric = 0.85 + 0.15 * sin(dSphere * 24.0 - GTime * 28.0 + hash12(texCoord * 120.0) * 3.5);
+
+                vec3 plasmaCore = vec3(0.95, 0.98, 1.0) * exp(-dSphere / (CoreRadius * 0.40)) * 4.5;
+                vec3 plasmaCorona = vec3(0.08, 0.85, 1.0) * exp(-dSphere / (CoreRadius * 0.90)) * 3.0;
+                vec3 plasmaAura = vec3(0.55, 0.15, 1.0) * coreGrad * electric * 1.6;
+
+                addGlow += (plasmaCore + plasmaCorona + plasmaAura) * min(ImpactIntensity * 1.5, 1.8);
             }
         }
     }

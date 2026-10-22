@@ -26,6 +26,7 @@ import net.minecraft.util.Clearable;
 import net.minecraft.util.math.AffineTransformation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.joml.Quaternionf;
@@ -207,15 +208,9 @@ public class SpatialDisplacementManager {
             display.setPosition(immutablePos.getX(), immutablePos.getY(), immutablePos.getZ());
             display.setBlockState(state);
 
-            boolean isArcaneHighlight = ((immutablePos.asLong() * 1315423911L) & 15L) == 0L;
-            if (isArcaneHighlight && glowColor != 0) {
-                display.setGlowing(true);
-                display.setGlowColorOverride(glowColor);
-                display.setBrightness(new Brightness(15, 15));
-            } else {
-                display.setGlowing(false);
-                display.setBrightness(new Brightness(12, 13));
-            }
+            // Xóa bỏ hoàn toàn setGlowing để triệt tiêu viền outline sticker 2D
+            display.setGlowing(false);
+            display.setBrightness(new Brightness(15, 15));
 
             display.setStartInterpolation(0);
             display.setInterpolationDuration(0);
@@ -345,8 +340,32 @@ public class SpatialDisplacementManager {
                 record.spawnTickDelay--;
                 if (record.spawnTickDelay == 0 && display != null && display.isAlive()) {
                     display.setStartInterpolation(0);
-                    int openDuration = record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER ? 5 : 8;
-                    display.setInterpolationDuration(openDuration); // 5 ticks cho PATH_WALKER, 8 ticks cho các chiêu khác
+                    int openDuration = 8;
+                    if (record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER) {
+                        double playerSpeed = 0.0;
+                        double distToPlayer = 3.0;
+                        if (record.boundPlayerUuid != null) {
+                            ServerPlayerEntity p = world.getServer().getPlayerManager().getPlayer(record.boundPlayerUuid);
+                            if (p != null) {
+                                playerSpeed = net.godwand.skill.SpatialPathWalker.getPlayerSpeed(p);
+                                distToPlayer = Vec3d.ofCenter(record.pos).distanceTo(p.getPos());
+                            }
+                        }
+                        if (playerSpeed >= 0.15) {
+                            // Chạy nhanh / Sprint / Bay: mở cực nhanh (4 - 6 ticks)
+                            openDuration = 5;
+                        } else {
+                            // Đi bộ chậm hoặc đứng yên ("farming aura"):
+                            if (distToPlayer <= 2.0) {
+                                openDuration = 10;
+                            } else {
+                                // Khối ở xa phía trước (2m - 4m): từ từ, chậm rãi và uy quyền (18 - 26 ticks)
+                                float tDist = (float) MathHelper.clamp((distToPlayer - 2.0) / 2.0, 0.0, 1.0);
+                                openDuration = (int) MathHelper.lerp(tDist, 18.0f, 26.0f);
+                            }
+                        }
+                    }
+                    display.setInterpolationDuration(openDuration);
                     display.setTransformation(SpatialMath.createPivotTransform(
                             record.getCurrentOffset(), record.currentRotation, record.targetScale.x));
 
@@ -356,8 +375,8 @@ public class SpatialDisplacementManager {
                 continue;
             }
 
-            // Chờ hết ticks bung mở ban đầu (5 ticks cho PATH_WALKER, 8 ticks cho các chiêu khác) rồi mới chạy cập nhật trường lực động
-            int minHoldTicks = record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER ? 6 : 9;
+            // Chờ hết ticks bung mở ban đầu (tối đa 27 ticks cho PATH_WALKER, 9 ticks cho các chiêu khác) rồi mới chạy cập nhật trường lực động
+            int minHoldTicks = record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER ? 27 : 9;
             if (record.ageTicks < minHoldTicks) {
                 continue;
             }

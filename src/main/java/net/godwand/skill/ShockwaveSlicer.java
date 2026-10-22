@@ -21,6 +21,7 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -42,7 +43,6 @@ public class ShockwaveSlicer {
         public final Map<BlockPos, Vec3d> fullExpansionMap = new HashMap<>();
         public final Map<BlockPos, Quaternionf> baseRotationMap = new HashMap<>();
         public final Map<BlockPos, Float> blockScaleMap = new HashMap<>();
-        public final Map<BlockPos, UUID> tetherBeamMap = new ConcurrentHashMap<>();
 
         public int ageTicks = 0;
         public final int maxLifetimeTicks = 130;
@@ -87,7 +87,7 @@ public class ShockwaveSlicer {
             }
         }
 
-        // Trộn ngẫu nhiên trước khi chia tầng bán kính để 180 khối và 45 tia phân bổ đều 360 độ
+        // Trộn ngẫu nhiên trước khi chia tầng bán kính để 500 khối phân bổ đều 360 độ quanh tâm
         Collections.shuffle(candidatePositions, new Random(center.asLong()));
         candidatePositions.sort((a, b) -> {
             int bandA = (int) (Math.sqrt(a.getSquaredDistance(task.center)) / 2.0);
@@ -95,27 +95,34 @@ public class ShockwaveSlicer {
             return Integer.compare(bandB, bandA);
         });
 
-        int maxDisplays = Math.min(180, candidatePositions.size());
-        int tetherLimit = Math.min(45, maxDisplays);
+        int maxDisplays = Math.min(500, candidatePositions.size());
 
         for (int i = 0; i < candidatePositions.size(); i++) {
             BlockPos pos = candidatePositions.get(i);
             boolean isDisplay = (i < maxDisplays);
 
             if (isDisplay) {
-                Vec3d radialDir = Vec3d.ofCenter(pos).subtract(orbCenter);
-                if (radialDir.lengthSquared() < 0.01) radialDir = new Vec3d(0, 1, 0);
-                radialDir = radialDir.normalize();
+                // Phân bổ Cầu Ngẫu Nhiên 3D (Spherical Fibonacci + Chaos Noise) quanh orbCenter
+                // Góc nâng phi trải đều [-pi/2, +pi/2] để 50% khối bắn vọt lên TRÊN quả cầu (cao hơn 3m - 14m)
+                double goldenRatio = (1.0 + Math.sqrt(5.0)) / 2.0;
+                double phi = Math.asin(1.0 - 2.0 * (i + 0.5) / maxDisplays);
+                double theta = 2.0 * Math.PI * i / goldenRatio;
+                double chaosJitter = SpatialMath.hash01(pos) * 0.35 - 0.175;
+                phi = MathHelper.clamp(phi + chaosJitter, -Math.PI * 0.48, Math.PI * 0.48);
 
-                double maxExpandDist = maxRadius * (0.45 + SpatialMath.hash01(pos) * 0.55);
-                Vec3d fullExpansionVec = new Vec3d(
-                        radialDir.x * maxExpandDist,
-                        Math.max(1.8, radialDir.y * maxExpandDist + 3.2 + SpatialMath.hash01(pos) * 3.5),
-                        radialDir.z * maxExpandDist
-                );
+                double expandRadius = maxRadius * (0.65 + SpatialMath.hash01(pos) * 0.55);
+                Vec3d sphereDir = new Vec3d(
+                        Math.cos(phi) * Math.cos(theta),
+                        Math.sin(phi),
+                        Math.cos(phi) * Math.sin(theta)
+                ).normalize();
+
+                Vec3d targetWorldPos = orbCenter.add(sphereDir.multiply(expandRadius));
+                Vec3d fullExpansionVec = targetWorldPos.subtract(Vec3d.ofCenter(pos));
 
                 float hashVal = (float) SpatialMath.hash01(pos);
-                float scale = 0.55f + hashVal * 0.40f;
+                // Kích thước Block to rõ hầm hố: 0.90x đến 1.45x
+                float scale = 0.90f + hashVal * 0.55f;
                 Quaternionf rot = new Quaternionf()
                         .rotateY((float) (hashVal * Math.PI * 2.0))
                         .rotateX((float) Math.toRadians(25.0 + hashVal * 30.0));
@@ -142,23 +149,6 @@ public class ShockwaveSlicer {
                 task.fullExpansionMap.put(pos, fullExpansionVec);
                 task.baseRotationMap.put(pos, rot);
                 task.blockScaleMap.put(pos, scale);
-
-                // Tạo Tia Năng Lượng Siêu Mỏng 3D (Tether Beam) cho 45 khối đầu tiên
-                if (i < tetherLimit) {
-                    BlockDisplayEntity beam = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
-                    beam.addCommandTag("godwand_displaced");
-                    beam.setPosition(orbCenter.x, orbCenter.y, orbCenter.z);
-                    beam.setBlockState(Blocks.SEA_LANTERN.getDefaultState());
-                    beam.setGlowing(true);
-                    beam.setGlowColorOverride(0x00F5FF);
-                    beam.setBrightness(new Brightness(15, 15));
-                    beam.setStartInterpolation(0);
-                    beam.setInterpolationDuration(0);
-                    beam.setTransformation(SpatialMath.createThinBeamTransform(orbCenter, Vec3d.ofCenter(pos), 0.032f));
-                    world.spawnEntity(beam);
-                    task.tetherBeamMap.put(pos, beam.getUuid());
-                    SpatialDisplacementManager.trackEntity(beam.getUuid(), beam);
-                }
             } else {
                 // Các khối bên trong lòng hố chỉ bóc sang AIR không tạo display
                 SpatialDisplacementManager.displaceBlock(
@@ -170,10 +160,10 @@ public class ShockwaveSlicer {
                         135,
                         0,
                         false,
-                        DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE,
+                        DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED,
                         null,
-                        null,
-                        0.0
+                        center.toCenterPos(),
+                        maxRadius
                 );
                 task.interiorPositions.add(pos);
             }
@@ -237,7 +227,7 @@ public class ShockwaveSlicer {
             if (task.ageTicks <= 18) {
                 if (task.ageTicks % 2 == 0) {
                     double p = 0.65 * Math.sin((task.ageTicks / 18.0) * (Math.PI / 2.0));
-                    updatePositionsAndTethers(task, p, 2, 0.032f, 0x00F5FF);
+                    updateBlockPositions(task, p, 2, false);
                 }
             }
 
@@ -245,10 +235,10 @@ public class ShockwaveSlicer {
             // PHA 2: LÀM CHẬM THỜI GIAN CỰC HẠN / BULLET-TIME DRIFT (Ticks 19..105)
             // =========================================================================
             else if (task.ageTicks <= 105) {
-                // Trôi dạt cực chậm theo hàm p = 0.65 -> 1.00 trong 87 ticks
+                // Trôi dạt và xoay hỗn loạn (Chaotic Tumble) trong không gian 3D
                 if ((task.ageTicks - 18) % 4 == 0) {
                     double p = 0.65 + 0.35 * ((task.ageTicks - 18) / 87.0);
-                    updatePositionsAndTethers(task, p, 4, 0.032f, 0x00F5FF);
+                    updateBlockPositions(task, p, 4, true);
                 }
 
                 // Hiệu ứng ánh sáng ngưng đọng thời gian quanh quả cầu
@@ -264,14 +254,14 @@ public class ShockwaveSlicer {
             // PHA 3: CO RÚT & THU HỒI NGƯỢC (Ticks 106..130)
             // =========================================================================
             else {
-                // Ticks 106..111: Anticipation (Căng tia năng lượng, kéo dạt thêm +6%)
+                // Ticks 106..111: Anticipation (Kéo dạt thêm +6% lấy đà)
                 if (task.ageTicks == 106) {
                     world.playSound(null, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
                             SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, 3.0f, 1.5f);
-                    updatePositionsAndTethers(task, 1.06, 5, 0.045f, 0xA855F7);
+                    updateBlockPositions(task, 1.06, 5, false);
                 }
 
-                // Ticks 112..126: Vacuum Snap-Back (Quả cầu co nhỏ, tia năng lượng kéo giật về 0,0,0)
+                // Ticks 112..126: Vacuum Snap-Back (Quả cầu co nhỏ, các khối giật về 0,0,0)
                 if (task.ageTicks == 112 && !task.snappedBack) {
                     task.snappedBack = true;
 
@@ -280,7 +270,7 @@ public class ShockwaveSlicer {
                     world.playSound(null, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
                             SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.BLOCKS, 3.0f, 1.8f);
 
-                    // Giật ngược toàn bộ khối đá và tia laser về vị trí ban đầu trong 14 ticks
+                    // Giật ngược toàn bộ khối đá về vị trí ban đầu trong 14 ticks
                     for (BlockPos pos : task.displayedPositions) {
                         DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
                         if (record == null || record.displayEntityUuid == null) continue;
@@ -292,16 +282,6 @@ public class ShockwaveSlicer {
                         display.setStartInterpolation(0);
                         display.setInterpolationDuration(14);
                         display.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), scale));
-
-                        UUID beamUuid = task.tetherBeamMap.get(pos);
-                        if (beamUuid != null) {
-                            BlockDisplayEntity beam = SpatialDisplacementManager.getActiveEntity(beamUuid);
-                            if (beam != null && beam.isAlive()) {
-                                beam.setStartInterpolation(0);
-                                beam.setInterpolationDuration(14);
-                                beam.setTransformation(SpatialMath.createThinBeamTransform(task.orbCenter, Vec3d.ofCenter(pos), 0.015f));
-                            }
-                        }
                     }
                 }
 
@@ -309,17 +289,7 @@ public class ShockwaveSlicer {
                 if (task.ageTicks >= 128 && !task.restored) {
                     task.restored = true;
 
-                    // Hủy tất cả tia laser
-                    for (UUID beamUuid : task.tetherBeamMap.values()) {
-                        BlockDisplayEntity b = SpatialDisplacementManager.getActiveEntity(beamUuid);
-                        if (b != null && b.isAlive()) {
-                            b.discard();
-                        }
-                        SpatialDisplacementManager.untrackEntity(beamUuid);
-                    }
-                    task.tetherBeamMap.clear();
-
-                    // Khôi phục 2-pass toàn bộ khối
+                    // Khôi phục 2-pass toàn bộ khối khớp kín miệng hố
                     List<DisplacedBlockRecord> toRestore = new ArrayList<>();
                     for (BlockPos pos : task.displayedPositions) {
                         DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
@@ -341,7 +311,7 @@ public class ShockwaveSlicer {
         }
     }
 
-    private static void updatePositionsAndTethers(SingularityTask task, double progress, int duration, float beamThickness, int beamGlow) {
+    private static void updateBlockPositions(SingularityTask task, double progress, int duration, boolean chaoticTumble) {
         for (BlockPos pos : task.displayedPositions) {
             DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(task.world.getRegistryKey(), pos);
             if (record == null || record.displayEntityUuid == null) continue;
@@ -350,26 +320,33 @@ public class ShockwaveSlicer {
             if (display == null || !display.isAlive()) continue;
 
             Vec3d fullExp = task.fullExpansionMap.getOrDefault(pos, Vec3d.ZERO);
-            Vec3d curOffset = fullExp.multiply(progress);
-
             Quaternionf rot = task.baseRotationMap.getOrDefault(pos, new Quaternionf());
             float scale = task.blockScaleMap.getOrDefault(pos, 1.0f);
 
+            Vec3d curOffset;
+            Quaternionf currentRot;
+
+            if (chaoticTumble) {
+                // Chuyển động xoay hỗn loạn (Chaotic Tumble) quanh trục ngẫu nhiên riêng
+                float tumbleAngle = (float) (task.ageTicks * 0.05 + SpatialMath.hash01(pos) * 6.28);
+                Vector3f tumbleAxis = new Vector3f(
+                        (float) (SpatialMath.hash01(pos.north()) - 0.5),
+                        (float) (SpatialMath.hash01(pos.up()) - 0.5),
+                        (float) (SpatialMath.hash01(pos.east()) - 0.5)
+                ).normalize();
+                currentRot = new Quaternionf(rot).rotateAxis(tumbleAngle, tumbleAxis.x, tumbleAxis.y, tumbleAxis.z);
+
+                // Dao động nhẹ bất quy tắc
+                double bob = Math.sin(task.ageTicks * 0.12 + SpatialMath.hash01(pos) * 6.28) * 0.28;
+                curOffset = fullExp.multiply(progress).add(0, bob, 0);
+            } else {
+                curOffset = fullExp.multiply(progress);
+                currentRot = rot;
+            }
+
             display.setStartInterpolation(0);
             display.setInterpolationDuration(duration);
-            display.setTransformation(SpatialMath.createPivotTransform(curOffset, rot, scale));
-
-            UUID beamUuid = task.tetherBeamMap.get(pos);
-            if (beamUuid != null) {
-                BlockDisplayEntity beam = SpatialDisplacementManager.getActiveEntity(beamUuid);
-                if (beam != null && beam.isAlive()) {
-                    Vec3d blockWorldPos = Vec3d.ofCenter(pos).add(curOffset);
-                    beam.setGlowColorOverride(beamGlow);
-                    beam.setStartInterpolation(0);
-                    beam.setInterpolationDuration(duration);
-                    beam.setTransformation(SpatialMath.createThinBeamTransform(task.orbCenter, blockWorldPos, beamThickness));
-                }
-            }
+            display.setTransformation(SpatialMath.createPivotTransform(curOffset, currentRot, scale));
         }
     }
 
@@ -378,16 +355,6 @@ public class ShockwaveSlicer {
     }
 
     public static void clearAllTasks() {
-        for (SingularityTask task : ACTIVE_TASKS) {
-            for (UUID beamUuid : task.tetherBeamMap.values()) {
-                BlockDisplayEntity b = SpatialDisplacementManager.getActiveEntity(beamUuid);
-                if (b != null && b.isAlive()) {
-                    b.discard();
-                }
-                SpatialDisplacementManager.untrackEntity(beamUuid);
-            }
-            task.tetherBeamMap.clear();
-        }
         ACTIVE_TASKS.clear();
     }
 }

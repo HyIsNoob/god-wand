@@ -30,6 +30,7 @@ public class SpatialPathWalker {
     private static final java.util.Map<UUID, Double> LAST_GROUND_Y = new ConcurrentHashMap<>();
     private static final java.util.Map<UUID, Vec3d> LAST_PLAYER_POS = new ConcurrentHashMap<>();
     private static final java.util.Map<UUID, Double> CURRENT_FORWARD_LEAD = new ConcurrentHashMap<>();
+    private static final java.util.Map<UUID, Double> CURRENT_PLAYER_SPEED = new ConcurrentHashMap<>();
 
     public static boolean isActive(PlayerEntity player) {
         return ACTIVE_PLAYERS.contains(player.getUuid());
@@ -42,6 +43,7 @@ public class SpatialPathWalker {
             LAST_GROUND_Y.remove(player.getUuid());
             LAST_PLAYER_POS.remove(player.getUuid());
             CURRENT_FORWARD_LEAD.remove(player.getUuid());
+            CURRENT_PLAYER_SPEED.remove(player.getUuid());
             player.sendMessage(Text.literal("§c§l[✦ SPATIAL PATH: COLLAPSED ✦]"), true);
 
             // Explosive Deactivation Impact
@@ -96,6 +98,7 @@ public class SpatialPathWalker {
         LAST_GROUND_Y.remove(player.getUuid());
         LAST_PLAYER_POS.remove(player.getUuid());
         CURRENT_FORWARD_LEAD.remove(player.getUuid());
+        CURRENT_PLAYER_SPEED.remove(player.getUuid());
         SpatialDisplacementManager.collapsePlayerAura(player.getUuid());
     }
 
@@ -106,6 +109,7 @@ public class SpatialPathWalker {
 
         Vec3d deltaHoriz = new Vec3d(currentPos.x - lastPos.x, 0, currentPos.z - lastPos.z);
         double speed = deltaHoriz.length();
+        CURRENT_PLAYER_SPEED.put(player.getUuid(), speed);
         // Nếu tốc độ dịch chuyển hợp lệ (< 4.0 blocks/tick để loại trừ teleport)
         double boost = (speed > 0.02 && speed < 4.0) ? Math.min(3.2, speed * 7.0) : 0.0;
         if (player.isSprinting() && boost < 1.2) {
@@ -114,6 +118,10 @@ public class SpatialPathWalker {
         double lead = 1.0 + boost;
         CURRENT_FORWARD_LEAD.put(player.getUuid(), lead);
         return lead;
+    }
+
+    public static double getPlayerSpeed(ServerPlayerEntity player) {
+        return CURRENT_PLAYER_SPEED.getOrDefault(player.getUuid(), 0.0);
     }
 
     public static double getPlayerForwardLead(ServerPlayerEntity player) {

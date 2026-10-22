@@ -174,12 +174,29 @@ public class GodWandPostFxManager {
                     impactFrame = 0.85f * (1.0f - (progress / 0.35f));
                     impactMode = (tickIdx % 2 == 0) ? 3.0f : 0.0f;
                 }
-                shockwaveRadius = progress * 1.2f;
-                distortionPower = 0.028f * baseIntensity * (1.0f - progress);
-                chromaticAmount = 0.016f * baseIntensity * (1.0f - progress);
-                zoomBlur = 0.025f * baseIntensity * (1.0f - progress);
-                coreRadius = (1.0f - progress) * 0.9f;
-                lensingPower = (1.0f - progress) * 1.2f;
+                shockwaveRadius = progress * 1.1f;
+                distortionPower = 0.022f * baseIntensity * (1.0f - progress);
+                chromaticAmount = 0.012f * baseIntensity * (1.0f - progress);
+                zoomBlur = 0.0f;
+                coreRadius = 0.0f; // Tuyệt đối không vẽ hố đen
+                lensingPower = 0.0f;
+            }
+            case ImpactFxPayload.TYPE_SEISMIC_SLAM -> {
+                // Chiêu 3: Ground Seismic Slam (Thiên thạch giáng sập)
+                // 2-3 frame Anime Impact Frame sắc lạnh trắng đen
+                if (tickIdx < 4) {
+                    impactFrame = 1.0f - ((float) tickIdx / 4.0f);
+                    int[] slamModes = {0, 1, 33, 0};
+                    impactMode = slamModes[tickIdx];
+                }
+                // Sóng xung kích mặt đất lan rộng nhanh
+                shockwaveRadius = (float) Math.pow(progress, 0.45) * 1.6f;
+                distortionPower = 0.065f * baseIntensity * (1.0f - progress);
+                chromaticAmount = 0.025f * baseIntensity * (1.0f - progress);
+                zoomBlur = 0.045f * baseIntensity * (1.0f - progress);
+                retinaBurn = Math.max(0.0f, 0.45f * baseIntensity * (1.0f - progress * 1.5f));
+                coreRadius = 0.0f; // Tuyệt đối không có hố đen
+                lensingPower = 0.0f;
             }
             case ImpactFxPayload.TYPE_SUPERNOVA -> {
                 // Cataclysmic Cosmic Supernova (Burst phase):
@@ -191,17 +208,17 @@ public class GodWandPostFxManager {
                     impactMode = novaModes[Math.min(tickIdx, novaModes.length - 1)];
                 }
                 // Relativistic shockwave expands across the entire sky
-                shockwaveRadius = (float) Math.pow(progress, 0.52) * 1.65f;
+                shockwaveRadius = (float) Math.pow(progress, 0.52) * 1.75f;
                 float distCurve = (float) Math.sin(progress * Math.PI);
-                distortionPower = 0.075f * baseIntensity * distCurve;
+                distortionPower = 0.085f * baseIntensity * distCurve;
                 chromaticAmount = 0.045f * baseIntensity * (1.0f - progress);
 
                 // Cực đại Zoom Blur và Lưu ảnh võng mạc (Retina Burn)
-                zoomBlur = 0.098f * baseIntensity * (float) Math.sin(progress * Math.PI);
+                zoomBlur = 0.11f * baseIntensity * (float) Math.sin(progress * Math.PI);
                 retinaBurn = Math.max(0.0f, 1.0f * baseIntensity * (1.0f - progress * 1.15f));
 
-                // Expanding Fireball Singularity
-                coreRadius = MathHelper.lerp(progress, 1.2f, 8.5f);
+                // Expanding Calamity Fireball Singularity phóng từ 1.5m lên 32.0m bao trùm toàn bộ bầu trời
+                coreRadius = MathHelper.lerp(progress, 1.5f, 32.0f);
                 lensingPower = (1.0f - progress) * 2.8f;
             }
             case ImpactFxPayload.TYPE_BLACK_HOLE -> {
@@ -278,6 +295,7 @@ public class GodWandPostFxManager {
             prog.getUniformByNameOrDummy("BlastCenter").set((float) blastCenter.x, (float) blastCenter.y, (float) blastCenter.z);
             prog.getUniformByNameOrDummy("CoreRadius").set(coreRadius);
             prog.getUniformByNameOrDummy("LensingPower").set(lensingPower);
+            prog.getUniformByNameOrDummy("FxType").set((float) fxType);
         }
 
         postProcessor.setUniforms("ImpactIntensity", impactIntensity);
@@ -294,6 +312,7 @@ public class GodWandPostFxManager {
         postProcessor.setUniforms("GTime", gTime);
         postProcessor.setUniforms("CoreRadius", coreRadius);
         postProcessor.setUniforms("LensingPower", lensingPower);
+        postProcessor.setUniforms("FxType", (float) fxType);
 
         RenderSystem.disableBlend();
         RenderSystem.disableDepthTest();

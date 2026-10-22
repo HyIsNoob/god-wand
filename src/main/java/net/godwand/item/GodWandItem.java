@@ -1,6 +1,8 @@
 package net.godwand.item;
 
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.godwand.entity.ArcaneOrbEntity;
+import net.godwand.network.CinematicFxPayload;
 import net.godwand.skill.RatioCollapseManager;
 import net.godwand.skill.SpatialPathWalker;
 import net.godwand.skill.SupernovaManager;
@@ -21,7 +23,10 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.UseAction;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 import org.joml.Vector3f;
 
@@ -109,11 +114,8 @@ public class GodWandItem extends Item {
                 return TypedActionResult.success(stack);
             }
             case MODE_SUPERNOVA -> {
-                if (!world.isClient() && user instanceof ServerPlayerEntity serverPlayer) {
-                    SupernovaManager.cast(serverPlayer);
-                    user.getItemCooldownManager().set(this, 140); // 7s cooldown for apocalyptic skill
-                }
-                return TypedActionResult.success(stack);
+                user.setCurrentHand(hand);
+                return TypedActionResult.consume(stack);
             }
             default -> {
                 return TypedActionResult.pass(stack);
@@ -123,7 +125,8 @@ public class GodWandItem extends Item {
 
     @Override
     public int getMaxUseTime(ItemStack stack, LivingEntity user) {
-        if (getSkillMode(stack) == MODE_ARCANE_ORB) {
+        int mode = getSkillMode(stack);
+        if (mode == MODE_ARCANE_ORB || mode == MODE_SUPERNOVA) {
             return 72000;
         }
         return 0;
@@ -131,14 +134,117 @@ public class GodWandItem extends Item {
 
     @Override
     public UseAction getUseAction(ItemStack stack) {
-        if (getSkillMode(stack) == MODE_ARCANE_ORB) {
+        int mode = getSkillMode(stack);
+        if (mode == MODE_ARCANE_ORB) {
             return UseAction.BOW;
+        } else if (mode == MODE_SUPERNOVA) {
+            return UseAction.SPEAR;
         }
         return UseAction.NONE;
     }
 
     @Override
+    public void usageTick(World world, LivingEntity user, ItemStack stack, int remainingUseTicks) {
+        if (getSkillMode(stack) != MODE_SUPERNOVA) return;
+
+        int chargeTicks = this.getMaxUseTime(stack, user) - remainingUseTicks;
+        if (chargeTicks < 0) return;
+
+        // Vận chiêu trong 140 ticks (7 giây):
+        double progress = Math.min(1.0, (double) chargeTicks / 140.0);
+
+        if (!world.isClient() && user instanceof ServerPlayerEntity player) {
+            ServerWorld sw = (ServerWorld) world;
+
+            // 1. Hiệu ứng dưới chân người chơi: Vòng ma trận hạt xoay tròn tăng tốc
+            double spinSpeed = 0.2 + progress * 0.8;
+            double angle = (chargeTicks * spinSpeed) % (Math.PI * 2.0);
+            double ringRadius = 1.6 + (1.0 - progress) * 0.8;
+            double px = player.getX() + Math.cos(angle) * ringRadius;
+            double pz = player.getZ() + Math.sin(angle) * ringRadius;
+            sw.spawnParticles(ParticleTypes.PORTAL, px, player.getY() + 0.15, pz, 2, 0.05, 0.1, 0.05, 0.02);
+            sw.spawnParticles(ParticleTypes.ENCHANT, px, player.getY() + 0.25, pz, 1, 0, 0.05, 0, 0.05);
+
+            // Bụi đất đá nhỏ lơ lửng bốc lên
+            if (chargeTicks % 2 == 0) {
+                sw.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
+                        player.getX() + (Math.random() - 0.5) * 2.0, player.getY() + 0.1, player.getZ() + (Math.random() - 0.5) * 2.0,
+                        1, 0, 0.08 + progress * 0.12, 0, 0.01);
+            }
+
+            // 2. Camera rung tăng dần (Trauma 0.05 -> 0.35) & FOV thu hẹp (1.0 -> 0.85)
+            float trauma = (float) (0.05 + progress * 0.30);
+            CinematicFxPayload shake = new CinematicFxPayload(
+                    CinematicFxPayload.EVENT_TRAUMA_SHAKE,
+                    player.getX(), player.getY(), player.getZ(),
+                    trauma, 4
+            );
+            ServerPlayNetworking.send(player, shake);
+
+            if (chargeTicks % 12 == 0) {
+                float fovTarget = (float) (1.0 - progress * 0.15);
+                CinematicFxPayload focus = new CinematicFxPayload(
+                        CinematicFxPayload.EVENT_METEOR_FOCUS,
+                        player.getX(), player.getY(), player.getZ(),
+                        fovTarget, 16
+                );
+                ServerPlayNetworking.send(player, focus);
+            }
+
+            // 3. Âm thanh nhịp tim Warden & nạp năng lượng tăng dần cao độ (pitch 0.5 -> 1.8)
+            if (chargeTicks % 16 == 0) {
+                float pitch = (float) (0.5f + progress * 1.3f);
+                world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                        SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 2.5f, pitch);
+                world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                        SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 1.8f, pitch);
+            }
+
+            // 4. Hiệu ứng tại điểm ngắm (Aim Target): Tia chỉ thị không gian & mầm hố đen hút bụi
+            HitResult hit = player.raycast(45.0, 0.0f, false);
+            Vec3d targetPos;
+            if (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult bHit) {
+                targetPos = bHit.getBlockPos().toCenterPos();
+            } else {
+                targetPos = player.getEyePos().add(player.getRotationVec(1.0f).multiply(30.0));
+            }
+            Vec3d seedPos = targetPos.add(0, 18.0, 0);
+
+            // Tia chỉ thị không gian
+            sw.spawnParticles(ParticleTypes.END_ROD, seedPos.x, seedPos.y, seedPos.z, 2, 0.1, 0.1, 0.1, 0.02);
+            sw.spawnParticles(ParticleTypes.REVERSE_PORTAL, seedPos.x, seedPos.y, seedPos.z, 4, 0.5 + progress * 1.2, 0.5 + progress * 1.2, 0.5 + progress * 1.2, 0.08);
+
+            // Action bar thông báo tiến độ vận chiêu
+            int percent = (int) (progress * 100);
+            player.sendMessage(Text.literal("§c§l[✦ VẬN KHÍ SIÊU TÂN TINH: " + percent + "% ✦]"), true);
+
+            // KHI VẬN ĐỦ 140 TICKS (7 GIÂY) -> PHÁT ĐỘNG SIÊU TÂN TINH CẤP CALAMITY!
+            if (chargeTicks >= 140) {
+                SupernovaManager.cast(player);
+                player.getItemCooldownManager().set(this, 260); // Cooldown 13s
+                player.clearActiveItem();
+                player.sendMessage(Text.literal("§4§l[☠ ĐẠI CHIÊU SIÊU TÂN TINH KHỞI ĐỘNG! ☠]"), true);
+            }
+        }
+    }
+
+    @Override
     public void onStoppedUsing(ItemStack stack, World world, LivingEntity user, int remainingUseTicks) {
+        if (getSkillMode(stack) == MODE_SUPERNOVA) {
+            int chargeTicks = this.getMaxUseTime(stack, user) - remainingUseTicks;
+            if (chargeTicks < 140) {
+                // Thả tay trước 7 giây -> HỦY CHIÊU!
+                if (!world.isClient() && user instanceof PlayerEntity player) {
+                    world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                            SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundCategory.PLAYERS, 2.0f, 0.8f);
+                    world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                            SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.PLAYERS, 2.0f, 1.2f);
+                    player.sendMessage(Text.literal("§7§o[Đã hủy vận chiêu Siêu Tân Tinh]"), true);
+                }
+            }
+            return;
+        }
+
         if (getSkillMode(stack) != MODE_ARCANE_ORB) return;
 
         if (!world.isClient() && user instanceof PlayerEntity player) {

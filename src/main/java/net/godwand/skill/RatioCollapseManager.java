@@ -7,8 +7,10 @@ import net.godwand.network.ImpactFxPayload;
 import net.godwand.spatial.DisplacedBlockRecord;
 import net.godwand.spatial.SpatialDisplacementManager;
 import net.godwand.spatial.SpatialMath;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.FallingBlockEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity;
 import net.minecraft.particle.BlockStateParticleEffect;
@@ -376,57 +378,81 @@ public class RatioCollapseManager {
                         e.velocityModified = true;
                     }
 
-                    // Shader Anime Impact Frame & Cinematic Camera Shake
+                    // Shader Anime Impact Frame & Ground Seismic Shockwave (Ground Zero)
                     ImpactFxPayload slamPayload = new ImpactFxPayload(
                             task.center.getX() + 0.5, task.center.getY() + 0.5, task.center.getZ() + 0.5,
-                            ImpactFxPayload.TYPE_DETONATION, 18, 1.8f
+                            ImpactFxPayload.TYPE_SEISMIC_SLAM, 20, 2.0f
                     );
                     CinematicFxPayload slamCinematic = new CinematicFxPayload(
                             CinematicFxPayload.EVENT_METEOR_SLAM,
                             task.center.getX() + 0.5, task.center.getY() + 0.5, task.center.getZ() + 0.5,
-                            0.85f, 22
+                            0.95f, 24
                     );
                     for (ServerPlayerEntity p : PlayerLookup.around(world, task.center.toCenterPos(), 96.0)) {
                         ServerPlayNetworking.send(p, slamPayload);
                         ServerPlayNetworking.send(p, slamCinematic);
                     }
+
+                    // TẠO HỐ VA CHẠM THIÊN THẠCH THỰC SỰ (Impact Crater bán kính 10m) - KHÔNG HOÀN TRẢ
+                    int craterR = 10;
+                    BlockPos.Mutable cMut = new BlockPos.Mutable();
+                    Random rng = new Random(task.center.asLong());
+
+                    for (int cx = -craterR; cx <= craterR; cx++) {
+                        for (int cz = -craterR; cz <= craterR; cz++) {
+                            double distSq = cx * cx + cz * cz;
+                            if (distSq > craterR * craterR) continue;
+
+                            double dist2D = Math.sqrt(distSq);
+                            int depth = (int) Math.round((1.0 - (dist2D / craterR)) * 4.5);
+
+                            for (int cy = -depth; cy <= 1; cy++) {
+                                cMut.set(task.center.getX() + cx, task.center.getY() + cy, task.center.getZ() + cz);
+                                if (cMut.getY() < world.getBottomY() || cMut.getY() >= world.getTopY()) continue;
+
+                                BlockState bState = world.getBlockState(cMut);
+                                if (bState.isAir() || bState.getBlock() == Blocks.BEDROCK) continue;
+
+                                if (cy < -depth + 1) {
+                                    BlockState floorState = (rng.nextFloat() < 0.40f) ? Blocks.MAGMA_BLOCK.getDefaultState() :
+                                            (rng.nextFloat() < 0.70f) ? Blocks.COBBLESTONE.getDefaultState() :
+                                                    Blocks.CRACKED_STONE_BRICKS.getDefaultState();
+                                    world.setBlockState(cMut, floorState, Block.NOTIFY_ALL);
+                                } else {
+                                    world.setBlockState(cMut, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                                }
+                            }
+                        }
+                    }
+
+                    // 40–50 khối của tảng thiên thạch văng tung tóe ra xung quanh rìa hố thành FallingBlockEntity
+                    int flingCount = 0;
+                    for (BlockPos pos : task.displacedPositions) {
+                        DisplacedBlockRecord record = SpatialDisplacementManager.removeActiveRecord(world.getRegistryKey(), pos);
+                        if (record != null && flingCount < 48 && rng.nextFloat() < 0.55f) {
+                            flingCount++;
+                            double fAngle = rng.nextDouble() * Math.PI * 2.0;
+                            double fSpeed = 0.45 + rng.nextDouble() * 0.75;
+                            double spawnX = task.center.getX() + 0.5 + Math.cos(fAngle) * 3.5;
+                            double spawnY = task.center.getY() + 2.0;
+                            double spawnZ = task.center.getZ() + 0.5 + Math.sin(fAngle) * 3.5;
+
+                            FallingBlockEntity falling = FallingBlockEntity.spawnFromBlock(world,
+                                    BlockPos.ofFloored(spawnX, spawnY, spawnZ),
+                                    record.originalState);
+                            falling.setVelocity(Math.cos(fAngle) * fSpeed, 0.45 + rng.nextDouble() * 0.45, Math.sin(fAngle) * fSpeed);
+                            falling.velocityModified = true;
+                        }
+                    }
                 }
             }
 
             // =========================================================================
-            // PHA 4: VỠ BUNG & TÁI TẠO MẶT ĐẤT (Ticks 76..95)
+            // PHA 4: HIỆN TRƯỜNG HOANG TÀN & KẾT THÚC (Ticks 76..85)
             // =========================================================================
             else {
-                // Tại Tick 76: Các khối từ tảng vỡ bung trượt nhanh về lại ô lưới gốc (0, 0, 0)
-                if (task.ageTicks == 76) {
-                    for (BlockPos pos : task.displacedPositions) {
-                        DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                        if (record == null || record.displayEntityUuid == null) continue;
-
-                        BlockDisplayEntity display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
-                        if (display == null || !display.isAlive()) continue;
-
-                        display.setStartInterpolation(0);
-                        display.setInterpolationDuration(14);
-                        display.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 1.0f));
-                    }
-                }
-
-                // Tại Tick 92: Khôi phục địa hình nguyên vẹn
-                if (task.ageTicks >= 92 && !task.restored) {
-                    task.restored = true;
-
-                    List<DisplacedBlockRecord> toRestore = new ArrayList<>();
-                    for (BlockPos pos : task.displacedPositions) {
-                        DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-                        if (rec != null) toRestore.add(rec);
-                    }
-                    if (!toRestore.isEmpty()) {
-                        SpatialDisplacementManager.executeTwoPassRestoration(world, toRestore);
-                    }
-
-                    world.playSound(null, task.center, SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.BLOCKS, 2.5f, 1.8f);
-                    world.playSound(null, task.center, SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.BLOCKS, 2.5f, 1.2f);
+                // Kết thúc task tại Tick 78 sau khi khói bụi đã tan bớt
+                if (task.ageTicks >= 78) {
                     it.remove();
                 }
             }
