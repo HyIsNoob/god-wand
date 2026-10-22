@@ -83,8 +83,9 @@ public class RatioCollapseManager {
         ServerWorld world = player.getServerWorld();
 
         double reach = switch (chargeLevel) {
-            case 2 -> 45.0;
+            case 4 -> 85.0;
             case 3 -> 65.0;
+            case 2 -> 45.0;
             default -> 28.0;
         };
 
@@ -101,39 +102,45 @@ public class RatioCollapseManager {
         }
 
         double radius = switch (chargeLevel) {
-            case 2 -> 13.5;
+            case 4 -> 24.0;
             case 3 -> 19.0;
+            case 2 -> 13.5;
             default -> 9.0;
         };
 
         double boulderRadius = switch (chargeLevel) {
-            case 2 -> 3.6;
+            case 4 -> 6.5;
             case 3 -> 5.0;
+            case 2 -> 3.6;
             default -> 2.5;
         };
 
         int maxBlocks = switch (chargeLevel) {
-            case 2 -> 200;
+            case 4 -> 420;
             case 3 -> 300;
+            case 2 -> 200;
             default -> 135;
         };
 
         int craterRadius = switch (chargeLevel) {
-            case 2 -> 13;
+            case 4 -> 23;
             case 3 -> 18;
+            case 2 -> 13;
             default -> 8;
         };
 
         // Tăng độ sâu hố khoan (Drill Borehole Depth) sâu hơn gấp đôi, khoan cắm sâu vào lòng đất
         int craterDepth = switch (chargeLevel) {
-            case 2 -> 24;
+            case 4 -> 48;
             case 3 -> 36;
+            case 2 -> 24;
             default -> 16;
         };
 
         float damageMult = switch (chargeLevel) {
-            case 2 -> 1.8f;
+            case 4 -> 3.8f;
             case 3 -> 2.8f;
+            case 2 -> 1.8f;
             default -> 1.2f;
         };
 

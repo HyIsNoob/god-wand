@@ -68,22 +68,22 @@ public class GodWandItem extends Item {
             if (!world.isClient()) {
                 switch (nextMode) {
                     case MODE_SPATIAL_PATH -> {
-                        user.sendMessage(Text.literal("§b§l[✦ CHIÊU 1/3: LỐI ĐI KHÔNG GIAN (SPATIAL PATH) ✦]"), true);
+                        user.sendMessage(Text.literal("§b§l✦ Spatial Path Walker ✦"), true);
                         world.playSound(null, user.getX(), user.getY(), user.getZ(),
                                 SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 2.0f, 1.3f);
                     }
                     case MODE_ARCANE_ORB -> {
-                        user.sendMessage(Text.literal("§d§l[✦ CHIÊU 2/3: CẦU MA PHÁP HỦY DIỆT (SINGULARITY ORB) ✦]"), true);
+                        user.sendMessage(Text.literal("§d§l✦ Arcane Singularity ✦"), true);
                         world.playSound(null, user.getX(), user.getY(), user.getZ(),
                                 SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 2.0f, 1.4f);
                     }
                     case MODE_RATIO_COLLAPSE -> {
-                        user.sendMessage(Text.literal("§6§l[✦ CHIÊU 3/4: SỤP ĐỔ THIÊN THẠCH (RATIO COLLAPSE) ✦]"), true);
+                        user.sendMessage(Text.literal("§6§l✦ Stone Cannon Drill ✦"), true);
                         world.playSound(null, user.getX(), user.getY(), user.getZ(),
                                 SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.PLAYERS, 2.5f, 0.9f);
                     }
                     case MODE_SUPERNOVA -> {
-                        user.sendMessage(Text.literal("§c§l[✦ CHIÊU 4/4: SIÊU TÂN TINH (SUPERNOVA & CHRONO REVERSAL) ✦]"), true);
+                        user.sendMessage(Text.literal("§c§l✦ Cosmic Supernova ✦"), true);
                         world.playSound(null, user.getX(), user.getY(), user.getZ(),
                                 SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 2.5f, 0.6f);
                         world.playSound(null, user.getX(), user.getY(), user.getZ(),
@@ -136,26 +136,94 @@ public class GodWandItem extends Item {
     public void usageTick(World world, LivingEntity user, ItemStack stack, int remainingUseTicks) {
         int currentMode = getSkillMode(stack);
 
-        // VẬN CHIÊU 3: SỤP ĐỔ THIÊN THẠCH (RATIO COLLAPSE)
-        if (currentMode == MODE_RATIO_COLLAPSE) {
+        // SKILL: ARCANE SINGULARITY
+        if (currentMode == MODE_ARCANE_ORB) {
             int chargeTicks = this.getMaxUseTime(stack, user) - remainingUseTicks;
             if (chargeTicks < 0) return;
-
-            int level = (chargeTicks >= 50) ? 3 : (chargeTicks >= 24) ? 2 : 1;
-            float progress = Math.min(1.0f, chargeTicks / 50.0f);
 
             if (!world.isClient() && user instanceof ServerPlayerEntity player) {
                 ServerWorld sw = (ServerWorld) world;
 
-                // Bụi đất đá nứt gãy và khói địa chấn dưới chân
+                Vec3d look = player.getRotationVec(1.0f);
+                Vec3d muzzle = player.getEyePos().add(look.multiply(0.8));
+                if (chargeTicks % 2 == 0) {
+                    sw.spawnParticles(ParticleTypes.PORTAL, muzzle.x, muzzle.y, muzzle.z,
+                            1, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, 0.05);
+                }
+
+                int level;
+                String meter;
+                if (chargeTicks >= 45) {
+                    level = 3;
+                    meter = "§5Level III §8[§5▰▰▰ §eMAX§8]";
+                    if (chargeTicks == 45) {
+                        world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                                SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 1.8f, 1.8f);
+                    }
+                } else if (chargeTicks >= 20) {
+                    level = 2;
+                    meter = "§dLevel II §8[§d▰▰§8▱]";
+                    if (chargeTicks == 20) {
+                        world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                                SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 1.5f, 1.4f);
+                    }
+                } else {
+                    level = 1;
+                    meter = "§bLevel I §8[§b▰§8▱▱]";
+                }
+
+                player.sendMessage(Text.literal("§d§l✦ Arcane Singularity: " + meter + " ✦"), true);
+            }
+            return;
+        }
+
+        // SKILL: STONE CANNON DRILL
+        if (currentMode == MODE_RATIO_COLLAPSE) {
+            int chargeTicks = this.getMaxUseTime(stack, user) - remainingUseTicks;
+            if (chargeTicks < 0) return;
+
+            int level;
+            String meter;
+            if (chargeTicks >= 68) {
+                level = 4;
+                meter = "§4Level IV §8[§4§l▰▰▰▰ §eMAX§8]";
+            } else if (chargeTicks >= 44) {
+                level = 3;
+                meter = "§cLevel III §8[§c▰▰▰§8▱]";
+            } else if (chargeTicks >= 22) {
+                level = 2;
+                meter = "§6Level II §8[§6▰▰§8▱▱]";
+            } else {
+                level = 1;
+                meter = "§eLevel I §8[§e▰§8▱▱▱]";
+            }
+
+            if (!world.isClient() && user instanceof ServerPlayerEntity player) {
+                ServerWorld sw = (ServerWorld) world;
+
+                // Level transition sound cue
+                if (chargeTicks == 22 || chargeTicks == 44 || chargeTicks == 68) {
+                    float pitch = (level == 4) ? 1.8f : (level == 3) ? 1.4f : 1.1f;
+                    world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 2.0f, pitch);
+                    world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                            SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.PLAYERS, 2.0f, pitch);
+                }
+
+                // Ground dust & tectonic smoke
                 if (chargeTicks % 2 == 0) {
                     sw.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
                             player.getX() + (Math.random() - 0.5) * 1.8, player.getY() + 0.1, player.getZ() + (Math.random() - 0.5) * 1.8,
-                            1, 0, 0.06 + progress * 0.10, 0, 0.01);
+                            1, 0, 0.06 + (level * 0.03), 0, 0.01);
                 }
 
-                // Điểm chỉ thị mục tiêu rơi thiên thạch
-                double reach = (level == 3) ? 65.0 : (level == 2) ? 45.0 : 28.0;
+                // Target reach indicator
+                double reach = switch (level) {
+                    case 4 -> 85.0;
+                    case 3 -> 65.0;
+                    case 2 -> 45.0;
+                    default -> 28.0;
+                };
                 HitResult hit = player.raycast(reach, 0.0f, false);
                 Vec3d targetPos = (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult bHit)
                         ? bHit.getBlockPos().toCenterPos()
@@ -166,34 +234,56 @@ public class GodWandItem extends Item {
                             targetPos.x, targetPos.y + 0.5, targetPos.z, 2, 0.4, 0.2, 0.4, 0.05);
                 }
 
-                // Âm thanh nén trọng lực tăng dần
+                // Ambient compression pulse
                 if (chargeTicks % 10 == 0) {
-                    float pitch = 0.7f + progress * 0.8f;
+                    float pitch = 0.7f + (level * 0.25f);
                     world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 1.6f, pitch);
+                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 1.4f, pitch);
                     world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                            SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.PLAYERS, 1.4f, pitch);
+                            SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.PLAYERS, 1.2f, pitch);
                 }
 
-                int percent = (int) (progress * 100);
-                String lvlStr = (level == 3) ? "§c§l[CẤP 3: ĐẠI THIÊN THẠCH]" : (level == 2) ? "§6§l[CẤP 2: NÉN TRỌNG LỰC]" : "§e§l[CẤP 1: CĂN BẢN]";
-                player.sendMessage(Text.literal("§6§l[✦ VẬN KHÍ THIÊN THẠCH: " + lvlStr + " (" + percent + "%) ✦]"), true);
+                player.sendMessage(Text.literal("§6§l✦ Stone Cannon Drill: " + meter + " ✦"), true);
             }
             return;
         }
 
+        // SKILL: COSMIC SUPERNOVA
         if (currentMode != MODE_SUPERNOVA) return;
 
         int chargeTicks = this.getMaxUseTime(stack, user) - remainingUseTicks;
         if (chargeTicks < 0) return;
 
-        // Vận chiêu trong 140 ticks (7 giây):
         double progress = Math.min(1.0, (double) chargeTicks / 140.0);
 
         if (!world.isClient() && user instanceof ServerPlayerEntity player) {
             ServerWorld sw = (ServerWorld) world;
 
-            // 1. Hiệu ứng dưới chân người chơi: Vòng ma trận hạt xoay tròn tăng tốc
+            int level;
+            String meter;
+            if (chargeTicks >= 120) {
+                level = 4;
+                meter = "§4Level IV §8[§4§l▰▰▰▰ §eCRITICAL§8]";
+            } else if (chargeTicks >= 80) {
+                level = 3;
+                meter = "§cLevel III §8[§c▰▰▰§8▱]";
+            } else if (chargeTicks >= 40) {
+                level = 2;
+                meter = "§6Level II §8[§6▰▰§8▱▱]";
+            } else {
+                level = 1;
+                meter = "§eLevel I §8[§e▰§8▱▱▱]";
+            }
+
+            if (chargeTicks == 40 || chargeTicks == 80 || chargeTicks == 120) {
+                float pitch = (level == 4) ? 1.8f : (level == 3) ? 1.3f : 0.9f;
+                world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                        SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 2.5f, pitch);
+                world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                        SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 2.0f, pitch);
+            }
+
+            // 1. Swirling portal ring at feet
             double spinSpeed = 0.2 + progress * 0.8;
             double angle = (chargeTicks * spinSpeed) % (Math.PI * 2.0);
             double ringRadius = 1.6 + (1.0 - progress) * 0.8;
@@ -202,14 +292,13 @@ public class GodWandItem extends Item {
             sw.spawnParticles(ParticleTypes.PORTAL, px, player.getY() + 0.15, pz, 2, 0.05, 0.1, 0.05, 0.02);
             sw.spawnParticles(ParticleTypes.ENCHANT, px, player.getY() + 0.25, pz, 1, 0, 0.05, 0, 0.05);
 
-            // Bụi đất đá nhỏ lơ lửng bốc lên
             if (chargeTicks % 2 == 0) {
                 sw.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
                         player.getX() + (Math.random() - 0.5) * 2.0, player.getY() + 0.1, player.getZ() + (Math.random() - 0.5) * 2.0,
                         1, 0, 0.08 + progress * 0.12, 0, 0.01);
             }
 
-            // 2. Camera rung tăng dần (Trauma 0.05 -> 0.35) & FOV thu hẹp (1.0 -> 0.85)
+            // 2. Camera shake & FOV zoom
             float trauma = (float) (0.05 + progress * 0.30);
             CinematicFxPayload shake = new CinematicFxPayload(
                     CinematicFxPayload.EVENT_TRAUMA_SHAKE,
@@ -228,7 +317,7 @@ public class GodWandItem extends Item {
                 ServerPlayNetworking.send(player, focus);
             }
 
-            // 3. Âm thanh nhịp tim Warden & nạp năng lượng tăng dần cao độ (pitch 0.5 -> 1.8)
+            // 3. Heartbeat & anchor charge audio
             if (chargeTicks % 16 == 0) {
                 float pitch = (float) (0.5f + progress * 1.3f);
                 world.playSound(null, player.getX(), player.getY(), player.getZ(),
@@ -237,7 +326,7 @@ public class GodWandItem extends Item {
                         SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 1.8f, pitch);
             }
 
-            // 4. Hiệu ứng tại điểm ngắm (Aim Target): Tia chỉ thị không gian & mầm hố đen hút bụi
+            // 4. Aim Target indicator
             HitResult hit = player.raycast(45.0, 0.0f, false);
             Vec3d targetPos;
             if (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult bHit) {
@@ -247,20 +336,16 @@ public class GodWandItem extends Item {
             }
             Vec3d seedPos = targetPos.add(0, 18.0, 0);
 
-            // Tia chỉ thị không gian
             sw.spawnParticles(ParticleTypes.END_ROD, seedPos.x, seedPos.y, seedPos.z, 2, 0.1, 0.1, 0.1, 0.02);
             sw.spawnParticles(ParticleTypes.REVERSE_PORTAL, seedPos.x, seedPos.y, seedPos.z, 4, 0.5 + progress * 1.2, 0.5 + progress * 1.2, 0.5 + progress * 1.2, 0.08);
 
-            // Action bar thông báo tiến độ vận chiêu
-            int percent = (int) (progress * 100);
-            player.sendMessage(Text.literal("§c§l[✦ VẬN KHÍ SIÊU TÂN TINH: " + percent + "% ✦]"), true);
+            player.sendMessage(Text.literal("§c§l✦ Cosmic Supernova: " + meter + " ✦"), true);
 
-            // KHI VẬN ĐỦ 140 TICKS (7 GIÂY) -> PHÁT ĐỘNG SIÊU TÂN TINH CẤP CALAMITY!
             if (chargeTicks >= 140) {
                 SupernovaManager.cast(player);
-                player.getItemCooldownManager().set(this, 520); // Cooldown 26s bao trọn toàn bộ đại chiêu
+                player.getItemCooldownManager().set(this, 520);
                 player.clearActiveItem();
-                player.sendMessage(Text.literal("§4§l[☠ ĐẠI CHIÊU SIÊU TÂN TINH KHỞI ĐỘNG! ☠]"), true);
+                player.sendMessage(Text.literal("§4§l✦ Cosmic Supernova Unleashed! ✦"), true);
             }
         }
     }
@@ -270,13 +355,12 @@ public class GodWandItem extends Item {
         if (getSkillMode(stack) == MODE_SUPERNOVA) {
             int chargeTicks = this.getMaxUseTime(stack, user) - remainingUseTicks;
             if (chargeTicks < 140) {
-                // Thả tay trước 7 giây -> HỦY CHIÊU!
                 if (!world.isClient() && user instanceof PlayerEntity player) {
                     world.playSound(null, player.getX(), player.getY(), player.getZ(),
                             SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundCategory.PLAYERS, 2.0f, 0.8f);
                     world.playSound(null, player.getX(), player.getY(), player.getZ(),
                             SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.PLAYERS, 2.0f, 1.2f);
-                    player.sendMessage(Text.literal("§7§o[Đã hủy vận chiêu Siêu Tân Tinh]"), true);
+                    player.sendMessage(Text.literal("§7§o[Cosmic Supernova Cancelled]"), true);
                 }
             }
             return;
@@ -286,9 +370,11 @@ public class GodWandItem extends Item {
             if (!world.isClient() && user instanceof ServerPlayerEntity player) {
                 int chargeDuration = this.getMaxUseTime(stack, user) - remainingUseTicks;
                 int level = 1;
-                if (chargeDuration >= 50) {
+                if (chargeDuration >= 68) {
+                    level = 4;
+                } else if (chargeDuration >= 44) {
                     level = 3;
-                } else if (chargeDuration >= 24) {
+                } else if (chargeDuration >= 22) {
                     level = 2;
                 }
 
@@ -303,9 +389,9 @@ public class GodWandItem extends Item {
         if (!world.isClient() && user instanceof PlayerEntity player) {
             int chargeDuration = this.getMaxUseTime(stack, user) - remainingUseTicks;
             int level = 1;
-            if (chargeDuration >= 50) { // 2.5s+ -> Calamity Level 3
+            if (chargeDuration >= 45) {
                 level = 3;
-            } else if (chargeDuration >= 24) { // 1.2s -> Level 2
+            } else if (chargeDuration >= 20) {
                 level = 2;
             }
 
@@ -349,12 +435,12 @@ public class GodWandItem extends Item {
     @Override
     public void appendTooltip(ItemStack stack, TooltipContext context, List<Text> tooltip, TooltipType type) {
         int mode = getSkillMode(stack);
-        tooltip.add(Text.literal("§7[Shift + Chuột Phải]: §eĐổi chiêu thức"));
+        tooltip.add(Text.literal("§7[Shift + Right-Click]: §eSwitch Skill"));
         switch (mode) {
-            case MODE_SPATIAL_PATH -> tooltip.add(Text.literal("§aĐang chọn: §b[1] Lối Đi Không Gian §7(Bật/Tắt rẽ khối)"));
-            case MODE_ARCANE_ORB -> tooltip.add(Text.literal("§aĐang chọn: §d[2] Cầu Ma Pháp Hủy Diệt §7(Giữ bắn)"));
-            case MODE_RATIO_COLLAPSE -> tooltip.add(Text.literal("§aĐang chọn: §6[3] Sụp Đổ Thiên Thạch §7(Bứt phá & Giáng sập)"));
-            case MODE_SUPERNOVA -> tooltip.add(Text.literal("§aĐang chọn: §c[4] Siêu Tân Tinh & Nghịch Đảo Thời Gian §7(Lỗ đen & Nổ bùng)"));
+            case MODE_SPATIAL_PATH -> tooltip.add(Text.literal("§aSelected: §bSpatial Path Walker §7(Toggle)"));
+            case MODE_ARCANE_ORB -> tooltip.add(Text.literal("§aSelected: §dArcane Singularity §7(Hold to Charge)"));
+            case MODE_RATIO_COLLAPSE -> tooltip.add(Text.literal("§aSelected: §6Stone Cannon Drill §7(Hold to Charge)"));
+            case MODE_SUPERNOVA -> tooltip.add(Text.literal("§aSelected: §cCosmic Supernova §7(Hold to Unleash)"));
         }
         tooltip.add(Text.literal("§8--------------------------------"));
         tooltip.add(Text.translatable("item.godwand.god_wand.desc"));
