@@ -24,7 +24,7 @@ public class GodWandClientMod implements ClientModInitializer {
                         payload.type(), payload.durationTicks(), payload.intensity()
                 );
                 if (payload.type() == ImpactFxPayload.TYPE_SUPERNOVA) {
-                    CustomImpactFrameOverlay.trigger(12);
+                    CustomImpactFrameOverlay.trigger(16);
                 }
             });
         });

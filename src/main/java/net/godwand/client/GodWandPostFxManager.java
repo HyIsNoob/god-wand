@@ -202,14 +202,8 @@ public class GodWandPostFxManager {
             }
             case ImpactFxPayload.TYPE_SUPERNOVA -> {
                 // Cataclysmic Cosmic Supernova (Burst & Lingering Mushroom Aftermath - 140 ticks / 7.0s duration):
-                // Ticks 0..11 (progress < 0.08f): Chuỗi 36 Anime Impact Frame liên tục
-                if (progress < 0.08f) {
-                    impactFrame = 1.0f - (progress / 0.08f);
-                    int[] novaModes = {35, 34, 33, 2, 3, 0, 1, 33};
-                    impactMode = novaModes[Math.min(tickIdx, novaModes.length - 1)];
-                } else {
-                    impactFrame = 0.0f;
-                }
+                // Các bức vẽ tay Anime Impact Frame (Snapshot 1..4) được render sắc nét qua CustomImpactFrameOverlay!
+                impactFrame = 0.0f;
 
                 // Không lạm dụng Distortion bẻ méo màn hình gây khó chịu cho người chơi
                 shockwaveRadius = 0.0f;
