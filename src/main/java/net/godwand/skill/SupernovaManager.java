@@ -37,7 +37,7 @@ public class SupernovaManager {
 
     public static final int DETONATION_TICK = 340;
     public static final int MAX_LIFETIME_TICKS = 500;
-    public static final int MAX_DISPLAYS_CAP = 900;
+    public static final int MAX_DISPLAYS_CAP = 1800;
 
     public static class SupernovaTask {
         public final ServerWorld world;
@@ -105,12 +105,13 @@ public class SupernovaManager {
         }
 
         // 2. Thu thập danh sách khối ứng viên trong bán kính Calamity R = 40.0m
-        // QUÉT CẢ VÙNG NÚI NON PHÍA TRÊN (groundY - 28 lên tới groundY + 48)
+        // QUÉT CẢ VÙNG NÚI NON PHÍA TRÊN & PHÂN TẦNG ƯU TIÊN KHỐI BỀ MẶT KHẮP 360 ĐỘ (0..40m)
         int intR = (int) Math.ceil(task.maxRadius);
         double maxRadiusSq = task.maxRadius * task.maxRadius;
         BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-        List<BlockPos> candidates = new ArrayList<>();
+        List<BlockPos> surfaceCandidates = new ArrayList<>();
+        List<BlockPos> subSurfaceCandidates = new ArrayList<>();
         int groundY = groundCenter.getY();
         int minY = Math.max(world.getBottomY(), groundY - 28);
         int maxY = Math.min(world.getTopY() - 1, groundY + 48);
@@ -120,26 +121,41 @@ public class SupernovaManager {
                 double dSq2D = x * x + z * z;
                 if (dSq2D > maxRadiusSq) continue;
 
-                for (int y = maxY; y >= minY; y--) {
-                    mutable.set(groundCenter.getX() + x, y, groundCenter.getZ() + z);
+                int colX = groundCenter.getX() + x;
+                int colZ = groundCenter.getZ() + z;
+                int surfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, colX, colZ) - 1;
+                int solidCount = 0;
+
+                for (int y = Math.min(maxY, surfaceY + 4); y >= minY; y--) {
+                    mutable.set(colX, y, colZ);
                     BlockState state = world.getBlockState(mutable);
                     if (state.isAir() || state.getBlock() == Blocks.BEDROCK) continue;
                     if (!SpatialDisplacementManager.canDisplace(world, mutable, state)) continue;
-                    candidates.add(mutable.toImmutable());
+
+                    solidCount++;
+                    if (solidCount <= 3) {
+                        surfaceCandidates.add(mutable.toImmutable());
+                    } else {
+                        subSurfaceCandidates.add(mutable.toImmutable());
+                    }
                 }
             }
         }
 
-        // Sắp xếp bóc tách: Từ TÂM lan dần ra ngoài (khoảng cách 2D tăng dần), lớp mặt trên bóc trước
-        candidates.sort((a, b) -> {
+        // Sắp xếp bóc tách: Từ TÂM lan dần ra ngoài (khoảng cách 2D tăng dần)
+        Comparator<BlockPos> radialComp = (a, b) -> {
             double distA = a.getSquaredDistance(task.groundCenter.getX(), a.getY(), task.groundCenter.getZ());
             double distB = b.getSquaredDistance(task.groundCenter.getX(), b.getY(), task.groundCenter.getZ());
             int distComp = Double.compare(distA, distB);
             if (distComp != 0) return distComp;
             return Integer.compare(b.getY(), a.getY());
-        });
+        };
 
-        task.candidatePositions.addAll(candidates);
+        surfaceCandidates.sort(radialComp);
+        subSurfaceCandidates.sort(radialComp);
+
+        task.candidatePositions.addAll(surfaceCandidates);
+        task.candidatePositions.addAll(subSurfaceCandidates);
 
         // Âm thanh khởi sinh Hố Đen Tận Thế (Trầm bổng, ngân vang)
         world.playSound(null, corePos.x, corePos.y, corePos.z,
@@ -175,8 +191,8 @@ public class SupernovaManager {
                 double currentPeelRadius = 2.5 + (task.maxRadius - 2.5) * bhScale;
                 double currentRadiusSq = currentPeelRadius * currentPeelRadius;
 
-                // 2. Hạn ngạch số khối BlockDisplayEntity tối đa trên bầu trời tăng dần lên 900 khối
-                int maxDisplaysNow = 12 + (int) (888 * Math.pow(progress, 1.55));
+                // 2. Hạn ngạch số khối BlockDisplayEntity tối đa trên bầu trời tăng dần lên 1800 khối
+                int maxDisplaysNow = 35 + (int) (1765 * Math.pow(progress, 1.35));
 
                 int peeledThisTick = 0;
                 for (BlockPos pos : task.candidatePositions) {
@@ -321,18 +337,18 @@ public class SupernovaManager {
                             SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 3.5f, 0.6f + (float) progress * 1.0f);
                 }
 
-                // Cột hạt ánh sáng Relativistic Pulsar Jet to rõ dọc trục Y
+                // Cột hạt ánh sáng Relativistic Pulsar Jet mỏng, sắc nét dọc trục Y (không che khuất tầm nhìn)
                 if (task.ageTicks >= 160 && task.ageTicks % 2 == 0) {
                     float jetScale = (float) Math.min(1.0, (task.ageTicks - 160) / 150.0);
-                    for (int j = 0; j < 8; j++) {
+                    for (int j = 0; j < 6; j++) {
                         double beamY = task.corePos.y + (world.random.nextDouble() - 0.3) * 85.0;
-                        double rBeam = (0.2 + world.random.nextDouble() * 2.2) * jetScale;
+                        double rBeam = (0.08 + world.random.nextDouble() * 0.42) * jetScale;
                         double aBeam = world.random.nextDouble() * Math.PI * 2.0;
                         world.spawnParticles(ParticleTypes.END_ROD,
                                 task.corePos.x + Math.cos(aBeam) * rBeam, beamY, task.corePos.z + Math.sin(aBeam) * rBeam,
                                 1, 0, 0.25, 0, 0.05);
                         world.spawnParticles(ParticleTypes.ELECTRIC_SPARK,
-                                task.corePos.x + Math.cos(aBeam) * (rBeam * 1.5), beamY, task.corePos.z + Math.sin(aBeam) * (rBeam * 1.5),
+                                task.corePos.x + Math.cos(aBeam) * (rBeam * 1.3), beamY, task.corePos.z + Math.sin(aBeam) * (rBeam * 1.3),
                                 1, 0, 0.1, 0, 0.04);
                     }
                 }
@@ -431,9 +447,9 @@ public class SupernovaManager {
                 }
 
                 // 5. HIỆU ỨNG VỤ NỔ VẬT LÝ 3D:
-                // Giữ lại tối đa 350 BlockDisplayEntity và phóng văng siêu thanh ra bán kính 45m - 68m!
+                // Giữ lại tối đa 650 BlockDisplayEntity và phóng văng siêu thanh ra bán kính 45m - 75m!
                 Random rng = new Random(task.groundCenter.asLong());
-                int flingDisplayCount = Math.min(350, task.displayedPositions.size());
+                int flingDisplayCount = Math.min(650, task.displayedPositions.size());
                 for (int i = 0; i < task.displayedPositions.size(); i++) {
                     BlockPos pos = task.displayedPositions.get(i);
                     if (i < flingDisplayCount) {
@@ -468,11 +484,10 @@ public class SupernovaManager {
                     SpatialDisplacementManager.removeActiveRecord(world.getRegistryKey(), pos);
                 }
 
-                // 6. Chuẩn bị tạo Hố sâu tận thế & San phẳng núi non (Bán kính 55m, sâu -28m, cao tới +48m)
+                // 6. Chuẩn bị tạo Hố sâu tận thế Parabol gồ ghề & San phẳng núi non (Bán kính 55m, sâu -36m)
                 int craterR = 55;
                 BlockPos.Mutable cMut = new BlockPos.Mutable();
                 int centerGroundY = task.groundCenter.getY();
-                int topCutY = Math.min(world.getTopY() - 1, centerGroundY + 48);
 
                 for (int cx = -craterR; cx <= craterR; cx++) {
                     for (int cz = -craterR; cz <= craterR; cz++) {
@@ -480,15 +495,28 @@ public class SupernovaManager {
                         if (distSq > craterR * craterR) continue;
 
                         double dist2D = Math.sqrt(distSq);
-                        double noise = (SpatialMath.hash01(new BlockPos(cx, 0, cz)) - 0.5) * 6.0;
-                        double effectiveR = craterR + noise;
+                        double angle = Math.atan2(cz, cx);
+                        double ridgeNoise = Math.sin(angle * 7.0) * 3.5 + Math.cos(angle * 13.0) * 2.0;
+                        double effectiveR = craterR + ridgeNoise;
                         if (dist2D > effectiveR) continue;
 
-                        int depth = (int) Math.round((1.0 - Math.pow(Math.min(1.0, dist2D / effectiveR), 1.35)) * 28.0);
-                        int floorY = centerGroundY - depth;
+                        double normDist = dist2D / effectiveR;
+                        // Chiều sâu Parabol sâu nhất ở tâm (-36 blocks) và thoải dần ra vành ngoài
+                        double depthCurve = Math.pow(1.0 - normDist, 1.6);
+                        double calculatedDepth = depthCurve * 36.0;
+
+                        // Độ lởm chởm gập ghềnh tự nhiên của đáy vực (tuyệt đối không phẳng lì!)
+                        int wx = task.groundCenter.getX() + cx;
+                        int wz = task.groundCenter.getZ() + cz;
+                        double floorNoise = (SpatialMath.hash01(new BlockPos(wx * 3, 0, wz * 3)) - 0.5) * 6.5;
+                        floorNoise += Math.sin(wx * 0.35) * Math.cos(wz * 0.35) * 3.0;
+
+                        int realSurfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, wx, wz);
+                        int topCutY = Math.min(world.getTopY() - 1, realSurfaceY + 6);
+                        int floorY = Math.max(world.getBottomY() + 3, (int) Math.round(centerGroundY - calculatedDepth + floorNoise));
 
                         for (int y = floorY; y <= topCutY; y++) {
-                            cMut.set(task.groundCenter.getX() + cx, y, task.groundCenter.getZ() + cz);
+                            cMut.set(wx, y, wz);
                             if (cMut.getY() < world.getBottomY() || cMut.getY() >= world.getTopY()) continue;
                             task.craterCarveBatch.add(cMut.toImmutable());
                         }
@@ -534,7 +562,7 @@ public class SupernovaManager {
                     task.blastFlingPositions.clear();
                 }
 
-                // 1. Đào hố tận thế và san phẳng quả núi phía trên chia theo mẻ (20 sub-ticks)
+                // 1. Đào hố tận thế và nung chảy địa hình gồ ghề chia theo mẻ (20 sub-ticks)
                 if (task.craterIndex < task.craterCarveBatch.size()) {
                     int batchSize = (task.craterCarveBatch.size() / 20) + 1;
                     int endIndex = Math.min(task.craterCarveBatch.size(), task.craterIndex + batchSize);
@@ -546,27 +574,58 @@ public class SupernovaManager {
                         if (currentState.getBlock() == Blocks.BEDROCK) continue;
 
                         double dist2D = Math.sqrt(pos.getSquaredDistance(task.groundCenter.getX(), pos.getY(), task.groundCenter.getZ()));
-                        double noise = (SpatialMath.hash01(new BlockPos(pos.getX() - task.groundCenter.getX(), 0, pos.getZ() - task.groundCenter.getZ())) - 0.5) * 6.0;
-                        double effectiveR = 55.0 + noise;
-                        int depth = (int) Math.round((1.0 - Math.pow(Math.min(1.0, dist2D / effectiveR), 1.35)) * 28.0);
-                        int floorY = task.groundCenter.getY() - depth;
+                        double angle = Math.atan2(pos.getZ() - task.groundCenter.getZ(), pos.getX() - task.groundCenter.getX());
+                        double ridgeNoise = Math.sin(angle * 7.0) * 3.5 + Math.cos(angle * 13.0) * 2.0;
+                        double effectiveR = 55.0 + ridgeNoise;
+                        double normDist = Math.min(1.0, dist2D / effectiveR);
+                        double depthCurve = Math.pow(1.0 - normDist, 1.6);
+                        double calculatedDepth = depthCurve * 36.0;
+
+                        double floorNoise = (SpatialMath.hash01(new BlockPos(pos.getX() * 3, 0, pos.getZ() * 3)) - 0.5) * 6.5;
+                        floorNoise += Math.sin(pos.getX() * 0.35) * Math.cos(pos.getZ() * 0.35) * 3.0;
+                        int floorY = Math.max(world.getBottomY() + 3, (int) Math.round(task.groundCenter.getY() - calculatedDepth + floorNoise));
 
                         // TẤT CẢ các khối trên floorY (bao gồm cả nguyên quả núi phía trên) đều bị bốc hơi thành AIR!
                         if (pos.getY() > floorY) {
                             world.setBlockState(pos, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
                         }
-                        // Tại đúng đáy floorY: Nung chảy nếu khối vốn là đá đặc
+                        // Tại đúng đáy floorY: Nung chảy thành địa hình dung nham nứt nẻ gồ ghề (tuyệt đối không phẳng lì)
                         else if (pos.getY() == floorY && !currentState.isAir()) {
                             float rVal = rng.nextFloat();
                             BlockState scorchState;
-                            if (rVal < 0.20f) {
-                                scorchState = Blocks.MAGMA_BLOCK.getDefaultState();
-                            } else if (rVal < 0.35f) {
-                                scorchState = Blocks.CRYING_OBSIDIAN.getDefaultState();
-                            } else if (rVal < 0.55f) {
-                                scorchState = Blocks.OBSIDIAN.getDefaultState();
+                            if (dist2D <= 14.0) {
+                                // Vực tâm nổ: Hồ dung nham sôi sùng sục xen kẽ Magma và Crying Obsidian
+                                if (rVal < 0.38f) {
+                                    scorchState = Blocks.LAVA.getDefaultState();
+                                } else if (rVal < 0.68f) {
+                                    scorchState = Blocks.MAGMA_BLOCK.getDefaultState();
+                                } else if (rVal < 0.85f) {
+                                    scorchState = Blocks.CRYING_OBSIDIAN.getDefaultState();
+                                } else {
+                                    scorchState = Blocks.OBSIDIAN.getDefaultState();
+                                }
+                            } else if (dist2D <= 32.0) {
+                                // Lòng chảo giữa: Vành đai đá nóng chảy, nứt toác
+                                if (rVal < 0.35f) {
+                                    scorchState = Blocks.MAGMA_BLOCK.getDefaultState();
+                                } else if (rVal < 0.60f) {
+                                    scorchState = Blocks.CRYING_OBSIDIAN.getDefaultState();
+                                } else if (rVal < 0.82f) {
+                                    scorchState = Blocks.OBSIDIAN.getDefaultState();
+                                } else {
+                                    scorchState = Blocks.BLACKSTONE.getDefaultState();
+                                }
                             } else {
-                                scorchState = (pos.getY() < 0) ? Blocks.DEEPSLATE.getDefaultState() : Blocks.BLACKSTONE.getDefaultState();
+                                // Vành ngoài sạt lở: Đá đen, đá vụn, deepslate nứt nẻ
+                                if (rVal < 0.40f) {
+                                    scorchState = Blocks.BLACKSTONE.getDefaultState();
+                                } else if (rVal < 0.70f) {
+                                    scorchState = Blocks.COBBLESTONE.getDefaultState();
+                                } else if (rVal < 0.90f) {
+                                    scorchState = Blocks.DEEPSLATE.getDefaultState();
+                                } else {
+                                    scorchState = Blocks.MAGMA_BLOCK.getDefaultState();
+                                }
                             }
                             world.setBlockState(pos, scorchState, Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
                         }
@@ -596,37 +655,51 @@ public class SupernovaManager {
                 }
 
                 // 3. Cột Nấm & Đỉnh Nấm Anvil Khổng Lồ 3D (Towering Volumetric Mushroom Cloud)
-                // Cột nấm bốc thẳng từ đáy hố lên cao 55m
-                for (int k = 0; k < 10; k++) {
-                    double stemH = rng.nextDouble() * 55.0;
-                    double stemR = 1.2 + (stemH / 55.0) * 4.0;
+                // Cột nấm bốc cao cuồn cuộn từ đáy hố lên cao 75m (35 hạt/tick)
+                for (int k = 0; k < 35; k++) {
+                    double stemH = rng.nextDouble() * 75.0;
+                    double stemR = (1.5 + (stemH / 75.0) * 5.0) * (0.6 + rng.nextDouble() * 0.4);
                     double sAngle = rng.nextDouble() * Math.PI * 2.0;
-                    double sx = task.groundCenter.getX() + 0.5 + Math.cos(sAngle) * (rng.nextDouble() * stemR);
+                    double sx = task.groundCenter.getX() + 0.5 + Math.cos(sAngle) * stemR;
                     double sy = task.groundCenter.getY() + stemH;
-                    double sz = task.groundCenter.getZ() + 0.5 + Math.sin(sAngle) * (rng.nextDouble() * stemR);
+                    double sz = task.groundCenter.getZ() + 0.5 + Math.sin(sAngle) * stemR;
 
-                    if (stemH < 18.0) {
-                        world.spawnParticles(ParticleTypes.LAVA, sx, sy, sz, 1, 0, 0.12, 0, 0.02);
-                        world.spawnParticles(ParticleTypes.FLAME, sx, sy, sz, 1, 0, 0.20, 0, 0.05);
+                    double upVy = 0.25 + (1.0 - stemH / 75.0) * 0.35;
+                    if (stemH < 22.0) {
+                        world.spawnParticles(ParticleTypes.LAVA, sx, sy, sz, 1, 0, 0.15, 0, 0.05);
+                        world.spawnParticles(ParticleTypes.FLAME, sx, sy, sz, 1, 0, 0.25, 0, 0.08);
                     }
-                    world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, sx, sy, sz, 1, 0, 0.35, 0, 0.03);
+                    world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, sx, sy, sz, 1, 0, upVy, 0, 0.04);
+                    if (k % 3 == 0) {
+                        world.spawnParticles(ParticleTypes.LARGE_SMOKE, sx, sy, sz, 1, 0, upVy * 0.8, 0, 0.03);
+                    }
+                    if (k % 5 == 0) {
+                        world.spawnParticles(ParticleTypes.SQUID_INK, sx, sy, sz, 1, 0, upVy * 0.5, 0, 0.02);
+                    }
                 }
 
-                // Đỉnh nấm xòe ngang (Anvil Cap) ở độ cao 45m..58m bung rộng ra bán kính 16m..28m
+                // Đỉnh nấm xòe ngang (Anvil Cap) ở độ cao 55m..75m bung rộng ra bán kính 14m..38m (25 hạt/tick)
                 double capAge = Math.min(1.0, (task.ageTicks - DETONATION_TICK) / 100.0);
-                double capMaxR = 8.0 + capAge * 20.0;
-                for (int c = 0; c < 8; c++) {
+                double capMaxR = 14.0 + capAge * 24.0;
+                for (int c = 0; c < 25; c++) {
                     double cAng = rng.nextDouble() * Math.PI * 2.0;
                     double cR = capMaxR * (0.35 + rng.nextDouble() * 0.65);
                     double cx = task.groundCenter.getX() + 0.5 + Math.cos(cAng) * cR;
-                    double cy = task.groundCenter.getY() + 45.0 + (rng.nextDouble() - 0.3) * 12.0;
+                    double cy = task.groundCenter.getY() + 55.0 + (rng.nextDouble() - 0.2) * 18.0;
                     double cz = task.groundCenter.getZ() + 0.5 + Math.sin(cAng) * cR;
 
-                    double outVx = Math.cos(cAng) * 0.18;
-                    double outVz = Math.sin(cAng) * 0.18;
-                    world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, cx, cy, cz, 2, outVx, 0.05, outVz, 0.02);
-                    if (rng.nextFloat() < 0.4f) {
-                        world.spawnParticles(ParticleTypes.FLAME, cx, cy, cz, 1, outVx * 0.5, 0.05, outVz * 0.5, 0.02);
+                    // Chuyển động đối lưu cuộn vành ngoài xẹp xuống (Torus vortex rolling)
+                    double outVx = Math.cos(cAng) * 0.22;
+                    double outVz = Math.sin(cAng) * 0.22;
+                    double rollVy = -0.04 - (cR / capMaxR) * 0.08;
+
+                    world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, cx, cy, cz, 2, outVx, rollVy, outVz, 0.03);
+                    world.spawnParticles(ParticleTypes.LARGE_SMOKE, cx, cy, cz, 1, outVx * 0.7, rollVy, outVz * 0.7, 0.02);
+                    if (rng.nextFloat() < 0.25f) {
+                        world.spawnParticles(ParticleTypes.ASH, cx, cy, cz, 2, outVx * 0.5, 0.02, outVz * 0.5, 0.01);
+                    }
+                    if (rng.nextFloat() < 0.15f) {
+                        world.spawnParticles(ParticleTypes.FLAME, cx, cy, cz, 1, outVx * 0.3, 0.02, outVz * 0.3, 0.02);
                     }
                 }
 

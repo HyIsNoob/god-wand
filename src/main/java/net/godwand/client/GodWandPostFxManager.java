@@ -138,11 +138,11 @@ public class GodWandPostFxManager {
                     zoomBlur = -0.045f * inProg * baseIntensity;
                 }
 
-                // 3D Singularity Gravitational Lensing & Lõi năng lượng duy trì:
-                // Nhỏ gọn hơn (base 0.72m thay vì 1.6m), dao động to/nhỏ chớp chớp kiểu tụ năng lượng sống động
-                float pulse = (float) (Math.sin(gTime * 18.0) * 0.16 + Math.sin(gTime * 34.0) * 0.08);
-                float activeCoreR = Math.max(0.35f, 0.72f + pulse);
-                float activeLensing = 1.35f + pulse * 1.4f;
+                // 3D Singularity Lõi năng lượng duy trì:
+                // Nhịp thở scale dao động rất nhẹ (+- 0.035m), êm ái tự nhiên không giật mạnh
+                float pulse = (float) (Math.sin(gTime * 8.0) * 0.035);
+                float activeCoreR = Math.max(0.40f, 0.65f + pulse);
+                float activeLensing = 0.55f + pulse * 0.2f;
 
                 if (progress < 0.80f) {
                     coreRadius = activeCoreR;
@@ -251,22 +251,15 @@ public class GodWandPostFxManager {
                 zoomBlur = -0.025f * progress;
             }
             case ImpactFxPayload.TYPE_GRAVITY_CORE -> {
-                // Quả cầu năng lượng Chiêu 3 (Kéo dài 135 ticks mượt mà):
-                // Ticks 0..88 (progress 0.0 -> 0.65): Màu Vàng Hổ Phách / Cam Trọng Lực hút đá xoay vòng
-                // Ticks 89..135 (progress 0.65 -> 1.0): Hóa Đỏ Nhiệt Hạch (Crimson Overheat) đồng bộ với Mũi Khoan!
-                float pulse = (float) (Math.sin(gTime * 22.0) * 0.14);
-                if (progress < 0.65f) {
-                    float grow = Math.min(1.0f, progress / 0.18f);
-                    coreRadius = (0.85f + pulse) * grow * Math.min(1.6f, baseIntensity);
-                    lensingPower = 1.2f * grow;
-                    impactIntensity = 1.0f; // Encode heat < 1.5 cho màu Vàng Hổ Phách
-                } else {
-                    float redProg = (progress - 0.65f) / 0.35f;
-                    coreRadius = (1.05f + pulse * 1.5f) * (1.0f - redProg * 0.35f) * Math.min(1.6f, baseIntensity);
-                    lensingPower = 1.8f + redProg * 1.2f;
-                    zoomBlur = -0.035f * redProg;
-                    impactIntensity = 1.0f + redProg * 1.5f; // Tăng từ 1.0 -> 2.5 để Shader chuyển sang Đỏ Nhiệt Hạch!
-                }
+                // Quả cầu năng lượng Chiêu 3: Khối cầu năng lượng màu đỏ bốc cháy (Blazing Crimson Fireball)
+                // Tuyệt đối không dùng hố đen, không thấu kính méo màn hình
+                float pulse = (float) (Math.sin(gTime * 16.0) * 0.05);
+                float grow = Math.min(1.0f, progress / 0.12f);
+                coreRadius = (1.15f + pulse) * grow * Math.min(1.8f, baseIntensity);
+                lensingPower = 0.0f; // Không thấu kính méo hố đen
+                distortionPower = 0.0f; // Không bẻ cong méo hình
+                zoomBlur = 0.0f;
+                impactIntensity = 1.6f + (float) (Math.sin(gTime * 12.0) * 0.25); // Nhấp nháy ngọn lửa sống động
             }
             case ImpactFxPayload.TYPE_REASSEMBLY -> {
                 // Chiêu 2: Hiệu ứng chớp nhẹ và shimmer khi toàn bộ khối ghép khớp khít 1:1 (duration 6 ticks)

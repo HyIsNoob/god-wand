@@ -301,6 +301,26 @@ public class RatioCollapseManager {
             int totalBlocks = Math.max(1, task.displacedPositions.size());
 
             // =========================================================================
+            // KHỐI CẦU NĂNG LƯỢNG ĐỎ BỐC CHÁY (Blazing Crimson Fireball Particles Ticks 1..134)
+            // =========================================================================
+            if (task.ageTicks <= 134) {
+                double coreR = task.boulderRadius * 0.72;
+                for (int f = 0; f < 3; f++) {
+                    double ang = world.random.nextDouble() * Math.PI * 2.0;
+                    double elev = (world.random.nextDouble() - 0.5) * Math.PI;
+                    double fx = task.meteorCore.x + Math.cos(elev) * Math.cos(ang) * coreR;
+                    double fy = task.meteorCore.y + Math.sin(elev) * coreR;
+                    double fz = task.meteorCore.z + Math.cos(elev) * Math.sin(ang) * coreR;
+                    world.spawnParticles(ParticleTypes.FLAME, fx, fy, fz, 1, 0, 0.05, 0, 0.02);
+                    world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.12f, 0.02f), 1.6f),
+                            fx, fy, fz, 1, 0, 0.02, 0, 0.05);
+                }
+                if (task.ageTicks % 4 == 0) {
+                    world.spawnParticles(ParticleTypes.LAVA, task.meteorCore.x, task.meteorCore.y, task.meteorCore.z, 2, 0.25, 0.25, 0.25, 0.04);
+                }
+            }
+
+            // =========================================================================
             // PHA 1: BAY LƠ LỬNG LÊN NGANG QUẢ CẦU NĂNG LƯỢNG (Ticks 1..38)
             // =========================================================================
             if (task.ageTicks <= 38) {

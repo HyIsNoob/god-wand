@@ -177,16 +177,16 @@ void main() {
                     float maxDown = -90.0 * jetScale;
                     float maxUp = 160.0 * jetScale;
                     if (hJet > maxDown && hJet < maxUp) {
-                        // Độ rộng tia tỷ lệ thuận với jetScale (làm to rõ, rực sáng uy lực theo yêu cầu)
-                        float wFactor = max(0.35, pow(jetScale, 0.55) * 3.2);
-                        float jetCore = exp(-dJet / (2.2 * wFactor));
-                        float jetSheath = exp(-dJet / (5.5 * wFactor)) * 0.85 * jetScale;
-                        float jetAura = exp(-dJet / (15.0 * wFactor)) * 0.45 * jetScale;
+                        // Cột sáng Relativistic Pulsar Jet mỏng, sắc nét, tập trung, không che khuất tầm nhìn camera
+                        float wFactor = max(0.06, pow(jetScale, 1.25) * 0.45);
+                        float jetCore = exp(-dJet / (0.40 * wFactor));
+                        float jetSheath = exp(-dJet / (1.10 * wFactor)) * 0.65 * jetScale;
+                        float jetAura = exp(-dJet / (2.60 * wFactor)) * 0.20 * jetScale;
                         float jetFade = smoothstep(maxDown, maxDown * 0.85, hJet) * (1.0 - smoothstep(maxUp * 0.75, maxUp, hJet));
-                        vec3 jetColor = (vec3(1.0, 0.98, 0.95) * jetCore * 6.5 +
-                                         vec3(0.12, 0.92, 1.0) * jetSheath * 3.8 +
-                                         vec3(0.65, 0.22, 1.0) * jetAura * 2.2) * jetFade * jetScale;
-                        addGlow += jetColor * (1.2 + 0.3 * sin(GTime * 28.0));
+                        vec3 jetColor = (vec3(1.0, 0.98, 0.95) * jetCore * 3.2 +
+                                         vec3(0.12, 0.92, 1.0) * jetSheath * 1.8 +
+                                         vec3(0.65, 0.22, 1.0) * jetAura * 0.9) * jetFade * jetScale;
+                        addGlow += jetColor * (1.0 + 0.2 * sin(GTime * 28.0));
                     }
                 }
             }
@@ -253,50 +253,48 @@ void main() {
         }
         // =========================================================================
         // NHÁNH 3: CHIÊU 2 - CẦU NĂNG LƯỢNG MA PHÁP (FxType == 0.0: TYPE_DETONATION)
-        // Không lỗ đen, không đĩa bồi tụ, không cột Pulsar
+        // Không lỗ đen, không đĩa bồi tụ, nhịp thở scale nhẹ nhàng êm ái
         // =========================================================================
         else if (FxType < 0.5 && inFront && !coreOccluded && CoreRadius > 0.05) {
             float dSphere = impactParam;
-            if (dSphere < CoreRadius * 1.65 && sceneDist > (tBH - CoreRadius)) {
+            if (dSphere < CoreRadius * 1.55 && sceneDist > (tBH - CoreRadius)) {
                 vec2 lensDir = (dist > 0.0001) ? normalize(aspectDiff) : vec2(0.0);
-                float lensShift = (LensingPower * sqr(CoreRadius)) / (sqr(dSphere) + 0.10);
-                lensOffset = vec2(lensDir.x / Aspect, lensDir.y) * clamp(lensShift, 0.0, 0.16);
+                float lensShift = (LensingPower * sqr(CoreRadius)) / (sqr(dSphere) + 0.16);
+                lensOffset = vec2(lensDir.x / Aspect, lensDir.y) * clamp(lensShift, 0.0, 0.06);
 
-                float coreGrad = smoothstep(CoreRadius * 1.4, 0.0, dSphere);
-                float electric = 0.85 + 0.15 * sin(dSphere * 24.0 - GTime * 28.0 + hash12(texCoord * 120.0) * 3.5);
+                float coreGrad = smoothstep(CoreRadius * 1.35, 0.0, dSphere);
+                float electric = 0.90 + 0.10 * sin(dSphere * 18.0 - GTime * 14.0 + hash12(texCoord * 120.0) * 2.0);
 
-                vec3 plasmaCore = vec3(0.95, 0.98, 1.0) * exp(-dSphere / (CoreRadius * 0.40)) * 4.5;
-                vec3 plasmaCorona = vec3(0.08, 0.85, 1.0) * exp(-dSphere / (CoreRadius * 0.90)) * 3.0;
-                vec3 plasmaAura = vec3(0.55, 0.15, 1.0) * coreGrad * electric * 1.6;
+                vec3 plasmaCore = vec3(0.95, 0.98, 1.0) * exp(-dSphere / (CoreRadius * 0.38)) * 3.5;
+                vec3 plasmaCorona = vec3(0.12, 0.88, 1.0) * exp(-dSphere / (CoreRadius * 0.82)) * 2.2;
+                vec3 plasmaAura = vec3(0.55, 0.25, 1.0) * coreGrad * electric * 1.2;
 
-                addGlow += (plasmaCore + plasmaCorona + plasmaAura) * min(ImpactIntensity * 1.5, 1.8);
+                addGlow += (plasmaCore + plasmaCorona + plasmaAura) * min(ImpactIntensity * 1.2, 1.5);
             }
         }
         // =========================================================================
-        // NHÁNH 4: CHIÊU 3 - QUẢ CẦU TRỌNG LỰC HÓA ĐỎ MŨI KHOAN (FxType == 6.0: TYPE_GRAVITY_CORE)
-        // Đổi màu mượt từ Vàng Hổ Phách (Amber Gravity) -> Đỏ Thẫm Nhiệt Hạch (Crimson Drill Overheat)
+        // NHÁNH 4: CHIÊU 3 - KHỐI CẦU NĂNG LƯỢNG ĐỎ BỐC CHÁY (FxType == 6.0: TYPE_GRAVITY_CORE)
+        // Cầu lửa rực đỏ bốc cháy dữ dội, không hố đen, không bẻ cong không gian méo mó
         // =========================================================================
         else if (FxType > 5.5 && inFront && !coreOccluded && CoreRadius > 0.05) {
             float dSphere = impactParam;
-            if (dSphere < CoreRadius * 1.75 && sceneDist > (tBH - CoreRadius)) {
-                vec2 lensDir = (dist > 0.0001) ? normalize(aspectDiff) : vec2(0.0);
-                float lensShift = (LensingPower * sqr(CoreRadius)) / (sqr(dSphere) + 0.10);
-                lensOffset = vec2(lensDir.x / Aspect, lensDir.y) * clamp(lensShift, 0.0, 0.18);
+            if (dSphere < CoreRadius * 2.0 && sceneDist > (tBH - CoreRadius)) {
+                // Tuyệt đối không dùng lensOffset bẻ cong méo màn hình kiểu hố đen!
+                float coreGrad = smoothstep(CoreRadius * 1.8, 0.0, dSphere);
 
-                // redMix = 0.0 (Vàng Hổ Phách ở Pha 1-2) -> 1.0 (Đỏ Thẫm Nhiệt Hạch ở Pha 3 Mũi Khoan)
-                float redMix = saturate((ImpactIntensity - 1.0) / 1.2);
-                float coreGrad = smoothstep(CoreRadius * 1.5, 0.0, dSphere);
-                float spiralWave = 0.8 + 0.2 * sin(dSphere * 20.0 - GTime * (25.0 + redMix * 35.0));
+                // Sóng lửa cuộn trào bốc cháy chuyển động liên tục
+                float flameNoise1 = sin(dSphere * 16.0 - GTime * 32.0 + hash12(texCoord * 90.0) * 3.0);
+                float flameNoise2 = cos(dSphere * 24.0 + GTime * 26.0);
+                float fireWave = 0.85 + 0.15 * (flameNoise1 * 0.6 + flameNoise2 * 0.4);
 
-                vec3 coreColor = mix(vec3(1.0, 0.95, 0.75), vec3(1.0, 0.85, 0.85), redMix);
-                vec3 coronaColor = mix(vec3(1.0, 0.65, 0.08), vec3(1.0, 0.08, 0.02), redMix);
-                vec3 auraColor = mix(vec3(0.85, 0.35, 0.02), vec3(0.75, 0.0, 0.08), redMix);
+                // Màu sắc cầu lửa đỏ bốc cháy:
+                // Tâm trắng nóng cháy rực -> Lửa đỏ cam -> Vành hào quang đỏ thẫm rực lửa
+                vec3 fireCore = vec3(1.0, 0.85, 0.45) * exp(-dSphere / (CoreRadius * 0.35)) * 4.2;
+                vec3 fireCorona = vec3(1.0, 0.18, 0.02) * exp(-dSphere / (CoreRadius * 0.75)) * 3.6;
+                vec3 fireAura = vec3(0.85, 0.05, 0.01) * coreGrad * fireWave * 2.2;
+                vec3 fireSparks = vec3(1.0, 0.45, 0.05) * pow(clamp(flameNoise1, 0.0, 1.0), 3.0) * 1.5;
 
-                vec3 gravCore = coreColor * exp(-dSphere / (CoreRadius * 0.42)) * 4.5;
-                vec3 gravCorona = coronaColor * exp(-dSphere / (CoreRadius * 0.92)) * 3.2;
-                vec3 gravAura = auraColor * coreGrad * spiralWave * 1.8;
-
-                addGlow += (gravCore + gravCorona + gravAura) * 1.4;
+                addGlow += (fireCore + fireCorona + fireAura + fireSparks) * ImpactIntensity;
             }
         }
     }
