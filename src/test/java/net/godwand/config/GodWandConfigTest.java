@@ -27,7 +27,7 @@ class GodWandConfigTest {
         server.supernovaMaxDisplays = -1;
         server.cooldownMultiplier = Float.POSITIVE_INFINITY;
         server.validate();
-        assertEquals(96, server.supernovaTerrainRadius);
+        assertEquals(180, server.supernovaTerrainRadius);
         assertEquals(0, server.supernovaMaxDisplays);
         assertEquals(1, server.cooldownMultiplier);
     }

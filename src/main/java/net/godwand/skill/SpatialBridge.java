@@ -50,19 +50,27 @@ public final class SpatialBridge {
         return false;
     }
 
+    public static void toggle(ServerPlayerEntity player) {
+        UUID owner = player.getUuid();
+        if (ENABLED.remove(owner)) {
+            player.sendMessage(Text.literal("§7[God Wand] Bridge: OFF"), true);
+        } else {
+            ENABLED.add(owner);
+            LEVEL.put(owner, MathHelper.floor(player.getY() - 0.01));
+            if (!SpatialPathWalker.isActive(player)) {
+                SpatialPathWalker.toggle(player);
+            }
+            player.sendMessage(Text.literal("§b[God Wand] Bridge: ON"), true);
+        }
+    }
+
     public static void tickPlayer(ServerPlayerEntity player) {
         UUID owner = player.getUuid();
         if (player.isSneaking()) {
             if (PRESSED.add(owner) && selected(player)) ELIGIBLE.add(owner);
             if (!selected(player)) ELIGIBLE.remove(owner);
         } else if (PRESSED.remove(owner) && ELIGIBLE.remove(owner)) {
-            if (ENABLED.remove(owner)) {
-                player.sendMessage(Text.literal("Bridge off"), true);
-            } else {
-                ENABLED.add(owner);
-                LEVEL.put(owner, MathHelper.floor(player.getY() - 0.01));
-                player.sendMessage(Text.literal("Bridge on"), true);
-            }
+            toggle(player);
         }
         if (!ENABLED.contains(owner) || player.getAbilities().flying) return;
         int y = LEVEL.getOrDefault(owner, MathHelper.floor(player.getY() - 0.01));

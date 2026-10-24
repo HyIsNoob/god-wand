@@ -591,7 +591,7 @@ public class SupernovaManager {
     private static void carveSphericalCraterShell(SupernovaTask task, int step, int totalSteps) {
         ServerWorld world = task.world;
         BlockPos.Mutable pos = new BlockPos.Mutable();
-        double maxR = Math.max(120.0, task.terrainRadius);
+        double maxR = Math.min(180.0, Math.max(120.0, task.terrainRadius));
         double maxDepth = 52.0;
         double rMin = step == 0 ? 0.0 : maxR * ((double) step / totalSteps);
         double rMax = maxR * ((double) (step + 1) / totalSteps);

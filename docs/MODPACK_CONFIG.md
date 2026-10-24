@@ -50,7 +50,7 @@ For a GPU-heavy shaderpack, start with `bloomDownsample: 8` and `bloomStrength: 
 ```json
 {
   "cooldownMultiplier": 1.0,
-  "supernovaTerrainRadius": 96,
+  "supernovaTerrainRadius": 120,
   "supernovaMaxDisplays": 1800
 }
 ```
@@ -58,7 +58,7 @@ For a GPU-heavy shaderpack, start with `bloomDownsample: 8` and `bloomStrength: 
 | Key | Range | Effect |
 | --- | --- | --- |
 | `cooldownMultiplier` | 0.1–10 | Multiplies existing wand item cooldowns, including Spatial Path's toggle delay. 2 doubles the delay. |
-| `supernovaTerrainRadius` | integer 16–96 | Bounds Supernova's horizontal crater, terrain peeling and buildup suction reach. Reducing this lowers terrain work; the damage radius and cinematic explosion size remain unchanged. |
+| `supernovaTerrainRadius` | integer 16–180 | Bounds Supernova's horizontal crater, terrain peeling and buildup suction reach. Reducing this lowers terrain work; the damage radius and cinematic explosion size remain unchanged. |
 | `supernovaMaxDisplays` | integer 0–1800 | Caps the orbiting block display entities. 0 disables flying block displays. Does not cap damage or terrain removal. |
 
 For a busy server, try radius 64 and display limit 900 before reducing visuals further. Skills 1–2 still restore terrain; Skills 3–5 still permanently damage it. Lower terrain radius changes gameplay and should be selected by the server/modpack author.

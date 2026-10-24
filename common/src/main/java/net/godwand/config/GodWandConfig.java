@@ -31,12 +31,12 @@ public final class GodWandConfig {
 
     public static final class Server {
         public float cooldownMultiplier = 1;
-        public int supernovaTerrainRadius = 96;
+        public int supernovaTerrainRadius = 120;
         public int supernovaMaxDisplays = 1800;
 
         public void validate() {
             cooldownMultiplier = finiteClamp(cooldownMultiplier, .1f, 10, 1);
-            supernovaTerrainRadius = Math.clamp(supernovaTerrainRadius, 16, 96);
+            supernovaTerrainRadius = Math.clamp(supernovaTerrainRadius, 16, 180);
             supernovaMaxDisplays = Math.clamp(supernovaMaxDisplays, 0, 1800);
         }
     }

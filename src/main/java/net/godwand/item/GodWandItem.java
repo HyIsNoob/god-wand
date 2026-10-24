@@ -5,6 +5,7 @@ import net.godwand.entity.ArcaneOrbEntity;
 import net.godwand.network.CinematicFxPayload;
 import net.godwand.skill.RatioCollapseManager;
 import net.godwand.skill.ShockwaveSlicer;
+import net.godwand.skill.SpatialBridge;
 import net.godwand.skill.SpatialPathWalker;
 import net.godwand.skill.StoneCannonManager;
 import net.godwand.skill.SupernovaManager;
@@ -117,7 +118,11 @@ public class GodWandItem extends Item {
         switch (currentMode) {
             case MODE_SPATIAL_PATH -> {
                 if (!world.isClient() && user instanceof ServerPlayerEntity serverPlayer) {
-                    SpatialPathWalker.toggle(serverPlayer);
+                    if (user.isSneaking()) {
+                        SpatialBridge.toggle(serverPlayer);
+                    } else {
+                        SpatialPathWalker.toggle(serverPlayer);
+                    }
                 }
                 return TypedActionResult.success(stack);
             }
