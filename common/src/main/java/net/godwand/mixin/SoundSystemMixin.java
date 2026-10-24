@@ -17,7 +17,7 @@ public abstract class SoundSystemMixin {
      * Ép âm lượng mọi âm thanh môi trường/mob về 0 ngay trước khoảnh khắc đại nổ.
      * Ngoại trừ PLAYERS (tiếng người chơi/vũ khí) và MASTER.
      */
-    @Inject(method = "getAdjustedVolume(Lnet/minecraft/client/sound/SoundInstance;)F", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "calculateVolume(Lnet/minecraft/client/resources/sounds/SoundInstance;)F", at = @At("RETURN"), cancellable = true)
     private void godwand$applyVacuumSilence(SoundInstance sound, CallbackInfoReturnable<Float> cir) {
         float gain = GodWandCinematicEngine.getEnvironmentGain();
         if (gain < 0.999f) {

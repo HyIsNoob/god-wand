@@ -13,7 +13,7 @@ public abstract class EntityMixin {
     /**
      * Vô hiệu hóa hiệu ứng phát sáng outline cho toàn bộ khối BlockDisplayEntity
      */
-    @Inject(method = "isGlowing", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "isCurrentlyGlowing", at = @At("HEAD"), cancellable = true)
     private void godwand$preventDisplacedIsGlowing(CallbackInfoReturnable<Boolean> cir) {
         Entity self = (Entity) (Object) this;
         if (self instanceof Display || self.getTags().contains("godwand_displaced")) {

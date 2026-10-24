@@ -13,8 +13,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin {
 
-    @Inject(method = "renderWorld", at = @At(value = "INVOKE", target =
-            "Lnet/minecraft/client/render/WorldRenderer;render(Lnet/minecraft/client/render/RenderTickCounter;ZLnet/minecraft/client/render/Camera;Lnet/minecraft/client/render/GameRenderer;Lnet/minecraft/client/render/LightmapTextureManager;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V",
+    @Inject(method = "renderLevel", at = @At(value = "INVOKE", target =
+            "Lnet/minecraft/client/renderer/LevelRenderer;renderLevel(Lnet/minecraft/client/DeltaTracker;ZLnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/GameRenderer;Lnet/minecraft/client/renderer/LightTexture;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V",
             shift = At.Shift.AFTER))
     private void godwand$afterWorldComposite(CallbackInfo ci) {
         net.godwand.client.GodWandPostFxManager.renderAfterWorld();
@@ -23,7 +23,7 @@ public abstract class GameRendererMixin {
     /**
      * Bơm Trauma Screen Shake trực tiếp vào ma trận góc nhìn Camera
      */
-    @Inject(method = "tiltViewWhenHurt", at = @At("HEAD"))
+    @Inject(method = "bobHurt", at = @At("HEAD"))
     private void godwand$applyScreenShake(PoseStack matrices, float tickDelta, CallbackInfo ci) {
         GodWandCinematicEngine.applyScreenShake(matrices, tickDelta);
     }

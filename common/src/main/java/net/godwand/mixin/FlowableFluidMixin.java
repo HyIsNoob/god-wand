@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(FlowingFluid.class)
 public abstract class FlowableFluidMixin {
-    @Inject(method = "canFlow", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "canSpreadTo", at = @At("HEAD"), cancellable = true)
     private void godwand$preventFlowIntoDisplacedArea(
             BlockGetter world, BlockPos fluidPos, BlockState fluidBlockState,
             Direction flowDirection, BlockPos targetPos, BlockState targetBlockState,
