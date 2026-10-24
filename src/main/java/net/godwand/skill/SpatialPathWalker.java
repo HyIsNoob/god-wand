@@ -112,6 +112,26 @@ public class SpatialPathWalker {
         syncAura(player);
     }
 
+    public static boolean hasGodWand(PlayerEntity player) {
+        if (player == null || net.godwand.GodWandMod.GOD_WAND_ITEM == null) return false;
+        for (net.minecraft.item.ItemStack stack : player.getInventory().main) {
+            if (stack != null && stack.isOf(net.godwand.GodWandMod.GOD_WAND_ITEM)) return true;
+        }
+        for (net.minecraft.item.ItemStack stack : player.getInventory().offHand) {
+            if (stack != null && stack.isOf(net.godwand.GodWandMod.GOD_WAND_ITEM)) return true;
+        }
+        return false;
+    }
+
+    public static void resetRuntime() {
+        ACTIVE_PLAYERS.clear();
+        LAST_GROUND_Y.clear();
+        LAST_PLAYER_POS.clear();
+        CURRENT_FORWARD_LEAD.clear();
+        CURRENT_PLAYER_SPEED.clear();
+        LAST_SHIELD_SOUND.clear();
+    }
+
     public static void deactivate(PlayerEntity player) {
         SpatialBridge.disable(player.getUuid());
         ACTIVE_PLAYERS.remove(player.getUuid());
@@ -120,8 +140,12 @@ public class SpatialPathWalker {
         CURRENT_FORWARD_LEAD.remove(player.getUuid());
         CURRENT_PLAYER_SPEED.remove(player.getUuid());
         LAST_SHIELD_SOUND.remove(player.getUuid());
-        SpatialDisplacementManager.collapsePlayerAura(player.getUuid());
-        if (player instanceof ServerPlayerEntity serverPlayer) syncAura(serverPlayer);
+        if (player instanceof ServerPlayerEntity serverPlayer) {
+            SpatialDisplacementManager.restoreAllForPlayer(player.getUuid(), serverPlayer.getServerWorld());
+            syncAura(serverPlayer);
+        } else {
+            SpatialDisplacementManager.restoreAllForPlayer(player.getUuid(), null);
+        }
     }
 
     private static void syncAura(ServerPlayerEntity player) {
@@ -231,6 +255,11 @@ public class SpatialPathWalker {
 
     public static void tickPlayer(ServerPlayerEntity player) {
         if (!isActive(player)) return;
+
+        if (!player.isAlive() || player.isSpectator() || !hasGodWand(player)) {
+            deactivate(player);
+            return;
+        }
 
         ServerWorld world = player.getServerWorld();
         SpatialBridge.tickPlayer(player);

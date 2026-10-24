@@ -71,6 +71,10 @@ public final class SpatialBridge {
 
     public static void tickPlayer(ServerPlayer player) {
         UUID owner = player.getUUID();
+        if (!player.isAlive() || !SpatialPathWalker.isActive(player)) {
+            disable(owner);
+            return;
+        }
         if (player.isShiftKeyDown()) {
             if (PRESSED.add(owner) && selected(player)) ELIGIBLE.add(owner);
             if (!selected(player)) ELIGIBLE.remove(owner);
@@ -191,11 +195,10 @@ public final class SpatialBridge {
                 continue;
             }
             var player = record.boundPlayerUuid == null ? null : world.getServer().getPlayerList().getPlayer(record.boundPlayerUuid);
-            // Keep offline players' footing across restart; reclaim it once they return and move away.
-            if (player == null || occupied(world, target)) continue;
-            if (player.serverLevel() == world && SpatialPathWalker.isActive(player) && ENABLED.contains(player.getUUID())
+            if (occupied(world, target)) continue;
+            if (player != null && player.isAlive() && player.serverLevel() == world && SpatialPathWalker.isActive(player) && ENABLED.contains(player.getUUID())
                     && target.getCenter().distanceToSqr(player.position()) < 100) continue;
-            if (!world.getBlockState(record.pos).isAir()) continue;
+            if (!world.getChunkSource().hasChunk(record.pos.getX() >> 4, record.pos.getZ() >> 4)) continue;
             world.removeBlock(target, false);
             SpatialDisplacementManager.moveBridge(record, null);
             SpatialDisplacementManager.executeTwoPassRestoration(world, List.of(record));

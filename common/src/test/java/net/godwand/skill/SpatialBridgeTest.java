@@ -57,4 +57,25 @@ class SpatialBridgeTest {
         assertNull(record.bridgeDestination);
         SpatialDisplacementManager.removeActiveRecord(Level.OVERWORLD, record.pos);
     }
+
+    @Test
+    void pathWalkerRejectsNullPlayer() {
+        assertFalse(SpatialPathWalker.hasGodWand(null));
+    }
+
+    @Test
+    void restoreAllForPlayerHandlesPlayerRecordsSafely() {
+        SpatialDisplacementManager.clearRuntimeState();
+        java.util.UUID playerUuid = java.util.UUID.randomUUID();
+        var record1 = new DisplacedBlockRecord(new BlockPos(10, 64, 10), Level.OVERWORLD, null, null,
+                new Vector3f(), new Quaternionf(), 100, true);
+        record1.boundPlayerUuid = playerUuid;
+        SpatialDisplacementManager.recoverBridge(record1);
+        SpatialDisplacementManager.moveBridge(record1, new BlockPos(10, 64, 15));
+
+        assertEquals(1, SpatialDisplacementManager.getActiveRecordCount());
+        SpatialDisplacementManager.restoreAllForPlayer(playerUuid, null);
+        SpatialDisplacementManager.clearRuntimeState();
+        assertEquals(0, SpatialDisplacementManager.getActiveRecordCount());
+    }
 }

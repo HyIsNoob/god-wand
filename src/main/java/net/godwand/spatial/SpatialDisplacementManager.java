@@ -590,8 +590,13 @@ public class SpatialDisplacementManager {
 
     private static void restoreRecordDirectly(ServerWorld world, DisplacedBlockRecord r, BlockDisplayEntity display) {
         if (r.bridgeDestination != null) {
-            removeActiveRecord(r.worldKey, r.pos);
-            return;
+            if (world.getChunkManager().isChunkLoaded(r.bridgeDestination.getX() >> 4, r.bridgeDestination.getZ() >> 4)) {
+                if (world.getBlockState(r.bridgeDestination).equals(r.originalState)) {
+                    world.removeBlock(r.bridgeDestination, false);
+                }
+            }
+            BRIDGE_DESTINATIONS.remove(new DimensionPos(r.worldKey, r.bridgeDestination));
+            r.bridgeDestination = null;
         }
         if (r.permanentDestruction) {
             removeActiveRecord(r.worldKey, r.pos);
@@ -606,9 +611,13 @@ public class SpatialDisplacementManager {
                 be.markDirty();
             }
         }
-        if (display != null) {
+        BlockDisplayEntity toDiscard = display;
+        if (toDiscard == null && r.displayEntityUuid != null) {
+            toDiscard = ACTIVE_ENTITIES.remove(r.displayEntityUuid);
+        }
+        if (toDiscard != null) {
             ACTIVE_ENTITIES.remove(r.displayEntityUuid);
-            display.discard();
+            toDiscard.discard();
         }
         // Crisp stone impact particle and sound
         if (r.mode != DisplacedBlockRecord.DisplacementMode.PATH_WALKER) world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, r.originalState),
@@ -628,6 +637,37 @@ public class SpatialDisplacementManager {
         }
     }
 
+    public static void restoreAllForPlayer(UUID playerUuid, ServerWorld preferredWorld) {
+        if (playerUuid == null) return;
+        List<DisplacedBlockRecord> toRestore = new ArrayList<>();
+        for (DisplacedBlockRecord r : ACTIVE_RECORDS.values()) {
+            if (playerUuid.equals(r.boundPlayerUuid)) {
+                if (r.permanentDestruction) {
+                    removeActiveRecord(r.worldKey, r.pos);
+                } else {
+                    toRestore.add(r);
+                }
+            }
+        }
+        if (toRestore.isEmpty()) return;
+
+        Map<RegistryKey<World>, List<DisplacedBlockRecord>> byWorld = new HashMap<>();
+        for (DisplacedBlockRecord r : toRestore) {
+            byWorld.computeIfAbsent(r.worldKey, k -> new ArrayList<>()).add(r);
+        }
+
+        var server = preferredWorld != null ? preferredWorld.getServer() : null;
+        for (var entry : byWorld.entrySet()) {
+            ServerWorld targetWorld = preferredWorld;
+            if (server != null && (targetWorld == null || !targetWorld.getRegistryKey().equals(entry.getKey()))) {
+                targetWorld = server.getWorld(entry.getKey());
+            }
+            if (targetWorld != null) {
+                executeTwoPassRestoration(targetWorld, entry.getValue());
+            }
+        }
+    }
+
     public static void emergencyRestoreAll(ServerWorld world) {
         List<DisplacedBlockRecord> matching = new ArrayList<>();
         for (DisplacedBlockRecord r : ACTIVE_RECORDS.values()) {
@@ -640,7 +680,7 @@ public class SpatialDisplacementManager {
                             ent.discard();
                         }
                     }
-                } else if (r.bridgeDestination == null) {
+                } else {
                     matching.add(r);
                 }
             }

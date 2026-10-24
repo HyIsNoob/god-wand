@@ -39,6 +39,7 @@ import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
@@ -106,6 +107,8 @@ public class GodWandNeoForgeMod {
         NeoForge.EVENT_BUS.addListener(this::onLeftClickEmpty);
         NeoForge.EVENT_BUS.addListener(this::onAttackEntity);
         NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedOut);
+        NeoForge.EVENT_BUS.addListener(this::onLivingDeath);
+        NeoForge.EVENT_BUS.addListener(this::onPlayerRespawn);
         NeoForge.EVENT_BUS.addListener(this::onServerStopping);
         NeoForge.EVENT_BUS.addListener(this::onServerStopped);
         NeoForge.EVENT_BUS.addListener(this::onLevelLoad);
@@ -222,6 +225,18 @@ public class GodWandNeoForgeMod {
         }
     }
 
+    private void onLivingDeath(LivingDeathEvent event) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            SpatialPathWalker.deactivate(serverPlayer);
+        }
+    }
+
+    private void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            SpatialPathWalker.deactivate(serverPlayer);
+        }
+    }
+
     private void onServerStopping(ServerStoppingEvent event) {
         ShockwaveSlicer.clearAllTasks();
         RatioCollapseManager.clearAllTasks();
@@ -235,6 +250,7 @@ public class GodWandNeoForgeMod {
     private void onServerStopped(ServerStoppedEvent event) {
         SpatialDisplacementManager.clearRuntimeState();
         SpatialBridge.resetRuntime();
+        SpatialPathWalker.resetRuntime();
     }
 
     private void onLevelLoad(LevelEvent.Load event) {

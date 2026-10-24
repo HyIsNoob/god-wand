@@ -1,5 +1,6 @@
 package net.godwand.skill;
 
+import net.godwand.GodWandMod;
 import net.godwand.platform.Services;
 import net.godwand.network.CinematicFxPayload;
 import net.godwand.network.ImpactFxPayload;
@@ -115,6 +116,26 @@ public class SpatialPathWalker {
         syncAura(player);
     }
 
+    public static boolean hasGodWand(Player player) {
+        if (player == null || GodWandMod.GOD_WAND_ITEM == null) return false;
+        for (net.minecraft.world.item.ItemStack stack : player.getInventory().items) {
+            if (stack != null && stack.is(GodWandMod.GOD_WAND_ITEM)) return true;
+        }
+        for (net.minecraft.world.item.ItemStack stack : player.getInventory().offhand) {
+            if (stack != null && stack.is(GodWandMod.GOD_WAND_ITEM)) return true;
+        }
+        return false;
+    }
+
+    public static void resetRuntime() {
+        ACTIVE_PLAYERS.clear();
+        LAST_GROUND_Y.clear();
+        LAST_PLAYER_POS.clear();
+        CURRENT_FORWARD_LEAD.clear();
+        CURRENT_PLAYER_SPEED.clear();
+        LAST_SHIELD_SOUND.clear();
+    }
+
     public static void deactivate(Player player) {
         SpatialBridge.disable(player.getUUID());
         ACTIVE_PLAYERS.remove(player.getUUID());
@@ -123,8 +144,12 @@ public class SpatialPathWalker {
         CURRENT_FORWARD_LEAD.remove(player.getUUID());
         CURRENT_PLAYER_SPEED.remove(player.getUUID());
         LAST_SHIELD_SOUND.remove(player.getUUID());
-        SpatialDisplacementManager.collapsePlayerAura(player.getUUID());
-        if (player instanceof ServerPlayer serverPlayer) syncAura(serverPlayer);
+        if (player instanceof ServerPlayer serverPlayer) {
+            SpatialDisplacementManager.restoreAllForPlayer(player.getUUID(), serverPlayer.serverLevel());
+            syncAura(serverPlayer);
+        } else {
+            SpatialDisplacementManager.restoreAllForPlayer(player.getUUID(), null);
+        }
     }
 
     private static void syncAura(ServerPlayer player) {
@@ -230,6 +255,11 @@ public class SpatialPathWalker {
 
     public static void tickPlayer(ServerPlayer player) {
         if (!isActive(player)) return;
+
+        if (!player.isAlive() || player.isSpectator() || !hasGodWand(player)) {
+            deactivate(player);
+            return;
+        }
 
         ServerLevel world = player.serverLevel();
         SpatialBridge.tickPlayer(player);
