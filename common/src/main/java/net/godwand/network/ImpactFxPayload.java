@@ -18,7 +18,7 @@ public record ImpactFxPayload(double x, double y, double z, int fxType, int dura
     public static final int TYPE_GRAVITY_CORE = 6;
     public static final int TYPE_REASSEMBLY = 7;
     public static final int TYPE_SUPERNOVA_IMPACT = 8;
-    public static final int SUPERNOVA_IMPACT_TICKS = 8;
+    public static final int SUPERNOVA_IMPACT_TICKS = 4;
 
     public static final StreamCodec<RegistryFriendlyByteBuf, ImpactFxPayload> CODEC = StreamCodec.composite(
             ByteBufCodecs.DOUBLE, ImpactFxPayload::x,

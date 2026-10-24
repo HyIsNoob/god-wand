@@ -1,6 +1,6 @@
-# God Wand (Fabric 1.21.1)
+# God Wand (Fabric & NeoForge 1.21.1)
 
-A magic wand mod for Minecraft 1.21.1 on Fabric Loader. Features 5 distinct skills for exploration and combat, full survival crafting, and a dedicated creative tab.
+A magic wand mod for Minecraft 1.21.1 supporting both Fabric Loader and NeoForge. Features 5 distinct skills for exploration and combat, full survival crafting, custom visual post-effects, and a dedicated creative tab.
 
 ---
 
@@ -9,7 +9,7 @@ A magic wand mod for Minecraft 1.21.1 on Fabric Loader. Features 5 distinct skil
 - **Skill 1 - Spatial Path:** Walk through mountains by opening a 3x4 tunnel that seals itself behind you with zero terrain loss. Tap Shift to build a temporary 3-wide bridge across gaps. Projects a personal shield that deflects arrows, tridents, and fireballs.
 - **Skill 2 - Singularity:** Fires a gravity orb that pulls ground blocks into the air. Punch or right-click to trigger an early collapse, crushing and suffocating trapped mobs. Automatically restores the terrain after.
 - **Skill 3 - Earth Drill:** Pulls ground blocks up into a spinning boulder drill, then slams down into the ground to deal heavy area damage and leave a permanent crater.
-- **Skill 4 - Supernova:** A long-range (180 blocks) 7-second charged spell with a locked-target light column while charging. Spawns a black hole that pulls in blocks and detonates in a massive 96-block blast with an anime-style visual flash and high damage.
+- **Skill 4 - Supernova:** A long-range (180 blocks) 7-second charged spell with a locked-target light column while charging. Spawns a black hole that pulls in blocks and detonates in a colossal 120-meter spherical blast with an anime-style visual flash, custom sound sequence, and devastating damage.
 - **Skill 5 - Stone Cannon:** Charge up to 4 levels to form a spinning stone drill in front of you. Release to fire a high-speed projectile that deals up to 520 direct damage to hostile mobs and bores a cone-shaped hole into the target.
 
 ---
@@ -29,7 +29,6 @@ A magic wand mod for Minecraft 1.21.1 on Fabric Loader. Features 5 distinct skil
 | Keybind | Context | Action |
 | :--- | :--- | :--- |
 | Hold V | Wand held, not charging | Open the skill wheel; move the mouse and release V to select. Center or Esc cancels. Rebind in Controls > God Wand. |
-| Shift + Right-Click | Any | Cycle through skills 1 to 5 |
 | Right-Click | Skill 1 | Toggle tunnel and shield on / off |
 | Shift | Skill 1 (Active) | Toggle bridge on / off |
 | Hold & Release Right-Click | Skill 2 | Charge and shoot gravity orb |
@@ -40,33 +39,36 @@ A magic wand mod for Minecraft 1.21.1 on Fabric Loader. Features 5 distinct skil
 
 ---
 
-## Installation
+## Building from Source
 
-1. Install Minecraft 1.21.1 with Fabric Loader (>= 0.16.0).
-2. Install Fabric API for 1.21.1 into your `mods` folder.
-3. Place `godwand-1.0.0.jar` into your `mods` folder.
+This project uses a clean Multi-Loader architecture:
+- `:common`: Shared game logic, skills, renderers, shaders, and assets.
+- `:fabric`: Fabric loader subproject (Minecraft 1.21.1).
+- `:neoforge`: NeoForge loader subproject (Minecraft 1.21.1).
 
----
-
-## Shaderpacks and modpack settings
-
-Client and server JSON settings, shader compatibility details and tuning values are documented in [MODPACK_CONFIG.md](docs/MODPACK_CONFIG.md).
-
----
-
-## Build from Source
-
-Requires Java 21 JDK.
-
+To build all loader jars simultaneously:
 ```bash
-./gradlew test
 ./gradlew build
 ```
 
-Compiled jar will be in `build/libs/godwand-1.0.0.jar`.
+Individual subproject builds:
+```bash
+# Build Fabric jar: fabric/build/libs/godwand-fabric-1.1.0.jar
+./gradlew :fabric:build
+
+# Build NeoForge jar: neoforge/build/libs/godwand-neoforge-1.1.0.jar
+./gradlew :neoforge:build
+```
 
 ---
 
-## License
+## Installation
 
-MIT License. Free to include in any modpack.
+### Fabric 1.21.1
+1. Install Minecraft 1.21.1 with Fabric Loader (>= 0.16.0).
+2. Install Fabric API for 1.21.1 into your `mods` folder.
+3. Place `godwand-fabric-1.1.0.jar` into your `mods` folder.
+
+### NeoForge 1.21.1
+1. Install Minecraft 1.21.1 with NeoForge (>= 21.1.72).
+2. Place `godwand-neoforge-1.1.0.jar` into your `mods` folder.

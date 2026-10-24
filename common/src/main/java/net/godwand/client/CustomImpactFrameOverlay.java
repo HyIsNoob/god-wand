@@ -18,7 +18,7 @@ public class CustomImpactFrameOverlay {
     };
 
     public static final int IMPACT_FRAME_TICKS = ImpactFxPayload.SUPERNOVA_IMPACT_TICKS;
-    public static final int FADEOUT_TICKS = 8;     // Smooth whiteout fadeout
+    public static final int FADEOUT_TICKS = 3;     // Smooth whiteout fadeout
     public static final int TOTAL_DURATION = IMPACT_FRAME_TICKS + FADEOUT_TICKS;
 
     private static int currentTick = 0;

@@ -30,6 +30,7 @@ public final class SupernovaSoundscape {
     private static boolean customChecked;
     private static boolean charging;
     private static boolean activated;
+    private static int cancelGraceTicks;
     private static long activationTime;
 
     static boolean isCustomAudio(byte[] bytes) {
@@ -65,15 +66,16 @@ public final class SupernovaSoundscape {
         checkCustom(client);
         activated = true;
         charging = false;
+        cancelGraceTicks = 0;
         if (client.level != null) {
             world = client.level;
             activationTime = client.level.getGameTime();
         }
+        if (chargeSound != null) {
+            client.getSoundManager().stop(chargeSound);
+            chargeSound = null;
+        }
         if (custom) {
-            if (chargeSound != null) {
-                client.getSoundManager().stop(chargeSound);
-                chargeSound = null;
-            }
             if (sequence != null && client.getSoundManager().isActive(sequence)) {
                 // Already started during charge phase and still playing, let it play through without interruption!
                 return;
@@ -82,16 +84,9 @@ public final class SupernovaSoundscape {
                 client.getSoundManager().stop(sequence);
                 sequence = null;
             }
-            float distance = GodWandCinematicEngine.distanceFactor(CinematicFxPayload.EVENT_SUPERNOVA_COMPRESS,
-                    client.player.position().distanceTo(center));
             sequence = new SimpleSoundInstance(AUDIO, SoundSource.PLAYERS,
-                    distance, 1.0f, RandomSource.create(), false, 0, SoundInstance.Attenuation.NONE, center.x, center.y, center.z, false);
+                    1.0f, 1.0f, RandomSource.create(), false, 0, SoundInstance.Attenuation.NONE, 0, 0, 0, true);
             client.getSoundManager().play(sequence);
-        } else {
-            if (chargeSound != null) {
-                client.getSoundManager().stop(chargeSound);
-                chargeSound = null;
-            }
         }
     }
 
@@ -108,16 +103,17 @@ public final class SupernovaSoundscape {
                 sequence = null;
                 activated = false;
                 charging = false;
+                cancelGraceTicks = 0;
             }
 
             if (charge > 0) {
+                cancelGraceTicks = 0;
                 // If starting a fresh charge: restart sequence audio cleanly even if cast previously
-                if (!charging) {
+                if (!charging && !activated) {
                     if (sequence != null) {
                         client.getSoundManager().stop(sequence);
                         sequence = null;
                     }
-                    activated = false;
                     charging = true;
                     sequence = new SimpleSoundInstance(AUDIO, SoundSource.PLAYERS,
                             1.0f, 1.0f, RandomSource.create(), false, 0, SoundInstance.Attenuation.NONE, 0, 0, 0, true);
@@ -128,12 +124,16 @@ public final class SupernovaSoundscape {
                     chargeSound = null;
                 }
             } else if (charging && !activated) {
-                // Cancelled wand charge before release
-                if (sequence != null) {
-                    client.getSoundManager().stop(sequence);
-                    sequence = null;
+                // Wand charge ended; wait a grace period for the server cast packet before assuming cancellation
+                cancelGraceTicks++;
+                if (cancelGraceTicks > 15) {
+                    if (sequence != null) {
+                        client.getSoundManager().stop(sequence);
+                        sequence = null;
+                    }
+                    charging = false;
+                    cancelGraceTicks = 0;
                 }
-                charging = false;
             }
         } else {
             // Placeholder: vanilla charge sound
@@ -163,6 +163,7 @@ public final class SupernovaSoundscape {
         customChecked = false;
         charging = false;
         activated = false;
+        cancelGraceTicks = 0;
         world = null;
     }
 

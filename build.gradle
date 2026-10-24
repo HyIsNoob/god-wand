@@ -37,6 +37,10 @@ test {
     useJUnitPlatform()
 }
 
+tasks.named('build') {
+    dependsOn ':fabric:build', ':neoforge:build'
+}
+
 subprojects {
     apply plugin: 'java'
 

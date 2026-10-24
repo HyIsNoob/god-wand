@@ -99,12 +99,6 @@ public class GodWandItem extends Item {
         ItemStack stack = user.getStackInHand(hand);
         int currentMode = getSkillMode(stack);
 
-        // SHIFT + RIGHT CLICK: Cycle Skill Mode
-        if (user.isSneaking()) {
-            selectSkill(user, hand, (currentMode + 1) % TOTAL_MODES);
-            return TypedActionResult.success(stack);
-        }
-
         if (user.getItemCooldownManager().isCoolingDown(this)) return TypedActionResult.fail(stack);
 
         // NORMAL RIGHT CLICK: Execute Current Selected Skill

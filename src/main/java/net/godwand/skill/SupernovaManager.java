@@ -10,6 +10,10 @@ import net.godwand.spatial.SpatialMath;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.LeavesBlock;
+import net.minecraft.block.PlantBlock;
+import net.minecraft.block.VineBlock;
+import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity;
@@ -34,6 +38,16 @@ import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class SupernovaManager {
+    public static boolean isFoliageOrNonSolid(ServerWorld world, BlockPos pos, BlockState state) {
+        if (state.isIn(BlockTags.LEAVES) || state.isIn(BlockTags.FLOWERS) || state.isIn(BlockTags.CROPS)
+                || state.isIn(BlockTags.SAPLINGS) || state.getBlock() instanceof LeavesBlock
+                || state.getBlock() instanceof PlantBlock || state.getBlock() instanceof VineBlock
+                || !state.isFullCube(world, pos) || !state.isOpaque()) {
+            return true;
+        }
+        return false;
+    }
+
     static Vec3d mobPullVelocity(Vec3d current, Vec3d towardCore, double progress) {
         double distance = towardCore.length();
         double charge = Math.clamp(progress, 0, 1);
@@ -44,8 +58,8 @@ public class SupernovaManager {
         return result.lengthSquared() > limit * limit ? result.normalize().multiply(limit) : result;
     }
 
-    public static final int IMPACT_TICK = SupernovaSequence.IMPACT;
-    public static final int DETONATION_TICK = IMPACT_TICK + ImpactFxPayload.SUPERNOVA_IMPACT_TICKS;
+    public static final int DETONATION_TICK = SupernovaSequence.SKY_RELEASE;
+    public static final int IMPACT_TICK = DETONATION_TICK - ImpactFxPayload.SUPERNOVA_IMPACT_TICKS;
     public static final int TERRAIN_START_TICK = DETONATION_TICK + 4;
     public static final int MAX_LIFETIME_TICKS = DETONATION_TICK + SupernovaSequence.BURST_TICKS;
     public static final int MAX_DISPLAYS_CAP = 1800;
@@ -162,7 +176,9 @@ public class SupernovaManager {
                     if (!SpatialDisplacementManager.canDisplace(world, mutable, state)) continue;
 
                     solidCount++;
-                    if (solidCount <= 3) {
+                    if (isFoliageOrNonSolid(world, mutable, state)) {
+                        subSurfaceCandidates.add(mutable.toImmutable());
+                    } else if (solidCount <= 3) {
                         surfaceCandidates.add(mutable.toImmutable());
                     } else {
                         subSurfaceCandidates.add(mutable.toImmutable());
@@ -217,8 +233,8 @@ public class SupernovaManager {
             if (task.world != world) continue;
 
             task.ageTicks++;
-            if (task.ageTicks >= DETONATION_TICK && task.ageTicks < DETONATION_TICK + 16) {
-                carveSphericalCraterShell(task, task.ageTicks - DETONATION_TICK, 16);
+            if (task.ageTicks >= DETONATION_TICK && task.ageTicks < DETONATION_TICK + 60) {
+                carveSphericalCraterShell(task, task.ageTicks - DETONATION_TICK, 60);
             }
 
             // =========================================================================
@@ -278,7 +294,10 @@ public class SupernovaManager {
                             task.peelTickMap.put(pos, task.ageTicks);
                             peeledThisTick++;
 
-                            if (task.displayedPositions.size() < maxDisplaysNow && task.displayedPositions.size() < MAX_DISPLAYS_CAP) {
+                            BlockState state = world.getBlockState(pos);
+                            boolean canSpawn = !isFoliageOrNonSolid(world, pos, state);
+
+                            if (canSpawn && task.displayedPositions.size() < maxDisplaysNow && task.displayedPositions.size() < MAX_DISPLAYS_CAP) {
                                 float hash = (float) SpatialMath.hash01(pos);
 
                                 Quaternionf rot = new Quaternionf()
@@ -572,8 +591,8 @@ public class SupernovaManager {
     private static void carveSphericalCraterShell(SupernovaTask task, int step, int totalSteps) {
         ServerWorld world = task.world;
         BlockPos.Mutable pos = new BlockPos.Mutable();
-        double maxR = Math.min(96.0, task.terrainRadius);
-        double maxDepth = 48.0;
+        double maxR = Math.max(120.0, task.terrainRadius);
+        double maxDepth = 52.0;
         double rMin = step == 0 ? 0.0 : maxR * ((double) step / totalSteps);
         double rMax = maxR * ((double) (step + 1) / totalSteps);
         double rMinSq = rMin * rMin;
@@ -612,7 +631,7 @@ public class SupernovaManager {
                         removedRestorable = true;
                     }
                     world.setBlockState(pos, Blocks.AIR.getDefaultState(),
-                            Block.FORCE_STATE | Block.SKIP_DROPS);
+                            Block.FORCE_STATE | Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
                 }
             }
         }

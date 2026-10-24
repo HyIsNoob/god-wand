@@ -25,13 +25,13 @@ public class GodWandPostFxTest {
         GodWandPostFxManager.triggerImpact(0, 0, 0, ImpactFxPayload.TYPE_SUPERNOVA_IMPACT, ImpactFxPayload.SUPERNOVA_IMPACT_TICKS, 1);
         assertEquals(ImpactFxPayload.TYPE_BLACK_HOLE, type.getInt(null));
         assertTrue(overlay.getBoolean(null));
-        for (int tick = 0; tick < 8; tick++) CustomImpactFrameOverlay.onClientTick();
+        for (int tick = 0; tick < CustomImpactFrameOverlay.IMPACT_FRAME_TICKS; tick++) CustomImpactFrameOverlay.onClientTick();
         var overlayTick = CustomImpactFrameOverlay.class.getDeclaredField("currentTick");
         overlayTick.setAccessible(true);
         assertEquals(CustomImpactFrameOverlay.IMPACT_FRAME_TICKS, overlayTick.getInt(null));
         GodWandPostFxManager.triggerImpact(0, 0, 0, ImpactFxPayload.TYPE_SUPERNOVA, 240, 3.5f);
         assertEquals(ImpactFxPayload.TYPE_SUPERNOVA, type.getInt(null));
-        assertEquals(8, overlayTick.getInt(null), "Burst must not restart the impact drawings");
+        assertEquals(CustomImpactFrameOverlay.IMPACT_FRAME_TICKS, overlayTick.getInt(null), "Burst must not restart the impact drawings");
         GodWandPostFxManager.reset();
         CustomImpactFrameOverlay.reset();
     }
