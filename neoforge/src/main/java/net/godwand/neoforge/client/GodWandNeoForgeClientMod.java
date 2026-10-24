@@ -2,6 +2,7 @@ package net.godwand.neoforge.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.godwand.GodWandMod;
+import net.godwand.client.ArcaneOrbChargeRenderer;
 import net.godwand.client.ArcaneOrbEntityRenderer;
 import net.godwand.client.CannonPressureRenderer;
 import net.godwand.client.CustomImpactFrameOverlay;
@@ -164,6 +165,7 @@ public class GodWandNeoForgeClientMod {
                 SingularityThreadRenderer.render(matrices, camera, tickDelta);
                 SpatialAuraRenderer.render(matrices, camera, tickDelta);
                 StoneCannonChargeRenderer.render(matrices, camera, tickDelta);
+                ArcaneOrbChargeRenderer.render(matrices, camera, tickDelta);
                 SupernovaAccretionRenderer.render(matrices, camera, tickDelta);
             } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
                 float tickDelta = event.getPartialTick().getGameTimeDeltaPartialTick(false);

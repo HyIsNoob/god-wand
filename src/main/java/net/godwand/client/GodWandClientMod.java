@@ -90,6 +90,7 @@ public class GodWandClientMod implements ClientModInitializer {
 
         // Register 3D Charging Drill & Aerodynamic Wind Ribbon Vortex
         WorldRenderEvents.AFTER_TRANSLUCENT.register(StoneCannonChargeRenderer::render);
+        WorldRenderEvents.AFTER_TRANSLUCENT.register(ArcaneOrbChargeRenderer::render);
 
         // Capture matrices here; compose after WorldRenderer returns so Iris has finished its final pass.
         WorldRenderEvents.LAST.register(GodWandPostFxManager::onWorldRender);

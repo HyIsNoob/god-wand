@@ -169,10 +169,20 @@ public class GodWandItem extends Item {
                 ServerLevel sw = (ServerLevel) world;
 
                 Vec3 look = player.getViewVector(1.0f);
-                Vec3 muzzle = player.getEyePosition().add(look.scale(0.8));
+                Vec3 muzzle = player.getEyePosition().add(look.scale(1.35)).add(0, -0.12, 0);
                 if (chargeTicks % 2 == 0) {
-                    sw.sendParticles(ParticleTypes.PORTAL, muzzle.x, muzzle.y, muzzle.z,
-                            1, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, 0.05);
+                    sw.sendParticles(new DustParticleOptions(new Vector3f(0.0f, 0.94f, 1.0f), 0.9f),
+                            muzzle.x, muzzle.y, muzzle.z,
+                            2, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2, 0.02);
+                    sw.sendParticles(ParticleTypes.REVERSE_PORTAL,
+                            muzzle.x, muzzle.y, muzzle.z,
+                            1, (Math.random() - 0.5) * 0.15, (Math.random() - 0.5) * 0.15, (Math.random() - 0.5) * 0.15, 0.02);
+                }
+
+                if (chargeTicks % 8 == 0) {
+                    float pitch = 1.3f + Math.min(chargeTicks / 45.0f, 1.0f) * 0.6f;
+                    world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                            SoundEvents.BEACON_AMBIENT, SoundSource.PLAYERS, 0.45f, pitch);
                 }
 
                 int level;
@@ -182,7 +192,9 @@ public class GodWandItem extends Item {
                     meter = chargeMeter(3, 3);
                     if (chargeTicks == 45) {
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 0.65f, 1.5f);
+                                SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 0.75f, 1.5f);
+                        world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                                SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.9f, 1.8f);
                     }
                 } else if (chargeTicks >= 20) {
                     level = 2;
@@ -364,13 +376,16 @@ public class GodWandItem extends Item {
                 level = 2;
             }
 
+            Vec3 look = player.getViewVector(1.0f);
+            Vec3 spawnPos = player.getEyePosition().add(look.scale(1.35)).add(0, -0.12, 0);
+
             ArcaneOrbEntity orb = new ArcaneOrbEntity(net.godwand.GodWandMod.ARCANE_ORB_ENTITY_TYPE, world);
             orb.setOwner(player);
             orb.setChargeLevel(level);
-            orb.setPos(player.getEyePosition().x, player.getEyePosition().y - 0.1, player.getEyePosition().z);
+            orb.setPos(spawnPos.x, spawnPos.y, spawnPos.z);
 
-            Vec3 look = player.getViewVector(1.0f);
-            orb.setDeltaMovement(look.x * 2.3, look.y * 2.3, look.z * 2.3);
+            double speed = 2.4 + level * 0.35;
+            orb.setDeltaMovement(look.scale(speed));
             world.addFreshEntity(orb);
             player.getCooldowns().addCooldown(this, net.godwand.config.GodWandConfig.cooldownTicks(20));
 
@@ -385,16 +400,18 @@ public class GodWandItem extends Item {
 
             // Muzzle Blast VFX
             ServerLevel sw = (ServerLevel) world;
-            sw.sendParticles(ParticleTypes.FLASH, player.getX() + look.x, player.getEyeY() + look.y, player.getZ() + look.z, 2, 0.1, 0.1, 0.1, 0.0);
-            sw.sendParticles(ParticleTypes.SONIC_BOOM, player.getX() + look.x * 1.5, player.getEyeY() + look.y * 1.5, player.getZ() + look.z * 1.5, 1, 0, 0, 0, 0);
+            sw.sendParticles(ParticleTypes.FLASH, spawnPos.x, spawnPos.y, spawnPos.z, 2, 0.1, 0.1, 0.1, 0.0);
+            sw.sendParticles(ParticleTypes.SONIC_BOOM, spawnPos.x, spawnPos.y, spawnPos.z, 1, 0, 0, 0, 0);
             sw.sendParticles(new DustParticleOptions(new Vector3f(0.0f, 0.95f, 1.0f), 1.5f),
-                    player.getX() + look.x, player.getEyeY() + look.y, player.getZ() + look.z, 20, 0.3, 0.3, 0.3, 0.2);
+                    spawnPos.x, spawnPos.y, spawnPos.z, 20, 0.3, 0.3, 0.3, 0.2);
 
             // Muzzle Audio Layering
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 0.75f, 1.3f);
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 0.65f, 1.5f);
+                    SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 0.7f, 1.8f);
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.5f, 1.6f);
         }
     }
 

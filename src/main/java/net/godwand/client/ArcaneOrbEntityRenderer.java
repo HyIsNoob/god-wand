@@ -1,24 +1,19 @@
 package net.godwand.client;
 
 import net.godwand.entity.ArcaneOrbEntity;
-import net.minecraft.block.Blocks;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.LightmapTextureManager;
-import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.math.Vec3d;
 
 public class ArcaneOrbEntityRenderer extends EntityRenderer<ArcaneOrbEntity> {
-    private final BlockRenderManager blockRenderManager;
 
     public ArcaneOrbEntityRenderer(EntityRendererFactory.Context context) {
         super(context);
-        this.blockRenderManager = MinecraftClient.getInstance().getBlockRenderManager();
     }
 
     @Override
@@ -30,33 +25,24 @@ public class ArcaneOrbEntityRenderer extends EntityRenderer<ArcaneOrbEntity> {
     public void render(ArcaneOrbEntity entity, float yaw, float tickDelta, MatrixStack matrices,
                        VertexConsumerProvider vertexConsumers, int light) {
         float time = entity.age + tickDelta;
-        float baseScale = 0.45f + entity.getChargeLevel() * 0.18f;
+        int level = entity.getChargeLevel();
+        float chargeRatio = level / 3.0f;
+        float baseScale = 0.32f + level * 0.14f;
 
-        // 1. Lõi năng lượng xoay tốc độ cao
         matrices.push();
-        matrices.translate(0.0f, 0.25f, 0.0f);
-        matrices.scale(baseScale, baseScale, baseScale);
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(time * 18.0f));
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(time * 14.0f));
-        matrices.translate(-0.5f, -0.5f, -0.5f);
-        blockRenderManager.renderBlockAsEntity(
-                Blocks.SEA_LANTERN.getDefaultState(),
-                matrices, vertexConsumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV
-        );
-        matrices.pop();
+        matrices.translate(0.0f, 0.15f, 0.0f);
 
-        // 2. Lớp vỏ ma pháp xoay ngược chiều
-        matrices.push();
-        matrices.translate(0.0f, 0.25f, 0.0f);
-        float outerScale = baseScale * 1.45f;
-        matrices.scale(outerScale, outerScale, outerScale);
-        matrices.multiply(RotationAxis.NEGATIVE_Y.rotationDegrees(time * 12.0f));
-        matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(time * 16.0f));
-        matrices.translate(-0.5f, -0.5f, -0.5f);
-        blockRenderManager.renderBlockAsEntity(
-                Blocks.CYAN_STAINED_GLASS.getDefaultState(),
-                matrices, vertexConsumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV
-        );
+        Vec3d vel = entity.getVelocity();
+        if (vel.lengthSquared() > 0.001) {
+            double horizontalDist = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+            float velYaw = (float) (MathHelper.atan2(vel.x, vel.z) * (180.0 / Math.PI));
+            float velPitch = (float) (MathHelper.atan2(vel.y, horizontalDist) * (180.0 / Math.PI));
+            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(velYaw));
+            matrices.multiply(RotationAxis.NEGATIVE_X.rotationDegrees(velPitch));
+        }
+
+        ArcaneOrbModel.render(matrices.peek().getPositionMatrix(), baseScale, time, chargeRatio);
+
         matrices.pop();
 
         super.render(entity, yaw, tickDelta, matrices, vertexConsumers, light);

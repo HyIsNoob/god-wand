@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.loader.api.FabricLoader;
 import net.godwand.GodWandMod;
+import net.godwand.client.ArcaneOrbChargeRenderer;
 import net.godwand.client.ArcaneOrbEntityRenderer;
 import net.godwand.client.CannonPressureRenderer;
 import net.godwand.client.CustomImpactFrameOverlay;
@@ -116,6 +117,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             SingularityThreadRenderer.render(matrices, camera, tickDelta);
             SpatialAuraRenderer.render(matrices, camera, tickDelta);
             StoneCannonChargeRenderer.render(matrices, camera, tickDelta);
+            ArcaneOrbChargeRenderer.render(matrices, camera, tickDelta);
             SupernovaAccretionRenderer.render(matrices, camera, tickDelta);
         });
 
