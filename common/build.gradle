@@ -1,1 +1,24 @@
-// Common subproject
+plugins {
+    id 'fabric-loom'
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
+
+    compileOnly "org.spongepowered:mixin:0.8.7"
+    annotationProcessor "org.spongepowered:mixin:0.8.7:processor"
+
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+    testImplementation "org.ow2.asm:asm:9.7"
+    testImplementation "org.ow2.asm:asm-tree:9.7"
+}
+
+loom {
+    accessWidenerPath = file("src/main/resources/godwand.accesswidener")
+}
+
+test {
+    useJUnitPlatform()
+}
