@@ -72,9 +72,13 @@ final class SupernovaSoundscape {
                 client.getSoundManager().stop(chargeSound);
                 chargeSound = null;
             }
-            if (sequence != null) {
-                // Already started during charge phase, let it play through without interruption!
+            if (sequence != null && client.getSoundManager().isPlaying(sequence)) {
+                // Already started during charge phase and still playing, let it play through without interruption!
                 return;
+            }
+            if (sequence != null) {
+                client.getSoundManager().stop(sequence);
+                sequence = null;
             }
             float distance = GodWandCinematicEngine.distanceFactor(CinematicFxPayload.EVENT_SUPERNOVA_COMPRESS,
                     client.player.getPos().distanceTo(center));
@@ -97,33 +101,37 @@ final class SupernovaSoundscape {
         checkCustom(client);
 
         if (custom) {
-            if (!activated) {
-                if (charge > 0) {
-                    // Charging started: launch continuous custom sequence audio
-                    if (sequence == null) {
-                        sequence = new PositionedSoundInstance(AUDIO, SoundCategory.PLAYERS,
-                                1.0f, 1.0f, Random.create(), false, 0, SoundInstance.AttenuationType.NONE, 0, 0, 0, true);
-                        client.getSoundManager().play(sequence);
-                    }
-                    charging = true;
-                    if (chargeSound != null) {
-                        client.getSoundManager().stop(chargeSound);
-                        chargeSound = null;
-                    }
-                } else if (charging && charge <= 0) {
-                    // Cancelled before activation
+            // Automatically clean up when sequence audio finishes playing in OpenAL
+            if (sequence != null && !client.getSoundManager().isPlaying(sequence)) {
+                sequence = null;
+                activated = false;
+                charging = false;
+            }
+
+            if (charge > 0) {
+                // If starting a fresh charge: restart sequence audio cleanly even if cast previously
+                if (!charging) {
                     if (sequence != null) {
                         client.getSoundManager().stop(sequence);
                         sequence = null;
                     }
-                    charging = false;
+                    activated = false;
+                    charging = true;
+                    sequence = new PositionedSoundInstance(AUDIO, SoundCategory.PLAYERS,
+                            1.0f, 1.0f, Random.create(), false, 0, SoundInstance.AttenuationType.NONE, 0, 0, 0, true);
+                    client.getSoundManager().play(sequence);
                 }
-            } else {
-                // Once activated, let the audio stream play completely to the end!
-                // Safety cleanup only after 2 minutes (2400 ticks)
-                if (client.world.getTime() - activationTime > 2400) {
-                    reset();
+                if (chargeSound != null) {
+                    client.getSoundManager().stop(chargeSound);
+                    chargeSound = null;
                 }
+            } else if (charging && !activated) {
+                // Cancelled wand charge before release
+                if (sequence != null) {
+                    client.getSoundManager().stop(sequence);
+                    sequence = null;
+                }
+                charging = false;
             }
         } else {
             // Placeholder: vanilla charge sound

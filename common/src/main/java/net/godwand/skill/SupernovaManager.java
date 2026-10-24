@@ -68,6 +68,7 @@ public class SupernovaManager {
         public final List<BlockPos> candidatePositions = new ArrayList<>();
         public final Set<BlockPos> peeledPositions = new HashSet<>();
         public final Map<BlockPos, Integer> peelTickMap = new HashMap<>();
+        public int candidateScanIndex = 0;
 
         public final List<BlockPos> displayedPositions = new ArrayList<>();
         public final List<BlockPos> interiorPositions = new ArrayList<>();
@@ -213,7 +214,9 @@ public class SupernovaManager {
             if (task.world != world) continue;
 
             task.ageTicks++;
-            if (task.ageTicks == TERRAIN_START_TICK) carveCrater(task);
+            if (task.ageTicks >= TERRAIN_START_TICK && !task.crater.finished()) {
+                carveCraterBatch(task, 220);
+            }
 
             // =========================================================================
             // GIAI ĐOẠN 1: BÓC ĐẤT NÚI TỶ LỆ THUẬN (Ticks 1..279)
@@ -254,8 +257,14 @@ public class SupernovaManager {
                     int maxDisplaysNow = seedDisplays + (int)((task.displayLimit - seedDisplays) * Math.pow(progress, 1.35));
 
                     int peeledThisTick = 0;
-                    for (BlockPos pos : task.candidatePositions) {
-                        if (task.peeledPositions.contains(pos)) continue;
+                    int maxPeelPerTick = 80;
+                    int size = task.candidatePositions.size();
+                    for (int i = task.candidateScanIndex; i < size; i++) {
+                        BlockPos pos = task.candidatePositions.get(i);
+                        if (task.peeledPositions.contains(pos)) {
+                            if (i == task.candidateScanIndex) task.candidateScanIndex++;
+                            continue;
+                        }
 
                         double dx = pos.getX() - task.groundCenter.getX();
                         double dz = pos.getZ() - task.groundCenter.getZ();
@@ -322,6 +331,8 @@ public class SupernovaManager {
 
                                 task.interiorPositions.add(pos);
                             }
+
+                            if (peeledThisTick >= maxPeelPerTick) break;
                         }
                     }
                 } else {
@@ -387,8 +398,10 @@ public class SupernovaManager {
                 }
 
                 // Lực hút kéo thực thể
+                // Lực hút kéo thực thể: Chỉ hút quái vật thù địch (Hostile mobs), loại trừ hoàn toàn động vật và ngựa
                 AABB suctionBox = new AABB(task.groundCenter).inflate(currentPeelRadius * 1.4);
-                for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, suctionBox, ent -> ent != task.caster)) {
+                for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, suctionBox,
+                        ent -> ent != task.caster && !(ent instanceof net.minecraft.world.entity.animal.Animal) && !(ent instanceof net.minecraft.world.entity.animal.horse.AbstractHorse))) {
                     if (e instanceof net.minecraft.world.entity.Mob) {
                         e.setDeltaMovement(mobPullVelocity(e.getDeltaMovement(), task.corePos.subtract(e.position()), totalProgress));
                         e.hurtMarked = true;
@@ -535,12 +548,13 @@ public class SupernovaManager {
         }
     }
 
-    private static void carveCrater(SupernovaTask task) {
+    private static void carveCraterBatch(SupernovaTask task, int budget) {
         ServerLevel world = task.world;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        // Commit after the impact drawings, then let vanilla publish the merged chunk updates once.
         boolean removedRestorable = false;
-        while (!task.crater.finished()) {
+        int count = 0;
+        while (!task.crater.finished() && count < budget) {
+            count++;
             int cx = task.crater.x(), cz = task.crater.z();
             task.crater.advance();
             int wx = task.groundCenter.getX() + cx, wz = task.groundCenter.getZ() + cz;
@@ -571,7 +585,6 @@ public class SupernovaManager {
             }
         }
         if (removedRestorable) net.godwand.spatial.DisplacementPersistentState.getServerState(world).setDirty();
-        // Vanilla sends one batch of pending chunk updates at the end of the tick.
     }
 
     public static int getActiveTaskCount() {

@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "A": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "B": {
+      "item": "minecraft:netherite_ingot"
+    },
+    "E": {
+      "item": "minecraft:echo_shard"
+    },
+    "N": {
+      "item": "minecraft:nether_star"
+    },
+    "R": {
+      "item": "minecraft:blaze_rod"
+    }
+  },
+  "pattern": [
+    "ENE",
+    "ABA",
+    " R "
+  ],
+  "result": {
+    "count": 1,
+    "id": "godwand:god_wand"
+  }
+}

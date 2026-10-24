@@ -1,0 +1,18 @@
+{
+  "supernova_sequence": {
+    "sounds": [
+      {
+        "name": "godwand:supernova_sequence",
+        "stream": true
+      }
+    ]
+  },
+  "earth_drill_sequence": {
+    "sounds": [
+      {
+        "name": "godwand:earth_drill_sequence",
+        "stream": true
+      }
+    ]
+  }
+}
