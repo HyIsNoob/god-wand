@@ -214,8 +214,8 @@ public class SupernovaManager {
             if (task.world != world) continue;
 
             task.ageTicks++;
-            if (task.ageTicks >= TERRAIN_START_TICK && !task.crater.finished()) {
-                carveCraterBatch(task, 220);
+            if (task.ageTicks >= DETONATION_TICK && task.ageTicks < DETONATION_TICK + 14) {
+                carveSphericalCraterShell(task, task.ageTicks - DETONATION_TICK, 14);
             }
 
             // =========================================================================
@@ -397,17 +397,28 @@ public class SupernovaManager {
                     }
                 }
 
-                // Lực hút kéo thực thể
-                // Lực hút kéo thực thể: Chỉ hút quái vật thù địch (Hostile mobs), loại trừ hoàn toàn động vật và ngựa
+                // Lực hút kéo thực thể: Hút TOÀN BỘ sinh vật (trừ caster), và KILL ngay lập tức khi chạm vào tâm hố đen
                 AABB suctionBox = new AABB(task.groundCenter).inflate(currentPeelRadius * 1.4);
-                for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, suctionBox,
-                        ent -> ent != task.caster && !(ent instanceof net.minecraft.world.entity.animal.Animal) && !(ent instanceof net.minecraft.world.entity.animal.horse.AbstractHorse))) {
+                for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, suctionBox, ent -> ent != task.caster)) {
+                    double distToCoreSq = e.distanceToSqr(task.corePos);
+                    if (distToCoreSq <= 12.25) { // Bán kính 3.5m quanh tâm hố đen: Nghiền nát và tiêu diệt ngay lập tức
+                        var source = world.damageSources().fellOutOfWorld();
+                        e.hurt(source, Float.MAX_VALUE);
+                        if (e.isAlive()) {
+                            e.setHealth(0.0f);
+                            e.die(source);
+                        }
+                        world.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, e.getX(), e.getY() + 0.5, e.getZ(), 6, 0.2, 0.2, 0.2, 0.05);
+                        world.sendParticles(ParticleTypes.ELECTRIC_SPARK, e.getX(), e.getY() + 0.5, e.getZ(), 8, 0.2, 0.2, 0.2, 0.1);
+                        continue;
+                    }
+
                     if (e instanceof net.minecraft.world.entity.Mob) {
                         e.setDeltaMovement(mobPullVelocity(e.getDeltaMovement(), task.corePos.subtract(e.position()), totalProgress));
                         e.hurtMarked = true;
-                    } else if (task.ageTicks % 6 == 0) {
-                        Vec3 pull = task.corePos.subtract(e.position()).normalize().scale(0.22 + totalProgress * 0.35);
-                        e.push(pull.x, pull.y, pull.z);
+                    } else if (task.ageTicks % 2 == 0) {
+                        Vec3 pull = task.corePos.subtract(e.position()).normalize().scale(0.40 + totalProgress * 0.70);
+                        e.setDeltaMovement(e.getDeltaMovement().lerp(pull, 0.35));
                         e.hurtMarked = true;
                     }
                 }
@@ -524,7 +535,7 @@ public class SupernovaManager {
 
 
                 if (task.ageTicks >= MAX_LIFETIME_TICKS) {
-                    if (task.crater.finished()) it.remove();
+                    it.remove();
                     continue;
                 }
 
@@ -548,40 +559,50 @@ public class SupernovaManager {
         }
     }
 
-    private static void carveCraterBatch(SupernovaTask task, int budget) {
+    private static void carveSphericalCraterShell(SupernovaTask task, int step, int totalSteps) {
         ServerLevel world = task.world;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        double maxR = Math.min(42.0, task.terrainRadius);
+        double rMin = step == 0 ? 0.0 : maxR * ((double) step / totalSteps);
+        double rMax = maxR * ((double) (step + 1) / totalSteps);
+        double rMinSq = rMin * rMin;
+        double rMaxSq = rMax * rMax;
+
+        int cx = task.groundCenter.getX();
+        int cy = task.groundCenter.getY() + 1;
+        int cz = task.groundCenter.getZ();
+
+        int intR = (int) Math.ceil(rMax);
         boolean removedRestorable = false;
-        int count = 0;
-        while (!task.crater.finished() && count < budget) {
-            count++;
-            int cx = task.crater.x(), cz = task.crater.z();
-            task.crater.advance();
-            int wx = task.groundCenter.getX() + cx, wz = task.groundCenter.getZ() + cz;
-            double distance = Math.sqrt(cx * cx + cz * cz);
-            double angle = Math.atan2(cz, cx);
-            double effectiveRadius = task.terrainRadius + Math.sin(angle * 7.0) * 8.5 + Math.cos(angle * 13.0) * 4.8;
-            if (distance > Math.min(task.terrainRadius, effectiveRadius)
-                    || !world.getChunkSource().hasChunk(wx >> 4, wz >> 4)) continue;
-            double depth = Math.pow(1.0 - distance / effectiveRadius, 1.45) * 44.0;
-            double noise = (SpatialMath.hash01(new BlockPos(wx * 2, 0, wz * 2)) - 0.5) * 10.0
-                    + Math.sin(wx * 0.28) * Math.cos(wz * 0.28) * 4.5
-                    + Math.sin(wx * 0.7 + wz * 0.5) * 2.2;
-            int floor = Math.max(world.getMinBuildHeight() + 3, Math.min(world.getMaxBuildHeight() - 1,
-                    (int) Math.round(task.groundCenter.getY() - depth + noise)));
-            var chunk = world.getChunk(wx >> 4, wz >> 4);
-            int top = Math.min(world.getMaxBuildHeight() - 1, chunk.getHeight(Heightmap.Types.WORLD_SURFACE, wx & 15, wz & 15));
-            for (int y = top; y > floor; y--) {
-                pos.set(wx, y, wz);
-                BlockState state = chunk.getBlockState(pos);
-                if (state.getDestroySpeed(world, pos) < 0) continue;
-                var displaced = SpatialDisplacementManager.getActiveRecord(world.dimension(), pos);
-                if (displaced != null && !displaced.permanentDestruction) {
-                    SpatialDisplacementManager.removeActiveRecord(world.dimension(), pos);
-                    removedRestorable = true;
+        for (int x = -intR; x <= intR; x++) {
+            for (int z = -intR; z <= intR; z++) {
+                double d2Sq = x * x + z * z;
+                if (d2Sq > rMaxSq) continue;
+                int wx = cx + x;
+                int wz = cz + z;
+                if (!world.getChunkSource().hasChunk(wx >> 4, wz >> 4)) continue;
+
+                int maxDy = (int) Math.sqrt(Math.max(0, rMaxSq - d2Sq));
+                int minY = Math.max(world.getMinBuildHeight() + 2, cy - maxDy);
+                int maxY = Math.min(world.getMaxBuildHeight() - 1, cy + maxDy);
+
+                for (int y = maxY; y >= minY; y--) {
+                    double dy = y - cy;
+                    double d3Sq = d2Sq + dy * dy;
+                    if (d3Sq >= rMinSq && d3Sq <= rMaxSq) {
+                        pos.set(wx, y, wz);
+                        BlockState state = world.getBlockState(pos);
+                        if (state.isAir() || state.getDestroySpeed(world, pos) < 0) continue;
+
+                        var displaced = SpatialDisplacementManager.getActiveRecord(world.dimension(), pos);
+                        if (displaced != null) {
+                            SpatialDisplacementManager.removeActiveRecord(world.dimension(), pos);
+                            removedRestorable = true;
+                        }
+                        world.setBlock(pos, Blocks.AIR.defaultBlockState(),
+                                Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS);
+                    }
                 }
-                if (!state.isAir()) world.setBlock(pos, Blocks.AIR.defaultBlockState(),
-                        Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS);
             }
         }
         if (removedRestorable) net.godwand.spatial.DisplacementPersistentState.getServerState(world).setDirty();
