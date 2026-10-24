@@ -1,64 +1,42 @@
-# God Wand (Fabric 1.21.1)
+# God Wand (Fabric & NeoForge 1.21.1)
 
-God Wand adds a multi-function magic wand to Minecraft with 5 different skills. The wand can be used for exploration, crowd control, and combat. It includes a survival crafting recipe and its own dedicated Creative tab.
+God Wand adds a multi-function magic wand to Minecraft with 5 unique skills for exploration, terrain control, and combat. It includes survival crafting and a dedicated creative tab.
 
----
-
-## Creative Tab & Crafting Recipe
-
-### Creative Tab
-The wand has its own creative tab named **God Wand**, and is also available in the **Combat** tab.
-
-### Survival Crafting Recipe
-Crafted at a standard Crafting Table using end-game materials:
-
-- Top row: Echo Shard | Nether Star | Echo Shard
-- Middle row: Amethyst Shard | Netherite Ingot | Amethyst Shard
-- Bottom row: [Empty] | Blaze Rod | [Empty]
-
-Ingredients summary:
-- 1x Nether Star
-- 1x Netherite Ingot
-- 2x Echo Shards
-- 2x Amethyst Shards
-- 1x Blaze Rod
+Available for both **Fabric** and **NeoForge** on Minecraft 1.21.1.
 
 ---
 
 ## The 5 Skills
 
-To switch skills: hold **V** while holding the wand, move the mouse toward a skill, then release **V**. Release in the center or press **Esc** to keep the current skill. The wheel does not pause the game and is unavailable while charging. Rebind V in **Controls > God Wand**. **Shift + Right-Click** still cycles skills.
+Switch skills quickly by holding **V** to open the skill wheel, or by pressing **Shift + Right-Click** to cycle through them.
 
 ### Skill 1: Spatial Path (Tunnel & Bridge)
-- **Controls:** Right-Click to toggle on or off. Tap Shift to toggle Bridge mode.
-- **Tunnel:** Walk or sprint into hills and mountains. A 3x4 tunnel opens ahead of you and closes automatically behind you. Blocks return to normal with zero permanent terrain damage.
-- **Bridge:** When bridge mode is active, solid blocks temporarily form beneath your feet when walking over gaps or cliffs, letting you cross safely.
-- **Shield:** Creates a protective barrier around you that deflects incoming enemy arrows, tridents, and fireballs, and pushes approaching mobs away. The front of the barrier fades in first-person view so it does not block your sight.
+- **Controls:** Right-Click to toggle on or off. Tap Shift while active to toggle Bridge mode.
+- **Tunnel:** Walk straight into hills and mountains. A 3x4 tunnel opens ahead of you and seals itself cleanly behind you without breaking blocks.
+- **Bridge:** Walk over cliffs and gaps; temporary blocks form under your feet so you can cross safely.
+- **Shield:** Surrounds you with a protective barrier that deflects arrows, tridents, and fireballs, and pushes approaching mobs away. Fades out in first-person so your view stays clear.
 
 ### Skill 2: Singularity (Gravity Trap & Early Recall)
-- **Controls:** Hold Right-Click to charge, release to fire the gravity orb. Left-Click (punch) or Right-Click while the orb is active to collapse it immediately.
-- **Effect:** Launches a gravity orb that lifts nearby ground blocks into the air, tethered by purple beams.
-- **Early Recall & Damage:** When the orb collapses (either automatically or triggered early), all floating blocks snap back to their original positions. Mobs caught inside take heavy crushing damage (70 damage to hostile mobs) and suffocate in the closing ground.
-- **Terrain:** 100% restored. Does not destroy the landscape.
+- **Controls:** Hold Right-Click to charge (spins a cyan energy ball in front of the wand), release to fire. Left-Click or Right-Click while active to collapse early.
+- **Effect:** Launches a gravity orb that lifts ground blocks and nearby mobs into the air.
+- **Damage:** Collapsing the orb snaps blocks back into place, crushing trapped regular mobs (< 50 HP). Bosses and high-health mobs take heavy burst damage.
+- **Terrain:** 100% restored after the effect ends.
 
 ### Skill 3: Earth Drill
 - **Controls:** Hold Right-Click to charge (up to 4 levels), release to fire.
-- **Effect:** Pulls ground blocks into the air, forming a spinning boulder drill with wind effects above the target area.
-- **Impact:** The drill slams into the ground, dealing up to 160+ damage to mobs and creating a crater.
-- **Terrain:** Leaves a permanent crater.
+- **Effect:** Pulls ground blocks into the air into a spinning boulder drill with wind effects above the target area.
+- **Impact:** Slams into the ground, dealing heavy area damage to mobs and carving out a permanent crater.
 
 ### Skill 4: Supernova
-- **Controls:** Hold Right-Click for 7 seconds (requires full charge). Range up to 180 blocks.
-- **Target Marker:** Starting the seven-second charge locks the target. A violet light column marks the future black-hole position; there is no distance cursor.
-- **Effect:** Spawns a floating black hole that pulls nearby blocks inward over several seconds.
-- **Explosion:** Detonates with an anime-style visual flash, camera shake, and a massive 96-block blast radius. Deals lethal damage to regular mobs and bosses (including Wither and Ender Dragon).
-- **Terrain:** Leaves a massive permanent crater with its natural exposed floor.
+- **Controls:** Hold Right-Click for 7 seconds to charge (range up to 180 blocks).
+- **Targeting:** A light column marks and locks onto the target location while charging.
+- **Effect:** Summons a black hole that pulls in surrounding blocks and explodes in a massive blast. Regular mobs are eliminated, while bosses take heavy burst damage.
+- **Terrain:** Leaves a permanent crater.
 
 ### Skill 5: Stone Cannon
 - **Controls:** Hold Right-Click to charge (levels 1 to 4), release to fire.
-- **Effect:** A spinning stone drill forms in front of you while charging. Releasing fires a high-speed projectile forward with noticeable recoil.
-- **Damage:** Deals 130 / 240 / 370 / 520 direct damage to hostile mobs depending on charge level.
-- **Terrain:** Bores a cone-shaped drill hole permanently into walls or terrain upon impact.
+- **Effect:** A spinning stone drill forms in front of you while charging. Releasing fires a high-speed projectile that pierces mobs and drills a hole into walls.
+- **Damage:** Deals 130 / 240 / 370 / 520 damage depending on charge level.
 
 ---
 
@@ -66,30 +44,56 @@ To switch skills: hold **V** while holding the wand, move the mouse toward a ski
 
 | Action | Skill Mode | Description |
 | :--- | :--- | :--- |
-| Hold V | Wand held | Move mouse to a skill, release to select; center or Esc cancels |
-| Shift + Right-Click | Any | Switch to next skill (1 to 5) |
-| Right-Click | Skill 1 (Spatial Path) | Turn tunnel and shield on or off |
-| Shift (Tap) | Skill 1 (Spatial Path) | Turn auto-bridge on or off |
+| Hold V | Any | Open skill wheel to select a skill |
+| Shift + Right-Click | Any | Cycle to next skill |
+| Right-Click | Skill 1 (Spatial Path) | Turn tunnel and shield on / off |
+| Shift (Tap) | Skill 1 (Active) | Turn auto-bridge on / off |
 | Hold & Release Right-Click | Skill 2 (Singularity) | Charge and fire gravity orb |
-| Left-Click or Right-Click | Skill 2 (Active) | Instantly collapse gravity orb early |
+| Left-Click or Right-Click | Skill 2 (Active) | Collapse gravity orb early |
 | Hold & Release Right-Click | Skill 3 (Earth Drill) | Charge and launch earth drill |
-| Hold Right-Click (7s) | Skill 4 (Supernova) | Lock target and unleash black hole explosion |
+| Hold Right-Click (7s) | Skill 4 (Supernova) | Lock target and cast black hole explosion |
 | Hold & Release Right-Click | Skill 5 (Stone Cannon) | Charge drill and fire high-speed shot |
+
+---
+
+## Crafting & Creative Tab
+
+### Creative Tab
+Found in its own tab named **God Wand**, as well as in the **Combat** tab.
+
+### Survival Crafting Recipe
+Crafted at a standard Crafting Table using:
+- Top row: Echo Shard | Nether Star | Echo Shard
+- Middle row: Amethyst Shard | Netherite Ingot | Amethyst Shard
+- Bottom row: [Empty] | Blaze Rod | [Empty]
 
 ---
 
 ## Installation Requirements
 
-- **Minecraft:** 1.21.1
-- **Mod Loader:** Fabric Loader (0.16.0 or newer)
-- **Dependencies:** Fabric API
-- **Java:** Java 21
+### Fabric 1.21.1
+- Minecraft 1.21.1
+- Fabric Loader (0.16.0 or newer)
+- Fabric API
+- Java 21
 
-Place `godwand-1.0.0.jar` into your `.minecraft/mods` folder.
+### NeoForge 1.21.1
+- Minecraft 1.21.1
+- NeoForge (21.1.72 or newer)
+- Java 21
 
 ---
 
-## License & Modpacks
+## Recent Changelog (v1.1.0)
 
-- Open-source under the MIT License.
-- You are free to use this mod in any modpack.
+- Added NeoForge 1.21.1 support alongside Fabric 1.21.1.
+- Skill 1: Added expanding shockwave activation animation. Fixed a bug where dying while the skill was active left blocks permanently displaced.
+- Skill 2: Added a rotating energy ball with swirling intake particles while charging.
+- Combat balance: Bosses and high-health mobs (such as the Ender Dragon and Wither) now take heavy burst damage from Skill 2 and Skill 4 instead of dying instantly. Mobs under 50 HP are still crushed immediately.
+- Visual fixes: Fixed bright purple outlines on blocks when playing with shaderpacks (Complementary). Fixed lines cutting across the screen when standing close to the black hole.
+
+---
+
+## Modpacks & License
+
+- MIT License. You are free to include this mod in any modpack.

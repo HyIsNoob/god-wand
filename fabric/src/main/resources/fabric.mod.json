@@ -3,7 +3,7 @@
   "id": "godwand",
   "version": "${version}",
   "name": "God Wand",
-  "description": "Showcase magic wand with spatial deformation and calamity singularity skills.",
+  "description": "A magic wand with 5 unique skills for exploration, terrain control, and combat. Supports Fabric and NeoForge 1.21.1.",
   "authors": ["GodWand Team"],
   "license": "MIT",
   "environment": "*",

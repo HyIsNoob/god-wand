@@ -6,7 +6,7 @@ license="All Rights Reserved"
 modId="godwand"
 version="${version}"
 displayName="God Wand"
-description="A supreme staff commanding cosmic forces."
+description="A magic wand with 5 unique skills for exploration, terrain control, and combat. Supports Fabric and NeoForge 1.21.1."
 
 [[dependencies.godwand]]
     modId="neoforge"
