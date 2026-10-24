@@ -20,7 +20,7 @@ import java.util.Optional;
 /** Supports continuous custom audio spanning from initial wand charge to sequence end,
  *  running full duration without premature cutoffs, while falling back to vanilla sound cues
  *  when using the default placeholder. */
-final class SupernovaSoundscape {
+public final class SupernovaSoundscape {
     private static final ResourceLocation AUDIO = ResourceLocation.fromNamespaceAndPath("godwand", "supernova_sequence");
     private static final String PLACEHOLDER_SHA = "225b65ec21cc27259fd742d6e1488a69c28f4a0365301d533eeaf433e3c60443";
     private static Charge chargeSound;
@@ -59,7 +59,7 @@ final class SupernovaSoundscape {
         return age < 0 && charge > 0 ? 0.08f + Math.clamp(charge, 0, 1) * 0.18f : 0;
     }
 
-    static void start(Vec3 center) {
+    public static void start(Vec3 center) {
         var client = Minecraft.getInstance();
         if (client == null || client.player == null) return;
         checkCustom(client);
@@ -152,7 +152,7 @@ final class SupernovaSoundscape {
         }
     }
 
-    static void reset() {
+    public static void reset() {
         var client = Minecraft.getInstance();
         if (client != null) {
             if (chargeSound != null) client.getSoundManager().stop(chargeSound);

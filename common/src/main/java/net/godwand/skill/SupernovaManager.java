@@ -214,8 +214,8 @@ public class SupernovaManager {
             if (task.world != world) continue;
 
             task.ageTicks++;
-            if (task.ageTicks >= DETONATION_TICK && task.ageTicks < DETONATION_TICK + 14) {
-                carveSphericalCraterShell(task, task.ageTicks - DETONATION_TICK, 14);
+            if (task.ageTicks >= DETONATION_TICK && task.ageTicks < DETONATION_TICK + 16) {
+                carveSphericalCraterShell(task, task.ageTicks - DETONATION_TICK, 16);
             }
 
             // =========================================================================
@@ -562,14 +562,15 @@ public class SupernovaManager {
     private static void carveSphericalCraterShell(SupernovaTask task, int step, int totalSteps) {
         ServerLevel world = task.world;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        double maxR = Math.min(42.0, task.terrainRadius);
+        double maxR = Math.min(96.0, task.terrainRadius);
+        double maxDepth = 48.0;
         double rMin = step == 0 ? 0.0 : maxR * ((double) step / totalSteps);
         double rMax = maxR * ((double) (step + 1) / totalSteps);
         double rMinSq = rMin * rMin;
         double rMaxSq = rMax * rMax;
 
         int cx = task.groundCenter.getX();
-        int cy = task.groundCenter.getY() + 1;
+        int groundY = task.groundCenter.getY();
         int cz = task.groundCenter.getZ();
 
         int intR = (int) Math.ceil(rMax);
@@ -577,31 +578,31 @@ public class SupernovaManager {
         for (int x = -intR; x <= intR; x++) {
             for (int z = -intR; z <= intR; z++) {
                 double d2Sq = x * x + z * z;
-                if (d2Sq > rMaxSq) continue;
+                if (d2Sq < rMinSq || d2Sq > rMaxSq) continue;
                 int wx = cx + x;
                 int wz = cz + z;
                 if (!world.getChunkSource().hasChunk(wx >> 4, wz >> 4)) continue;
 
-                int maxDy = (int) Math.sqrt(Math.max(0, rMaxSq - d2Sq));
-                int minY = Math.max(world.getMinBuildHeight() + 2, cy - maxDy);
-                int maxY = Math.min(world.getMaxBuildHeight() - 1, cy + maxDy);
+                double dist = Math.sqrt(d2Sq);
+                double normDist = dist / maxR;
+                double depth = maxDepth * Math.sqrt(Math.max(0.0, 1.0 - normDist * normDist));
+                var chunk = world.getChunk(wx >> 4, wz >> 4);
+                int topY = Math.min(world.getMaxBuildHeight() - 1, chunk.getHeight(Heightmap.Types.WORLD_SURFACE, wx & 15, wz & 15));
+                int surfaceY = topY;
+                int floorY = Math.max(world.getMinBuildHeight() + 2, (int) Math.round(Math.min(groundY, surfaceY) - depth));
 
-                for (int y = maxY; y >= minY; y--) {
-                    double dy = y - cy;
-                    double d3Sq = d2Sq + dy * dy;
-                    if (d3Sq >= rMinSq && d3Sq <= rMaxSq) {
-                        pos.set(wx, y, wz);
-                        BlockState state = world.getBlockState(pos);
-                        if (state.isAir() || state.getDestroySpeed(world, pos) < 0) continue;
+                for (int y = topY; y >= floorY; y--) {
+                    pos.set(wx, y, wz);
+                    BlockState state = chunk.getBlockState(pos);
+                    if (state.isAir() || state.getDestroySpeed(world, pos) < 0) continue;
 
-                        var displaced = SpatialDisplacementManager.getActiveRecord(world.dimension(), pos);
-                        if (displaced != null) {
-                            SpatialDisplacementManager.removeActiveRecord(world.dimension(), pos);
-                            removedRestorable = true;
-                        }
-                        world.setBlock(pos, Blocks.AIR.defaultBlockState(),
-                                Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS);
+                    var displaced = SpatialDisplacementManager.getActiveRecord(world.dimension(), pos);
+                    if (displaced != null) {
+                        SpatialDisplacementManager.removeActiveRecord(world.dimension(), pos);
+                        removedRestorable = true;
                     }
+                    world.setBlock(pos, Blocks.AIR.defaultBlockState(),
+                            Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS);
                 }
             }
         }

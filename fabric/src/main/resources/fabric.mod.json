@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "godwand",
+  "version": "${version}",
+  "name": "God Wand",
+  "description": "Showcase magic wand with spatial deformation and calamity singularity skills.",
+  "authors": ["GodWand Team"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "net.godwand.fabric.GodWandFabricMod"
+    ],
+    "client": [
+      "net.godwand.fabric.client.GodWandFabricClientMod"
+    ]
+  },
+  "accessWidener": "godwand.accesswidener",
+  "mixins": [
+    "godwand.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

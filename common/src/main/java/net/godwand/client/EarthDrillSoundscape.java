@@ -21,7 +21,7 @@ import java.util.Optional;
 
 /** One fixed timeline for all four levels; custom audio is permitted to play its full duration (including aftermath),
  *  with 3D world positioning enabled when using mono audio. */
-final class EarthDrillSoundscape {
+public final class EarthDrillSoundscape {
     private static final ResourceLocation AUDIO = ResourceLocation.fromNamespaceAndPath("godwand", "earth_drill_sequence");
     private static final String PLACEHOLDER_SHA = "225b65ec21cc27259fd742d6e1488a69c28f4a0365301d533eeaf433e3c60443";
     private static final List<SoundInstance> voices = new ArrayList<>();
@@ -38,7 +38,7 @@ final class EarthDrillSoundscape {
     }
     static float distanceGain(double distance) { return (float)Math.clamp((160 - distance) / 112, 0, 1); }
 
-    static void start(Vec3 center) {
+    public static void start(Vec3 center) {
         reset();
         var client = Minecraft.getInstance();
         if (client == null || client.level == null || client.player == null) return;
@@ -54,7 +54,7 @@ final class EarthDrillSoundscape {
         lastAge = 0;
     }
 
-    static void tick(Minecraft client) {
+    public static void tick(Minecraft client) {
         if (world == null) return;
         if (world != client.level || client.player == null) { reset(); return; }
         int age = (int)(world.getGameTime() - start);
@@ -107,7 +107,7 @@ final class EarthDrillSoundscape {
         Minecraft.getInstance().getSoundManager().play(sound);
     }
 
-    static void reset() {
+    public static void reset() {
         var client = Minecraft.getInstance();
         if (client != null) for (var voice : voices) client.getSoundManager().stop(voice);
         voices.clear(); world = null; custom = false;

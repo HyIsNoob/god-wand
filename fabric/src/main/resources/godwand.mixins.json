@@ -1,0 +1,18 @@
+{
+  "required": true,
+  "package": "net.godwand.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "EntityMixin",
+    "FlowableFluidMixin"
+  ],
+  "client": [
+    "GameRendererMixin",
+    "MinecraftClientMixin",
+    "SoundSystemMixin",
+    "PostEffectProcessorAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

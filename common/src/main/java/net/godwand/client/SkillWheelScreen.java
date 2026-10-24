@@ -22,7 +22,7 @@ import org.joml.Matrix4f;
 import org.lwjgl.glfw.GLFW;
 
 public final class SkillWheelScreen extends Screen {
-    private static final KeyMapping OPEN = new KeyMapping("key.godwand.skill_wheel",
+    public static final KeyMapping OPEN = new KeyMapping("key.godwand.skill_wheel",
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.godwand");
     private static final int[] COLORS = {0x80E5FF, 0xC493FF, 0xFFB66E, 0xFF768F, 0xFFE4A3};
     private static final double SECTOR = Math.PI * 2 / GodWandItem.TOTAL_MODES;

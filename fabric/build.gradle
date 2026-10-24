@@ -1,1 +1,44 @@
-// Fabric subproject
+plugins {
+    id 'fabric-loom'
+}
+
+version = project.mod_version
+group = project.maven_group
+base {
+    archivesName = "godwand-fabric"
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
+
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    implementation project(path: ':common', configuration: 'namedElements')
+
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+loom {
+    accessWidenerPath = file("src/main/resources/godwand.accesswidener")
+}
+
+processResources {
+    from project(':common').sourceSets.main.resources
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    inputs.property "version", project.version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    source project(':common').sourceSets.main.allSource
+}
+
+test {
+    useJUnitPlatform()
+}
