@@ -34,8 +34,9 @@ public final class SupernovaAccretionRenderer {
     private static boolean charging;
     public record SkyFrame(Vec3 center, float scale, float collapse, float pulseRadius, float pulseStrength, float time) {}
     private static final float[] EDGES = {-1, -0.22f, 0.22f, 1};
+    private static Vec3 currentCameraRel = Vec3.ZERO;
 
-    public static void reset() { active = false; world = null; chargeWorld = null; chargeTicks = previousChargeTicks = 0; charging = false; }
+    public static void reset() { active = false; world = null; chargeWorld = null; chargeTicks = previousChargeTicks = 0; charging = false; currentCameraRel = Vec3.ZERO; }
     public static void receive(ImpactFxPayload payload) {
         if (payload.fxType() == ImpactFxPayload.TYPE_SUPERNOVA_IMPACT || payload.fxType() == ImpactFxPayload.TYPE_SUPERNOVA) return;
         if (payload.fxType() != ImpactFxPayload.TYPE_BLACK_HOLE) return;
@@ -100,6 +101,7 @@ public final class SupernovaAccretionRenderer {
         if (!marker && !preImpactWave && (age < 0 || SupernovaSequence.ribbonVisibility(age) <= 0)) return;
         Vec3 origin = marker ? chargeCenter : center;
         Vec3 camera = cameraObj.getPosition();
+        currentCameraRel = camera.subtract(origin);
         matrices.pushPose();
         matrices.translate(origin.x - camera.x, origin.y - camera.y, origin.z - camera.z);
         RenderSystem.enableBlend(); RenderSystem.defaultBlendFunc(); RenderSystem.enableDepthTest();
@@ -170,6 +172,8 @@ public final class SupernovaAccretionRenderer {
         if (visible <= 0) return;
         double pressure = SupernovaSequence.pressure(age);
         for (int strand = 0; strand < 12; strand++) for (int segment = 0; segment < 48; segment++) {
+            Vec3 segCenter = streamPoint(age, strand, (segment + 0.5) / 48.0);
+            if (segCenter.distanceTo(currentCameraRel) < 1.4) continue;
             for (int lane = 0; lane < 3; lane++) for (int corner = 0; corner < 4; corner++) {
                 double t = (segment + (corner == 1 || corner == 2 ? 1 : 0)) / 48.0;
                 double edge = EDGES[lane + (corner >= 2 ? 1 : 0)];
@@ -200,6 +204,7 @@ public final class SupernovaAccretionRenderer {
             for (int segment = 0; segment < 5; segment++) {
                 double t = segment / 45.0;
                 Vec3 a = streamPoint(age, spark + 20, t), b = streamPoint(age, spark + 20, t + 1 / 45.0);
+                if (a.distanceTo(currentCameraRel) < 1.4) continue;
                 Vec3 width = b.subtract(a).cross(new Vec3(.3, 1, .2)).normalize()
                         .scale((.05 + pressure * .08) * (1 - segment / 5.0));
                 int alpha = (int)(230 * visible * life * (1 - segment / 5.0));
@@ -229,16 +234,27 @@ public final class SupernovaAccretionRenderer {
 
     private static void arc(VertexConsumer v, Matrix4f m, double radius, double rotation, double tilt, double y,
                             double strength, double width, int red, int green, int blue) {
-        for (int segment = 0; segment < 64; segment++) for (int lane = 0; lane < 3; lane++) for (int corner = 0; corner < 4; corner++) {
-            double t = (segment + (corner == 1 || corner == 2 ? 1 : 0)) / 64.0;
-            double edge = EDGES[lane + (corner >= 2 ? 1 : 0)];
-            double angle = rotation + t * 2.4;
-            double r = radius + edge * width;
-            Vec3 point = new Vec3(Math.cos(angle)*r,Math.sin(angle)*r*Math.sin(tilt)+y,Math.sin(angle)*r*Math.cos(tilt));
-            vertex(v,m,point,red,green,blue,(int)(220 * strength * Math.sin(t*Math.PI) * (Math.abs(edge)>0.9?0:1)));
+        for (int segment = 0; segment < 64; segment++) {
+            double angleMid = rotation + (segment + 0.5) / 64.0 * 2.4;
+            Vec3 arcMid = new Vec3(Math.cos(angleMid)*radius,Math.sin(angleMid)*radius*Math.sin(tilt)+y,Math.sin(angleMid)*radius*Math.cos(tilt));
+            if (arcMid.distanceTo(currentCameraRel) < 1.4) continue;
+            for (int lane = 0; lane < 3; lane++) for (int corner = 0; corner < 4; corner++) {
+                double t = (segment + (corner == 1 || corner == 2 ? 1 : 0)) / 64.0;
+                double edge = EDGES[lane + (corner >= 2 ? 1 : 0)];
+                double angle = rotation + t * 2.4;
+                double r = radius + edge * width;
+                Vec3 point = new Vec3(Math.cos(angle)*r,Math.sin(angle)*r*Math.sin(tilt)+y,Math.sin(angle)*r*Math.cos(tilt));
+                vertex(v,m,point,red,green,blue,(int)(220 * strength * Math.sin(t*Math.PI) * (Math.abs(edge)>0.9?0:1)));
+            }
         }
     }
     private static void vertex(VertexConsumer v, Matrix4f m, Vec3 point, int r, int g, int b, int alpha) {
+        double dist = point.distanceTo(currentCameraRel);
+        if (dist < 1.4) {
+            alpha = 0;
+        } else if (dist < 2.8) {
+            alpha = (int) (alpha * Math.clamp((dist - 1.4) / 1.4, 0.0, 1.0));
+        }
         v.addVertex(m,(float)point.x,(float)point.y,(float)point.z).setColor(r,g,b,Math.clamp(alpha,0,255));
     }
 
@@ -259,6 +275,10 @@ public final class SupernovaAccretionRenderer {
     private static void emitShockwaveRing(VertexConsumer v, Matrix4f m, double radius, double width, double tilt, double rotation, float alpha) {
         int segments = 64;
         for (int seg = 0; seg < segments; seg++) {
+            double angleMid = rotation + ((seg + 0.5) * 2.0 * Math.PI) / segments;
+            Vec3 ringMid = new Vec3(Math.cos(angleMid) * radius, Math.sin(angleMid) * radius * Math.sin(tilt), Math.sin(angleMid) * radius * Math.cos(tilt));
+            if (ringMid.distanceTo(currentCameraRel) < 1.4) continue;
+
             double a1 = rotation + (seg * 2.0 * Math.PI) / segments;
             double a2 = rotation + ((seg + 1) * 2.0 * Math.PI) / segments;
 

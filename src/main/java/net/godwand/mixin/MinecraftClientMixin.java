@@ -19,7 +19,7 @@ public abstract class MinecraftClientMixin {
      */
     @Inject(method = "hasOutline", at = @At("HEAD"), cancellable = true)
     private void godwand$suppressBlockDisplayOutline(Entity entity, CallbackInfoReturnable<Boolean> cir) {
-        if (entity instanceof DisplayEntity || entity.getCommandTags().contains("godwand_displaced")) {
+        if (entity instanceof DisplayEntity || (entity != null && entity.getCommandTags().contains("godwand_displaced"))) {
             cir.setReturnValue(false);
         }
     }

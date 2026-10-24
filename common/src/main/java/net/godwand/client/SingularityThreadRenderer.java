@@ -80,11 +80,16 @@ public final class SingularityThreadRenderer {
                 for (int pulse = 0; pulse < 2; pulse++) {
                     float fraction = pulseFraction(now % 100000 + delta, entry.getKey() + pulse * 47, recall);
                     Vec3 head = origin.add(direction.scale(fraction));
+                    if (head.lengthSqr() < 1.0) continue;
+                    float threadFade = fade;
+                    if (head.lengthSqr() < 4.0) {
+                        threadFade *= (float) Math.clamp((head.length() - 1.0) / 1.0, 0.0, 1.0);
+                    }
                     double tailLength = Math.min(0.13, 0.9 / direction.length());
                     Vec3 tail = origin.add(direction.scale(Math.min(1, fraction + tailLength)));
                     for (int layer = 0; layer < 2; layer++) {
                         Vec3 width = side.scale(layer == 0 ? 0.026 : 0.006);
-                        int alpha = (int) ((layer == 0 ? 65 : 210) * fade);
+                        int alpha = (int) ((layer == 0 ? 65 : 210) * threadFade);
                         Vec3[] corners = {head.subtract(width), head.add(width), tail.add(width), tail.subtract(width)};
                         for (int v = 0; v < 4; v++) {
                             Vec3 point = corners[v];

@@ -16,7 +16,7 @@ public abstract class MinecraftClientMixin {
      */
     @Inject(method = "shouldEntityAppearGlowing", at = @At("HEAD"), cancellable = true)
     private void godwand$suppressBlockDisplayOutline(Entity entity, CallbackInfoReturnable<Boolean> cir) {
-        if (entity instanceof Display || entity.getTags().contains("godwand_displaced")) {
+        if (entity instanceof Display || (entity != null && entity.getTags().contains("godwand_displaced"))) {
             cir.setReturnValue(false);
         }
     }
