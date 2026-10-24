@@ -7,6 +7,7 @@ import net.godwand.network.SpatialAuraPayload;
 import net.godwand.spatial.DisplacedBlockRecord;
 import net.godwand.spatial.SpatialDisplacementManager;
 import net.godwand.spatial.SpatialMath;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -86,19 +87,29 @@ public class SpatialPathWalker {
 
             // Audio kích hoạt uy lực
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 0.65f, 1.25f);
+                    SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 0.75f, 1.25f);
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 0.35f, 1.2f);
+                    SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 0.55f, 1.4f);
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.65f, 1.15f);
 
-            // Rung chấn nhẹ tức thời (Subtle Camera Pop Shake)
+            // Rung chấn và nhịp giật FOV pop nhẹ nhàng
             CinematicFxPayload actShake = new CinematicFxPayload(
                     CinematicFxPayload.EVENT_TRAUMA_SHAKE,
                     player.getX(), player.getY(), player.getZ(),
-                    0.32f, 8
+                    0.45f, 10
+            );
+            CinematicFxPayload actFov = new CinematicFxPayload(
+                    CinematicFxPayload.EVENT_FOV_PUNCH,
+                    player.getX(), player.getY(), player.getZ(),
+                    1.08f, 10
             );
             Services.NETWORK.sendToPlayer(player, actShake);
+            Services.NETWORK.sendToPlayer(player, actFov);
 
-            // Sóng năng lượng dưới chân bung tỏa ra từ người chơi (Concentric Ground Shockwave)
+            // Bụi hạt không gian bung tỏa thành quả cầu quanh người chơi
+            world.sendParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 1.0, player.getZ(), 24, 0.5, 0.7, 0.5, 0.15);
+            world.sendParticles(ParticleTypes.ENCHANTED_HIT, player.getX(), player.getY() + 1.0, player.getZ(), 36, 0.6, 0.8, 0.6, 0.22);
 
         }
         syncAura(player);
