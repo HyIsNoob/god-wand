@@ -425,16 +425,30 @@ public class SupernovaManager {
                 Box suctionBox = new Box(task.groundCenter).expand(currentPeelRadius * 1.4);
                 for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, suctionBox, ent -> ent != task.caster)) {
                     double distToCoreSq = e.squaredDistanceTo(task.corePos);
-                    if (distToCoreSq <= 12.25) { // Bán kính 3.5m quanh tâm hố đen: Nghiền nát và tiêu diệt ngay lập tức
+                    if (distToCoreSq <= 12.25) { // Bán kính 3.5m quanh tâm hố đen
                         var source = world.getDamageSources().outOfWorld();
-                        e.damage(source, Float.MAX_VALUE);
-                        if (e.isAlive()) {
-                            e.setHealth(0.0f);
-                            e.onDeath(source);
+                        if (e.getMaxHealth() <= 50.0f) {
+                            // Tiêu diệt ngay quái thường và động vật dưới 50 máu
+                            e.damage(source, Float.MAX_VALUE);
+                            if (e.isAlive()) {
+                                e.setHealth(0.0f);
+                                e.onDeath(source);
+                            }
+                            world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, e.getX(), e.getY() + 0.5, e.getZ(), 6, 0.2, 0.2, 0.2, 0.05);
+                            world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, e.getX(), e.getY() + 0.5, e.getZ(), 8, 0.2, 0.2, 0.2, 0.1);
+                            continue;
+                        } else {
+                            // Quái máu trâu / Boss (> 50 máu như Rồng Ender, Wither): Sát thương nghiền nát liên tục, không one-shot
+                            if (task.ageTicks % 4 == 0) {
+                                e.damage(source, 15.0f);
+                            }
+                            world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, e.getX(), e.getY() + 0.5, e.getZ(), 2, 0.2, 0.2, 0.2, 0.05);
+                            world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, e.getX(), e.getY() + 0.5, e.getZ(), 3, 0.2, 0.2, 0.2, 0.1);
+                            Vec3d swirl = task.corePos.subtract(e.getPos()).multiply(0.25);
+                            e.setVelocity(e.getVelocity().multiply(0.6).add(swirl));
+                            e.velocityModified = true;
+                            continue;
                         }
-                        world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, e.getX(), e.getY() + 0.5, e.getZ(), 6, 0.2, 0.2, 0.2, 0.05);
-                        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, e.getX(), e.getY() + 0.5, e.getZ(), 8, 0.2, 0.2, 0.2, 0.1);
-                        continue;
                     }
 
                     if (e instanceof net.minecraft.entity.mob.MobEntity) {
@@ -477,9 +491,8 @@ public class SupernovaManager {
                     if (dist <= task.blastRadius + 8.0) {
                         float dmg = (float) Math.max(80.0, (1.0 - (dist / task.blastRadius)) * 380.0 + 80.0);
                         var source = world.getDamageSources().explosion(null, task.caster);
-                        if (e instanceof net.minecraft.entity.mob.MobEntity) {
+                        if (e instanceof net.minecraft.entity.mob.MobEntity && e.getMaxHealth() <= 50.0f) {
                             e.damage(source, Float.MAX_VALUE);
-                            // Boss damage caps and armor must not turn Supernova into a nonlethal hit.
                             if (e.isAlive()) {
                                 e.setHealth(0.0f);
                                 e.onDeath(source);
