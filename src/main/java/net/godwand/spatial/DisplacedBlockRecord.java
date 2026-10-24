@@ -52,6 +52,18 @@ public class DisplacedBlockRecord {
     public double blastRadius;
     public int openDurationTicks = 8;
     public boolean permanentDestruction = false;
+    public BlockPos bridgeDestination;
+
+    public void writeBridgeData(NbtCompound nbt) {
+        if (bridgeDestination == null) return;
+        nbt.putLong("bridgeDestination", bridgeDestination.asLong());
+        if (boundPlayerUuid != null) nbt.putUuid("bridgeOwner", boundPlayerUuid);
+    }
+
+    public void readBridgeData(NbtCompound nbt) {
+        if (nbt.contains("bridgeDestination")) bridgeDestination = BlockPos.fromLong(nbt.getLong("bridgeDestination"));
+        if (nbt.containsUuid("bridgeOwner")) boundPlayerUuid = nbt.getUuid("bridgeOwner");
+    }
 
     public DisplacedBlockRecord(BlockPos pos, RegistryKey<World> worldKey, BlockState state, NbtCompound nbt,
                                 Vector3f targetDisplacement, Quaternionf targetRotation, Vector3f targetScale,
@@ -129,7 +141,7 @@ public class DisplacedBlockRecord {
     }
 
     public void beginRestoration() {
-        if (this.restoreTick == 0) {
+        if (!this.permanentDestruction && this.restoreTick == 0) {
             this.restoreTick = 1;
             this.animationStage = 3;
         }

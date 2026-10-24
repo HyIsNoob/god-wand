@@ -3,10 +3,7 @@ package net.godwand.client;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.godwand.entity.StoneCannonProjectileEntity;
-import net.minecraft.block.Blocks;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
-import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.util.math.MatrixStack;
@@ -18,15 +15,13 @@ import org.joml.Matrix4f;
 
 /**
  * 3D Aerodynamic Rifling Model & Supersonic Wind Ribbon Trail Renderer for StoneCannonProjectileEntity.
- * Renders the 3-part rifling projectile with continuous rotation and 3 intertwined 3D aerodynamic
+ * Renders the pointed fluted stone projectile with continuous rotation and 3 intertwined 3D aerodynamic
  * wind ribbons trailing behind the projectile, replacing vanilla particle puffs.
  */
 public class StoneCannonEntityRenderer extends EntityRenderer<StoneCannonProjectileEntity> {
-    private final BlockRenderManager blockRenderManager;
 
     public StoneCannonEntityRenderer(EntityRendererFactory.Context context) {
         super(context);
-        this.blockRenderManager = MinecraftClient.getInstance().getBlockRenderManager();
     }
 
     @Override
@@ -60,43 +55,8 @@ public class StoneCannonEntityRenderer extends EntityRenderer<StoneCannonProject
         // Xoáy dọc theo trục tiến (Rifling spin around Z axis)
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(spin));
 
-        // 1. Phân đoạn 1: Mũi khoan nhọn phía trước (Tapered Nose Tip)
-        matrices.push();
-        matrices.translate(0.0f, 0.0f, 0.45f * baseScale);
-        matrices.scale(baseScale * 0.75f, baseScale * 0.75f, baseScale * 1.35f);
-        matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(45.0f));
-        matrices.translate(-0.5f, -0.5f, -0.5f);
-        var tipBlock = (level >= 3) ? Blocks.DIAMOND_BLOCK.getDefaultState() : Blocks.DEEPSLATE_TILES.getDefaultState();
-        blockRenderManager.renderBlockAsEntity(
-                tipBlock,
-                matrices, vertexConsumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV
-        );
-        matrices.pop();
+        StoneCannonModel.render(matrices.peek().getPositionMatrix(), baseScale, time, 0.45f);
 
-        // 2. Phân đoạn 2: Thân trụ khoan đá nén cực đặc (Dense Compressed Core)
-        matrices.push();
-        matrices.translate(0.0f, 0.0f, 0.0f);
-        matrices.scale(baseScale * 0.95f, baseScale * 0.95f, baseScale * 1.15f);
-        matrices.translate(-0.5f, -0.5f, -0.5f);
-        blockRenderManager.renderBlockAsEntity(
-                Blocks.POLISHED_DEEPSLATE.getDefaultState(),
-                matrices, vertexConsumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV
-        );
-        matrices.pop();
-
-        // 3. Phân đoạn 3: Vành đế trợ lực khí động học phía sau (Aerodynamic Base Fin Ring)
-        matrices.push();
-        matrices.translate(0.0f, 0.0f, -0.42f * baseScale);
-        matrices.scale(baseScale * 1.15f, baseScale * 1.15f, baseScale * 0.65f);
-        matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(22.5f));
-        matrices.translate(-0.5f, -0.5f, -0.5f);
-        blockRenderManager.renderBlockAsEntity(
-                Blocks.SMOOTH_BASALT.getDefaultState(),
-                matrices, vertexConsumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV
-        );
-        matrices.pop();
-
-        // 4. DẢI RIBBON KHÍ ĐỘNG HỌC CUỘN XOẮN PHÍA SAU ĐUÔI ĐẠN (3D Supersonic Ribbon Slipstream)
         RenderSystem.enableBlend();
         RenderSystem.blendFunc(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE);
         RenderSystem.disableCull();
@@ -108,8 +68,8 @@ public class StoneCannonEntityRenderer extends EntityRenderer<StoneCannonProject
         int trailSteps = 24;
         float trailLength = 5.5f + level * 2.2f;
 
-        int rCol = (level == 4) ? 255 : 210;
-        int gCol = (level == 4) ? 245 : 245;
+        int rCol = 245;
+        int gCol = 250;
         int bCol = 255;
 
         for (int arm = 0; arm < ribbonArms; arm++) {
@@ -127,7 +87,7 @@ public class StoneCannonEntityRenderer extends EntityRenderer<StoneCannonProject
                 float cx = r * (float) Math.cos(theta);
                 float cy = r * (float) Math.sin(theta);
 
-                float w = (0.04f + progress * 0.06f);
+                float w = (0.018f + progress * 0.025f);
                 float nx = -(float) Math.sin(theta) * w * 0.5f;
                 float ny = (float) Math.cos(theta) * w * 0.5f;
 

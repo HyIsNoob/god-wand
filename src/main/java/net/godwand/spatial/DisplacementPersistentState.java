@@ -71,6 +71,7 @@ public class DisplacementPersistentState extends PersistentState {
                         new Vector3f(0, 0, 0), new Quaternionf(), new Vector3f(1.0f, 1.0f, 1.0f),
                         0, isFullCube
                 );
+                record.readBridgeData(recNbt);
                 state.unrestoredRecords.add(record);
             }
         }
@@ -94,6 +95,7 @@ public class DisplacementPersistentState extends PersistentState {
             }
             recNbt.putString("worldKey", record.worldKey.getValue().toString());
             recNbt.putBoolean("isFullCube", record.isFullCube);
+            record.writeBridgeData(recNbt);
             list.add(recNbt);
         }
 
@@ -109,6 +111,7 @@ public class DisplacementPersistentState extends PersistentState {
                 }
                 recNbt.putString("worldKey", record.worldKey.getValue().toString());
                 recNbt.putBoolean("isFullCube", record.isFullCube);
+            record.writeBridgeData(recNbt);
                 list.add(recNbt);
             }
         }
@@ -128,7 +131,8 @@ public class DisplacementPersistentState extends PersistentState {
             List<DisplacedBlockRecord> toRestore = new ArrayList<>();
             for (DisplacedBlockRecord r : unrestoredRecords) {
                 if (r.worldKey.equals(world.getRegistryKey())) {
-                    toRestore.add(r);
+                    if (r.bridgeDestination != null) SpatialDisplacementManager.recoverBridge(r);
+                    else toRestore.add(r);
                 }
             }
             if (!toRestore.isEmpty()) {
@@ -139,6 +143,8 @@ public class DisplacementPersistentState extends PersistentState {
             }
         }
 
+        unrestoredRecords.removeIf(r -> r.worldKey.equals(world.getRegistryKey()) && r.bridgeDestination != null);
+        markDirty();
         List<Entity> toDiscard = new ArrayList<>();
         for (Entity entity : world.iterateEntities()) {
             if (entity instanceof BlockDisplayEntity && entity.getCommandTags().contains("godwand_displaced")) {

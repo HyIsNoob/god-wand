@@ -42,6 +42,11 @@ public class GodWandItem extends Item {
     public static final int MODE_STONE_CANNON = 4;
     public static final int TOTAL_MODES = 5;
 
+    public static String chargeMeter(int level, int maximum) {
+        int filled = MathHelper.clamp(level, 0, maximum);
+        return "\u00a7f[\u00a7b" + "\u25a0".repeat(filled) + "\u00a78" + "\u25a1".repeat(maximum - filled) + "\u00a7f]";
+    }
+
     public GodWandItem(Settings settings) {
         super(settings.maxCount(1));
     }
@@ -58,6 +63,37 @@ public class GodWandItem extends Item {
         NbtComponent.set(DataComponentTypes.CUSTOM_DATA, stack, nbt -> nbt.putInt("GodWandMode", mode));
     }
 
+    public static void selectSkill(PlayerEntity user, Hand hand, int mode) {
+        if (mode < 0 || mode >= TOTAL_MODES) return;
+        ItemStack stack = user.getStackInHand(hand);
+        if (!(stack.getItem() instanceof GodWandItem)) return;
+        if (user.isUsingItem() && user.getActiveItem() == stack) {
+            if (user instanceof ServerPlayerEntity player) SupernovaManager.cancelCharge(player);
+            user.clearActiveItem();
+        }
+        setSkillMode(stack, mode);
+        World world = user.getWorld();
+        if (!world.isClient()) {
+            switch (mode) {
+                case MODE_SPATIAL_PATH -> {
+                    user.sendMessage(Text.literal("§bSpatial Path"), true);
+                }
+                case MODE_ARCANE_ORB -> {
+                    user.sendMessage(Text.literal("§dSingularity"), true);
+                }
+                case MODE_RATIO_COLLAPSE -> {
+                    user.sendMessage(Text.literal("§6Earth Drill"), true);
+                }
+                case MODE_SUPERNOVA -> {
+                    user.sendMessage(Text.literal("§cSupernova"), true);
+                }
+                case MODE_STONE_CANNON -> {
+                    user.sendMessage(Text.literal("§6Stone Cannon"), true);
+                }
+            }
+        }
+    }
+
     @Override
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
@@ -65,44 +101,11 @@ public class GodWandItem extends Item {
 
         // SHIFT + RIGHT CLICK: Cycle Skill Mode
         if (user.isSneaking()) {
-            int nextMode = (currentMode + 1) % TOTAL_MODES;
-            setSkillMode(stack, nextMode);
-
-            if (!world.isClient()) {
-                switch (nextMode) {
-                    case MODE_SPATIAL_PATH -> {
-                        user.sendMessage(Text.literal("§b§l✦ Spatial Path Walker ✦"), true);
-                        world.playSound(null, user.getX(), user.getY(), user.getZ(),
-                                SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 2.0f, 1.3f);
-                    }
-                    case MODE_ARCANE_ORB -> {
-                        user.sendMessage(Text.literal("§d§l✦ Arcane Singularity ✦"), true);
-                        world.playSound(null, user.getX(), user.getY(), user.getZ(),
-                                SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 2.0f, 1.4f);
-                    }
-                    case MODE_RATIO_COLLAPSE -> {
-                        user.sendMessage(Text.literal("§6§l✦ Stone Cannon Drill ✦"), true);
-                        world.playSound(null, user.getX(), user.getY(), user.getZ(),
-                                SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.PLAYERS, 2.5f, 0.9f);
-                    }
-                    case MODE_SUPERNOVA -> {
-                        user.sendMessage(Text.literal("§c§l✦ Cosmic Supernova ✦"), true);
-                        world.playSound(null, user.getX(), user.getY(), user.getZ(),
-                                SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 2.5f, 0.6f);
-                        world.playSound(null, user.getX(), user.getY(), user.getZ(),
-                                SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 2.5f, 0.5f);
-                    }
-                    case MODE_STONE_CANNON -> {
-                        user.sendMessage(Text.literal("§6§l✦ Aerodynamic Stone Cannon ✦"), true);
-                        world.playSound(null, user.getX(), user.getY(), user.getZ(),
-                                SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.PLAYERS, 2.5f, 1.2f);
-                        world.playSound(null, user.getX(), user.getY(), user.getZ(),
-                                SoundEvents.ITEM_ELYTRA_FLYING, SoundCategory.PLAYERS, 2.0f, 1.4f);
-                    }
-                }
-            }
+            selectSkill(user, hand, (currentMode + 1) % TOTAL_MODES);
             return TypedActionResult.success(stack);
         }
+
+        if (user.getItemCooldownManager().isCoolingDown(this)) return TypedActionResult.fail(stack);
 
         // NORMAL RIGHT CLICK: Execute Current Selected Skill
         if (!world.isClient() && user instanceof ServerPlayerEntity serverPlayer) {
@@ -111,7 +114,7 @@ public class GodWandItem extends Item {
                 if (snapped) {
                     serverPlayer.clearActiveItem();
                     user.swingHand(hand, true);
-                    serverPlayer.sendMessage(Text.literal("§d§l✦ Singularity Collapsed! ✦"), true);
+                    serverPlayer.sendMessage(Text.literal("§dCollapsed!"), true);
                     return TypedActionResult.success(stack);
                 }
             }
@@ -125,6 +128,7 @@ public class GodWandItem extends Item {
                 return TypedActionResult.success(stack);
             }
             case MODE_ARCANE_ORB, MODE_RATIO_COLLAPSE, MODE_SUPERNOVA, MODE_STONE_CANNON -> {
+                if (currentMode == MODE_SUPERNOVA && user instanceof ServerPlayerEntity player) SupernovaManager.beginCharge(player);
                 user.setCurrentHand(hand);
                 return TypedActionResult.consume(stack);
             }
@@ -177,24 +181,24 @@ public class GodWandItem extends Item {
                 String meter;
                 if (chargeTicks >= 45) {
                     level = 3;
-                    meter = "§5Level III §8[§5▰▰▰ §eMAX§8]";
+                    meter = chargeMeter(3, 3);
                     if (chargeTicks == 45) {
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 1.8f, 1.8f);
+                                SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 0.65f, 1.5f);
                     }
                 } else if (chargeTicks >= 20) {
                     level = 2;
-                    meter = "§dLevel II §8[§d▰▰§8▱]";
+                    meter = chargeMeter(2, 3);
                     if (chargeTicks == 20) {
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 1.5f, 1.4f);
+                                SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 0.55f, 1.2f);
                     }
                 } else {
                     level = 1;
-                    meter = "§bLevel I §8[§b▰§8▱▱]";
+                    meter = chargeMeter(1, 3);
                 }
 
-                player.sendMessage(Text.literal("§d§l✦ Arcane Singularity: " + meter + " ✦"), true);
+                player.sendMessage(Text.literal("§dSingularity: " + meter), true);
             }
             return;
         }
@@ -208,16 +212,16 @@ public class GodWandItem extends Item {
             String meter;
             if (chargeTicks >= 68) {
                 level = 4;
-                meter = "§4Level IV §8[§4§l▰▰▰▰ §eMAX§8]";
+                meter = chargeMeter(4, 4);
             } else if (chargeTicks >= 44) {
                 level = 3;
-                meter = "§cLevel III §8[§c▰▰▰§8▱]";
+                meter = chargeMeter(3, 4);
             } else if (chargeTicks >= 22) {
                 level = 2;
-                meter = "§6Level II §8[§6▰▰§8▱▱]";
+                meter = chargeMeter(2, 4);
             } else {
                 level = 1;
-                meter = "§eLevel I §8[§e▰§8▱▱▱]";
+                meter = chargeMeter(1, 4);
             }
 
             if (!world.isClient() && user instanceof ServerPlayerEntity player) {
@@ -227,9 +231,9 @@ public class GodWandItem extends Item {
                 if (chargeTicks == 22 || chargeTicks == 44 || chargeTicks == 68) {
                     float pitch = (level == 4) ? 1.8f : (level == 3) ? 1.4f : 1.1f;
                     world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 2.0f, pitch);
+                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 0.65f, pitch);
                     world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                            SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.PLAYERS, 2.0f, pitch);
+                            SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.PLAYERS, 0.65f, pitch);
                 }
 
                 // Ground dust & tectonic smoke
@@ -265,7 +269,7 @@ public class GodWandItem extends Item {
                             SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.PLAYERS, 1.2f, pitch);
                 }
 
-                player.sendMessage(Text.literal("§6§l✦ Stone Cannon Drill: " + meter + " ✦"), true);
+                player.sendMessage(Text.literal("§6Earth Drill: " + meter), true);
             }
             return;
         }
@@ -277,15 +281,15 @@ public class GodWandItem extends Item {
 
             int level = StoneCannonManager.calculateChargeLevel(chargeTicks);
             String meter = switch (level) {
-                case 4 -> "§4Level IV §8[§4§l▰▰▰▰ §eHYPER-SONIC§8]";
-                case 3 -> "§cLevel III §8[§c▰▰▰§8▱]";
-                case 2 -> "§6Level II §8[§6▰▰§8▱▱]";
-                default -> "§eLevel I §8[§e▰§8▱▱▱]";
+                case 4 -> chargeMeter(4, 4);
+                case 3 -> chargeMeter(3, 4);
+                case 2 -> chargeMeter(2, 4);
+                default -> chargeMeter(1, 4);
             };
 
             if (!world.isClient() && user instanceof ServerPlayerEntity player) {
                 StoneCannonManager.tickCharge(player, chargeTicks, level);
-                player.sendMessage(Text.literal("§6§l✦ Stone Cannon: " + meter + " ✦"), true);
+                player.sendMessage(Text.literal("§6Stone Cannon: " + meter), true);
             }
             return;
         }
@@ -296,112 +300,12 @@ public class GodWandItem extends Item {
         int chargeTicks = this.getMaxUseTime(stack, user) - remainingUseTicks;
         if (chargeTicks < 0) return;
 
-        double progress = Math.min(1.0, (double) chargeTicks / 140.0);
-
         if (!world.isClient() && user instanceof ServerPlayerEntity player) {
-            ServerWorld sw = (ServerWorld) world;
-
-            int level;
-            String meter;
-            if (chargeTicks >= 120) {
-                level = 4;
-                meter = "§4Level IV §8[§4§l▰▰▰▰ §eCRITICAL§8]";
-            } else if (chargeTicks >= 80) {
-                level = 3;
-                meter = "§cLevel III §8[§c▰▰▰§8▱]";
-            } else if (chargeTicks >= 40) {
-                level = 2;
-                meter = "§6Level II §8[§6▰▰§8▱▱]";
-            } else {
-                level = 1;
-                meter = "§eLevel I §8[§e▰§8▱▱▱]";
-            }
-
-            if (chargeTicks == 40 || chargeTicks == 80 || chargeTicks == 120) {
-                float pitch = (level == 4) ? 1.8f : (level == 3) ? 1.3f : 0.9f;
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 2.5f, pitch);
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 2.0f, pitch);
-            }
-
-            // 1. Swirling portal ring at feet
-            double spinSpeed = 0.2 + progress * 0.8;
-            double angle = (chargeTicks * spinSpeed) % (Math.PI * 2.0);
-            double ringRadius = 1.6 + (1.0 - progress) * 0.8;
-            double px = player.getX() + Math.cos(angle) * ringRadius;
-            double pz = player.getZ() + Math.sin(angle) * ringRadius;
-            sw.spawnParticles(ParticleTypes.PORTAL, px, player.getY() + 0.15, pz, 2, 0.05, 0.1, 0.05, 0.02);
-            sw.spawnParticles(ParticleTypes.ENCHANT, px, player.getY() + 0.25, pz, 1, 0, 0.05, 0, 0.05);
-
-            if (chargeTicks % 2 == 0) {
-                sw.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
-                        player.getX() + (Math.random() - 0.5) * 2.0, player.getY() + 0.1, player.getZ() + (Math.random() - 0.5) * 2.0,
-                        1, 0, 0.08 + progress * 0.12, 0, 0.01);
-            }
-
-            // 2. Camera shake & FOV zoom
-            float trauma = (float) (0.05 + progress * 0.30);
-            CinematicFxPayload shake = new CinematicFxPayload(
-                    CinematicFxPayload.EVENT_TRAUMA_SHAKE,
-                    player.getX(), player.getY(), player.getZ(),
-                    trauma, 4
-            );
-            ServerPlayNetworking.send(player, shake);
-
-            if (chargeTicks % 12 == 0) {
-                float fovTarget = (float) (1.0 - progress * 0.15);
-                CinematicFxPayload focus = new CinematicFxPayload(
-                        CinematicFxPayload.EVENT_METEOR_FOCUS,
-                        player.getX(), player.getY(), player.getZ(),
-                        fovTarget, 16
-                );
-                ServerPlayNetworking.send(player, focus);
-            }
-
-            // 3. Heartbeat & anchor charge audio
-            if (chargeTicks % 16 == 0) {
-                float pitch = (float) (0.5f + progress * 1.3f);
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.PLAYERS, 2.5f, pitch);
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 1.8f, pitch);
-            }
-
-            // 4. Aim Target indicator (Tầm xa 180m + Cột sáng Beacon & Cổ ngữ định vị mặt đất)
-            HitResult hit = player.raycast(180.0, 0.0f, false);
-            Vec3d targetPos;
-            if (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult bHit) {
-                targetPos = bHit.getBlockPos().toCenterPos();
-            } else {
-                targetPos = player.getEyePos().add(player.getRotationVec(1.0f).multiply(120.0));
-            }
-            Vec3d seedPos = targetPos.add(0, 20.0, 0);
-
-            // Cột sáng định vị vút cao 35m lên trời
-            for (int by = 0; by < 36; by += 4) {
-                sw.spawnParticles(ParticleTypes.END_ROD, targetPos.x, targetPos.y + by, targetPos.z, 2, 0.15, 0.15, 0.15, 0.02);
-                sw.spawnParticles(ParticleTypes.PORTAL, targetPos.x, targetPos.y + by, targetPos.z, 2, 0.3, 0.3, 0.3, 0.05);
-            }
-            // Vòng tròn mục tiêu mở rộng trên mặt đất
-            double targetRingRadius = 3.5 + progress * 14.0;
-            for (int r = 0; r < 12; r++) {
-                double a = r * Math.PI * 2.0 / 12.0;
-                sw.spawnParticles(ParticleTypes.ELECTRIC_SPARK,
-                        targetPos.x + Math.cos(a) * targetRingRadius, targetPos.y + 0.25, targetPos.z + Math.sin(a) * targetRingRadius,
-                        1, 0, 0.08, 0, 0.01);
-            }
-
-            sw.spawnParticles(ParticleTypes.END_ROD, seedPos.x, seedPos.y, seedPos.z, 2, 0.1, 0.1, 0.1, 0.02);
-            sw.spawnParticles(ParticleTypes.REVERSE_PORTAL, seedPos.x, seedPos.y, seedPos.z, 4, 0.5 + progress * 1.2, 0.5 + progress * 1.2, 0.5 + progress * 1.2, 0.08);
-
-            player.sendMessage(Text.literal("§c§l✦ Cosmic Supernova: " + meter + " ✦"), true);
-
             if (chargeTicks >= 140) {
                 SupernovaManager.cast(player);
-                player.getItemCooldownManager().set(this, 520);
+                player.getItemCooldownManager().set(this, net.godwand.config.GodWandConfig.cooldownTicks(520));
                 player.clearActiveItem();
-                player.sendMessage(Text.literal("§4§l✦ Cosmic Supernova Unleashed! ✦"), true);
+                player.sendMessage(Text.literal("§4Released."), true);
             }
         }
     }
@@ -409,6 +313,7 @@ public class GodWandItem extends Item {
     @Override
     public void onStoppedUsing(ItemStack stack, World world, LivingEntity user, int remainingUseTicks) {
         if (getSkillMode(stack) == MODE_SUPERNOVA) {
+            if (user instanceof ServerPlayerEntity player) SupernovaManager.cancelCharge(player);
             int chargeTicks = this.getMaxUseTime(stack, user) - remainingUseTicks;
             if (chargeTicks < 140) {
                 if (!world.isClient() && user instanceof PlayerEntity player) {
@@ -416,7 +321,7 @@ public class GodWandItem extends Item {
                             SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundCategory.PLAYERS, 2.0f, 0.8f);
                     world.playSound(null, player.getX(), player.getY(), player.getZ(),
                             SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.PLAYERS, 2.0f, 1.2f);
-                    player.sendMessage(Text.literal("§7§o[Cosmic Supernova Cancelled]"), true);
+                    player.sendMessage(Text.literal("§7§oCancelled."), true);
                 }
             }
             return;
@@ -435,7 +340,7 @@ public class GodWandItem extends Item {
                 }
 
                 RatioCollapseManager.cast(player, level);
-                player.getItemCooldownManager().set(this, 35);
+                player.getItemCooldownManager().set(this, net.godwand.config.GodWandConfig.cooldownTicks(35));
             }
             return;
         }
@@ -444,7 +349,7 @@ public class GodWandItem extends Item {
             if (!world.isClient() && user instanceof ServerPlayerEntity player) {
                 int chargeDuration = this.getMaxUseTime(stack, user) - remainingUseTicks;
                 StoneCannonManager.fire(player, chargeDuration);
-                player.getItemCooldownManager().set(this, 30);
+                player.getItemCooldownManager().set(this, net.godwand.config.GodWandConfig.cooldownTicks(30));
             }
             return;
         }
@@ -452,6 +357,7 @@ public class GodWandItem extends Item {
         if (getSkillMode(stack) != MODE_ARCANE_ORB) return;
 
         if (!world.isClient() && user instanceof PlayerEntity player) {
+            if (player.getItemCooldownManager().isCoolingDown(this)) return;
             int chargeDuration = this.getMaxUseTime(stack, user) - remainingUseTicks;
             int level = 1;
             if (chargeDuration >= 45) {
@@ -468,6 +374,7 @@ public class GodWandItem extends Item {
             Vec3d look = player.getRotationVec(1.0f);
             orb.setVelocity(look.x * 2.3, look.y * 2.3, look.z * 2.3);
             world.spawnEntity(orb);
+            player.getItemCooldownManager().set(this, net.godwand.config.GodWandConfig.cooldownTicks(20));
 
             // Powerful Arcane Recoil
             double recoilForce = switch (level) {
@@ -487,29 +394,23 @@ public class GodWandItem extends Item {
 
             // Muzzle Audio Layering
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.PLAYERS, 2.0f, 1.3f);
+                    SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 0.75f, 1.3f);
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.PLAYERS, 2.0f, 1.5f);
-            if (level == 3) {
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.PLAYERS, 2.5f, 1.0f);
-            }
+                    SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.PLAYERS, 0.65f, 1.5f);
         }
     }
 
     @Override
     public void appendTooltip(ItemStack stack, TooltipContext context, List<Text> tooltip, TooltipType type) {
         int mode = getSkillMode(stack);
-        tooltip.add(Text.literal("§7[Shift + Right-Click]: §eSwitch Skill"));
+        tooltip.add(Text.literal("§7[Shift + Right-Click]: §eSwitch skill"));
         switch (mode) {
-            case MODE_SPATIAL_PATH -> tooltip.add(Text.literal("§aSelected: §bSpatial Path Walker §7(Toggle)"));
-            case MODE_ARCANE_ORB -> tooltip.add(Text.literal("§aSelected: §dArcane Singularity §7(Hold to Charge)"));
-            case MODE_RATIO_COLLAPSE -> tooltip.add(Text.literal("§aSelected: §6Stone Cannon Drill §7(Hold to Charge)"));
-            case MODE_SUPERNOVA -> tooltip.add(Text.literal("§aSelected: §cCosmic Supernova §7(Hold to Unleash)"));
-            case MODE_STONE_CANNON -> tooltip.add(Text.literal("§aSelected: §6Aerodynamic Stone Cannon §7(Hold to Charge & Spin Drill)"));
+            case MODE_SPATIAL_PATH -> tooltip.add(Text.literal("§a§bSpatial Path §7(Toggle)"));
+            case MODE_ARCANE_ORB -> tooltip.add(Text.literal("§a§dSingularity §7(Hold to charge)"));
+            case MODE_RATIO_COLLAPSE -> tooltip.add(Text.literal("§a§6Earth Drill §7(Hold to charge)"));
+            case MODE_SUPERNOVA -> tooltip.add(Text.literal("§a§cSupernova §7(Hold to charge)"));
+            case MODE_STONE_CANNON -> tooltip.add(Text.literal("§a§6Stone Cannon §7(Hold to charge)"));
         }
-        tooltip.add(Text.literal("§8--------------------------------"));
-        tooltip.add(Text.translatable("item.godwand.god_wand.desc"));
         super.appendTooltip(stack, context, tooltip, type);
     }
 }

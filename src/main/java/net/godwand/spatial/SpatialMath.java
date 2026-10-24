@@ -8,6 +8,12 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 public final class SpatialMath {
+    public static Vec3d pathLooseBlockVelocity(Vec3d position, Vec3d center, Vec3d forward) {
+        Vec3d side = new Vec3d(-forward.z, 0, forward.x).normalize();
+        double sign = position.subtract(center).dotProduct(side) >= 0 ? 1 : -1;
+        return side.multiply(sign * 0.65).add(0, 0.18, 0);
+    }
+
     private static final Vector3f PIVOT = new Vector3f(0.5f, 0.5f, 0.5f);
 
     private SpatialMath() {}
@@ -98,11 +104,11 @@ public final class SpatialMath {
         // Tầng ngoài (perpDist > 2.0m): Hiệu ứng sóng chấn động nhấp nhô nhẹ trên mặt đất
         if (perpDist > 2.0) {
             double rippleFactor = Math.max(0.0, 1.0 - ((perpDist - 2.0) / 1.4));
-            double rippleLift = (0.28 + Math.max(0.0, spatialWave) * 0.42) * rippleFactor;
+            double rippleLift = 0.24 + (0.28 + Math.max(0.0, spatialWave) * 0.42) * rippleFactor;
             return new Vec3d(
-                pushDir.x * (0.35 * rippleFactor),
+                pushDir.x * (0.18 + 0.35 * rippleFactor),
                 rippleLift,
-                pushDir.z * (0.35 * rippleFactor)
+                pushDir.z * (0.18 + 0.35 * rippleFactor)
             );
         }
 
@@ -189,6 +195,57 @@ public final class SpatialMath {
 
     public static Vec3d computeAuraDisplacement(BlockPos pos, Vec3d playerPos, Vec3d lookDirHoriz, double auraRadius) {
         return computeDynamicAuraOffset(pos, playerPos, lookDirHoriz, auraRadius, 0);
+    }
+
+    public static boolean canOpenPathBlock(int blockY, double feetY, boolean allowDown) {
+        return allowDown || blockY + 1.0 > feetY + 0.125;
+    }
+
+    public static boolean supportsPathFeet(net.minecraft.util.math.Box surface, net.minecraft.util.math.Box player) {
+        return surface.minY < player.minY && surface.maxY <= player.minY + 0.125
+                && surface.maxY >= player.minY - 0.0625
+                && surface.maxX > player.minX && surface.minX < player.maxX
+                && surface.maxZ > player.minZ && surface.minZ < player.maxZ;
+    }
+
+    public static double distanceToPathAura(Vec3d block, Vec3d chest, Vec3d look, double lead) {
+        double y = chest.y + (block.y - chest.y) * (block.y > chest.y ? 3.3 / 3.7 : 1.0);
+        return distanceToAuraSpine(new Vec3d(block.x, y, block.z), chest, look, lead);
+    }
+
+    public static Vec3d auraArrowIntersection(Vec3d start, Vec3d end, Vec3d center) {
+        Vec3d a = start.subtract(center).multiply(1 / 3.3, 1 / 3.3, 1 / 3.3);
+        Vec3d d = end.subtract(start).multiply(1 / 3.3, 1 / 3.3, 1 / 3.3);
+        double aa = d.lengthSquared();
+        if (aa < 1.0e-10) return null;
+        double b = a.dotProduct(d), c = a.lengthSquared() - 1;
+        double determinant = b * b - aa * c;
+        if (determinant < 0) return null;
+        double t = c <= 0 ? 0 : (-b - Math.sqrt(determinant)) / aa;
+        if (t < 0 || t > 1) return null;
+        Vec3d hit = start.lerp(end, t);
+        if (end.subtract(start).dotProduct(hit.subtract(center)) >= 0) return null;
+        return hit;
+    }
+
+    public static Vec3d deflectAuraArrow(Vec3d velocity, Vec3d normal) {
+        Vec3d tangent = normal.crossProduct(new Vec3d(0, 1, 0));
+        if (tangent.lengthSquared() < 0.001) tangent = normal.crossProduct(new Vec3d(1, 0, 0));
+        tangent = tangent.normalize();
+        if (tangent.dotProduct(velocity) < 0) tangent = tangent.negate();
+        return normal.multiply(0.65).add(tangent.multiply(0.75)).normalize().multiply(velocity.length() * 0.55);
+    }
+
+    public static Vec3d auraMobVelocity(Vec3d velocity, Vec3d normal, double distance) {
+        double radial = velocity.dotProduct(normal);
+        double force = MathHelper.clamp((4.3 - distance) * 0.12, 0.04, 0.32);
+        Vec3d response = velocity.add(normal.multiply(Math.max(force, radial) - radial));
+        return new Vec3d(response.x, MathHelper.clamp(response.y, -0.15, 0.15), response.z);
+    }
+
+    public static float auraVisibility(double facing) {
+        double t = MathHelper.clamp((facing - 0.25) / 0.65, 0, 1);
+        return (float) (1 - 0.94 * t * t * (3 - 2 * t));
     }
 
     public static double distanceToAuraSpine(Vec3d blockCenter, Vec3d chestPos, Vec3d lookDirHoriz, double forwardLead) {

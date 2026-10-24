@@ -1,5 +1,16 @@
 {
   "item.godwand.god_wand": "God Wand",
-  "item.godwand.god_wand.desc": "§bSpatial Path Walker §7| §dArcane Singularity §7| §6Stone Cannon Drill §7| §cCosmic Supernova §7| §eStone Cannon",
-  "entity.godwand.stone_cannon": "Stone Cannon"
+  "item.godwand.god_wand.desc": "Spatial Path | Singularity | Earth Drill | Supernova | Stone Cannon",
+  "entity.godwand.stone_cannon": "Stone Cannon",
+  "itemGroup.godwand.tab": "God Wand",
+  "key.godwand.skill_wheel": "Skill wheel",
+  "key.categories.godwand": "God Wand",
+  "gui.godwand.keep": "Keep current skill",
+  "gui.godwand.release": "Release %s to select",
+  "gui.godwand.cancel": "Esc  /  Cancel",
+  "skill.godwand.0": "Spatial Path",
+  "skill.godwand.1": "Singularity",
+  "skill.godwand.2": "Earth Drill",
+  "skill.godwand.3": "Supernova",
+  "skill.godwand.4": "Stone Cannon"
 }

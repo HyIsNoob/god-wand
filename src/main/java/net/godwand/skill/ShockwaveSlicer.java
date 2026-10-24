@@ -39,6 +39,7 @@ public class ShockwaveSlicer {
         public final ServerPlayerEntity caster;
 
         public final List<BlockPos> displayedPositions = new ArrayList<>();
+        public final Map<BlockPos, BlockDisplayEntity> beams = new HashMap<>();
         public final List<BlockPos> interiorPositions = new ArrayList<>();
         public final Map<BlockPos, Vec3d> fullExpansionMap = new HashMap<>();
         public final Map<BlockPos, Quaternionf> baseRotationMap = new HashMap<>();
@@ -249,7 +250,7 @@ public class ShockwaveSlicer {
         ACTIVE_TASKS.add(task);
 
         if (caster != null) {
-            caster.sendMessage(Text.literal("§d§l✦ Singularity Deployed! [Right-Click to Recall] ✦"), true);
+            caster.sendMessage(Text.literal("§dDeployed. Click to collapse."), true);
         }
     }
 
@@ -311,6 +312,7 @@ public class ShockwaveSlicer {
     }
 
     public static boolean triggerEarlySnap(ServerPlayerEntity player) {
+        if (player.getItemCooldownManager().isCoolingDown(net.godwand.GodWandMod.GOD_WAND_ITEM)) return false;
         for (SingularityTask task : ACTIVE_TASKS) {
             if (!task.restored && !task.earlySnapped) {
                 if (task.caster == null || task.caster == player || task.caster.getUuid().equals(player.getUuid())) {
@@ -326,16 +328,17 @@ public class ShockwaveSlicer {
         task.earlySnapped = true;
         task.earlySnapTick = task.ageTicks;
         task.snappedBack = true;
+        sendThreadFx(task, 4);
 
         ServerWorld world = task.world;
 
         // 1. Audio feedback uy lực
         world.playSound(null, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
-                SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.BLOCKS, 3.8f, 1.8f);
+                SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.BLOCKS, 0.4f, 1.8f);
         world.playSound(null, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
-                SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.BLOCKS, 3.2f, 1.6f);
-        world.playSound(null, task.center, SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.PLAYERS, 3.5f, 0.8f);
-        world.playSound(null, task.center, SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.BLOCKS, 3.5f, 0.7f);
+                SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.BLOCKS, 0.45f, 1.6f);
+        world.playSound(null, task.center, SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.PLAYERS, 0.65f, 0.8f);
+        world.playSound(null, task.center, SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.BLOCKS, 0.45f, 0.7f);
 
         // 2. Sát thương nghiền nát (45 - 125) & Lực hút trọng trường kéo tụt mục tiêu xuống đáy hố
         Box snapBox = new Box(task.center).expand(task.maxRadius * 1.15);
@@ -344,7 +347,7 @@ public class ShockwaveSlicer {
             double dist = diff.length();
             if (dist <= task.maxRadius * 1.15) {
                 float dmg = (float) Math.max(45.0, (1.0 - (dist / (task.maxRadius * 1.15))) * 80.0 + 45.0);
-                e.damage(world.getDamageSources().fallingBlock(task.caster), dmg);
+                e.damage(world.getDamageSources().fallingBlock(task.caster), (e instanceof net.minecraft.entity.mob.MobEntity ? 2.0f : 1.0f) * (dmg));
 
                 Vec3d pull = (dist > 0.01) ? diff.normalize().multiply(1.9).add(0, -0.9, 0) : new Vec3d(0, -1.0, 0);
                 e.setVelocity(pull);
@@ -362,6 +365,7 @@ public class ShockwaveSlicer {
 
             display.setStartInterpolation(0);
             display.setInterpolationDuration(4);
+            updateBeam(task, pos, Vec3d.ZERO, 4);
             display.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 1.0f));
         }
 
@@ -396,6 +400,7 @@ public class ShockwaveSlicer {
             // Xử lý Early Snap: Thu toàn bộ block về thần tốc trong 4 ticks, gây sát thương nghiền nát và chôn vùi (Entombment)
             if (task.earlySnapped) {
                 int ticksSinceSnap = task.ageTicks - task.earlySnapTick;
+                if (ticksSinceSnap < 4) animateReturn(task, ticksSinceSnap / 3f);
                 if (ticksSinceSnap < 4) {
                     world.spawnParticles(ParticleTypes.REVERSE_PORTAL, task.center.getX() + 0.5, task.center.getY() + 1.0, task.center.getZ() + 0.5, 16, 1.5, 1.0, 1.5, 0.2);
                     world.spawnParticles(new DustParticleEffect(new Vector3f(0.0f, 0.95f, 1.0f), 1.5f), task.orbCenter.x, task.orbCenter.y, task.orbCenter.z, 12, 0.8, 0.8, 0.8, 0.3);
@@ -406,7 +411,8 @@ public class ShockwaveSlicer {
                 continue;
             }
 
-            // Duy trì 3 vòng Particle bay tốc độ cao quanh khối cầu năng lượng từ lúc nổ đến lúc thu về
+            // Refresh references for clients entering the area after the cast.
+            if (task.ageTicks <= 105 && task.ageTicks % 20 == 0) sendThreadFx(task, 0);
             if (task.ageTicks <= 112) {
                 double ringR = (task.ageTicks <= 105) ? 1.55 : Math.max(0.2, 1.55 * (1.0 - (task.ageTicks - 105) / 7.0));
                 spawnThreeOrbitalParticleRings(world, task.orbCenter, task.ageTicks, ringR);
@@ -419,7 +425,7 @@ public class ShockwaveSlicer {
                 if (task.ageTicks % 2 == 0) {
                     float t = task.ageTicks / 22.0f;
                     double p = 1.0 - Math.pow(1.0 - t, 3.0);
-                    updateBlockPositions(task, p, 2, false);
+                    updateBlockPositions(task, p, 2);
 
                     // Sóng năng lượng bung tỏa kiểu Orbital Railgun phóng ra ngoài
                     double outProg = task.ageTicks / 22.0;
@@ -446,10 +452,7 @@ public class ShockwaveSlicer {
             // Không bao giờ bị giật ở Tick 23 nhờ góc xoay nối tiếp liên tục từ 0.0!
             // =========================================================================
             else if (task.ageTicks <= 105) {
-                if ((task.ageTicks - 22) % 4 == 0) {
-                    double p = 1.0 + 0.06 * ((task.ageTicks - 22) / 83.0);
-                    updateBlockPositions(task, p, 4, true);
-                }
+                // The final expansion transform is held unchanged until recall.
             }
 
             // =========================================================================
@@ -477,7 +480,7 @@ public class ShockwaveSlicer {
                 // Ticks 106..111: Nhích nhẹ lấy đà (+4%) từ ĐÚNG vị trí & góc xoay hiện tại (không reset góc xoay gây giật!)
                 if (task.ageTicks == 106) {
                     world.playSound(null, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
-                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, 3.0f, 1.5f);
+                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, 0.55f, 1.5f);
 
                     for (BlockPos pos : task.displayedPositions) {
                         DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
@@ -491,6 +494,8 @@ public class ShockwaveSlicer {
 
                         display.setStartInterpolation(0);
                         display.setInterpolationDuration(5);
+                        updateBeam(task, pos, curOff.multiply(1.04), 5);
+                        task.lastOffsetMap.put(pos, curOff.multiply(1.04));
                         display.setTransformation(SpatialMath.createPivotTransform(curOff.multiply(1.04), curRot, scale));
                     }
                 }
@@ -498,11 +503,12 @@ public class ShockwaveSlicer {
                 // Ticks 112..130: Vacuum Snap-Back — Thu toàn bộ block về đúng ô gốc (0,0,0), góc xoay (0,0,0) và trả scale về đúng 1.0f!
                 if (task.ageTicks == 112 && !task.snappedBack) {
                     task.snappedBack = true;
+                    sendThreadFx(task, 18);
 
                     world.playSound(null, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
-                            SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.BLOCKS, 3.5f, 1.6f);
+                            SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.BLOCKS, 0.9f, 1.6f);
                     world.playSound(null, task.orbCenter.x, task.orbCenter.y, task.orbCenter.z,
-                            SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.BLOCKS, 3.0f, 1.8f);
+                            SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.BLOCKS, 0.45f, 1.8f);
 
                     for (BlockPos pos : task.displayedPositions) {
                         DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
@@ -514,11 +520,13 @@ public class ShockwaveSlicer {
                         // TRẢ SCALE VỀ ĐÚNG 1.0f ĐỂ KHỚP KHÍT TỪNG Ô GẠCH TRƯỚC KHI ĐẶT BLOCK THẬT!
                         display.setStartInterpolation(0);
                         display.setInterpolationDuration(18);
+                        updateBeam(task, pos, Vec3d.ZERO, 18);
                         display.setTransformation(SpatialMath.createPivotTransform(Vec3d.ZERO, new Quaternionf(), 1.0f));
                     }
                 }
 
                 // Tick 131: Dọn dẹp thực thể và khôi phục địa hình 1:1 ngay khi kết thúc nội suy 18 ticks (112 + 18 = 130)
+                if (task.ageTicks >= 112 && task.ageTicks <= 130) animateReturn(task, (task.ageTicks - 112) / 16f);
                 if (task.ageTicks >= 131 && !task.restored) {
                     executeRestoration(task);
                     it.remove();
@@ -527,7 +535,30 @@ public class ShockwaveSlicer {
         }
     }
 
+    public static float returnProgress(float progress) {
+        float t = MathHelper.clamp(progress, 0, 1);
+        return t * t * (3 - 2 * t);
+    }
+
+    private static void animateReturn(SingularityTask task, float progress) {
+        float t = returnProgress(progress);
+        for (BlockPos pos : task.displayedPositions) {
+            var record = SpatialDisplacementManager.getActiveRecord(task.world.getRegistryKey(), pos);
+            if (record == null || record.displayEntityUuid == null) continue;
+            var display = SpatialDisplacementManager.getActiveEntity(record.displayEntityUuid);
+            if (display == null || !display.isAlive()) continue;
+            Vec3d offset = task.lastOffsetMap.getOrDefault(pos, Vec3d.ZERO).multiply(1 - t);
+            Quaternionf rotation = new Quaternionf(task.lastRotationMap.getOrDefault(pos, new Quaternionf())).slerp(new Quaternionf(), t);
+            float scale = MathHelper.lerp(t, task.blockScaleMap.getOrDefault(pos, 1f), 1f);
+            display.setStartInterpolation(0);
+            display.setInterpolationDuration(1);
+            display.setTransformation(SpatialMath.createPivotTransform(offset, rotation, scale));
+            updateBeam(task, pos, offset, 1);
+        }
+    }
+
     private static void executeRestoration(SingularityTask task) {
+        clearBeams(task);
         task.restored = true;
         ServerWorld world = task.world;
 
@@ -554,17 +585,15 @@ public class ShockwaveSlicer {
             BlockState eyeState = world.getBlockState(eyePos);
             boolean inSolid = feetState.isOpaqueFullCube(world, feetPos) || eyeState.isOpaqueFullCube(world, eyePos);
             if (inSolid) {
-                e.damage(task.caster != null ? world.getDamageSources().fallingBlock(task.caster) : world.getDamageSources().inWall(), 35.0f);
+                e.damage(task.caster != null ? world.getDamageSources().fallingBlock(task.caster) : world.getDamageSources().inWall(), (e instanceof net.minecraft.entity.mob.MobEntity ? 2.0f : 1.0f) * (35.0f));
                 BlockState blockToBreak = feetState.isOpaqueFullCube(world, feetPos) ? feetState : eyeState;
                 world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, blockToBreak),
                         e.getX(), e.getY() + 0.5, e.getZ(), 24, 0.3, 0.5, 0.3, 0.15);
-                world.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.ENTITY_PLAYER_HURT_SWEET_BERRY_BUSH, SoundCategory.PLAYERS, 1.5f, 0.6f);
-                world.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.BLOCK_STONE_BREAK, SoundCategory.BLOCKS, 1.5f, 0.8f);
             }
         }
 
         if (task.caster != null) {
-            task.caster.sendMessage(Text.literal("§d§l✦ Singularity Restored! Targets Entombed! ✦"), true);
+            task.caster.sendMessage(Text.literal("§dCollapsed!"), true);
         }
 
         // Hiệu ứng chớp sáng Manga & rung chấn cực mạnh khi địa hình khóa sập 1:1 liền mạch
@@ -609,9 +638,8 @@ public class ShockwaveSlicer {
         world.playSound(null, task.center, SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.BLOCKS, 2.8f, 1.8f);
     }
 
-    private static void updateBlockPositions(SingularityTask task, double progress, int duration, boolean chaoticTumble) {
-        int driftTicks = Math.max(0, task.ageTicks - 22);
-        float smoothBlend = Math.min(1.0f, driftTicks / 20.0f);
+    private static void updateBlockPositions(SingularityTask task, double progress, int duration) {
+        int previousBeamCount = task.beams.size();
 
         for (BlockPos pos : task.displayedPositions) {
             DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(task.world.getRegistryKey(), pos);
@@ -624,28 +652,23 @@ public class ShockwaveSlicer {
             Quaternionf rot = task.baseRotationMap.getOrDefault(pos, new Quaternionf());
             float scale = task.blockScaleMap.getOrDefault(pos, 1.0f);
 
-            Vec3d curOffset;
-            Quaternionf currentRot;
+            Vec3d curOffset = fullExp.multiply(progress);
+            Quaternionf currentRot = rot;
 
-            if (chaoticTumble && driftTicks > 0) {
-                // Bắt đầu từ 0.0 tại Tick 22 -> Tuyệt đối không bao giờ bị giật!
-                float spinRate = 0.015f + (float) SpatialMath.hash01(pos) * 0.025f;
-                float deltaAngle = driftTicks * spinRate;
-                Vector3f tumbleAxis = new Vector3f(
-                        (float) (SpatialMath.hash01(pos.north()) - 0.5),
-                        (float) (SpatialMath.hash01(pos.up()) - 0.5),
-                        (float) (SpatialMath.hash01(pos.east()) - 0.5)
-                );
-                if (tumbleAxis.lengthSquared() < 0.001f) tumbleAxis.set(0, 1, 0);
-                tumbleAxis.normalize();
-
-                currentRot = new Quaternionf(rot).rotateAxis(deltaAngle, tumbleAxis.x, tumbleAxis.y, tumbleAxis.z);
-
-                double bob = Math.sin(driftTicks * 0.10 + SpatialMath.hash01(pos) * 6.28) * 0.22 * smoothBlend;
-                curOffset = fullExp.multiply(progress).add(0, bob, 0);
-            } else {
-                curOffset = fullExp.multiply(progress);
-                currentRot = rot;
+            int index = task.displayedPositions.indexOf(pos);
+            int beamStride = Math.max(1, (task.displayedPositions.size() + 143) / 144);
+            if (index % beamStride == 0) {
+                BlockDisplayEntity beam = task.beams.get(pos);
+                if (beam == null) {
+                    beam = new BlockDisplayEntity(net.minecraft.entity.EntityType.BLOCK_DISPLAY, task.world);
+                    beam.addCommandTag("godwand_displaced");
+                    beam.setPosition(task.orbCenter);
+                    beam.setBlockState(net.minecraft.block.Blocks.AMETHYST_BLOCK.getDefaultState());
+                    beam.setBrightness(new net.minecraft.entity.decoration.Brightness(15, 15));
+                    task.world.spawnEntity(beam);
+                    task.beams.put(pos, beam);
+                }
+                updateBeam(task, pos, curOffset, duration);
             }
 
             task.lastOffsetMap.put(pos, curOffset);
@@ -655,13 +678,35 @@ public class ShockwaveSlicer {
             display.setInterpolationDuration(duration);
             display.setTransformation(SpatialMath.createPivotTransform(curOffset, currentRot, scale));
         }
+        if (task.beams.size() != previousBeamCount) sendThreadFx(task, 0);
+    }
+
+    private static void sendThreadFx(SingularityTask task, int recallTicks) {
+        if (task.beams.isEmpty()) return;
+        var ids = task.beams.values().stream().filter(BlockDisplayEntity::isAlive).map(BlockDisplayEntity::getId).toList();
+        var payload = new net.godwand.network.SingularityThreadsPayload(ids, recallTicks);
+        for (var player : PlayerLookup.around(task.world, task.orbCenter, 96)) ServerPlayNetworking.send(player, payload);
     }
 
     public static int getActiveTaskCount() {
         return ACTIVE_TASKS.size();
     }
 
+    private static void updateBeam(SingularityTask task, BlockPos pos, Vec3d offset, int duration) {
+        BlockDisplayEntity beam = task.beams.get(pos);
+        if (beam == null) return;
+        beam.setStartInterpolation(0);
+        beam.setInterpolationDuration(duration);
+        beam.setTransformation(SpatialMath.createThinBeamTransform(task.orbCenter, pos.toCenterPos().add(offset), 0.012f));
+    }
+
+    private static void clearBeams(SingularityTask task) {
+        task.beams.values().forEach(BlockDisplayEntity::discard);
+        task.beams.clear();
+    }
+
     public static void clearAllTasks() {
+        ACTIVE_TASKS.forEach(ShockwaveSlicer::clearBeams);
         ACTIVE_TASKS.clear();
     }
 }

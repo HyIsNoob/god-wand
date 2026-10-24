@@ -7,3 +7,4 @@ others/
 bin/
 
 .vscode/
+.local-backups/

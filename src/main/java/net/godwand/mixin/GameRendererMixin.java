@@ -16,6 +16,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin {
 
+    @Inject(method = "renderWorld", at = @At(value = "INVOKE", target =
+            "Lnet/minecraft/client/render/WorldRenderer;render(Lnet/minecraft/client/render/RenderTickCounter;ZLnet/minecraft/client/render/Camera;Lnet/minecraft/client/render/GameRenderer;Lnet/minecraft/client/render/LightmapTextureManager;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V",
+            shift = At.Shift.AFTER))
+    private void godwand$afterWorldComposite(CallbackInfo ci) {
+        net.godwand.client.GodWandPostFxManager.renderAfterWorld();
+    }
+
     /**
      * Bơm Trauma Screen Shake trực tiếp vào ma trận góc nhìn Camera
      */

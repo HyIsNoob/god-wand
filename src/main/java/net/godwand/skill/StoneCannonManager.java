@@ -5,7 +5,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.godwand.entity.StoneCannonProjectileEntity;
 import net.godwand.network.CinematicFxPayload;
 import net.godwand.network.ImpactFxPayload;
-import net.godwand.spatial.DisplacedBlockRecord;
 import net.godwand.spatial.SpatialDisplacementManager;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -18,12 +17,10 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
-import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 public class StoneCannonManager {
@@ -71,13 +68,109 @@ public class StoneCannonManager {
         };
     }
 
+    public static boolean insideDrillSweep(Vec3d point, Vec3d start, Vec3d end, double radius, double length) {
+        Vec3d travel = end.subtract(start);
+        double distance = travel.length();
+        if (distance < 1.0e-6) return false;
+        Vec3d axis = travel.multiply(1.0 / distance);
+        Vec3d relative = point.subtract(start);
+        double axial = relative.dotProduct(axis);
+        if (axial < -length || axial > distance) return false;
+        double coneRadius = radius * Math.min(1.0, (distance - axial) / length);
+        return relative.lengthSquared() - axial * axial <= coneRadius * coneRadius;
+    }
+
+    private static Vec3d excavateImpact(StoneCannonProjectileEntity projectile, Vec3d start, Vec3d end) {
+        ServerWorld world = (ServerWorld) projectile.getWorld();
+        Vec3d travel = end.subtract(start);
+        int steps = Math.max(1, (int) Math.ceil(travel.length() * 4));
+        // Stop at protected terrain or unloaded chunks before excavating anything beyond them.
+        for (int i = 0; i <= steps; i++) {
+            Vec3d sample = start.lerp(end, (double) i / steps);
+            BlockPos pos = BlockPos.ofFloored(sample);
+            if (!world.isChunkLoaded(pos) || !world.isInBuildLimit(pos)
+                    || world.getBlockState(pos).getHardness(world, pos) < 0) {
+                end = start.lerp(end, Math.max(0, i - 1) / (double) steps);
+                break;
+            }
+        }
+        var barrier = world.raycast(new net.minecraft.world.RaycastContext(start, end,
+                net.minecraft.world.RaycastContext.ShapeType.COLLIDER,
+                net.minecraft.world.RaycastContext.FluidHandling.NONE, projectile) {
+            @Override
+            public net.minecraft.util.shape.VoxelShape getBlockShape(BlockState state, net.minecraft.world.BlockView view, BlockPos pos) {
+                return state.getHardness(view, pos) < 0 ? net.minecraft.util.shape.VoxelShapes.fullCube()
+                        : net.minecraft.util.shape.VoxelShapes.empty();
+            }
+        });
+        if (barrier.getType() != HitResult.Type.MISS) end = start.lerp(barrier.getPos(), 0.9999);
+        if (start.squaredDistanceTo(end) < 1.0e-6) return start;
+        double radius = 0.65 + projectile.getChargeLevel() * 0.28;
+        double length = radius * 3.2;
+        Vec3d axis = travel.normalize();
+        Vec3d tail = start.subtract(axis.multiply(length));
+        Box bounds = new Box(tail, end).expand(radius + 0.9);
+        int debris = 0;
+        boolean removedDisplacement = false;
+        for (BlockPos pos : BlockPos.iterate((int) Math.floor(bounds.minX), (int) Math.floor(bounds.minY),
+                (int) Math.floor(bounds.minZ), (int) Math.ceil(bounds.maxX), (int) Math.ceil(bounds.maxY),
+                (int) Math.ceil(bounds.maxZ))) {
+            if (!world.isInBuildLimit(pos) || !world.isChunkLoaded(pos)) continue;
+            // Half the voxel diagonal includes edge-grazing blocks at the pointed nose.
+            if (!insideDrillSweep(pos.toCenterPos(), start, end.add(axis.multiply(0.87)), radius + 0.87, length)) continue;
+            BlockState state = world.getBlockState(pos);
+            if (state.getHardness(world, pos) < 0) continue;
+            var displaced = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+            if (displaced != null) {
+                SpatialDisplacementManager.removeActiveRecord(world.getRegistryKey(), pos);
+                removedDisplacement = true;
+            }
+            if (state.isAir()) continue;
+            world.breakBlock(pos, false, projectile.getOwner(), 0);
+            if (debris++ < 6) {
+                world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, state),
+                        pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 2, 0.2, 0.2, 0.2, 0.06);
+            }
+        }
+        if (removedDisplacement) net.godwand.spatial.DisplacementPersistentState.getServerState(world).markDirty();
+        return end;
+    }
+
     /**
      * Vận chiêu Stone Cannon (Mũi khoan đá hình thành trước ngực + Gió cuộn xoáy khí động học)
      */
+    public static float chargeStoneVolume(int ticks) {
+        return .28f + .14f * Math.clamp(ticks / 80f, 0, 1);
+    }
+
     public static void tickCharge(ServerPlayerEntity player, int chargeTicks, int level) {
         ServerWorld sw = player.getServerWorld();
         Vec3d look = player.getRotationVec(1.0f);
         Vec3d focusPos = player.getEyePos().add(look.multiply(2.0)).add(0, -0.22, 0);
+
+        if (chargeTicks == 0) {
+            // Tiếng đá nén và va đập tạo khối cực mạnh, dứt khoát
+            sw.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.PLAYERS, 1.1f, 0.75f);
+            sw.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_DEEPSLATE_BREAK, SoundCategory.PLAYERS, 1.0f, 0.65f);
+            sw.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.PLAYERS, 0.55f, 1.6f);
+        }
+        // Các lớp đá va đập khớp nối thành hình mũi khoan cực nhanh và lực (chỉ trong 10 ticks đầu)
+        if (chargeTicks == 3) {
+            sw.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_BASALT_PLACE, SoundCategory.PLAYERS, 0.95f, 1.25f);
+            sw.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_DEEPSLATE_PLACE, SoundCategory.PLAYERS, 0.9f, 1.15f);
+        } else if (chargeTicks == 6) {
+            sw.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_STONE_PLACE, SoundCategory.PLAYERS, 0.95f, 1.35f);
+            sw.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_ANVIL_PLACE, SoundCategory.PLAYERS, 0.45f, 1.7f);
+        } else if (chargeTicks == 10) {
+            sw.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_HEAVY_CORE_STEP, SoundCategory.PLAYERS, 1.0f, 1.3f);
+            sw.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_BASALT_BREAK, SoundCategory.PLAYERS, 0.85f, 1.4f);
+        }
+        if (chargeTicks >= 0 && chargeTicks % 12 == 0) {
+            sw.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_GRINDSTONE_USE, SoundCategory.PLAYERS,
+                    chargeStoneVolume(chargeTicks), .65f + Math.min(chargeTicks, 80) * .008f);
+            if (chargeTicks < 50) sw.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_BASALT_HIT,
+                    SoundCategory.PLAYERS, .28f, .8f + chargeTicks * .006f);
+        }
 
         // 1. Quy tụ đất đá từ mặt đất xung quanh người chơi bay về mũi khoan
         if (chargeTicks % 2 == 0) {
@@ -98,22 +191,6 @@ public class StoneCannonManager {
         }
 
         // 2. Quy tụ hạt bụi đá ma sát nén và tia lửa điện cao tần (Hiệu ứng gió xoáy Ribbon được render mượt mà 3D ở Client)
-        Vec3d up = Math.abs(look.y) < 0.99 ? new Vec3d(0, 1, 0) : new Vec3d(0, 0, 1);
-        Vec3d tangent = look.crossProduct(up).normalize();
-        Vec3d binormal = look.crossProduct(tangent).normalize();
-
-        // 3. Vòng quay ma sát cao độ tại lõi mũi khoan
-        int corePoints = 8;
-        double coreR = 0.28 + level * 0.10;
-        double coreSpin = chargeTicks * (0.45 + level * 0.35);
-        for (int p = 0; p < corePoints; p++) {
-            double ang = coreSpin + (p * 2.0 * Math.PI / corePoints);
-            Vec3d cp = focusPos.add(tangent.multiply(coreR * Math.cos(ang)))
-                    .add(binormal.multiply(coreR * Math.sin(ang)));
-            sw.spawnParticles(new DustParticleEffect(new Vector3f(0.85f, 0.78f, 0.58f), 1.25f),
-                    cp.x, cp.y, cp.z, 1, 0, 0, 0, 0);
-        }
-
         if (level >= 3 && chargeTicks % 2 == 0) {
             sw.spawnParticles(ParticleTypes.ELECTRIC_SPARK, focusPos.x, focusPos.y, focusPos.z,
                     3, 0.15, 0.15, 0.15, 0.05);
@@ -121,13 +198,8 @@ public class StoneCannonManager {
 
         // 4. Âm thanh thăng cấp tầng lực
         if (chargeTicks == 25 || chargeTicks == 50 || chargeTicks == 80) {
-            float pitch = (level == 4) ? 2.0f : (level == 3) ? 1.5f : 1.1f;
             sw.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.PLAYERS, 2.0f, pitch);
-            sw.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 2.0f, pitch);
-            sw.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.ITEM_ELYTRA_FLYING, SoundCategory.PLAYERS, 2.0f, pitch);
+                    SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.PLAYERS, 0.65f, 0.85f + level * 0.15f);
         }
 
         // 5. Rung chấn Camera (Trauma Shake)
@@ -169,13 +241,13 @@ public class StoneCannonManager {
         sw.spawnParticles(ParticleTypes.SWEEP_ATTACK, spawnPos.x, spawnPos.y, spawnPos.z, 3, 0.2, 0.2, 0.2, 0.05);
 
         sw.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.PLAYERS, 3.2f, 1.6f);
+                SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.PLAYERS, 1.15f, 1.4f);
         sw.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.PLAYERS, 3.0f, 0.8f);
+                SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.PLAYERS, 0.85f, 0.8f);
         sw.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.PLAYERS, 2.5f, 1.4f);
+                SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.PLAYERS, 0.65f, 1.4f);
 
-        player.sendMessage(Text.literal("§6§l✦ Stone Cannon Fired! [Level " + level + "] ✦"), true);
+        player.sendMessage(Text.literal("Fired."), true);
     }
 
     /**
@@ -185,74 +257,30 @@ public class StoneCannonManager {
         int level = projectile.getChargeLevel();
         Vec3d hitPos = hit.getPos();
         ServerWorld sw = (ServerWorld) projectile.getWorld();
-
-        // 1. Sát thương xuyên thấu trực tiếp vào mục tiêu bị đâm trúng
-        if (hit instanceof EntityHitResult ehr && ehr.getEntity() instanceof LivingEntity victim) {
-            float directDmg = calculateDirectDamage(level);
-            victim.damage(sw.getDamageSources().fallingBlock(projectile.getOwner()), directDmg);
+        Vec3d direction = projectile.getVelocity().normalize();
+        Vec3d surfaceNormal = hit instanceof net.minecraft.util.hit.BlockHitResult blockHit
+                ? Vec3d.of(blockHit.getSide().getVector()) : direction.negate();
+        var pressure = new net.godwand.network.CannonPressurePayload(hitPos, direction, level, surfaceNormal);
+        for (var player : PlayerLookup.around(sw, hitPos, 96)) ServerPlayNetworking.send(player, pressure);
+        excavateImpact(projectile, hitPos, hitPos.add(direction.multiply(3.0 + level * 1.5)));
+        if (hit instanceof net.minecraft.util.hit.EntityHitResult entityHit && entityHit.getEntity() instanceof LivingEntity victim
+                && victim != projectile.getOwner() && projectile.markHit(victim)) {
+            victim.damage(sw.getDamageSources().fallingBlock(projectile.getOwner()), calculateDirectDamage(level)
+                    * (victim instanceof net.minecraft.entity.mob.MobEntity ? 2.0f : 1.0f));
         }
-
-        // 2. Sát thương chấn động diện rộng (AOE Blast & Shockwave)
         double blastRadius = calculateCraterRadius(level) * 1.25;
         Box aoeBox = new Box(hitPos.x - blastRadius, hitPos.y - blastRadius, hitPos.z - blastRadius,
                 hitPos.x + blastRadius, hitPos.y + blastRadius, hitPos.z + blastRadius);
 
         for (LivingEntity e : sw.getEntitiesByClass(LivingEntity.class, aoeBox, ent -> ent != projectile.getOwner() && ent.isAlive())) {
             double dist = e.getPos().distanceTo(hitPos);
-            if (dist <= blastRadius) {
+            if (dist <= blastRadius && projectile.markHit(e)) {
                 float splashDmg = (float) Math.max(30.0, (1.0 - (dist / blastRadius)) * (calculateDirectDamage(level) * 0.75) + 30.0);
-                e.damage(sw.getDamageSources().fallingBlock(projectile.getOwner()), splashDmg);
+                e.damage(sw.getDamageSources().fallingBlock(projectile.getOwner()), (e instanceof net.minecraft.entity.mob.MobEntity ? 2.0f : 1.0f) * (splashDmg));
                 Vec3d blastDir = e.getPos().subtract(hitPos);
                 Vec3d push = (blastDir.length() > 0.01) ? blastDir.normalize().multiply(1.8).add(0, 0.65, 0) : new Vec3d(0, 1.2, 0);
                 e.setVelocity(push);
                 e.velocityModified = true;
-            }
-        }
-
-        // 3. Kích phá tường / mặt đất (Spatial Crater Excavation with Clean Auto-Restoration)
-        double craterR = calculateCraterRadius(level);
-        BlockPos centerPos = BlockPos.ofFloored(hitPos);
-        int intR = (int) Math.ceil(craterR);
-        double rSq = craterR * craterR;
-        BlockPos.Mutable mutable = new BlockPos.Mutable();
-        int displacedCount = 0;
-
-        for (int x = -intR; x <= intR && displacedCount < 120; x++) {
-            for (int y = -intR; y <= intR && displacedCount < 120; y++) {
-                for (int z = -intR; z <= intR && displacedCount < 120; z++) {
-                    double dSq = x * x + y * y + z * z;
-                    if (dSq > rSq) continue;
-
-                    mutable.set(centerPos.getX() + x, centerPos.getY() + y, centerPos.getZ() + z);
-                    BlockState state = sw.getBlockState(mutable);
-                    if (!SpatialDisplacementManager.canDisplace(sw, mutable, state)) continue;
-
-                    Vec3d radDir = mutable.toCenterPos().subtract(hitPos);
-                    double rDist = radDir.length();
-                    Vec3d outwardDisp = (rDist > 0.1)
-                            ? radDir.normalize().multiply(2.2 + sw.random.nextDouble() * 2.8).add(0, 1.2 + sw.random.nextDouble() * 1.5, 0)
-                            : new Vec3d(0, 2.5, 0);
-
-                    Quaternionf rot = new Quaternionf()
-                            .rotateY((float) (sw.random.nextDouble() * Math.PI * 2.0))
-                            .rotateX((float) (sw.random.nextDouble() * Math.PI));
-
-                    SpatialDisplacementManager.displaceBlock(
-                            sw,
-                            mutable,
-                            new Vector3f((float) outwardDisp.x, (float) outwardDisp.y, (float) outwardDisp.z),
-                            rot,
-                            new Vector3f(1.0f, 1.0f, 1.0f),
-                            160,
-                            0,
-                            displacedCount < 60,
-                            DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED,
-                            null,
-                            hitPos,
-                            craterR
-                    );
-                    displacedCount++;
-                }
             }
         }
 
@@ -283,14 +311,10 @@ public class StoneCannonManager {
         sw.spawnParticles(ParticleTypes.SWEEP_ATTACK, hitPos.x, hitPos.y, hitPos.z, 8, 1.2, 0.8, 1.2, 0.1);
 
         sw.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.PLAYERS, 4.0f, 0.6f);
+                SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.PLAYERS, 1.4f, 0.6f);
         sw.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.PLAYERS, 3.5f, 1.2f);
+                SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.PLAYERS, 0.7f, 1.2f);
         sw.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.PLAYERS, 3.5f, 0.8f);
-        sw.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.BLOCKS, 3.5f, 0.9f);
-        sw.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.BLOCKS, 3.0f, 1.3f);
+                SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.PLAYERS, 0.85f, 0.8f);
     }
 }

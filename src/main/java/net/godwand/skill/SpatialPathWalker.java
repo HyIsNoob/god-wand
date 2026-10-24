@@ -8,9 +8,8 @@ import net.godwand.spatial.DisplacedBlockRecord;
 import net.godwand.spatial.SpatialDisplacementManager;
 import net.godwand.spatial.SpatialMath;
 import net.minecraft.block.BlockState;
+import net.minecraft.entity.FallingBlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.particle.DustParticleEffect;
-import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
@@ -27,6 +26,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SpatialPathWalker {
+    private static final java.util.Map<UUID,Integer> LAST_SHIELD_SOUND = new ConcurrentHashMap<>();
     private static final Set<UUID> ACTIVE_PLAYERS = ConcurrentHashMap.newKeySet();
     private static final java.util.Map<UUID, Double> LAST_GROUND_Y = new ConcurrentHashMap<>();
     private static final java.util.Map<UUID, Vec3d> LAST_PLAYER_POS = new ConcurrentHashMap<>();
@@ -38,28 +38,23 @@ public class SpatialPathWalker {
     }
 
     public static void toggle(ServerPlayerEntity player) {
+        if (player.getItemCooldownManager().isCoolingDown(net.godwand.GodWandMod.GOD_WAND_ITEM)) return;
+        player.getItemCooldownManager().set(net.godwand.GodWandMod.GOD_WAND_ITEM, net.godwand.config.GodWandConfig.cooldownTicks(20));
         ServerWorld world = player.getServerWorld();
         if (ACTIVE_PLAYERS.contains(player.getUuid())) {
             ACTIVE_PLAYERS.remove(player.getUuid());
+            SpatialBridge.disable(player.getUuid());
             LAST_GROUND_Y.remove(player.getUuid());
             LAST_PLAYER_POS.remove(player.getUuid());
             CURRENT_FORWARD_LEAD.remove(player.getUuid());
             CURRENT_PLAYER_SPEED.remove(player.getUuid());
-            player.sendMessage(Text.literal("§c§l[✦ SPATIAL PATH: COLLAPSED ✦]"), true);
-
-            // Explosive Deactivation Impact
-            world.spawnParticles(ParticleTypes.FLASH, player.getX(), player.getEyeY(), player.getZ(), 2, 0.1, 0.1, 0.1, 0.0);
-            world.spawnParticles(ParticleTypes.SONIC_BOOM, player.getX(), player.getY() + 1.0, player.getZ(), 1, 0, 0, 0, 0);
-            world.spawnParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 40, 1.2, 0.8, 1.2, 0.25);
-            world.spawnParticles(new DustParticleEffect(new Vector3f(0.25f, 0.88f, 1.0f), 1.2f),
-                    player.getX(), player.getY() + 1.0, player.getZ(), 30, 1.5, 0.8, 1.5, 0.2);
+            LAST_SHIELD_SOUND.remove(player.getUuid());
+            player.sendMessage(Text.literal("Path disabled."), true);
 
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.PLAYERS, 2.5f, 0.75f);
+                    SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.PLAYERS, 0.45f, 0.9f);
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.PLAYERS, 2.0f, 1.5f);
-            world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.PLAYERS, 2.0f, 1.2f);
+                    SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.PLAYERS, 0.55f, 1.2f);
 
             // Push nearby entities away
             for (net.minecraft.entity.Entity e : world.getOtherEntities(player, player.getBoundingBox().expand(5.0))) {
@@ -82,17 +77,15 @@ public class SpatialPathWalker {
             }
         } else {
             ACTIVE_PLAYERS.add(player.getUuid());
-            player.sendMessage(Text.literal("§d§l[✦ SPATIAL PATH: §aACTIVE §d§l✦]"), true);
+            repelMobs(player);
+            deflectProjectiles(player);
+            player.sendMessage(Text.literal("Path enabled."), true);
 
             // Audio kích hoạt uy lực
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 2.2f, 1.35f);
+                    SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 0.65f, 1.25f);
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.BLOCK_RESPAWN_ANCHOR_SET_SPAWN, SoundCategory.PLAYERS, 2.0f, 1.4f);
-            world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.PLAYERS, 2.5f, 1.2f);
-            world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.PLAYERS, 1.2f, 1.8f);
+                    SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.PLAYERS, 0.35f, 1.2f);
 
             // Rung chấn nhẹ tức thời (Subtle Camera Pop Shake)
             CinematicFxPayload actShake = new CinematicFxPayload(
@@ -103,38 +96,100 @@ public class SpatialPathWalker {
             ServerPlayNetworking.send(player, actShake);
 
             // Sóng năng lượng dưới chân bung tỏa ra từ người chơi (Concentric Ground Shockwave)
-            double feetY = player.getY() + 0.08;
-            world.spawnParticles(ParticleTypes.FLASH, player.getX(), feetY + 0.1, player.getZ(), 2, 0.05, 0.05, 0.05, 0.0);
-            world.spawnParticles(ParticleTypes.SONIC_BOOM, player.getX(), feetY + 0.15, player.getZ(), 1, 0, 0, 0, 0);
 
-            for (int step = 1; step <= 3; step++) {
-                double r = step * 1.25;
-                int points = 16 * step;
-                for (int i = 0; i < points; i++) {
-                    double ang = (Math.PI * 2.0 * i) / points;
-                    double px = player.getX() + Math.cos(ang) * r;
-                    double pz = player.getZ() + Math.sin(ang) * r;
-                    world.spawnParticles(new DustParticleEffect(new Vector3f(0.0f, 0.95f, 1.0f), 1.2f),
-                            px, feetY, pz, 1, Math.cos(ang) * 0.16, 0.02, Math.sin(ang) * 0.16, 0.08);
-                    if (i % 2 == 0) {
-                        world.spawnParticles(new DustParticleEffect(new Vector3f(0.70f, 0.25f, 1.0f), 1.2f),
-                                px, feetY, pz, 1, Math.cos(ang) * 0.14, 0.03, Math.sin(ang) * 0.14, 0.06);
-                        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, px, feetY + 0.05, pz, 1, Math.cos(ang) * 0.08, 0.02, Math.sin(ang) * 0.08, 0.04);
-                    }
-                }
-            }
-
-            world.spawnParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 0.8, player.getZ(), 25, 0.6, 0.6, 0.6, 0.15);
         }
+        syncAura(player);
     }
 
     public static void deactivate(PlayerEntity player) {
+        SpatialBridge.disable(player.getUuid());
         ACTIVE_PLAYERS.remove(player.getUuid());
         LAST_GROUND_Y.remove(player.getUuid());
         LAST_PLAYER_POS.remove(player.getUuid());
         CURRENT_FORWARD_LEAD.remove(player.getUuid());
         CURRENT_PLAYER_SPEED.remove(player.getUuid());
+        LAST_SHIELD_SOUND.remove(player.getUuid());
         SpatialDisplacementManager.collapsePlayerAura(player.getUuid());
+        if (player instanceof ServerPlayerEntity serverPlayer) syncAura(serverPlayer);
+    }
+
+    private static void syncAura(ServerPlayerEntity player) {
+        var payload = new net.godwand.network.SpatialAuraPayload(player.getId(), isActive(player));
+        for (ServerPlayerEntity viewer : PlayerLookup.around(player.getServerWorld(), player.getPos(), 96)) {
+            ServerPlayNetworking.send(viewer, payload);
+        }
+    }
+
+    static boolean shouldPlayShieldSound(UUID player, int tick) {
+        Integer previous = LAST_SHIELD_SOUND.get(player);
+        if (previous != null && tick >= previous && tick - previous < 6) return false;
+        LAST_SHIELD_SOUND.put(player,tick);
+        return true;
+    }
+
+    private static void sendAuraHit(ServerPlayerEntity player, Vec3d normal) {
+        var payload = new net.godwand.network.SpatialAuraPayload(player.getId(), true, normal);
+        for (var viewer : PlayerLookup.around(player.getServerWorld(), player.getPos(), 96)) {
+            ServerPlayNetworking.send(viewer, payload);
+        }
+    }
+
+    private static void deflectProjectiles(ServerPlayerEntity player) {
+        ServerWorld world = player.getServerWorld();
+        Vec3d center = player.getPos().add(0, 1.5, 0);
+        // shortcut: scans 16 blocks for incoming projectiles; use a global projectile hook for modded speeds above 16 blocks/tick.
+        for (var arrow : world.getEntitiesByClass(net.minecraft.entity.projectile.ProjectileEntity.class,
+                player.getBoundingBox().expand(16), e -> e.getOwner() != player && e.getVelocity().lengthSquared() > 0.0001)) {
+            Vec3d velocity = arrow.getVelocity();
+            Vec3d hit = SpatialMath.auraArrowIntersection(arrow.getPos(), arrow.getPos().add(velocity), center);
+            if (hit == null) {
+                Vec3d offset = arrow.getPos().subtract(center);
+                if (offset.lengthSquared() < 25 && velocity.dotProduct(offset) < 0) {
+                    arrow.setVelocity(velocity.multiply(0.85));
+                    arrow.velocityModified = true;
+                }
+                continue;
+            }
+            var obstruction = world.raycast(new net.minecraft.world.RaycastContext(arrow.getPos(), hit,
+                    net.minecraft.world.RaycastContext.ShapeType.COLLIDER,
+                    net.minecraft.world.RaycastContext.FluidHandling.NONE, arrow));
+            if (obstruction.getType() != net.minecraft.util.hit.HitResult.Type.MISS) continue;
+            Vec3d normal = hit.subtract(center).normalize();
+            if (normal.lengthSquared() < 0.01) normal = velocity.normalize().negate();
+            arrow.setPosition(hit.add(normal.multiply(0.05)));
+            arrow.setVelocity(SpatialMath.deflectAuraArrow(velocity, normal));
+            if (arrow instanceof net.minecraft.entity.projectile.ExplosiveProjectileEntity explosive) {
+                explosive.accelerationPower *= 0.35;
+            }
+            arrow.velocityModified = true;
+            sendAuraHit(player, normal);
+            if (shouldPlayShieldSound(player.getUuid(),player.age)) world.playSound(null, hit.x, hit.y, hit.z, SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 0.35f, 1.6f);
+        }
+    }
+
+    private static void repelMobs(ServerPlayerEntity player) {
+        Vec3d center = player.getPos().add(0, 1.5, 0);
+        for (var mob : player.getServerWorld().getEntitiesByClass(net.minecraft.entity.mob.MobEntity.class,
+                player.getBoundingBox().expand(5), e -> e.isAlive() && !e.isSpectator() && !e.isConnectedThroughVehicle(player))) {
+            Vec3d offset = mob.getBoundingBox().getCenter().subtract(center);
+            double distance = offset.length();
+            double reach = 3.3 + mob.getWidth() * 0.5;
+            if (distance > reach + 0.8) continue;
+            Vec3d normal;
+            if (distance < 0.05) {
+                double angle = (mob.getUuid().getLeastSignificantBits() & 1023) * Math.PI * 2 / 1024;
+                normal = new Vec3d(Math.cos(angle), 0, Math.sin(angle));
+            } else {
+                normal = offset.normalize();
+                if (mob.isOnGround()) {
+                    normal = new Vec3d(normal.x, Math.max(0, normal.y), normal.z).normalize();
+                    if (normal.lengthSquared() < 0.01) normal = new Vec3d(1, 0, 0);
+                }
+            }
+            mob.setVelocity(SpatialMath.auraMobVelocity(mob.getVelocity(), normal, distance - mob.getWidth() * 0.5));
+            mob.velocityModified = true;
+            if (distance <= reach && (player.age + mob.getId()) % 12 == 0) sendAuraHit(player, normal);
+        }
     }
 
     public static double updatePlayerForwardLead(ServerPlayerEntity player) {
@@ -167,6 +222,16 @@ public class SpatialPathWalker {
         if (!isActive(player)) return;
 
         ServerWorld world = player.getServerWorld();
+        SpatialBridge.tickPlayer(player);
+        if (player.age % 20 == 0) syncAura(player);
+        if (player.age % 30 == 0) {
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.BLOCK_BEACON_AMBIENT, SoundCategory.PLAYERS, 0.40f, 1.2f);
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.BLOCK_RESPAWN_ANCHOR_AMBIENT, SoundCategory.PLAYERS, 0.30f, 1.25f);
+        }
+        deflectProjectiles(player);
+        repelMobs(player);
         Vec3d playerPos = player.getPos();
         Vec3d chestPos = playerPos.add(0, 1.1, 0);
         Vec3d lookVec = player.getRotationVec(1.0f);
@@ -192,9 +257,18 @@ public class SpatialPathWalker {
         int minX = MathHelper.floor(playerPos.x - maxRange);
         int maxX = MathHelper.floor(playerPos.x + maxRange);
         int minY = allowDown ? MathHelper.floor(playerPos.y - 2.2) : floorY;
-        int maxY = MathHelper.floor(playerPos.y + 2.8);
+        int maxY = MathHelper.floor(playerPos.y + 4.8);
         int minZ = MathHelper.floor(playerPos.z - maxRange);
         int maxZ = MathHelper.floor(playerPos.z + maxRange);
+
+        // Falling entities have not become world blocks yet, so the block scan cannot see them.
+        for (FallingBlockEntity falling : world.getEntitiesByClass(FallingBlockEntity.class,
+                player.getBoundingBox().expand(maxRange + 1), e -> e.isAlive())) {
+            if (falling.getY() < baseGroundY || SpatialMath.distanceToPathAura(
+                    falling.getPos(), chestPos, lookDirHoriz, forwardLead) > 3.9) continue;
+            falling.setVelocity(SpatialMath.pathLooseBlockVelocity(falling.getPos(), chestPos, lookDirHoriz));
+            falling.velocityModified = true;
+        }
 
         BlockPos.Mutable mutablePos = new BlockPos.Mutable();
 
@@ -203,27 +277,41 @@ public class SpatialPathWalker {
                 for (int y = minY; y <= maxY; y++) {
                     mutablePos.set(x, y, z);
 
-                    // Absolute Ground Safety Rule
-                    if (!allowDown && y < floorY) continue;
-
-                    // Footing Protection
-                    if (!allowDown && Math.abs(x + 0.5 - playerPos.x) <= 0.85 && Math.abs(z + 0.5 - playerPos.z) <= 0.85 && y <= floorY) {
-                        continue;
+                    // Preserve actual support surfaces, not the obstacle row at foot height.
+                    if (!SpatialMath.canOpenPathBlock(y, baseGroundY, allowDown)) continue;
+                    BlockState state = world.getBlockState(mutablePos);
+                    if (!allowDown) {
+                        var shape = state.getCollisionShape(world, mutablePos, net.minecraft.block.ShapeContext.of(player));
+                        if (!shape.isEmpty() && y + shape.getMax(net.minecraft.util.math.Direction.Axis.Y) <= baseGroundY + 0.125) continue;
+                        boolean supportsFeet = false;
+                        for (var box : shape.getBoundingBoxes()) {
+                            if (SpatialMath.supportsPathFeet(box.offset(mutablePos), player.getBoundingBox())) {
+                                supportsFeet = true;
+                                break;
+                            }
+                        }
+                        if (supportsFeet) continue;
                     }
 
                     Vec3d blockCenter = Vec3d.ofCenter(mutablePos);
 
                     // Quét 2 tầng (Tầng trong <= 2.1m vòm cao, Tầng ngoài <= 3.3m sóng địa chấn)
-                    double spineDist = SpatialMath.distanceToAuraSpine(blockCenter, chestPos, lookDirHoriz, forwardLead);
+                    double spineDist = SpatialMath.distanceToPathAura(blockCenter, chestPos, lookDirHoriz, forwardLead);
                     if (spineDist > 3.3) continue;
 
                     // Distance Hysteresis: keep open and reset restore tick if already displaced
                     if (SpatialDisplacementManager.isPositionDisplaced(world.getRegistryKey(), mutablePos)) {
                         SpatialDisplacementManager.refreshDisplacement(world.getRegistryKey(), mutablePos, 100);
+                        // An incoming block must not overwrite the original block saved for restoration.
+                        if (!state.isAir() && state.getFluidState().isEmpty() && !state.hasBlockEntity()
+                                && state.getHardness(world, mutablePos) >= 0) {
+                            FallingBlockEntity loose = FallingBlockEntity.spawnFromBlock(world, mutablePos.toImmutable(), state);
+                            loose.setVelocity(SpatialMath.pathLooseBlockVelocity(blockCenter, chestPos, lookDirHoriz));
+                            loose.velocityModified = true;
+                        }
                         continue;
                     }
 
-                    BlockState state = world.getBlockState(mutablePos);
                     if (!SpatialDisplacementManager.canDisplace(world, mutablePos, state)) continue;
 
                     // Compute dynamic aura offset from SpatialMath
@@ -254,45 +342,9 @@ public class SpatialPathWalker {
                             0.0
                     );
 
-                    // Ambient shimmer particle
-                    if (((x ^ z) & 7) == 0) {
-                        world.spawnParticles(ParticleTypes.END_ROD, blockCenter.x, blockCenter.y, blockCenter.z, 1, 0.1, 0.1, 0.1, 0.01);
-                    }
                 }
             }
         }
 
-        // Vòng ma pháp & sóng năng lượng huyền ảo trong bán kính ảnh hưởng mỗi 2 ticks
-        if (player.age % 2 == 0) {
-            double baseFeetY = floorY + 0.05;
-
-            // 1. Vòng tròn ma pháp chân người chơi (Vòng trong R=1.3m xoay thuận, Vòng ngoài R=2.5m xoay ngược)
-            double t = player.age * 0.18;
-            for (int i = 0; i < 6; i++) {
-                double aIn = t + (i * Math.PI / 3.0);
-                double rxIn = Math.cos(aIn) * 1.35;
-                double rzIn = Math.sin(aIn) * 1.35;
-                world.spawnParticles(new DustParticleEffect(new Vector3f(0.0f, 0.95f, 1.0f), 0.9f),
-                        playerPos.x + rxIn, baseFeetY, playerPos.z + rzIn, 1, 0, 0.01, 0, 0);
-
-                double aOut = -t * 0.85 + (i * Math.PI / 3.0);
-                double rxOut = Math.cos(aOut) * 2.5;
-                double rzOut = Math.sin(aOut) * 2.5;
-                world.spawnParticles(new DustParticleEffect(new Vector3f(0.72f, 0.28f, 1.0f), 0.95f),
-                        playerPos.x + rxOut, baseFeetY, playerPos.z + rzOut, 1, 0, 0.015, 0, 0);
-            }
-
-            // 2. Ký tự ma pháp cổ ngữ (Enchant & End Rod) bay lơ lửng trong bán kính ảnh hưởng
-            world.spawnParticles(ParticleTypes.ENCHANT,
-                    playerPos.x + (Math.random() - 0.5) * 3.5, baseFeetY + 0.15, playerPos.z + (Math.random() - 0.5) * 3.5,
-                    4, 0.1, 0.2, 0.1, 0.08);
-
-            // 3. Tia dẫn hướng năng lượng gợn sóng về phía trước trên mặt đất
-            for (double d = 1.6; d <= forwardLead + 2.4; d += 1.4) {
-                double fx = playerPos.x + lookDirHoriz.x * d;
-                double fz = playerPos.z + lookDirHoriz.z * d;
-                world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, fx, baseFeetY + 0.04, fz, 1, 0, 0.01, 0, 0.02);
-            }
-        }
     }
 }

@@ -37,7 +37,19 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class SpatialDisplacementManager {
     private static final Map<DimensionPos, DisplacedBlockRecord> ACTIVE_RECORDS = new ConcurrentHashMap<>();
+    private static final Map<DimensionPos, DisplacedBlockRecord> BRIDGE_DESTINATIONS = new ConcurrentHashMap<>();
     private static final Map<UUID, BlockDisplayEntity> ACTIVE_ENTITIES = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> LAST_PATH_OPEN_SOUND = new HashMap<>();
+    private static final Map<UUID, Long> LAST_PATH_RETURN_SOUND = new HashMap<>();
+
+    static boolean shouldPlayPathSound(UUID owner, long tick, boolean returning) {
+        if (owner == null) return false;
+        var times = returning ? LAST_PATH_RETURN_SOUND : LAST_PATH_OPEN_SOUND;
+        Long previous = times.get(owner);
+        if (previous != null && tick >= previous && tick - previous < (returning ? 8 : 6)) return false;
+        times.put(owner, tick);
+        return true;
+    }
 
     public static boolean isPositionDisplaced(RegistryKey<World> worldKey, BlockPos pos) {
         return ACTIVE_RECORDS.containsKey(new DimensionPos(worldKey, pos));
@@ -51,7 +63,24 @@ public class SpatialDisplacementManager {
         BlockPos immutablePos = pos.toImmutable();
         if (state.isAir() || state.getHardness(world, immutablePos) < 0) return false;
         if (state.isOf(Blocks.BEDROCK) || state.isOf(Blocks.END_PORTAL) || state.isOf(Blocks.BARRIER)) return false;
+        if (BRIDGE_DESTINATIONS.containsKey(new DimensionPos(world.getRegistryKey(), immutablePos))) return false;
         return !isPositionDisplaced(world.getRegistryKey(), immutablePos);
+    }
+
+    public static void clearRuntimeState() {
+        ACTIVE_RECORDS.clear(); ACTIVE_ENTITIES.clear(); BRIDGE_DESTINATIONS.clear();
+        LAST_PATH_OPEN_SOUND.clear(); LAST_PATH_RETURN_SOUND.clear();
+    }
+
+    public static void recoverBridge(DisplacedBlockRecord record) {
+        ACTIVE_RECORDS.put(new DimensionPos(record.worldKey, record.pos), record);
+        if (record.bridgeDestination != null) BRIDGE_DESTINATIONS.put(new DimensionPos(record.worldKey, record.bridgeDestination), record);
+    }
+
+    public static void moveBridge(DisplacedBlockRecord record, BlockPos target) {
+        if (record.bridgeDestination != null) BRIDGE_DESTINATIONS.remove(new DimensionPos(record.worldKey, record.bridgeDestination));
+        record.bridgeDestination = target == null ? null : target.toImmutable();
+        if (target != null) BRIDGE_DESTINATIONS.put(new DimensionPos(record.worldKey, target), record);
     }
 
     public static int getActiveRecordCount() {
@@ -84,6 +113,7 @@ public class SpatialDisplacementManager {
 
     public static DisplacedBlockRecord removeActiveRecord(RegistryKey<World> worldKey, BlockPos pos) {
         DisplacedBlockRecord rec = ACTIVE_RECORDS.remove(new DimensionPos(worldKey, pos));
+        if (rec != null && rec.bridgeDestination != null) BRIDGE_DESTINATIONS.remove(new DimensionPos(rec.worldKey, rec.bridgeDestination));
         if (rec != null && rec.displayEntityUuid != null) {
             BlockDisplayEntity ent = ACTIVE_ENTITIES.remove(rec.displayEntityUuid);
             if (ent != null && ent.isAlive()) {
@@ -165,13 +195,20 @@ public class SpatialDisplacementManager {
                                       boolean spawnDisplay, DisplacedBlockRecord.DisplacementMode mode,
                                       UUID boundPlayerUuid, Vec3d blastCenter, double blastRadius) {
         displaceBlockInternal(world, pos, targetDisplacement, rotation, scale, lifetime, glowColor,
-                spawnDisplay, mode, boundPlayerUuid, blastCenter, blastRadius, true);
+                spawnDisplay, mode, boundPlayerUuid, blastCenter, blastRadius, true, false);
+    }
+
+    public static void displaceBlockPermanently(ServerWorld world, BlockPos pos, Vector3f targetDisplacement,
+            Quaternionf rotation, Vector3f scale, int lifetime, int glowColor, boolean spawnDisplay,
+            DisplacedBlockRecord.DisplacementMode mode, UUID boundPlayerUuid, Vec3d blastCenter, double blastRadius) {
+        displaceBlockInternal(world, pos, targetDisplacement, rotation, scale, lifetime, glowColor,
+                spawnDisplay, mode, boundPlayerUuid, blastCenter, blastRadius, true, true);
     }
 
     private static void displaceBlockInternal(ServerWorld world, BlockPos pos, Vector3f targetDisplacement,
                                               Quaternionf rotation, Vector3f scale, int lifetime, int glowColor,
                                               boolean spawnDisplay, DisplacedBlockRecord.DisplacementMode mode,
-                                              UUID boundPlayerUuid, Vec3d blastCenter, double blastRadius, boolean checkDoubleBlock) {
+                                              UUID boundPlayerUuid, Vec3d blastCenter, double blastRadius, boolean checkDoubleBlock, boolean permanent) {
         BlockPos immutablePos = pos.toImmutable();
         BlockState state = world.getBlockState(immutablePos);
         if (!canDisplace(world, immutablePos, state)) return;
@@ -183,34 +220,49 @@ public class SpatialDisplacementManager {
             spawnDisplay = false;
         }
 
-        // Exact 1:1 state and NBT mapping: read identifying data then clear inventory to prevent duping
+        // Detach before replacement: SKIP_DROPS does not suppress container callbacks.
         BlockEntity be = world.getBlockEntity(immutablePos);
         NbtCompound nbt = null;
         if (be != null) {
             nbt = be.createNbtWithIdentifyingData(world.getRegistryManager());
-            Clearable.clear(be);
+            world.removeBlockEntity(immutablePos);
         }
 
         boolean isFull = state.isFullCube(world, immutablePos);
         DisplacedBlockRecord record = new DisplacedBlockRecord(
                 immutablePos, world.getRegistryKey(), state, nbt, targetDisplacement, rotation, scale,
                 lifetime, isFull, mode, boundPlayerUuid);
+        record.permanentDestruction = permanent;
         record.blastCenter = blastCenter;
         record.blastRadius = blastRadius;
 
         // Replace with AIR using atomic notification flags
-        world.setBlockState(immutablePos, Blocks.AIR.getDefaultState(), Block.FORCE_STATE | Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
+        if (!world.setBlockState(immutablePos, Blocks.AIR.getDefaultState(), Block.FORCE_STATE | Block.NOTIFY_LISTENERS | Block.SKIP_DROPS)) {
+            if (be != null) {
+                be.cancelRemoval();
+                world.addBlockEntity(be);
+            }
+            return;
+        }
+        if (be != null) {
+            Clearable.clear(be);
+            for (ServerPlayerEntity player : world.getPlayers()) {
+                if (!player.currentScreenHandler.canUse(player)) player.closeHandledScreen();
+            }
+        }
+        ACTIVE_RECORDS.put(new DimensionPos(world.getRegistryKey(), immutablePos), record);
+        DisplacementPersistentState.getServerState(world).markDirty();
 
-        // Tick 0 Handshake: spawn at origin with identity matrix, high brightness, and glowing
+        // Spawn at origin before applying the displacement animation.
         if (spawnDisplay) {
             BlockDisplayEntity display = new BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
             display.addCommandTag("godwand_displaced");
             display.setPosition(immutablePos.getX(), immutablePos.getY(), immutablePos.getZ());
             display.setBlockState(state);
 
-            // Xóa bỏ hoàn toàn setGlowing để triệt tiêu viền outline sticker 2D
+            // Triệt tiêu hoàn toàn glowing và không ép brightness override để giữ ánh sáng tự nhiên
             display.setGlowing(false);
-            display.setBrightness(new Brightness(15, 15));
+            display.setGlowColorOverride(-1);
 
             display.setStartInterpolation(0);
             display.setInterpolationDuration(0);
@@ -220,22 +272,24 @@ public class SpatialDisplacementManager {
             record.displayEntityUuid = display.getUuid();
             ACTIVE_ENTITIES.put(display.getUuid(), display);
 
+            if (mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER
+                    && shouldPlayPathSound(boundPlayerUuid, world.getTime(), false)) {
+                // Đã bỏ tiếng đập gõ block, nhường cho ambience vô hạn trong SpatialPathWalker
+            }
+
             // Subtle break crumbs
-            if ((immutablePos.asLong() & 3) == 0) {
+            if (mode != DisplacedBlockRecord.DisplacementMode.PATH_WALKER && (immutablePos.asLong() & 3) == 0) {
                 world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, state),
                         immutablePos.getX() + 0.5, immutablePos.getY() + 0.5, immutablePos.getZ() + 0.5,
                         3, 0.15, 0.15, 0.15, 0.08);
-                world.playSound(null, immutablePos, SoundEvents.BLOCK_BASALT_BREAK, SoundCategory.BLOCKS, 0.6f, 0.85f + 0.25f * (float)Math.random());
+                if (!permanent && (immutablePos.asLong() & 31) == 0) world.playSound(null, immutablePos, SoundEvents.BLOCK_BASALT_BREAK, SoundCategory.BLOCKS, 0.6f, 0.85f + 0.25f * (float)Math.random());
             }
         }
-
-        ACTIVE_RECORDS.put(new DimensionPos(world.getRegistryKey(), immutablePos), record);
-        DisplacementPersistentState.getServerState(world).markDirty();
 
         // Displace matching half of double block simultaneously
         if (otherHalf != null && canDisplace(world, otherHalf, world.getBlockState(otherHalf))) {
             displaceBlockInternal(world, otherHalf, targetDisplacement, rotation, scale, lifetime,
-                    glowColor, spawnDisplay, mode, boundPlayerUuid, blastCenter, blastRadius, false);
+                    glowColor, spawnDisplay, mode, boundPlayerUuid, blastCenter, blastRadius, false, permanent);
         }
     }
 
@@ -247,12 +301,18 @@ public class SpatialDisplacementManager {
                 continue;
             }
 
+            if (record.bridgeDestination != null) continue;
             record.ageTicks++;
             BlockDisplayEntity display = record.displayEntityUuid != null ? ACTIVE_ENTITIES.get(record.displayEntityUuid) : null;
 
             // ==========================================
             // 1. PHA THU HỒI 3 BƯỚC (3-PHASE MAGNETIC SNAP REASSEMBLY)
             // ==========================================
+            if (record.permanentDestruction && record.ageTicks >= record.maxLifetimeTicks + 20) {
+                removeActiveRecord(record.worldKey, record.pos);
+                continue;
+            }
+
             if (record.isRestoring()) {
                 // Nếu là PATH_WALKER mà người chơi bước lại vào vùng <= 4.2m trong lúc đang đóng -> Hất ngược ra vòm Aura ngay lập tức!
                 if (record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER ||
@@ -265,7 +325,7 @@ public class SpatialDisplacementManager {
                             lh = lh.lengthSquared() < 0.001 ? new Vec3d(1, 0, 0) : lh.normalize();
                             double lead = net.godwand.skill.SpatialPathWalker.getPlayerForwardLead(p);
                             double holdingLead = Math.max(lead, 5.5);
-                            double spineDist = SpatialMath.distanceToAuraSpine(blockCenter, p.getPos().add(0, 1.1, 0), lh, holdingLead);
+                            double spineDist = SpatialMath.distanceToPathAura(blockCenter, p.getPos().add(0, 1.1, 0), lh, holdingLead);
                             if (spineDist <= 4.2) {
                                 record.interruptRestoration();
                                 if (display != null && display.isAlive()) {
@@ -302,7 +362,7 @@ public class SpatialDisplacementManager {
                             display.setStartInterpolation(0);
                             display.setInterpolationDuration(4);
                             display.setTransformation(AffineTransformation.identity());
-                            if ((record.pos.asLong() & 7) == 0) {
+                            if (record.mode != DisplacedBlockRecord.DisplacementMode.PATH_WALKER && (record.pos.asLong() & 31) == 0) {
                                 world.playSound(null, record.pos, SoundEvents.BLOCK_VAULT_OPEN_SHUTTER, SoundCategory.BLOCKS, 0.25f, 1.35f);
                             }
                         }
@@ -353,16 +413,16 @@ public class SpatialDisplacementManager {
                             }
                         }
                         if (playerSpeed >= 0.15) {
-                            // Chạy nhanh / Sprint / Bay: mở cực nhanh (4 - 6 ticks)
+                            // Chạy nhanh / Sprint / Bay: mở cực nhanh (5 ticks)
                             openDuration = 5;
                         } else {
                             // Đi bộ chậm hoặc đứng yên ("farming aura"):
                             if (distToPlayer <= 2.0) {
-                                openDuration = 10;
+                                openDuration = 5;
                             } else {
-                                // Khối ở xa phía trước (2m - 4m): từ từ, chậm rãi và uy quyền (18 - 26 ticks)
+                                // Khối ở xa phía trước (2m - 4m): từ từ, chậm rãi và uy quyền (6 - 9 ticks)
                                 float tDist = (float) MathHelper.clamp((distToPlayer - 2.0) / 2.0, 0.0, 1.0);
-                                openDuration = (int) MathHelper.lerp(tDist, 18.0f, 26.0f);
+                                openDuration = (int) MathHelper.lerp(tDist, 6.0f, 9.0f);
                             }
                         }
                     }
@@ -377,9 +437,8 @@ public class SpatialDisplacementManager {
                 continue;
             }
 
-            // Chờ hết ticks bung mở ban đầu (động theo openDurationTicks + 1 cho PATH_WALKER, 9 ticks cho các chiêu khác) rồi mới chạy cập nhật trường lực động
-            int minHoldTicks = record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER
-                    ? (record.openDurationTicks + 1) : 9;
+            // Keep the opening target responsive while the player moves.
+            int minHoldTicks = record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER ? 3 : 9;
             if (record.ageTicks < minHoldTicks) {
                 continue;
             }
@@ -401,7 +460,7 @@ public class SpatialDisplacementManager {
                         lh = lh.lengthSquared() < 0.001 ? new Vec3d(1, 0, 0) : lh.normalize();
                         double lead = net.godwand.skill.SpatialPathWalker.getPlayerForwardLead(p);
                         double holdingLead = Math.max(lead, 5.5);
-                        double d = SpatialMath.distanceToAuraSpine(blockCenter, p.getPos().add(0, 1.1, 0), lh, holdingLead);
+                        double d = SpatialMath.distanceToPathAura(blockCenter, p.getPos().add(0, 1.1, 0), lh, holdingLead);
                         if (d < minSpineDist) {
                             minSpineDist = d;
                             activeOwner = p;
@@ -431,7 +490,6 @@ public class SpatialDisplacementManager {
                             if (evasion.lengthSquared() > 0.001) {
                                 desiredAuraOffset = desiredAuraOffset.add(evasion);
                                 record.hoverYaw += 0.38f;
-                                world.spawnParticles(ParticleTypes.END_ROD, actualDebrisWorldPos.x, actualDebrisWorldPos.y, actualDebrisWorldPos.z, 1, 0.05, 0.05, 0.05, 0.01);
                             }
                         }
 
@@ -447,12 +505,6 @@ public class SpatialDisplacementManager {
                         display.setInterpolationDuration(3);
                         display.setTransformation(SpatialMath.createPivotTransform(smoothedOffset, rot, record.targetScale.x));
 
-                        // Dây năng lượng 3D nối từ khối vòm cao xuống mặt đất
-                        if (desiredAuraOffset.y > 1.2 && ((record.ageTicks + record.pos.hashCode()) & 7) == 0) {
-                            world.spawnParticles(ParticleTypes.END_ROD,
-                                    actualDebrisWorldPos.x, actualDebrisWorldPos.y, actualDebrisWorldPos.z,
-                                    1, 0.04, -0.4, 0.04, 0.02);
-                        }
                     }
                 } else {
                     record.beginRestoration();
@@ -537,6 +589,14 @@ public class SpatialDisplacementManager {
     }
 
     private static void restoreRecordDirectly(ServerWorld world, DisplacedBlockRecord r, BlockDisplayEntity display) {
+        if (r.bridgeDestination != null) {
+            removeActiveRecord(r.worldKey, r.pos);
+            return;
+        }
+        if (r.permanentDestruction) {
+            removeActiveRecord(r.worldKey, r.pos);
+            return;
+        }
         // Exact 1:1 original BlockState and NBT restoration
         world.setBlockState(r.pos, r.originalState, Block.FORCE_STATE | Block.NOTIFY_LISTENERS);
         if (r.blockEntityNbt != null) {
@@ -551,10 +611,12 @@ public class SpatialDisplacementManager {
             display.discard();
         }
         // Crisp stone impact particle and sound
-        world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, r.originalState),
+        if (r.mode != DisplacedBlockRecord.DisplacementMode.PATH_WALKER) world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, r.originalState),
                 r.pos.getX() + 0.5, r.pos.getY() + 0.5, r.pos.getZ() + 0.5, 4, 0.15, 0.15, 0.15, 0.05);
-        if ((r.pos.asLong() & 3) == 0) {
-            world.playSound(null, r.pos, SoundEvents.BLOCK_STONE_PLACE, SoundCategory.BLOCKS, 0.75f, 1.0f);
+        if (r.mode != DisplacedBlockRecord.DisplacementMode.PATH_WALKER && (r.pos.asLong() & 31) == 0) {
+            world.playSound(null, r.pos, SoundEvents.BLOCK_STONE_PLACE, SoundCategory.BLOCKS, 0.3f, 1.0f);
+        } else if (r.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER) {
+            shouldPlayPathSound(r.boundPlayerUuid, world.getTime(), true);
         }
     }
 
@@ -571,13 +633,14 @@ public class SpatialDisplacementManager {
         for (DisplacedBlockRecord r : ACTIVE_RECORDS.values()) {
             if (r.worldKey.equals(world.getRegistryKey())) {
                 if (r.permanentDestruction) {
+                    ACTIVE_RECORDS.remove(new DimensionPos(r.worldKey, r.pos));
                     if (r.displayEntityUuid != null) {
                         BlockDisplayEntity ent = ACTIVE_ENTITIES.remove(r.displayEntityUuid);
                         if (ent != null && ent.isAlive()) {
                             ent.discard();
                         }
                     }
-                } else {
+                } else if (r.bridgeDestination == null) {
                     matching.add(r);
                 }
             }

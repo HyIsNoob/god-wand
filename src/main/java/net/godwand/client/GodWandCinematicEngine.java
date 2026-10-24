@@ -35,6 +35,7 @@ public class GodWandCinematicEngine {
     // 3. VACUUM SILENCE (AUDIO DUCKING)
     // ==========================================
     private static int vacuumSilenceTicks = 0;
+    private static float environmentGain = 1;
 
     /**
      * Kích hoạt sự kiện điện ảnh từ gói mạng CinematicFxPayload
@@ -47,12 +48,7 @@ public class GodWandCinematicEngine {
             double distSq = client.player.squaredDistanceTo(payload.x(), payload.y(), payload.z());
             if (payload.x() != 0 || payload.y() != 0 || payload.z() != 0) {
                 double dist = Math.sqrt(distSq);
-                double maxDist = 64.0;
-                if (dist > maxDist) {
-                    distFactor = 0.0f;
-                } else if (dist > 8.0) {
-                    distFactor = (float) (1.0 - ((dist - 8.0) / (maxDist - 8.0)));
-                }
+                distFactor = distanceFactor(payload.eventType(), dist);
             }
         }
 
@@ -86,11 +82,21 @@ public class GodWandCinematicEngine {
                 setFovFocus(0.92f, payload.durationTicks(), 0.06f);
             }
             case CinematicFxPayload.EVENT_SUPERNOVA_BURST -> {
-                // Chiêu 4: Đại nổ siêu tân tinh - Rung chấn cực đại + bung FOV toàn cảnh
-                addTrauma(payload.intensity() * distFactor, payload.durationTicks());
-                setFovPunch(1.0f + 0.32f * distFactor, 24);
+                vacuumSilenceTicks = 0;
+                environmentGain = 1;
+                // One short impact; sustained camera oscillation obscures the expanding sphere.
+                addTrauma(0.55f * distFactor, 8);
+                setFovPunch(1.0f + 0.12f * distFactor, 8);
             }
         }
+    }
+
+    public static float distanceFactor(int eventType, double distance) {
+        boolean supernova = eventType == CinematicFxPayload.EVENT_SUPERNOVA_COMPRESS
+                || eventType == CinematicFxPayload.EVENT_SUPERNOVA_BURST;
+        double near = supernova ? 64 : 8;
+        double far = supernova ? 250 : 64;
+        return (float) MathHelper.clamp(1 - (distance - near) / (far - near), 0, 1);
     }
 
     public static void setFovFocus(float targetMultiplier, int holdTicks, float recoverySpeed) {
@@ -127,6 +133,33 @@ public class GodWandCinematicEngine {
             shakeTime += 0.85f;
         }
 
+        var client = MinecraftClient.getInstance();
+        double novaAge = SupernovaAccretionRenderer.age(0);
+        float charge = 0;
+        if (client != null && client.player != null && client.player.isUsingItem()) {
+            var stack = client.player.getActiveItem();
+            if (stack.getItem() instanceof net.godwand.item.GodWandItem
+                    && net.godwand.item.GodWandItem.getSkillMode(stack) == net.godwand.item.GodWandItem.MODE_SUPERNOVA)
+                charge = Math.clamp(client.player.getItemUseTime() / 140f, 0, 1);
+        }
+        float distance = novaAge >= 0 && client != null && client.player != null
+                ? distanceFactor(CinematicFxPayload.EVENT_SUPERNOVA_COMPRESS, client.player.getPos().distanceTo(SupernovaAccretionRenderer.center())) : 1;
+        float targetEnvironment = 1;
+        if (novaAge >= 0) {
+            float pressure = net.godwand.skill.SupernovaSequence.pressure(novaAge);
+            setFovFocus(1 + (net.godwand.skill.SupernovaSequence.cameraFov(novaAge) - 1) * (distance > 0 ? 0.45f + distance * 0.55f : 0), 2, 0.08f);
+            if (novaAge < net.godwand.skill.SupernovaSequence.QUIET_START)
+                trauma = Math.max(trauma, (0.06f + pressure * 0.20f) * distance);
+            else { trauma *= 0.5f; vacuumSilenceTicks = 2; }
+            targetEnvironment = 1 - (1 - net.godwand.skill.SupernovaSequence.environmentGain(novaAge)) * distance;
+        } else if (charge > 0) {
+            setFovFocus(1 - charge * charge * 0.06f, 2, 0.08f);
+            trauma = Math.max(trauma, 0.04f * charge);
+        }
+        if (vacuumSilenceTicks > 0) targetEnvironment = Math.min(targetEnvironment, 0.04f);
+        environmentGain = MathHelper.lerp(0.22f, environmentGain, targetEnvironment);
+        SupernovaSoundscape.tick(novaAge, charge, distance);
+
         // 2. Cập nhật Dynamic FOV
         prevFovMultiplier = currentFovMultiplier;
         if (fovHoldTicks > 0) {
@@ -155,7 +188,7 @@ public class GodWandCinematicEngine {
         if (trauma <= 0.001f) return;
 
         // Mô hình phi tuyến tính Trauma² giúp rung chấn mạnh mẽ, gãy gọn ở mức cao
-        float intensity = trauma * trauma;
+        float intensity = trauma * trauma * net.godwand.config.GodWandConfig.CLIENT.cameraShake;
         float t = shakeTime + tickDelta * 0.85f;
 
         // Sóng điều hòa đa tần số tạo cảm giác rung lắc bất quy tắc tự nhiên
@@ -178,17 +211,21 @@ public class GodWandCinematicEngine {
      */
     public static double getFovMultiplier(float tickDelta) {
         float interpolated = MathHelper.lerp(tickDelta, prevFovMultiplier, currentFovMultiplier);
-        return (double) interpolated;
+        return net.godwand.config.GodWandConfig.CLIENT.cameraFov ? (double) interpolated : 1.0;
     }
 
     /**
      * Kiểm tra trạng thái câm lặng chân không (Gọi từ SoundEngineMixin.getVolume)
      */
+    public static float getEnvironmentGain() { return environmentGain; }
+
     public static boolean isVacuumSilenceActive() {
         return vacuumSilenceTicks > 0;
     }
 
     public static void reset() {
+        SupernovaSoundscape.reset();
+        environmentGain = 1;
         trauma = 0.0f;
         currentFovMultiplier = 1.0f;
         prevFovMultiplier = 1.0f;

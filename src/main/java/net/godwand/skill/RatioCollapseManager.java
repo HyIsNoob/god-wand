@@ -18,8 +18,6 @@ import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -33,6 +31,10 @@ import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class RatioCollapseManager {
+    public static final int ASSEMBLY_END = 88;
+    public static final int SPIN_END = 158;
+    public static final int IMPACT_TICK = 167;
+    public static final int SEQUENCE_END = 176;
 
     public static class RatioCollapseTask {
         public final ServerWorld world;
@@ -49,6 +51,7 @@ public class RatioCollapseManager {
         public int ageTicks = 0;
         public float orbitAngle = 0.0f;
         public boolean slammed = false;
+        private SupernovaCraterCursor craterCursor;
 
         public final List<BlockPos> displacedPositions = new ArrayList<>();
         public final Map<BlockPos, Integer> blockIndexMap = new HashMap<>();
@@ -69,7 +72,7 @@ public class RatioCollapseManager {
             this.craterRadius = craterRadius;
             this.craterDepth = craterDepth;
             this.damageMult = damageMult;
-            this.meteorCore = center.toCenterPos().add(0, 12.0 + boulderRadius * 1.4, 0);
+            this.meteorCore = center.toCenterPos().add(0, drillHoverHeight(boulderRadius), 0);
         }
     }
 
@@ -119,7 +122,7 @@ public class RatioCollapseManager {
             case 4 -> 420;
             case 3 -> 300;
             case 2 -> 200;
-            default -> 135;
+            default -> 159;
         };
 
         int craterRadius = switch (chargeLevel) {
@@ -131,10 +134,10 @@ public class RatioCollapseManager {
 
         // Tăng độ sâu hố khoan (Drill Borehole Depth) sâu hơn gấp đôi, khoan cắm sâu vào lòng đất
         int craterDepth = switch (chargeLevel) {
-            case 4 -> 48;
-            case 3 -> 36;
-            case 2 -> 24;
-            default -> 16;
+            case 4 -> 54;
+            case 3 -> 41;
+            case 2 -> 28;
+            default -> 19;
         };
 
         float damageMult = switch (chargeLevel) {
@@ -148,7 +151,7 @@ public class RatioCollapseManager {
     }
 
     public static void launch(ServerWorld world, ServerPlayerEntity player, BlockPos center, double radius) {
-        launch(world, player, center, radius, 2.5, 135, 8, 16, 1.2f);
+        launch(world, player, center, radius, 2.5, 159, 8, 16, 1.2f);
     }
 
     public static void launch(ServerWorld world, ServerPlayerEntity player, BlockPos center,
@@ -172,17 +175,12 @@ public class RatioCollapseManager {
         // 2. Kích hoạt Quả Cầu Năng Lượng Ma Pháp trên không (Arcane Energy Core tương tự Chiêu 2)
         ImpactFxPayload gravityCorePayload = new ImpactFxPayload(
                 task.meteorCore.x, task.meteorCore.y, task.meteorCore.z,
-                ImpactFxPayload.TYPE_GRAVITY_CORE, 135, (float) (boulderRadius / 2.5)
+                ImpactFxPayload.TYPE_GRAVITY_CORE, 159, (float) (boulderRadius / 2.5)
         );
-        for (ServerPlayerEntity p : PlayerLookup.around(world, task.meteorCore, 96.0)) {
+        for (ServerPlayerEntity p : PlayerLookup.around(world, task.meteorCore, 160.0)) {
             ServerPlayNetworking.send(p, gravityCorePayload);
         }
 
-        // Âm thanh triệu hồi lõi trọng lực & nứt vỡ địa chấn
-        world.playSound(null, center, SoundEvents.BLOCK_HEAVY_CORE_BREAK, SoundCategory.BLOCKS, 3.5f, 0.75f);
-        world.playSound(null, task.meteorCore.x, task.meteorCore.y, task.meteorCore.z,
-                SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.BLOCKS, 3.0f, 1.2f);
-        world.playSound(null, center, SoundEvents.ITEM_MACE_SMASH_GROUND, SoundCategory.BLOCKS, 3.0f, 0.8f);
 
         world.spawnParticles(ParticleTypes.SONIC_BOOM, task.meteorCore.x, task.meteorCore.y, task.meteorCore.z, 1, 0, 0, 0, 0);
         world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, task.meteorCore.x, task.meteorCore.y, task.meteorCore.z, 20, 0.4, 0.4, 0.4, 0.1);
@@ -220,13 +218,13 @@ public class RatioCollapseManager {
                     .rotateX((float) Math.toRadians(25.0 * Math.sin(hash * 6.28)))
                     .rotateY((float) Math.toRadians(45.0 * Math.cos(hash * 6.28)));
 
-            SpatialDisplacementManager.displaceBlock(
+            SpatialDisplacementManager.displaceBlockPermanently(
                     world,
                     pos,
                     new Vector3f(0, 0, 0),
                     rot,
                     new Vector3f(1.0f, 1.0f, 1.0f),
-                    125,
+                    160,
                     0,
                     true,
                     DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED,
@@ -234,11 +232,6 @@ public class RatioCollapseManager {
                     null,
                     0.0
             );
-
-            DisplacedBlockRecord rec = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
-            if (rec != null) {
-                rec.permanentDestruction = true;
-            }
 
             double dx = (pos.getX() + 0.5) - task.meteorCore.x;
             double dz = (pos.getZ() + 0.5) - task.meteorCore.z;
@@ -259,7 +252,7 @@ public class RatioCollapseManager {
         for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, vortexBox, ent -> ent != player)) {
             e.addVelocity(0, 0.48, 0);
             e.velocityModified = true;
-            e.damage(world.getDamageSources().magic(), 4.0f * task.damageMult);
+            e.damage(world.getDamageSources().magic(), (e instanceof net.minecraft.entity.mob.MobEntity ? 2.0f : 1.0f) * (4.0f * task.damageMult));
         }
 
         ACTIVE_TASKS.add(task);
@@ -321,10 +314,10 @@ public class RatioCollapseManager {
             int totalBlocks = Math.max(1, task.displacedPositions.size());
 
             // =========================================================================
-            // KHỐI CẦU NĂNG LƯỢNG ĐỎ RỰC (Pure Crimson Ruby Energy Core Ticks 1..134)
+            // KHỐI CẦU NĂNG LƯỢNG ĐỎ RỰC (Pure Crimson Ruby Energy Core Ticks 1..158)
             // Thu nhỏ tinh gọn, đậm đặc, kèm hiệu ứng hút vật chất & năng lượng vào tâm
             // =========================================================================
-            if (task.ageTicks <= 134) {
+            if (task.ageTicks <= SPIN_END) {
                 double coreR = Math.max(0.38, task.boulderRadius * 0.26); // Khối cầu nhỏ lại theo yêu cầu!
                 for (int f = 0; f < 3; f++) {
                     double ang = world.random.nextDouble() * Math.PI * 2.0;
@@ -419,23 +412,20 @@ public class RatioCollapseManager {
                             }
                         }
                     }
-
-                    if (task.ageTicks % 6 == 0) {
-                        world.playSound(null, task.center.up(5), SoundEvents.BLOCK_BASALT_BREAK, SoundCategory.BLOCKS, 1.8f, 0.75f);
-                    }
                 }
             }
 
             // =========================================================================
             // PHA 2: XOAY TỐC ĐỘ CAO & CÁC KHỐI ĐÁ TẬP HỢP TRỰC TIẾP THÀNH MŨI KHOAN (Ticks 39..88)
             // =========================================================================
-            else if (task.ageTicks <= 88) {
+            else if (task.ageTicks <= ASSEMBLY_END) {
                 float p2 = (task.ageTicks - 38) / 50.0f; // 0.0 -> 1.0
                 float smoothP2 = p2 * p2 * (3.0f - 2.0f * p2);
 
                 // Tốc độ xoay quỹ đạo nối tiếp mượt mà từ 0.12 lên 0.40 rad/tick
                 float currentSpinSpeed = 0.12f + p2 * 0.28f;
                 task.orbitAngle += currentSpinSpeed;
+
 
                 if (task.ageTicks % 2 == 0) {
                     for (BlockPos pos : task.displacedPositions) {
@@ -499,10 +489,6 @@ public class RatioCollapseManager {
                 }
 
                 // Hút sinh vật xung quanh và tạo vệt gió xoáy quanh mũi khoan đang hình thành
-                if (task.ageTicks % 4 == 0) {
-                    world.playSound(null, task.meteorCore.x, task.meteorCore.y, task.meteorCore.z,
-                            SoundEvents.ENTITY_BREEZE_IDLE_AIR, SoundCategory.BLOCKS, 2.2f, 0.8f + p2 * 0.8f);
-                }
                 if (task.ageTicks % 6 == 0) {
                     Box suctionBox = new Box(task.center).expand(task.radius * 1.2);
                     for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, suctionBox, ent -> ent != task.caster)) {
@@ -514,14 +500,15 @@ public class RatioCollapseManager {
             }
 
             // =========================================================================
-            // PHA 3: MŨI KHOAN HOÀN TẤT -> CHỈ XOAY TỐC ĐỘ CAO (KHÔNG SCALE) (Ticks 89..134)
+            // PHA 3: MŨI KHOAN HOÀN TẤT -> CHỈ XOAY TỐC ĐỘ CAO (KHÔNG SCALE) (Ticks 89..158)
             // =========================================================================
-            else if (task.ageTicks <= 134) {
-                float drillProg = (task.ageTicks - 88) / 46.0f; // 0.0 -> 1.0
+            else if (task.ageTicks <= SPIN_END) {
+                float drillProg = (task.ageTicks - 88) / 70.0f; // 0.0 -> 1.0
 
                 // Xoay nhanh dần đều từ 0.40 lên 0.85 rad/tick, kích thước hoàn toàn cố định
                 float drillSpinSpeed = 0.40f + drillProg * 0.45f;
                 task.orbitAngle += drillSpinSpeed;
+                if (drillSpinSpeed >= 0.50f) sendDrillWind(task, task.meteorCore, drillSpinSpeed);
 
                 // Cập nhật mỗi tick với duration 1 để khử triệt để hiện tượng hụt dây cung (chord-cutting),
                 // giữ nguyên vẹn 100% bán kính mũi khoan, không co giãn to nhỏ!
@@ -534,6 +521,8 @@ public class RatioCollapseManager {
                     int idx = task.blockIndexMap.getOrDefault(pos, 0);
 
                     // Tọa độ trên MŨI KHOAN XOẮN ỐC (Spiral Drill) - chỉ xoay theo orbitAngle
+                    if (drillHeat(0.40f + Math.min(1f, (task.ageTicks - 88) / 70f) * 0.45f) > 0.2f + (idx % 11) * 0.06f) display.setBlockState(Blocks.MAGMA_BLOCK.getDefaultState());
+                    
                     Vec3d drillOff = computeSpiralDrillOffset(idx, totalBlocks, task.boulderRadius, task.orbitAngle);
                     Vec3d finalDisp = task.meteorCore.add(drillOff).subtract(Vec3d.ofCenter(pos));
 
@@ -559,6 +548,8 @@ public class RatioCollapseManager {
                     // Hạt bụi năng lượng Đỏ Rực (Pure Crimson Ruby) xoáy quanh thân mũi khoan
                     world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.02f, 0.05f), 2.2f),
                             px, py, pz, 1, 0.05, 0.05, 0.05, 0.0);
+                    if (task.ageTicks >= 112 && k % 2 == 0) world.spawnParticles(ParticleTypes.FLAME, px, py, pz,
+                            0, -Math.sin(ang) * 0.3, 0.1, Math.cos(ang) * 0.3, 0.6);
                     if (k % 2 == 0) {
                         world.spawnParticles(new DustParticleEffect(new Vector3f(0.85f, 0.0f, 0.12f), 1.6f),
                                 px, py, pz, 1, -Math.sin(ang) * 0.25, 0.05, Math.cos(ang) * 0.25, 0.02);
@@ -566,35 +557,23 @@ public class RatioCollapseManager {
                     }
                 }
 
-                // Âm thanh khoan ma thuật & nạp nhiệt hạch dồn dập
-                if (task.ageTicks % 4 == 0) {
-                    float pitch = 0.9f + drillProg * 1.0f;
-                    world.playSound(null, task.meteorCore.x, task.meteorCore.y, task.meteorCore.z,
-                            SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, 3.0f, pitch);
-                    world.playSound(null, task.meteorCore.x, task.meteorCore.y, task.meteorCore.z,
-                            SoundEvents.ENTITY_BREEZE_WIND_BURST.value(), SoundCategory.BLOCKS, 2.5f, pitch);
-                }
             }
 
             // =========================================================================
-            // PHA 4: MŨI KHOAN ĐÂM XUYÊN MẶT ĐẤT & PHÁ HỦY DẠNG KHOAN SÂU (Ticks 135..152)
+            // PHA 4: MŨI KHOAN ĐÂM XUYÊN MẶT ĐẤT & PHÁ HỦY DẠNG KHOAN SÂU (Ticks 159..176)
             // =========================================================================
-            else if (task.ageTicks <= 152) {
-                float boreProg = (task.ageTicks - 134) / 10.0f; // Lao cắm sâu xuống đất trong 10 ticks (135..145)
+            else if (task.ageTicks <= SEQUENCE_END) {
+                float boreProg = (task.ageTicks - 158) / 10.0f; // Lao cắm sâu xuống đất trong 10 ticks (159..169)
                 float clampedBore = MathHelper.clamp(boreProg, 0.0f, 1.0f);
                 task.orbitAngle += 0.95f; // Vẫn xoay cực nhanh trong lúc đâm xuyên xuống đất!
 
                 // Tâm mũi khoan lao từ meteorCore xuyên thẳng sâu xuống lòng đất (-craterDepth * 0.60)
                 Vec3d drillTargetCenter = task.center.toCenterPos().subtract(0, task.craterDepth * 0.60, 0);
                 Vec3d currentDrillCenter = task.meteorCore.lerp(drillTargetCenter, clampedBore * clampedBore);
-
-                if (task.ageTicks == 135) {
-                    world.playSound(null, task.center, SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST, SoundCategory.BLOCKS, 3.5f, 0.5f);
-                    world.playSound(null, task.center, SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.BLOCKS, 3.5f, 1.2f);
-                }
+                sendDrillWind(task, currentDrillCenter, 0.95f);
 
                 // Cập nhật Mũi Khoan vừa xoay vừa cắm xuyên xuống lòng đất mỗi tick!
-                if (task.ageTicks <= 145) {
+                if (task.ageTicks <= 169) {
                     for (BlockPos pos : task.displacedPositions) {
                         DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
                         if (record == null || record.displayEntityUuid == null) continue;
@@ -602,7 +581,9 @@ public class RatioCollapseManager {
                         if (display == null || !display.isAlive()) continue;
 
                         int idx = task.blockIndexMap.getOrDefault(pos, 0);
-                        Vec3d drillOff = computeSpiralDrillOffset(idx, totalBlocks, task.boulderRadius, task.orbitAngle);
+                        if (drillHeat(0.40f + Math.min(1f, (task.ageTicks - 88) / 70f) * 0.45f) > 0.2f + (idx % 11) * 0.06f) display.setBlockState(Blocks.MAGMA_BLOCK.getDefaultState());
+                    
+                    Vec3d drillOff = computeSpiralDrillOffset(idx, totalBlocks, task.boulderRadius, task.orbitAngle);
                         Vec3d slamDisp = currentDrillCenter.add(drillOff).subtract(Vec3d.ofCenter(pos));
 
                         Quaternionf drillRot = new Quaternionf()
@@ -614,10 +595,10 @@ public class RatioCollapseManager {
                         display.setTransformation(SpatialMath.createPivotTransform(slamDisp, drillRot, 1.0f));
                     }
 
-                    // Sát thương nghiền nát xuyên thấu khi mũi khoan cắm sâu xuống đất (Ticks 135..145)
+                    // Sát thương nghiền nát xuyên thấu khi mũi khoan cắm sâu xuống đất (Ticks 159..169)
                     Box drillPenetrateBox = Box.of(currentDrillCenter, task.boulderRadius * 2.2, task.boulderRadius * 3.6, task.boulderRadius * 2.2);
                     for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, drillPenetrateBox, ent -> ent != task.caster)) {
-                        e.damage(world.getDamageSources().fallingBlock(task.caster), 10.0f * task.damageMult);
+                        e.damage(world.getDamageSources().fallingBlock(task.caster), (e instanceof net.minecraft.entity.mob.MobEntity ? 2.0f : 1.0f) * (10.0f * task.damageMult));
                         e.addVelocity(0, -0.45, 0); // Ép chặt nạn nhân xuống đáy lỗ khoan
                         e.velocityModified = true;
                     }
@@ -628,39 +609,13 @@ public class RatioCollapseManager {
                             25, task.boulderRadius * 0.6, 1.5, task.boulderRadius * 0.6, 0.1);
                 }
 
-                // TẠI TICK 143 (Khi mũi nhọn khoan xuyên qua mặt đất): KÍCH HOẠT ĐẠI ĐỊA CHẤN & HỐ KHOAN SÂU!
-                if (task.ageTicks == 143 && !task.slammed) {
+                // TẠI TICK 167 (Khi mũi nhọn khoan xuyên qua mặt đất): KÍCH HOẠT ĐẠI ĐỊA CHẤN & HỐ KHOAN SÂU!
+                if (task.ageTicks == IMPACT_TICK && !task.slammed) {
                     task.slammed = true;
 
-                    // Âm thanh khoan thủng lòng đất
-                    world.playSound(null, task.center, SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.BLOCKS, 4.5f, 0.55f);
-                    world.playSound(null, task.center, SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.BLOCKS, 4.5f, 0.60f);
-                    world.playSound(null, task.center, SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.BLOCKS, 3.5f, 0.5f);
-                    world.playSound(null, task.center, SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.BLOCKS, 3.8f, 1.1f);
 
                     // VFX sóng xung kích mặt đất & cột dung nham phụt lên từ miệng lỗ khoan
                     // BỎ hoàn toàn ParticleTypes.FLASH theo yêu cầu để tránh lóa trắng màn hình, dùng tia chớp điện Ruby sắc bén
-                    world.spawnParticles(ParticleTypes.ELECTRIC_SPARK,
-                            task.center.getX() + 0.5, task.center.getY() + 0.5, task.center.getZ() + 0.5, 30, 0.8, 0.8, 0.8, 0.15);
-                    world.spawnParticles(ParticleTypes.SONIC_BOOM,
-                            task.center.getX() + 0.5, task.center.getY() + 1.0, task.center.getZ() + 0.5, 4, 0.2, 0.5, 0.2, 0.0);
-                    world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER,
-                            task.center.getX() + 0.5, task.center.getY() + 0.5, task.center.getZ() + 0.5, 5, 1.2, 1.2, 1.2, 0.0);
-                    world.spawnParticles(ParticleTypes.LAVA,
-                            task.center.getX() + 0.5, task.center.getY() + 1.0, task.center.getZ() + 0.5, 40, 2.0, 2.5, 2.0, 0.3);
-
-                    for (int i = 0; i < 36; i++) {
-                        double angle = (i / 36.0) * (2.0 * Math.PI);
-                        double r = task.craterRadius * 0.9;
-                        double px = task.center.getX() + 0.5 + Math.cos(angle) * r;
-                        double pz = task.center.getZ() + 0.5 + Math.sin(angle) * r;
-                        world.spawnParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, px, task.center.getY() + 0.3, pz,
-                                2, Math.cos(angle) * 0.22, 0.08, Math.sin(angle) * 0.22, 0.03);
-                        world.spawnParticles(new DustParticleEffect(new Vector3f(1.0f, 0.2f, 0.05f), 1.8f),
-                                px, task.center.getY() + 0.4, pz, 3, 0.3, 0.3, 0.3, 0.05);
-                    }
-
-                    // Sát thương khoan xuyên giáp & hất văng (phủ sâu toàn bộ lỗ khoan -craterDepth)
                     Box slamBox = new Box(
                             task.center.getX() - task.radius * 1.45,
                             task.center.getY() - task.craterDepth - 4.0,
@@ -672,7 +627,7 @@ public class RatioCollapseManager {
                     for (LivingEntity e : world.getEntitiesByClass(LivingEntity.class, slamBox, ent -> ent != task.caster)) {
                         double dist = e.getPos().distanceTo(task.center.toCenterPos());
                         float dmg = (float) Math.max(35.0, ((1.0 - (dist / (task.radius * 1.45))) * 75.0 + 25.0) * task.damageMult);
-                        e.damage(world.getDamageSources().fallingBlock(task.caster), dmg);
+                        e.damage(world.getDamageSources().fallingBlock(task.caster), (e instanceof net.minecraft.entity.mob.MobEntity ? 2.0f : 1.0f) * (dmg));
 
                         Vec3d diff = e.getPos().subtract(task.center.toCenterPos()).normalize().multiply(2.2 * task.damageMult).add(0, 0.85, 0);
                         e.addVelocity(diff.x, diff.y, diff.z);
@@ -682,7 +637,7 @@ public class RatioCollapseManager {
                     // Shader Ground Seismic Shockwave & Camera Shake
                     ImpactFxPayload slamPayload = new ImpactFxPayload(
                             task.center.getX() + 0.5, task.center.getY() + 0.5, task.center.getZ() + 0.5,
-                            ImpactFxPayload.TYPE_SEISMIC_SLAM, 22, 2.2f * task.damageMult
+                            ImpactFxPayload.TYPE_SEISMIC_SLAM, 34, 2.2f * task.damageMult
                     );
                     CinematicFxPayload slamCinematic = new CinematicFxPayload(
                             CinematicFxPayload.EVENT_METEOR_SLAM,
@@ -695,49 +650,11 @@ public class RatioCollapseManager {
                     }
 
                     // TẠO HỐ KHOAN HÌNH NÓN XOẮN SÂU (SPIRAL DRILL BOREHOLE CRATER)
-                    int craterR = task.craterRadius;
-                    int maxD = task.craterDepth;
-                    BlockPos.Mutable cMut = new BlockPos.Mutable();
-                    Random rng = new Random(task.center.asLong());
-
-                    for (int cx = -craterR; cx <= craterR; cx++) {
-                        for (int cz = -craterR; cz <= craterR; cz++) {
-                            double distSq = cx * cx + cz * cz;
-                            if (distSq > craterR * craterR) continue;
-
-                            double dist2D = Math.sqrt(distSq);
-                            double angle2D = Math.atan2(cz, cx);
-                            // Rãnh xoắn ốc khắc vào lòng hố khoan
-                            double spiralGroove = Math.sin(angle2D * 3.0 + dist2D * 0.85) * 1.5;
-                            double normDist = Math.min(1.0, dist2D / craterR);
-                            // Hình phễu mũi khoan nhọn và khoan cắm sâu tận cùng ở tâm (hàm mũ 1.55)
-                            int depth = (int) Math.round(Math.pow(1.0 - normDist, 1.55) * maxD + (1.0 - normDist) * spiralGroove);
-
-                            for (int cy = -depth; cy <= 3; cy++) {
-                                cMut.set(task.center.getX() + cx, task.center.getY() + cy, task.center.getZ() + cz);
-                                if (cMut.getY() < world.getBottomY() || cMut.getY() >= world.getTopY()) continue;
-
-                                BlockState bState = world.getBlockState(cMut);
-                                if (bState.isAir() || bState.getBlock() == Blocks.BEDROCK) continue;
-
-                                if (cy == -depth) {
-                                    // Vách rãnh khoan nóng chảy đỏ rực
-                                    boolean isGrooveHot = Math.sin(angle2D * 3.0 + dist2D * 0.85) > 0.15;
-                                    BlockState floorState = isGrooveHot ? Blocks.MAGMA_BLOCK.getDefaultState() :
-                                            (rng.nextFloat() < 0.45f) ? Blocks.BLACKSTONE.getDefaultState() :
-                                            (rng.nextFloat() < 0.75f) ? Blocks.COBBLESTONE.getDefaultState() :
-                                                    Blocks.OBSIDIAN.getDefaultState();
-                                    world.setBlockState(cMut, floorState, Block.NOTIFY_ALL);
-                                } else if (cy > -depth) {
-                                    world.setBlockState(cMut, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
-                                }
-                            }
-                        }
-                    }
+                    task.craterCursor = new SupernovaCraterCursor(task.craterRadius);
                 }
 
-                // Tại Tick 148: Xóa các BlockDisplay của mũi khoan (đã chui sâu vào lòng đất) và bắn đá nóng chảy văng lên miệng hố
-                if (task.ageTicks == 148) {
+                // Tại Tick 172: Xóa các BlockDisplay của mũi khoan (đã chui sâu vào lòng đất) và bắn đá nóng chảy văng lên miệng hố
+                if (task.ageTicks == 172) {
                     Random rng = new Random(task.center.asLong());
                     int flingCount = 0;
                     int maxFling = Math.min(65, task.maxBlocks / 3);
@@ -763,11 +680,80 @@ public class RatioCollapseManager {
             }
 
             // =========================================================================
-            // PHA 5: KẾT THÚC (Tick 153+)
+            // PHA 5: KẾT THÚC (Tick 177+)
             // =========================================================================
-            else {
+            else if (task.craterCursor == null || task.craterCursor.finished()) {
                 it.remove();
             }
+            // Let the impact packet leave before excavating, then bound work during the shockwave.
+            if (task.ageTicks > IMPACT_TICK && task.craterCursor != null && !task.craterCursor.finished()) {
+                carveCrater(task);
+            }
+        }
+    }
+
+    private static void carveCrater(RatioCollapseTask task) {
+        ServerWorld world = task.world;
+        BlockPos.Mutable pos = new BlockPos.Mutable();
+        boolean changedRecords = false;
+        for (int column = 0; column < 96 && !task.craterCursor.finished(); column++) {
+            int x = task.craterCursor.x(), z = task.craterCursor.z();
+            task.craterCursor.advance();
+            if (x * x + z * z > task.craterRadius * task.craterRadius) continue;
+            pos.set(task.center.getX() + x, task.center.getY(), task.center.getZ() + z);
+            if (!world.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) continue;
+            double distance = Math.hypot(x, z);
+            double groove = Math.sin(Math.atan2(z, x) * 3 + distance * .85);
+            int depth = drillCraterDepth(x, z, task.craterRadius, task.craterDepth);
+            for (int y = 3; y >= -depth; y--) {
+                pos.setY(task.center.getY() + y);
+                if (!world.isInBuildLimit(pos) || !world.getWorldBorder().contains(pos)) continue;
+                BlockState state = world.getBlockState(pos);
+                DisplacedBlockRecord record = SpatialDisplacementManager.getActiveRecord(world.getRegistryKey(), pos);
+                if (record != null) state = record.originalState;
+                if (state.isAir() || state.getHardness(world, pos) < 0) continue;
+                if (record != null) {
+                    SpatialDisplacementManager.removeActiveRecord(world.getRegistryKey(), pos);
+                    changedRecords = true;
+                }
+                BlockState replacement = Blocks.AIR.getDefaultState();
+                if (y == -depth) {
+                    double heat = SpatialMath.hash01(pos);
+                    replacement = (groove > .15 ? Blocks.MAGMA_BLOCK : heat < .45 ? Blocks.BLACKSTONE
+                            : heat < .86 ? Blocks.COBBLESTONE : Blocks.OBSIDIAN).getDefaultState();
+                }
+                // Bulk excavation must not cascade neighbor physics for every removed block.
+                world.setBlockState(pos, replacement, Block.FORCE_STATE | Block.NOTIFY_LISTENERS | Block.SKIP_DROPS);
+            }
+        }
+        if (changedRecords) net.godwand.spatial.DisplacementPersistentState.getServerState(world).markDirty();
+    }
+
+    public static int drillCraterDepth(int x, int z, int radius, int maxDepth) {
+        double distance = Math.hypot(x, z);
+        double edge = Math.max(0, 1 - distance / radius);
+        return (int)Math.round(Math.pow(edge, 1.55) * maxDepth
+                + edge * Math.sin(Math.atan2(z, x) * 3 + distance * .85) * 1.5);
+    }
+
+    public static double drillHoverHeight(double radius) {
+        return 18.0 + radius * 2.2 + Math.max(0, radius - 5.0) * 2.0;
+    }
+
+    public static float drillWindVisibility(float speed) {
+        float t = MathHelper.clamp((speed - 0.50f) / 0.10f, 0, 1);
+        return t * t * (3 - 2 * t);
+    }
+
+    public static float drillHeat(float speed) {
+        return MathHelper.clamp((speed - 0.50f) / 0.35f, 0, 1);
+    }
+
+    private static void sendDrillWind(RatioCollapseTask task, Vec3d center, float speed) {
+        var payload = new net.godwand.network.DrillWindPayload(task.center.asLong(), center.x, center.y, center.z,
+                (float) task.boulderRadius, task.orbitAngle, speed);
+        for (ServerPlayerEntity player : PlayerLookup.around(task.world, center, 128.0)) {
+            ServerPlayNetworking.send(player, payload);
         }
     }
 

@@ -1,0 +1,3 @@
+
+
+Cuối cùng thì bạn có thể tối ưu để kiểu cho nó hoạt động vẫn tốt và đẹp trên shader được không? Kiểu mấy cái mod oculus, iris, sodium đồ ấy. Mình thấy mod the shooting star sài shader nó vẫn khá là đẹp, không bị mất mấy filter impact frame. Với tối ưu để có mấy cái config chỉnh được để hỗ trợ tốt hơn cho mấy người làm mod pack. Vậy là ok rồi

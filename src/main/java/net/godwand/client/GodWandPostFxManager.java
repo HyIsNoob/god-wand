@@ -14,26 +14,68 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 public class GodWandPostFxManager {
+    private record Frame(Matrix4f positionMatrix, Matrix4f projectionMatrix, float tickDelta) {}
+    private static Frame pendingFrame;
     private static PostEffectProcessor postProcessor;
+    private static PostEffectProcessor novaProcessor;
     private static int lastWidth = -1;
     private static int lastHeight = -1;
 
     private static boolean active = false;
     private static int currentTick = 0;
+    private static int waitingForBurstTicks;
     private static int maxTicks = 0;
     private static int fxType = 0;
     private static float baseIntensity = 1.0f;
     private static Vec3d blastCenter = Vec3d.ZERO;
+    private static float recallCoreStart;
+
+    public static float singularityRadius(float progress) {
+        float grow = MathHelper.clamp(progress / 0.10f, 0, 1);
+        float collapse = MathHelper.clamp((progress - 0.80f) / 0.20f, 0, 1);
+        return MathHelper.lerp(grow * (2 - grow), 0.18f, 0.68f) * (1 - collapse * collapse);
+    }
+
+    public static float singularityRecallRadius(float start, float progress) {
+        float collapse = MathHelper.clamp(progress / 0.60f, 0, 1);
+        return start * (1 - collapse * collapse);
+    }
+
+    public static float supernovaRadius(float progress) {
+        float burst = MathHelper.clamp(progress / 0.10f, 0, 1);
+        float radius = MathHelper.lerp(1.0f - (1.0f - burst) * (1.0f - burst), 14.0f, 68.0f);
+        float swell = MathHelper.clamp((progress - 0.10f) / 0.30f, 0, 1);
+        return MathHelper.lerp(swell * (2.0f - swell), radius, 98.0f);
+    }
+
+    public static float blackHoleRadius(float progress) {
+        return net.godwand.skill.SupernovaSequence.coreRadius(progress * 340);
+    }
+
+    public static float supernovaAftermath(float progress) {
+        float t = MathHelper.clamp((progress - 0.22f) / 0.18f, 0, 1);
+        return t * t * (3.0f - 2.0f * t);
+    }
 
     public static void triggerImpact(double x, double y, double z, int type, int durationTicks, float intensity) {
+        if (type == ImpactFxPayload.TYPE_SUPERNOVA_IMPACT) {
+            CustomImpactFrameOverlay.trigger();
+            return;
+        }
+        if (type == ImpactFxPayload.TYPE_REASSEMBLY) {
+            float progress = 1 - (float) currentTick / Math.max(1, maxTicks);
+            boolean sameCore = active && blastCenter.squaredDistanceTo(x, y, z) < 0.01;
+            recallCoreStart = !sameCore ? 0 : fxType == ImpactFxPayload.TYPE_DETONATION ? singularityRadius(progress)
+                    : fxType == ImpactFxPayload.TYPE_REASSEMBLY ? singularityRecallRadius(recallCoreStart, progress) : 0;
+        }
         blastCenter = new Vec3d(x, y, z);
         fxType = type;
         maxTicks = Math.max(1, durationTicks);
         currentTick = maxTicks;
+        waitingForBurstTicks = 0;
         baseIntensity = Math.max(0.1f, intensity);
         active = true;
     }
@@ -42,23 +84,69 @@ public class GodWandPostFxManager {
         if (active) {
             currentTick--;
             if (currentTick <= 0) {
-                active = false;
+                if (fxType == ImpactFxPayload.TYPE_BLACK_HOLE && ++waitingForBurstTicks <= 40) {
+                    currentTick = 0;
+                } else active = false;
             }
         }
     }
 
     public static void reset() {
+        pendingFrame = null;
+        reloadShaders();
+        active = false;
+        waitingForBurstTicks = 0;
+    }
+
+    public static void reloadShaders() {
         if (postProcessor != null) {
             postProcessor.close();
             postProcessor = null;
         }
-        active = false;
+        if (novaProcessor != null) {
+            novaProcessor.close();
+            novaProcessor = null;
+        }
         lastWidth = -1;
         lastHeight = -1;
     }
 
+    public static int bloomDimension(int fullSize) {
+        int divisor = net.godwand.config.GodWandConfig.CLIENT.bloomDownsample;
+        return Math.max(1, (fullSize + divisor - 1) / divisor);
+    }
+
+    private static void resizeNovaTargets(int width, int height) {
+        for (String name : new String[]{"nova_emit", "nova_blur_x", "nova_blur_y"}) {
+            novaProcessor.getSecondaryTarget(name).resize(bloomDimension(width), bloomDimension(height), MinecraftClient.IS_SYSTEM_MAC);
+        }
+        for (PostEffectPass pass : ((PostEffectProcessorAccessor) novaProcessor).getPasses()) {
+            pass.setProjectionMatrix(new Matrix4f().setOrtho(0, pass.output.textureWidth, 0, pass.output.textureHeight, 0.1f, 1000));
+        }
+    }
+
     public static void onWorldRender(WorldRenderContext context) {
-        if (!active) return;
+        if (!net.godwand.config.GodWandConfig.CLIENT.postEffects || (!active && SupernovaAccretionRenderer.skyFrame(0) == null)) {
+            pendingFrame = null;
+            return;
+        }
+        pendingFrame = new Frame(new Matrix4f(context.positionMatrix()), new Matrix4f(context.projectionMatrix()),
+                context.tickCounter().getTickDelta(false));
+    }
+
+    public static void renderAfterWorld() {
+        Frame frame = pendingFrame;
+        pendingFrame = null;
+        if (frame != null) renderFrame(frame);
+    }
+
+    private static void renderFrame(Frame context) {
+        var sky = SupernovaAccretionRenderer.skyFrame(0);
+        if (!active && sky == null) return;
+        float tickDelta = context.tickDelta();
+        sky = SupernovaAccretionRenderer.skyFrame(tickDelta);
+        boolean skyOnly = sky != null && !(active && (fxType == ImpactFxPayload.TYPE_SUPERNOVA || fxType == ImpactFxPayload.TYPE_BLACK_HOLE));
+        Vec3d renderCenter = skyOnly ? sky.center() : blastCenter;
 
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.getFramebuffer() == null) return;
@@ -67,34 +155,39 @@ public class GodWandPostFxManager {
         int fbHeight = client.getWindow().getFramebufferHeight();
         if (fbWidth <= 0 || fbHeight <= 0) return;
 
-        if (postProcessor == null) {
+        boolean cosmic = skyOnly || (active && (fxType == ImpactFxPayload.TYPE_SUPERNOVA || fxType == ImpactFxPayload.TYPE_BLACK_HOLE));
+        PostEffectProcessor processor = cosmic ? novaProcessor : postProcessor;
+        if (processor == null) {
             try {
-                postProcessor = new PostEffectProcessor(
-                        client.getTextureManager(),
-                        client.getResourceManager(),
-                        client.getFramebuffer(),
-                        Identifier.ofVanilla("shaders/post/godwand_impact.json")
-                );
-                postProcessor.setupDimensions(fbWidth, fbHeight);
-                lastWidth = fbWidth;
-                lastHeight = fbHeight;
+                processor = new PostEffectProcessor(client.getTextureManager(), client.getResourceManager(),
+                        client.getFramebuffer(), Identifier.ofVanilla(cosmic ? "shaders/post/godwand_nova.json" : "shaders/post/godwand_impact.json"));
+                processor.setupDimensions(fbWidth, fbHeight);
+                if (cosmic) {
+                    novaProcessor = processor;
+                    resizeNovaTargets(fbWidth, fbHeight);
+                } else postProcessor = processor;
             } catch (Exception e) {
+                if (processor != null) processor.close();
+                if (cosmic) novaProcessor = null;
+                else postProcessor = null;
                 GodWandMod.LOGGER.error("Failed to initialize God Wand PostEffectProcessor", e);
                 active = false;
                 return;
             }
         }
-
         if (fbWidth != lastWidth || fbHeight != lastHeight) {
-            postProcessor.setupDimensions(fbWidth, fbHeight);
+            if (postProcessor != null) postProcessor.setupDimensions(fbWidth, fbHeight);
+            if (novaProcessor != null) {
+                novaProcessor.setupDimensions(fbWidth, fbHeight);
+                resizeNovaTargets(fbWidth, fbHeight);
+            }
             lastWidth = fbWidth;
             lastHeight = fbHeight;
         }
 
-        float tickDelta = context.tickCounter().getTickDelta(false);
-        float progress = MathHelper.clamp(1.0f - ((float) currentTick - tickDelta) / (float) maxTicks, 0.0f, 1.0f);
+        float progress = MathHelper.clamp(1.0f - ((float) currentTick - tickDelta) / Math.max(1, maxTicks), 0.0f, 1.0f);
 
-        float impactIntensity = baseIntensity * (1.0f - progress * 0.75f);
+        float impactIntensity = active && !skyOnly ? baseIntensity * (1.0f - progress * 0.75f) : 0;
         float impactFrame = 0.0f;
         float impactMode = 0.0f;
         float shockwaveRadius = 0.0f;
@@ -108,7 +201,7 @@ public class GodWandPostFxManager {
 
         int tickIdx = Math.max(0, maxTicks - currentTick);
 
-        switch (fxType) {
+        if (active && !skyOnly) switch (fxType) {
             case ImpactFxPayload.TYPE_DETONATION -> {
                 // Calamity Detonation:
                 // Ticks 0..11 (12 ticks = 0.6s): Chu kỳ 36 Anime Impact Frame lâu hơn, mỗi frame 3 ticks rõ nét
@@ -135,21 +228,10 @@ public class GodWandPostFxManager {
                     zoomBlur = 0.0f;
                 }
 
-                // 3D Singularity Lõi năng lượng duy trì:
-                // Nhịp thở scale dao động rất nhẹ (+- 0.035m), êm ái tự nhiên không giật mạnh
-                float pulse = (float) (Math.sin(gTime * 8.0) * 0.035);
-                float activeCoreR = Math.max(0.40f, 0.65f + pulse);
-                float activeLensing = 0.55f + pulse * 0.2f;
+                // Stable shell; only the plasma moves until recall.
+                coreRadius = singularityRadius(progress);
+                lensingPower = 0.12f;
 
-                if (progress < 0.80f) {
-                    coreRadius = activeCoreR;
-                    lensingPower = activeLensing;
-                } else {
-                    // Ticks 106..131: Hút ngược chân không sụp đổ lõi
-                    float snapProg = MathHelper.clamp((progress - 0.80f) / 0.20f, 0.0f, 1.0f);
-                    coreRadius = MathHelper.lerp(snapProg, activeCoreR, 0.0f);
-                    lensingPower = MathHelper.lerp(snapProg, activeLensing, 0.0f);
-                }
             }
             case ImpactFxPayload.TYPE_IMPLOSION -> {
                 // Epicenter Calamity Implosion:
@@ -207,40 +289,36 @@ public class GodWandPostFxManager {
                 lensingPower = 0.0f;
             }
             case ImpactFxPayload.TYPE_SUPERNOVA -> {
-                // Cataclysmic Cosmic Supernova (Burst & Lingering Mushroom Aftermath - 140 ticks / 7.0s duration):
-                // Các bức vẽ tay Anime Impact Frame (Snapshot 1..4) được render sắc nét qua CustomImpactFrameOverlay!
                 impactFrame = 0.0f;
-
-                // Không lạm dụng Distortion bẻ méo màn hình gây khó chịu cho người chơi
                 shockwaveRadius = 0.0f;
                 distortionPower = 0.0f;
-                chromaticAmount = 0.035f * baseIntensity * (1.0f - progress);
-
-                // Bỏ hoàn toàn retinaBurn và flash chớp nháy giật cục, để CustomImpactFrameOverlay xử lý fadeout trắng điện ảnh
+                float aftermath = supernovaAftermath(progress * maxTicks / 240f);
+                chromaticAmount = 0.006f * baseIntensity * aftermath * (1.0f - progress);
                 zoomBlur = 0.0f;
                 retinaBurn = 0.0f;
-
-                // Quả cầu lửa vũ trụ khổng lồ & đám mây nấm tận thế (Supernova Cosmic Blast):
-                // Pha 1 (progress 0..0.20): Bung nổ thần tốc từ 5.2m lên 68.0m
-                // Pha 2 (progress 0.20..0.85): Tiếp tục phình to cuồn cuộn ra tận 98.0m bao trùm toàn bộ bầu trời
-                float burstProg = Math.min(1.0f, progress / 0.20f);
-                float burstR = MathHelper.lerp((float) Math.sin(burstProg * Math.PI * 0.5), 5.2f, 68.0f);
-                float swellProg = MathHelper.clamp((progress - 0.20f) / 0.65f, 0.0f, 1.0f);
-                coreRadius = MathHelper.lerp((float) Math.sin(swellProg * Math.PI * 0.5), burstR, 98.0f);
-
-                lensingPower = Math.max(0.0f, (1.0f - progress) * 1.8f);
-
-                // AFTERMATH: Biến mất từ từ êm ái, chuyển từ plasma trắng-vàng sang tro bụi & tinh vân mờ ảo
+                coreRadius = supernovaRadius(progress * maxTicks / 240f);
+                lensingPower = 0.0f;
                 impactIntensity = baseIntensity * (float) Math.pow(1.0f - progress, 1.45);
             }
             case ImpactFxPayload.TYPE_BLACK_HOLE -> {
                 impactIntensity = 1.0f;
                 // Suốt từ progress 0.0 đến 1.0 (Ticks 1..340): Hố Đen to dần ĐƠN ĐIỆU từ 0.15m lên 5.2m cực đại
-                coreRadius = MathHelper.lerp((float) Math.pow(progress, 0.95), 0.15f, 5.2f);
-                lensingPower = MathHelper.lerp(progress, 0.4f, 3.6f);
-                shockwaveRadius = 0.0f;
-                distortionPower = 0.0f;
-                zoomBlur = -0.025f * progress;
+                coreRadius = blackHoleRadius(progress);
+                lensingPower = MathHelper.lerp(progress, 0.4f, 3.6f) * MathHelper.clamp(coreRadius / 2, 0, 1);
+
+                // Hiệu ứng shockwave tản ra trước khi đâm xuống tầm 0.5 giây (Ticks 330..340)
+                if (progress >= 330.0f / 340.0f) {
+                    float waveProgress = (progress - (330.0f / 340.0f)) / (10.0f / 340.0f);
+                    shockwaveRadius = (float) Math.pow(waveProgress, 0.65) * 1.55f;
+                    float waveFade = (float) Math.sin(waveProgress * Math.PI);
+                    distortionPower = 0.045f * waveFade;
+                    chromaticAmount = 0.020f * waveFade;
+                    zoomBlur = 0.032f * waveFade;
+                } else {
+                    shockwaveRadius = 0.0f;
+                    distortionPower = 0.0f;
+                    zoomBlur = 0.0f;
+                }
             }
             case ImpactFxPayload.TYPE_GRAVITY_CORE -> {
                 // Quả cầu năng lượng Chiêu 3: Thu nhỏ gọn gàng, tinh thể Ruby đỏ rực rỡ (Dense Crimson Core)
@@ -256,90 +334,90 @@ public class GodWandPostFxManager {
                 // Chiêu 2 Reassembly Climax: Cực kỳ impact khi hàng trăm khối đá khóa sập vào đúng vị trí 1:1
                 // 1. Chớp 3 frames Manga Inked Impact Frame sắc lẹm (Mode 33: Prism Inked Line-art / Mode 0: Ink Wash)
                 if (tickIdx < 4) {
-                    impactFrame = 1.0f - ((float) tickIdx / 4.0f);
+                    impactFrame = 0.22f * (1.0f - ((float) tickIdx / 4.0f));
                     impactMode = (tickIdx % 2 == 0) ? 33.0f : 0.0f;
                 } else {
                     impactFrame = 0.0f;
                 }
                 // 2. Chớp trắng lóa mắt Retinal Flash nung chảy mối nối không gian
                 float flash = (1.0f - progress) * baseIntensity;
-                retinaBurn = flash * 0.92f;
-                chromaticAmount = flash * 0.035f;
+                retinaBurn = flash * 0.18f;
+                chromaticAmount = flash * 0.006f;
                 zoomBlur = 0.0f; // Tuyệt đối không nhòe
                 distortionPower = 0.0f; // Bỏ shockwave méo hình lúc thu về
                 shockwaveRadius = 0.0f;
-                coreRadius = 0.0f;
+                coreRadius = singularityRecallRadius(recallCoreStart, progress);
                 lensingPower = 0.0f;
             }
         }
 
-        // Project 3D explosion coordinates to 2D Screen UV
-        float centerX = 0.5f;
-        float centerY = 0.5f;
-        if (blastCenter.lengthSquared() > 0.001) {
-            Camera camera = client.gameRenderer.getCamera();
-            Vec3d camPos = camera.getPos();
-            Vec3d rel = blastCenter.subtract(camPos);
-
-            Quaternionf camRot = camera.getRotation();
-            Vector3f local = new Vector3f((float) rel.x, (float) rel.y, (float) rel.z);
-            new Quaternionf(camRot).conjugate().transform(local);
-
-            // In camera coordinates: -Z is forward
-            if (local.z < -0.1f) {
-                float fov = (float) Math.toRadians(client.options.getFov().getValue());
-                float tanFov = (float) Math.tan(fov / 2.0);
-                float aspect = (float) fbWidth / (float) fbHeight;
-                float projX = 0.5f + (local.x / (-local.z * tanFov * aspect)) * 0.5f;
-                float projY = 0.5f - (local.y / (-local.z * tanFov)) * 0.5f;
-                centerX = MathHelper.clamp(projX, -2.0f, 3.0f);
-                centerY = MathHelper.clamp(projY, -2.0f, 3.0f);
-            } else {
-                // Khi vụ nổ ở sau lưng người chơi: trượt tâm ra xa khỏi màn hình thay vì nhảy về giữa tâm ngắm
-                float signX = (local.x >= 0.0f) ? 1.0f : -1.0f;
-                float signY = (local.y >= 0.0f) ? -1.0f : 1.0f;
-                centerX = 0.5f + signX * 5.0f;
-                centerY = 0.5f + signY * 5.0f;
-            }
-        }
+        Camera camera = client.gameRenderer.getCamera();
+        Vec3d camPos = camera != null ? camera.getPos() : Vec3d.ZERO;
+        Vector4f clip = new Vector4f((float) (renderCenter.x - camPos.x),
+                (float) (renderCenter.y - camPos.y), (float) (renderCenter.z - camPos.z), 1);
+        clip.mul(context.positionMatrix()).mul(context.projectionMatrix());
+        float centerX = clip.w > 0.001f ? clip.x / clip.w * 0.5f + 0.5f : 0.5f;
+        float centerY = clip.w > 0.001f ? clip.y / clip.w * 0.5f + 0.5f : 0.5f;
 
         float aspect = (float) fbWidth / (float) fbHeight;
 
-        Camera camera = client.gameRenderer.getCamera();
-        Vec3d camPos = (camera != null) ? camera.getPos() : Vec3d.ZERO;
         Matrix4f invProj = new Matrix4f(context.projectionMatrix()).invert();
         Matrix4f invView = new Matrix4f(context.positionMatrix()).invert();
 
-        for (PostEffectPass pass : ((PostEffectProcessorAccessor) postProcessor).getPasses()) {
+        int passIndex = 0;
+        for (PostEffectPass pass : ((PostEffectProcessorAccessor) processor).getPasses()) {
             JsonEffectShaderProgram prog = pass.getProgram();
+            prog.getUniformByNameOrDummy("EmissionOnly").set(cosmic && passIndex == 1 ? 1.0f : 0.0f);
+            passIndex++;
             prog.getUniformByNameOrDummy("InvProjMat").set(invProj);
             prog.getUniformByNameOrDummy("InvViewMat").set(invView);
             prog.getUniformByNameOrDummy("CameraPos").set((float) camPos.x, (float) camPos.y, (float) camPos.z);
-            prog.getUniformByNameOrDummy("BlastCenter").set((float) blastCenter.x, (float) blastCenter.y, (float) blastCenter.z);
+            prog.getUniformByNameOrDummy("BlastCenter").set((float) renderCenter.x, (float) renderCenter.y, (float) renderCenter.z);
+            Vec3d skyCenter = sky != null ? sky.center() : renderCenter;
+            prog.getUniformByNameOrDummy("SkyRiftCenter").set((float) skyCenter.x, (float) skyCenter.y, (float) skyCenter.z);
             prog.getUniformByNameOrDummy("CoreRadius").set(coreRadius);
             prog.getUniformByNameOrDummy("LensingPower").set(lensingPower);
-            prog.getUniformByNameOrDummy("FxType").set((float) fxType);
+            prog.getUniformByNameOrDummy("FxType").set(active ? (float) fxType : -1.0f);
         }
 
-        postProcessor.setUniforms("ImpactIntensity", impactIntensity);
-        postProcessor.setUniforms("ImpactFrame", impactFrame);
-        postProcessor.setUniforms("ImpactMode", impactMode);
-        postProcessor.setUniforms("ShockwaveRadius", shockwaveRadius);
-        postProcessor.setUniforms("DistortionPower", distortionPower);
-        postProcessor.setUniforms("ChromaticAmount", chromaticAmount);
-        postProcessor.setUniforms("ZoomBlur", zoomBlur);
-        postProcessor.setUniforms("RetinaBurn", retinaBurn);
-        postProcessor.setUniforms("CenterX", centerX);
-        postProcessor.setUniforms("CenterY", centerY);
-        postProcessor.setUniforms("Aspect", aspect);
-        postProcessor.setUniforms("GTime", gTime);
-        postProcessor.setUniforms("CoreRadius", coreRadius);
-        postProcessor.setUniforms("LensingPower", lensingPower);
-        postProcessor.setUniforms("FxType", (float) fxType);
+        processor.setUniforms("BloomStrength", net.godwand.config.GodWandConfig.CLIENT.bloomStrength);
+        processor.setUniforms("BloomBurst", fxType == ImpactFxPayload.TYPE_SUPERNOVA && clip.w > 0.001f
+                ? Math.max(0, 1 - progress * maxTicks / 28) : 0);
+        processor.setUniforms("ImpactIntensity", impactIntensity);
+        processor.setUniforms("ImpactFrame", net.godwand.config.GodWandConfig.CLIENT.impactFrames ? impactFrame : 0);
+        processor.setUniforms("ImpactMode", impactMode);
+        processor.setUniforms("ShockwaveRadius", shockwaveRadius);
+        processor.setUniforms("DistortionPower", distortionPower);
+        processor.setUniforms("ChromaticAmount", chromaticAmount);
+        processor.setUniforms("ZoomBlur", zoomBlur);
+        processor.setUniforms("RetinaBurn", retinaBurn);
+        processor.setUniforms("CenterX", centerX);
+        processor.setUniforms("CenterY", centerY);
+        processor.setUniforms("Aspect", aspect);
+        processor.setUniforms("GTime", gTime);
+        processor.setUniforms("CoreRadius", coreRadius);
+        processor.setUniforms("LensingPower", lensingPower);
+        processor.setUniforms("FxType", skyOnly ? 9f : active ? (float) fxType : -1f);
+        processor.setUniforms("CollapseProgress", fxType == ImpactFxPayload.TYPE_BLACK_HOLE ? MathHelper.clamp((progress * 340 - 250) / 90, 0, 1) : 0);
+        processor.setUniforms("SkyRiftAge", sky != null ? sky.time() : -1f);
+        processor.setUniforms("SkyRiftScale", sky != null ? sky.scale() : 0);
+        processor.setUniforms("SkyRiftCollapse", sky != null ? sky.collapse() : 0);
+        processor.setUniforms("SkyBlackout", sky != null && net.godwand.config.GodWandConfig.CLIENT.skyBlackout ? net.godwand.skill.SupernovaSequence.skyBlackout(
+                sky.time() - net.godwand.skill.SupernovaSequence.CHARGE_TICKS) : 0);
+        processor.setUniforms("RiftPulseRadius", sky != null ? sky.pulseRadius() : 0);
+        processor.setUniforms("RiftPulseStrength", sky != null ? sky.pulseStrength() : 0);
+        processor.setUniforms("NovaProgress", !skyOnly && fxType == ImpactFxPayload.TYPE_SUPERNOVA ? progress * maxTicks / 240f : 0);
+        processor.setUniforms("NovaAftermath", !skyOnly && fxType == ImpactFxPayload.TYPE_SUPERNOVA ? supernovaAftermath(progress * maxTicks / 240f) : 0.0f);
 
         RenderSystem.disableBlend();
         RenderSystem.disableDepthTest();
         RenderSystem.resetTextureMatrix();
-        postProcessor.render(tickDelta);
+        try {
+            processor.render(tickDelta);
+        } finally {
+            client.getFramebuffer().beginWrite(true);
+            RenderSystem.enableDepthTest();
+            RenderSystem.depthMask(true);
+        }
     }
 }
