@@ -659,6 +659,8 @@ public class ShockwaveSlicer {
                     beam.setPos(task.orbCenter);
                     beam.setBlockState(net.minecraft.world.level.block.Blocks.AMETHYST_BLOCK.defaultBlockState());
                     beam.setBrightnessOverride(new net.minecraft.util.Brightness(15, 15));
+                    beam.setGlowingTag(false);
+                    beam.setGlowColorOverride(-1);
                     task.world.addFreshEntity(beam);
                     task.beams.put(pos, beam);
                 }

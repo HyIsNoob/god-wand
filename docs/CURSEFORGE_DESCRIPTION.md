@@ -1,4 +1,4 @@
-# God Wand (Fabric & NeoForge 1.21.1)
+# God Wand
 
 God Wand adds a multi-function magic wand to Minecraft with 5 unique skills for exploration, terrain control, and combat. It includes survival crafting and a dedicated creative tab.
 
@@ -56,16 +56,9 @@ Switch skills quickly by holding **V** to open the skill wheel, or by pressing *
 
 ---
 
-## Crafting & Creative Tab
+## Crafting
 
-### Creative Tab
-Found in its own tab named **God Wand**, as well as in the **Combat** tab.
-
-### Survival Crafting Recipe
-Crafted at a standard Crafting Table using:
-- Top row: Echo Shard | Nether Star | Echo Shard
-- Middle row: Amethyst Shard | Netherite Ingot | Amethyst Shard
-- Bottom row: [Empty] | Blaze Rod | [Empty]
+![image](https://media.forgecdn.net/attachments/description/1760928/description_90c1ec0b-10c4-4871-ac36-e3e7fcd3e830.png)
 
 ---
 
@@ -81,16 +74,6 @@ Crafted at a standard Crafting Table using:
 - Minecraft 1.21.1
 - NeoForge (21.1.72 or newer)
 - Java 21
-
----
-
-## Recent Changelog (v1.1.0)
-
-- Added NeoForge 1.21.1 support alongside Fabric 1.21.1.
-- Skill 1: Added expanding shockwave activation animation. Fixed a bug where dying while the skill was active left blocks permanently displaced.
-- Skill 2: Added a rotating energy ball with swirling intake particles while charging.
-- Combat balance: Bosses and high-health mobs (such as the Ender Dragon and Wither) now take heavy burst damage from Skill 2 and Skill 4 instead of dying instantly. Mobs under 50 HP are still crushed immediately.
-- Visual fixes: Fixed bright purple outlines on blocks when playing with shaderpacks (Complementary). Fixed lines cutting across the screen when standing close to the black hole.
 
 ---
 

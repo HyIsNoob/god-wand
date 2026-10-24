@@ -11,10 +11,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class EntityMixin {
 
     /**
-     * Vô hiệu hóa hiệu ứng phát sáng outline cho toàn bộ khối BlockDisplayEntity
+     * Vô hiệu hóa hiệu ứng phát sáng outline cho toàn bộ khối BlockDisplay
      */
     @Inject(method = "isCurrentlyGlowing", at = @At("HEAD"), cancellable = true)
     private void godwand$preventDisplacedIsGlowing(CallbackInfoReturnable<Boolean> cir) {
+        Entity self = (Entity) (Object) this;
+        if (self instanceof Display || self.getTags().contains("godwand_displaced")) {
+            cir.setReturnValue(false);
+        }
+    }
+
+    @Inject(method = "hasGlowingTag", at = @At("HEAD"), cancellable = true)
+    private void godwand$preventDisplacedHasGlowingTag(CallbackInfoReturnable<Boolean> cir) {
         Entity self = (Entity) (Object) this;
         if (self instanceof Display || self.getTags().contains("godwand_displaced")) {
             cir.setReturnValue(false);

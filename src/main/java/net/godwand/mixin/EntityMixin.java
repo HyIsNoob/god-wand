@@ -20,4 +20,12 @@ public abstract class EntityMixin {
             cir.setReturnValue(false);
         }
     }
+
+    @Inject(method = "isGlowingLocal", at = @At("HEAD"), cancellable = true)
+    private void godwand$preventDisplacedIsGlowingLocal(CallbackInfoReturnable<Boolean> cir) {
+        Entity self = (Entity) (Object) this;
+        if (self instanceof DisplayEntity || self.getCommandTags().contains("godwand_displaced")) {
+            cir.setReturnValue(false);
+        }
+    }
 }

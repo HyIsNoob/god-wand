@@ -2,6 +2,14 @@
 
 All notable changes to the God Wand mod are documented here.
 
+## [1.1.1] - 2026-10-24
+
+### Fixed
+- Fixed visual aura/outline appearing around terrain and trees during Skill 4 (Supernova), even when playing without shaders. Einstein Ring, violet halo, and stellar flare are now strictly occluded by foreground blocks instead of bleeding over them.
+- Suppressed glowing tags and outlines across all display entities (including singularity tether beams).
+
+---
+
 ## [1.1.0] - 2026-10-24
 
 ### Added

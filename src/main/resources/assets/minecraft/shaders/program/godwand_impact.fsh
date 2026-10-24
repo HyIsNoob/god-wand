@@ -254,22 +254,24 @@ void main() {
                     insideHorizon = true;
                 }
 
-                float normalizedRadius = impactParam / max(CoreRadius, 0.05);
-                float ringWidth = max(0.028, fwidth(normalizedRadius));
-                float einsteinRing = exp(-sqr((normalizedRadius - 1.06) / ringWidth));
-                vec3 rimPoint = rd * tBH - bhRel;
-                float rimAngle = atan(rimPoint.y, rimPoint.x);
-                float crescent = 0.5 + 0.5 * sin(rimAngle * 2.0 + GTime * 0.7);
-                vec3 ringCol = mix(VOID_MAGENTA, VOID_LIGHT, 0.25 + crescent * 0.55)
-                        * einsteinRing * 2.6;
-                float outerEdge = exp(-sqr((normalizedRadius - 1.16) / 0.045));
-                float violetHalo = exp(-sqr((normalizedRadius - 1.12) / 0.22));
-                addGlow += ringCol + VOID_VIOLET * outerEdge * 0.75 + VOID_MAGENTA * violetHalo * 0.24;
+                if (sceneDist > (tBH - CoreRadius * 0.8)) {
+                    float normalizedRadius = impactParam / max(CoreRadius, 0.05);
+                    float ringWidth = max(0.028, fwidth(normalizedRadius));
+                    float einsteinRing = exp(-sqr((normalizedRadius - 1.06) / ringWidth));
+                    vec3 rimPoint = rd * tBH - bhRel;
+                    float rimAngle = atan(rimPoint.y, rimPoint.x);
+                    float crescent = 0.5 + 0.5 * sin(rimAngle * 2.0 + GTime * 0.7);
+                    vec3 ringCol = mix(VOID_MAGENTA, VOID_LIGHT, 0.25 + crescent * 0.55)
+                            * einsteinRing * 2.6;
+                    float outerEdge = exp(-sqr((normalizedRadius - 1.16) / 0.045));
+                    float violetHalo = exp(-sqr((normalizedRadius - 1.12) / 0.22));
+                    addGlow += ringCol + VOID_VIOLET * outerEdge * 0.75 + VOID_MAGENTA * violetHalo * 0.24;
+                }
 
             }
 
             float flare = smoothstep(82.0 / 90.0, 87.0 / 90.0, CollapseProgress);
-            if (!coreOccluded && flare > 0.0) {
+            if (!coreOccluded && flare > 0.0 && sceneDist > (tBH - CoreRadius * 0.8)) {
                 vec3 flarePoint = rd * tBH - bhRel;
                 vec3 cameraRight = normalize(mat3(InvViewMat) * vec3(1.0, 0.0, 0.0));
                 vec3 cameraUp = normalize(mat3(InvViewMat) * vec3(0.0, 1.0, 0.0));
