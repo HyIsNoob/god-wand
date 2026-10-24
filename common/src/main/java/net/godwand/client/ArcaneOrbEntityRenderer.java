@@ -27,7 +27,8 @@ public class ArcaneOrbEntityRenderer extends EntityRenderer<ArcaneOrbEntity> {
         float time = entity.tickCount + tickDelta;
         int level = entity.getChargeLevel();
         float chargeRatio = level / 3.0f;
-        float baseScale = 0.32f + level * 0.14f;
+        // Kích thước viên đạn khi bay tương ứng với kích thước sau khi nạp (0.21m -> 0.31m)
+        float baseScale = 0.16f + level * 0.05f;
 
         matrices.pushPose();
         matrices.translate(0.0f, 0.15f, 0.0f);
@@ -40,6 +41,9 @@ public class ArcaneOrbEntityRenderer extends EntityRenderer<ArcaneOrbEntity> {
             matrices.mulPose(Axis.YP.rotationDegrees(velYaw));
             matrices.mulPose(Axis.XN.rotationDegrees(velPitch));
         }
+
+        // Xoáy nòng quanh trục tiến khi đang bay
+        matrices.mulPose(Axis.ZP.rotationDegrees(time * 65.0f));
 
         ArcaneOrbModel.render(matrices.last().pose(), baseScale, time, chargeRatio);
 

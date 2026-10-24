@@ -16,32 +16,35 @@ public final class ArcaneOrbModel {
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
 
         try {
-            // 1. Lõi năng lượng trắng xanh siêu sáng ở trung tâm (Inner Core)
+            // 1. Lõi năng lượng trắng xanh siêu sáng ở trung tâm (Inner Core) - quay tít nhanh dần theo charge
             float coreScale = scale * 0.46f;
-            renderSphere(matrix, coreScale, time * 24.0f, time * 18.0f, 0.0f, 220, 255, 255, (int) (200 + charge * 55));
+            float coreSpin = time * (32.0f + charge * 140.0f);
+            renderSphere(matrix, coreScale, coreSpin, coreSpin * 0.8f, 0.0f, 220, 255, 255, (int) (200 + charge * 55));
 
-            // 2. Lớp vỏ cầu năng lượng Cyan đặc trưng của Singularity / Arcane Orb (Outer Energy Shell)
+            // 2. Lớp vỏ cầu năng lượng Cyan đặc trưng (Outer Energy Shell) - quay ngược chiều tăng tốc
             float shellScale = scale * 0.88f;
-            renderSphere(matrix, shellScale, -time * 16.0f, 0.0f, time * 22.0f, 0, 240, 255, (int) (110 + charge * 80));
+            float shellSpin = -time * (24.0f + charge * 110.0f);
+            renderSphere(matrix, shellScale, shellSpin, 0.0f, time * (28.0f + charge * 120.0f), 0, 240, 255, (int) (110 + charge * 80));
 
             // 3. Lớp màng plasma ngoài cùng (Plasma Halo)
             float haloScale = scale * 1.12f;
-            renderSphere(matrix, haloScale, time * 10.0f, -time * 12.0f, time * 8.0f, 40, 160, 255, (int) (45 + charge * 50));
+            float haloSpin = time * (16.0f + charge * 80.0f);
+            renderSphere(matrix, haloScale, haloSpin, -time * 14.0f, time * 12.0f, 40, 160, 255, (int) (45 + charge * 50));
 
             // 4. Các vành đai gia tốc hạt xoay quỹ đạo quanh quả cầu (Orbiting Accretion Rings)
             // Vành 1: Nghiêng góc 45 độ quanh trục X
-            renderEnergyRing(matrix, scale * 1.32f, scale * 0.06f, 45.0f, 0.0f, time * 38.0f, 0, 255, 255, (int) (140 + charge * 100));
+            renderEnergyRing(matrix, scale * 1.32f, scale * 0.05f, 45.0f, 0.0f, time * (45.0f + charge * 240.0f), 0, 255, 255, (int) (140 + charge * 100));
 
             // Vành 2: Nghiêng góc -55 độ quanh trục Z
-            renderEnergyRing(matrix, scale * 1.48f, scale * 0.05f, 0.0f, -55.0f, -time * 46.0f, 80, 200, 255, (int) (130 + charge * 90));
+            renderEnergyRing(matrix, scale * 1.48f, scale * 0.045f, 0.0f, -55.0f, -time * (55.0f + charge * 270.0f), 80, 200, 255, (int) (130 + charge * 90));
 
             // Vành 3: Nghiêng 70 độ (kích hoạt khi đạt cấp tụ lực 2 trở lên)
             if (charge >= 0.35f) {
                 float ring3Fade = Math.min(1.0f, (charge - 0.35f) / 0.3f);
-                renderEnergyRing(matrix, scale * 1.62f, scale * 0.045f, 70.0f, 35.0f, time * 58.0f, 175, 95, 255, (int) (ring3Fade * 170));
+                renderEnergyRing(matrix, scale * 1.62f, scale * 0.04f, 70.0f, 35.0f, time * (75.0f + charge * 340.0f), 175, 95, 255, (int) (ring3Fade * 170));
             }
 
-            // 5. Các dải năng lượng xoắn ốc hút từ bên ngoài vào tâm quả cầu (Inward Spiral Streams)
+            // 5. Các dải năng lượng xoắn ốc hút từ bên ngoài vào tâm quả cầu (Inward Spiral Streams) - xoay cuộn xoáy vào tâm
             renderInwardSpirals(matrix, scale, time, charge);
 
         } finally {
@@ -106,15 +109,16 @@ public final class ArcaneOrbModel {
 
     private static void renderInwardSpirals(Matrix4f matrix, float scale, float time, float charge) {
         int arms = 3;
-        int steps = 20;
+        int steps = 22;
+        float spiralSpin = time * (0.8f + charge * 3.4f);
         for (int arm = 0; arm < arms; arm++) {
             float armOffset = arm * (float) Math.PI * 2.0f / arms;
             var buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLE_STRIP, VertexFormats.POSITION_COLOR);
             for (int step = 0; step <= steps; step++) {
                 float t = step / (float) steps; // 0 (outer) -> 1 (center)
-                float spiralRadius = scale * (2.2f - t * 1.5f);
-                float angle = armOffset + (1.0f - t) * 6.0f - time * 0.28f;
-                float height = (1.0f - t) * (arm % 2 == 0 ? 0.35f : -0.35f);
+                float spiralRadius = scale * (2.4f - t * 1.6f);
+                float angle = armOffset + (1.0f - t) * 6.5f - spiralSpin;
+                float height = (1.0f - t) * (arm % 2 == 0 ? 0.32f : -0.32f);
 
                 float width = scale * 0.05f * (float) Math.sin(t * Math.PI);
                 int alpha = (int) (Math.sin(t * Math.PI) * (70 + charge * 80));

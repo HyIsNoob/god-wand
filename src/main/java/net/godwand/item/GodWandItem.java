@@ -170,14 +170,18 @@ public class GodWandItem extends Item {
                 ServerWorld sw = (ServerWorld) world;
 
                 Vec3d look = player.getRotationVec(1.0f);
-                Vec3d muzzle = player.getEyePos().add(look.multiply(1.35)).add(0, -0.12, 0);
+                Vec3d muzzle = player.getEyePos().add(look.multiply(2.15)).add(0, -0.16, 0);
                 if (chargeTicks % 2 == 0) {
-                    sw.spawnParticles(new DustParticleEffect(new Vector3f(0.0f, 0.94f, 1.0f), 0.9f),
-                            muzzle.x, muzzle.y, muzzle.z,
-                            2, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2, 0.02);
-                    sw.spawnParticles(ParticleTypes.REVERSE_PORTAL,
-                            muzzle.x, muzzle.y, muzzle.z,
-                            1, (Math.random() - 0.5) * 0.15, (Math.random() - 0.5) * 0.15, (Math.random() - 0.5) * 0.15, 0.02);
+                    for (int i = 0; i < 2; i++) {
+                        double angle = Math.random() * Math.PI * 2.0;
+                        double dist = 0.50 + Math.random() * 0.65;
+                        double px = muzzle.x + Math.cos(angle) * dist;
+                        double py = muzzle.y + (Math.random() - 0.5) * dist * 0.7;
+                        double pz = muzzle.z + Math.sin(angle) * dist;
+                        Vec3d vel = muzzle.subtract(new Vec3d(px, py, pz)).normalize().multiply(0.16 + (chargeTicks / 45.0) * 0.14);
+                        sw.spawnParticles(new DustParticleEffect(new Vector3f(0.0f, 0.94f, 1.0f), 0.75f), px, py, pz, 0, vel.x, vel.y, vel.z, 1.0);
+                        sw.spawnParticles(ParticleTypes.REVERSE_PORTAL, px, py, pz, 0, vel.x, vel.y, vel.z, 1.0);
+                    }
                 }
 
                 if (chargeTicks % 8 == 0) {
@@ -378,7 +382,7 @@ public class GodWandItem extends Item {
             }
 
             Vec3d look = player.getRotationVec(1.0f);
-            Vec3d spawnPos = player.getEyePos().add(look.multiply(1.35)).add(0, -0.12, 0);
+            Vec3d spawnPos = player.getEyePos().add(look.multiply(2.15)).add(0, -0.16, 0);
 
             ArcaneOrbEntity orb = new ArcaneOrbEntity(net.godwand.GodWandMod.ARCANE_ORB_ENTITY_TYPE, world);
             orb.setOwner(player);
