@@ -1,5 +1,7 @@
 package net.godwand.spatial;
 
+import net.godwand.GodWandMod;
+
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -224,8 +226,21 @@ public class SpatialDisplacementManager {
         BlockEntity be = world.getBlockEntity(immutablePos);
         NbtCompound nbt = null;
         if (be != null) {
-            nbt = be.createNbtWithIdentifyingData(world.getRegistryManager());
-            world.removeBlockEntity(immutablePos);
+            try {
+                nbt = be.createNbtWithIdentifyingData(world.getRegistryManager());
+            } catch (Throwable t) {
+                GodWandMod.LOGGER.warn("Failed to serialize NBT of block entity at {}: {}", immutablePos, t.getMessage());
+            }
+            try {
+                Clearable.clear(be);
+            } catch (Throwable t) {
+                GodWandMod.LOGGER.warn("Failed to clear content of block entity at {}: {}", immutablePos, t.getMessage());
+            }
+            try {
+                world.removeBlockEntity(immutablePos);
+            } catch (Throwable t) {
+                GodWandMod.LOGGER.warn("Failed to remove block entity at {}: {}", immutablePos, t.getMessage());
+            }
         }
 
         boolean isFull = state.isFullCube(world, immutablePos);
@@ -239,15 +254,22 @@ public class SpatialDisplacementManager {
         // Replace with AIR using atomic notification flags
         if (!world.setBlockState(immutablePos, Blocks.AIR.getDefaultState(), Block.FORCE_STATE | Block.NOTIFY_LISTENERS | Block.SKIP_DROPS)) {
             if (be != null) {
-                be.cancelRemoval();
-                world.addBlockEntity(be);
+                try {
+                    be.cancelRemoval();
+                    world.addBlockEntity(be);
+                } catch (Throwable ignored) {
+                }
             }
             return;
         }
         if (be != null) {
-            Clearable.clear(be);
-            for (ServerPlayerEntity player : world.getPlayers()) {
-                if (!player.currentScreenHandler.canUse(player)) player.closeHandledScreen();
+            try {
+                for (ServerPlayerEntity player : world.getPlayers()) {
+                    if (player.currentScreenHandler != null && !player.currentScreenHandler.canUse(player)) {
+                        player.closeHandledScreen();
+                    }
+                }
+            } catch (Throwable ignored) {
             }
         }
         ACTIVE_RECORDS.put(new DimensionPos(world.getRegistryKey(), immutablePos), record);

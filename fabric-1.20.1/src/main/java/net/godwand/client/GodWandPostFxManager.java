@@ -133,6 +133,10 @@ public class GodWandPostFxManager {
         pendingFrame = new Frame(new Matrix4f(positionMatrix), new Matrix4f(projectionMatrix), tickDelta);
     }
 
+    public static boolean hasPendingFrame() {
+        return pendingFrame != null;
+    }
+
     public static void renderAfterWorld() {
         Frame frame = pendingFrame;
         pendingFrame = null;

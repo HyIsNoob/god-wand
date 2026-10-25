@@ -1,5 +1,7 @@
 package net.godwand.spatial;
 
+import net.godwand.GodWandMod;
+
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import com.mojang.math.Transformation;
@@ -221,8 +223,21 @@ public class SpatialDisplacementManager {
         BlockEntity be = world.getBlockEntity(immutablePos);
         CompoundTag nbt = null;
         if (be != null) {
-            nbt = be.saveWithFullMetadata(world.registryAccess());
-            world.removeBlockEntity(immutablePos);
+            try {
+                nbt = be.saveWithFullMetadata(world.registryAccess());
+            } catch (Throwable t) {
+                GodWandMod.LOGGER.warn("Failed to serialize NBT of block entity at {}: {}", immutablePos, t.getMessage());
+            }
+            try {
+                Clearable.tryClear(be);
+            } catch (Throwable t) {
+                GodWandMod.LOGGER.warn("Failed to clear content of block entity at {}: {}", immutablePos, t.getMessage());
+            }
+            try {
+                world.removeBlockEntity(immutablePos);
+            } catch (Throwable t) {
+                GodWandMod.LOGGER.warn("Failed to remove block entity at {}: {}", immutablePos, t.getMessage());
+            }
         }
 
         boolean isFull = state.isCollisionShapeFullBlock(world, immutablePos);
@@ -236,15 +251,22 @@ public class SpatialDisplacementManager {
         // Replace with AIR using atomic notification flags
         if (!world.setBlock(immutablePos, Blocks.AIR.defaultBlockState(), Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS)) {
             if (be != null) {
-                be.clearRemoved();
-                world.setBlockEntity(be);
+                try {
+                    be.clearRemoved();
+                    world.setBlockEntity(be);
+                } catch (Throwable ignored) {
+                }
             }
             return;
         }
         if (be != null) {
-            Clearable.tryClear(be);
-            for (ServerPlayer player : world.players()) {
-                if (!player.containerMenu.stillValid(player)) player.closeContainer();
+            try {
+                for (ServerPlayer player : world.players()) {
+                    if (player.containerMenu != null && !player.containerMenu.stillValid(player)) {
+                        player.closeContainer();
+                    }
+                }
+            } catch (Throwable ignored) {
             }
         }
         ACTIVE_RECORDS.put(new DimensionPos(world.dimension(), immutablePos), record);
@@ -604,10 +626,14 @@ public class SpatialDisplacementManager {
         if (!world.setBlock(r.pos, r.originalState, Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_CLIENTS)
                 && !world.getBlockState(r.pos).equals(r.originalState)) return false;
         if (r.blockEntityNbt != null) {
-            BlockEntity be = world.getBlockEntity(r.pos);
-            if (be != null) {
-                be.loadWithComponents(r.blockEntityNbt, world.registryAccess());
-                be.setChanged();
+            try {
+                BlockEntity be = world.getBlockEntity(r.pos);
+                if (be != null) {
+                    be.loadWithComponents(r.blockEntityNbt, world.registryAccess());
+                    be.setChanged();
+                }
+            } catch (Throwable t) {
+                GodWandMod.LOGGER.warn("Failed to restore block entity at {}: {}", r.pos, t.getMessage());
             }
         }
         BlockDisplay toDiscard = display;

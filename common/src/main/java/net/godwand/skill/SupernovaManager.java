@@ -586,6 +586,17 @@ public class SupernovaManager {
                         SpatialDisplacementManager.removeActiveRecord(world.dimension(), pos);
                         removedRestorable = true;
                     }
+                    net.minecraft.world.level.block.entity.BlockEntity craterBe = world.getBlockEntity(pos);
+                    if (craterBe != null) {
+                        try {
+                            net.minecraft.world.Clearable.tryClear(craterBe);
+                        } catch (Throwable ignored) {
+                        }
+                        try {
+                            world.removeBlockEntity(pos);
+                        } catch (Throwable ignored) {
+                        }
+                    }
                     world.setBlock(pos, Blocks.AIR.defaultBlockState(),
                             Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS);
                 }

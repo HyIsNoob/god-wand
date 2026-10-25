@@ -16,7 +16,10 @@ public abstract class GameRendererMixin {
     @Inject(method = "renderLevel", at = @At(value = "INVOKE", target =
             "Lnet/minecraft/client/renderer/LevelRenderer;renderLevel(Lcom/mojang/blaze3d/vertex/PoseStack;FJZLnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/GameRenderer;Lnet/minecraft/client/renderer/LightTexture;Lorg/joml/Matrix4f;)V",
             shift = At.Shift.AFTER))
-    private void godwand$afterWorldComposite(CallbackInfo ci) {
+    private void godwand$afterWorldComposite(float tickDelta, long startTime, PoseStack matrices, CallbackInfo ci) {
+        if (!net.godwand.client.GodWandPostFxManager.hasPendingFrame()) {
+            net.godwand.client.GodWandPostFxManager.onWorldRender(matrices.last().pose(), com.mojang.blaze3d.systems.RenderSystem.getProjectionMatrix(), tickDelta);
+        }
         net.godwand.client.GodWandPostFxManager.renderAfterWorld();
     }
 

@@ -51,8 +51,10 @@ public class GodWandForgeClientMod {
 
         @SubscribeEvent
         public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
-            event.registerEntityRenderer(GodWandMod.ARCANE_ORB_ENTITY_TYPE, ArcaneOrbEntityRenderer::new);
-            event.registerEntityRenderer(GodWandMod.STONE_CANNON_ENTITY_TYPE, StoneCannonEntityRenderer::new);
+            GodWandMod.ARCANE_ORB_ENTITY_TYPE = net.godwand.forge.GodWandForgeMod.ARCANE_ORB.get();
+            GodWandMod.STONE_CANNON_ENTITY_TYPE = net.godwand.forge.GodWandForgeMod.STONE_CANNON.get();
+            event.registerEntityRenderer(net.godwand.forge.GodWandForgeMod.ARCANE_ORB.get(), ArcaneOrbEntityRenderer::new);
+            event.registerEntityRenderer(net.godwand.forge.GodWandForgeMod.STONE_CANNON.get(), StoneCannonEntityRenderer::new);
         }
 
         @SubscribeEvent
@@ -83,6 +85,7 @@ public class GodWandForgeClientMod {
                 StoneCannonChargeRenderer.render(matrices, camera, tickDelta);
                 ArcaneOrbChargeRenderer.render(matrices, camera, tickDelta);
                 SupernovaAccretionRenderer.render(matrices, camera, tickDelta);
+                GodWandPostFxManager.onWorldRender(matrices.last().pose(), event.getProjectionMatrix(), tickDelta);
             } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
                 float tickDelta = event.getPartialTick();
                 GodWandPostFxManager.onWorldRender(event.getPoseStack().last().pose(), event.getProjectionMatrix(), tickDelta);
