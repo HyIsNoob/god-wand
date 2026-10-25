@@ -87,7 +87,7 @@ public class GodWandItemRenderer {
         if (mode == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || mode == ItemDisplayContext.FIRST_PERSON_LEFT_HAND) {
             float recoil = stack == releasedStack && client.level != null
                     ? releaseRecoil(client.level.getGameTime() - releaseTick + tickDelta) * previousCharge : 0;
-            applyUseTransform(matrices, chargeRatio, recoil);
+            applyUseTransform(matrices, chargeRatio, recoil, currentMode, mode);
         }
 
         // Animate the floating core without moving the crescent or the grip.
@@ -103,10 +103,24 @@ public class GodWandItemRenderer {
     }
 
     private static void applyUseTransform(PoseStack matrices, float chargeRatio, float recoil) {
+        applyUseTransform(matrices, chargeRatio, recoil, 0, ItemDisplayContext.FIRST_PERSON_RIGHT_HAND);
+    }
+
+    private static void applyUseTransform(PoseStack matrices, float chargeRatio, float recoil, int currentMode, ItemDisplayContext mode) {
+        int hand = mode == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND ? 1 : -1;
         float draw = chargeRatio * chargeRatio;
-        // Keep the long shaft away from the camera, including the first frames after cancellation.
-        matrices.translate(0, -draw*.06f + recoil*.03f, -draw*.04f - recoil*.03f);
-        matrices.mulPose(Axis.XP.rotationDegrees(-draw*4 - recoil*5));
+        if (currentMode == GodWandItem.MODE_SUPERNOVA && (chargeRatio > 0 || recoil > 0)) {
+            // Vanilla SPEAR pose pulls the wand upwards and towards the screen center.
+            // Offset it outward and downwards with outward tilt so the player enjoys
+            // the dramatic raised casting posture without the crescent head obstructing the crosshair or face.
+            matrices.translate(hand * 0.16f * chargeRatio - recoil * 0.05f, -0.22f * chargeRatio + recoil * 0.08f, 0.12f * chargeRatio + recoil * 0.22f);
+            matrices.mulPose(Axis.ZP.rotationDegrees(hand * 14.0f * chargeRatio));
+            matrices.mulPose(Axis.YP.rotationDegrees(-hand * 18.0f * chargeRatio));
+            matrices.mulPose(Axis.XP.rotationDegrees(-draw * 8.0f - recoil * 16.0f));
+        } else {
+            matrices.translate(0, -draw * 0.08f + recoil * 0.08f, draw * 0.14f + recoil * 0.24f);
+            matrices.mulPose(Axis.XP.rotationDegrees(-draw * 7.0f - recoil * 16.0f));
+        }
     }
 
     private void applyDisplayTransform(PoseStack matrices, ItemDisplayContext mode) {

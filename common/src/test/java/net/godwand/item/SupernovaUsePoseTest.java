@@ -13,12 +13,12 @@ import static org.mockito.Mockito.*;
 class SupernovaUsePoseTest {
     @BeforeAll static void bootstrap() { SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); }
 
-    @Test void supernovaKeepsChargingWithoutTheVanillaSpearPose() {
+    @Test void supernovaUsesSpearPose() {
         // Exercise the real wand methods without registering an item in the frozen vanilla registry.
         var item = mock(GodWandItem.class, CALLS_REAL_METHODS);
         var stack = new ItemStack(Items.STICK);
         GodWandItem.setSkillMode(stack, GodWandItem.MODE_SUPERNOVA);
-        assertEquals(UseAnim.NONE, item.getUseAnimation(stack));
+        assertEquals(UseAnim.SPEAR, item.getUseAnimation(stack));
         assertEquals(72000, item.getUseDuration(stack, null));
         for (int skill : new int[]{1, 2, 4}) {
             GodWandItem.setSkillMode(stack, skill);

@@ -151,6 +151,8 @@ public class GodWandItem extends Item {
         int mode = getSkillMode(stack);
         if (mode == MODE_ARCANE_ORB || mode == MODE_RATIO_COLLAPSE || mode == MODE_STONE_CANNON) {
             return UseAction.BOW;
+        } else if (mode == MODE_SUPERNOVA) {
+            return UseAction.SPEAR;
         }
         return UseAction.NONE;
     }
