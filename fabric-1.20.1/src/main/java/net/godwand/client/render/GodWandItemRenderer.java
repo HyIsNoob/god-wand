@@ -119,11 +119,11 @@ public class GodWandItemRenderer {
         switch (mode) {
             case FIRST_PERSON_RIGHT_HAND, FIRST_PERSON_LEFT_HAND -> {
                 int hand = mode == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND ? 1 : -1;
-                matrices.translate(hand * .015f, -.025f, -.045f);
-                matrices.mulPose(Axis.XP.rotationDegrees(-24.0f));
-                matrices.mulPose(Axis.YP.rotationDegrees(hand * 150.0f));
+                matrices.translate(hand * 0.020f, -0.028f, -0.040f);
+                matrices.mulPose(Axis.XP.rotationDegrees(-35.0f));
+                matrices.mulPose(Axis.YP.rotationDegrees(hand * 130.0f));
                 matrices.mulPose(Axis.ZP.rotationDegrees(hand * 12.0f));
-                matrices.scale(.50f, .50f, .50f);
+                matrices.scale(0.46f, 0.46f, 0.46f);
             }
             case THIRD_PERSON_RIGHT_HAND, THIRD_PERSON_LEFT_HAND -> {
                 matrices.mulPose(Axis.XP.rotationDegrees(20));

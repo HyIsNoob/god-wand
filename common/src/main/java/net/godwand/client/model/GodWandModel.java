@@ -50,7 +50,7 @@ public class GodWandModel extends Model {
         // 1. Dark obsidian / netherite main shaft
         var shaft = CubeListBuilder.create()
                 .texOffs(0, 0).addBox(-0.8f, -35.95f, -0.8f, 1.6f, 29.9f, 1.6f)
-                .texOffs(0, 0).addBox(-0.75f, 6.05f, -0.75f, 1.5f, 4.9f, 1.5f);
+                .texOffs(0, 0).addBox(-0.75f, 6.05f, -0.75f, 1.5f, 8.9f, 1.5f);
         root.addOrReplaceChild("obsidian", shaft, PartPose.ZERO);
 
         // 2. Gold trims, collars, reactor cage, pommel quillons (carefully offset from obsidian planes to avoid z-fighting)
@@ -125,8 +125,8 @@ public class GodWandModel extends Model {
 
         // Gemstone and diamond bezel rotate and precess together as a unified core assembly
         singularityCore.yRot = time * speed;
-        singularityCore.xRot = (float)Math.sin(time * 0.04f) * 0.12f;
-        singularityCore.zRot = (float)Math.cos(time * 0.03f) * 0.10f;
+        singularityCore.xRot = (float)Math.sin(time * 0.035f) * 0.06f;
+        singularityCore.zRot = (float)Math.cos(time * 0.025f) * 0.05f;
         singularityCore.y = CY;
 
         float size = activeSkillId == 3 ? 1.0f - 0.45f * charge * charge : 1.0f + charge * 0.14f;
@@ -167,11 +167,11 @@ public class GodWandModel extends Model {
         // 3 & 4. Floating Core Assembly: Diamond Bezel Frame + Faceted Ruby Gemstone (synchronized)
         matrices.pushPose();
         singularityCore.translateAndRotate(matrices);
-        float bob = (float)Math.sin(animationTime * 0.05f) * 0.12f;
+        float bob = (float)Math.sin(animationTime * 0.04f) * 0.015f;
         matrices.translate(0, bob, 0);
 
         renderDiamondBezel(matrices, solid, light, overlay);
-        renderFacetedGem(matrices, solid, light, overlay, 1.35f, 2.05f, 1.35f, coreColor);
+        renderFacetedGem(matrices, solid, light, overlay, 1.25f, 1.90f, 1.25f, coreColor);
         matrices.popPose();
 
         // 5. Emissive luminous pass (reactor capsule, pommel gem, vents, inner crystal, aura)
@@ -191,13 +191,13 @@ public class GodWandModel extends Model {
         matrices.pushPose();
         singularityCore.translateAndRotate(matrices);
         matrices.translate(0, bob, 0);
-        renderFacetedGem(matrices, emissive, LightTexture.FULL_BRIGHT, overlay, 0.80f, 1.25f, 0.80f, 0xFFFFFFFF);
+        renderFacetedGem(matrices, emissive, LightTexture.FULL_BRIGHT, overlay, 0.75f, 1.15f, 0.75f, 0xFFFFFFFF);
 
         int auraColor = 0xFF000000 | (((((coreColor >> 16) & 255) + 255) / 2) << 16)
                 | (((((coreColor >> 8) & 255) + 255) / 2) << 8) | (((coreColor & 255) + 255) / 2);
-        renderFacetedGem(matrices, emissive, LightTexture.FULL_BRIGHT, overlay, 1.50f, 2.25f, 1.50f,
+        renderFacetedGem(matrices, emissive, LightTexture.FULL_BRIGHT, overlay, 1.40f, 2.10f, 1.40f,
                 (auraColor & 0x00FFFFFF) | ((40 + (int)(charge * 36)) << 24));
-        renderFacetedGem(matrices, emissive, LightTexture.FULL_BRIGHT, overlay, 1.75f, 2.60f, 1.75f,
+        renderFacetedGem(matrices, emissive, LightTexture.FULL_BRIGHT, overlay, 1.65f, 2.45f, 1.65f,
                 (auraColor & 0x00FFFFFF) | ((12 + (int)(charge * 14)) << 24));
         matrices.popPose();
 
@@ -318,7 +318,7 @@ public class GodWandModel extends Model {
     }
 
     private static Vector3f[][] createGoldBrackets() {
-        var brackets = new Vector3f[(NUM_SEGMENTS - 1) * 2][4];
+        var brackets = new Vector3f[(NUM_SEGMENTS - 1) * 3][4];
         for (int s = 1; s < NUM_SEGMENTS; s++) {
             double t = s / (double)NUM_SEGMENTS;
             double a = Math.toRadians(45 + 260 * t);
@@ -326,22 +326,29 @@ public class GodWandModel extends Model {
             float wRad = 1.15f + 1.25f * envelope;
             float tZ = 0.65f + 0.50f * envelope;
 
-            double dAng = 0.035;
+            double dAng = 0.024;
             float cos0 = (float)Math.cos(a - dAng), sin0 = (float)Math.sin(a - dAng);
             float cos1 = (float)Math.cos(a + dAng), sin1 = (float)Math.sin(a + dAng);
-            float cosM = (float)Math.cos(a), sinM = (float)Math.sin(a);
 
-            float rIn = C_RADIUS - 0.25f, rOut = C_RADIUS + wRad * 0.72f;
+            float rIn = C_RADIUS - 0.28f, rOut = C_RADIUS + wRad * 0.70f;
 
-            brackets[(s - 1) * 2][0] = new Vector3f(CX + cos0 * rIn, CY + sin0 * rIn, -tZ - 0.08f);
-            brackets[(s - 1) * 2][1] = new Vector3f(CX + cos1 * rIn, CY + sin1 * rIn, -tZ - 0.08f);
-            brackets[(s - 1) * 2][2] = new Vector3f(CX + cosM * rOut, CY + sinM * rOut, -tZ - 0.08f);
-            brackets[(s - 1) * 2][3] = new Vector3f(CX + cosM * rOut, CY + sinM * rOut, -tZ - 0.08f);
+            // Front clamp face
+            brackets[(s - 1) * 3][0] = new Vector3f(CX + cos0 * rIn, CY + sin0 * rIn, -tZ * 0.72f);
+            brackets[(s - 1) * 3][1] = new Vector3f(CX + cos1 * rIn, CY + sin1 * rIn, -tZ * 0.72f);
+            brackets[(s - 1) * 3][2] = new Vector3f(CX + cos1 * rOut, CY + sin1 * rOut, -tZ * 0.35f);
+            brackets[(s - 1) * 3][3] = new Vector3f(CX + cos0 * rOut, CY + sin0 * rOut, -tZ * 0.35f);
 
-            brackets[(s - 1) * 2 + 1][0] = new Vector3f(CX + cos1 * rIn, CY + sin1 * rIn, tZ + 0.08f);
-            brackets[(s - 1) * 2 + 1][1] = new Vector3f(CX + cos0 * rIn, CY + sin0 * rIn, tZ + 0.08f);
-            brackets[(s - 1) * 2 + 1][2] = new Vector3f(CX + cosM * rOut, CY + sinM * rOut, tZ + 0.08f);
-            brackets[(s - 1) * 2 + 1][3] = new Vector3f(CX + cosM * rOut, CY + sinM * rOut, tZ + 0.08f);
+            // Back clamp face
+            brackets[(s - 1) * 3 + 1][0] = new Vector3f(CX + cos1 * rIn, CY + sin1 * rIn, tZ * 0.72f);
+            brackets[(s - 1) * 3 + 1][1] = new Vector3f(CX + cos0 * rIn, CY + sin0 * rIn, tZ * 0.72f);
+            brackets[(s - 1) * 3 + 1][2] = new Vector3f(CX + cos0 * rOut, CY + sin0 * rOut, tZ * 0.35f);
+            brackets[(s - 1) * 3 + 1][3] = new Vector3f(CX + cos1 * rOut, CY + sin1 * rOut, tZ * 0.35f);
+
+            // Inner bridge face along rail
+            brackets[(s - 1) * 3 + 2][0] = new Vector3f(CX + cos0 * rIn, CY + sin0 * rIn, -tZ * 0.72f);
+            brackets[(s - 1) * 3 + 2][1] = new Vector3f(CX + cos0 * rIn, CY + sin0 * rIn,  tZ * 0.72f);
+            brackets[(s - 1) * 3 + 2][2] = new Vector3f(CX + cos1 * rIn, CY + sin1 * rIn,  tZ * 0.72f);
+            brackets[(s - 1) * 3 + 2][3] = new Vector3f(CX + cos1 * rIn, CY + sin1 * rIn, -tZ * 0.72f);
         }
         return brackets;
     }
@@ -353,20 +360,34 @@ public class GodWandModel extends Model {
     }
 
     private static Vector3f[][] createTopTalon() {
-        double aTop = Math.toRadians(305);
-        float bx = CX + (float)Math.cos(aTop) * C_RADIUS;
-        float by = CY + (float)Math.sin(aTop) * C_RADIUS;
-        float tx = bx + 1.2f, ty = by - 0.9f;
+        double a0 = Math.toRadians(45);
+        float b0x = CX + (float)Math.cos(a0) * C_RADIUS;
+        float b0y = CY + (float)Math.sin(a0) * C_RADIUS;
+        float t0x = b0x - 1.0f, t0y = b0y + 1.1f;
+
+        double a1 = Math.toRadians(305);
+        float b1x = CX + (float)Math.cos(a1) * C_RADIUS;
+        float b1y = CY + (float)Math.sin(a1) * C_RADIUS;
+        float t1x = b1x + 1.1f, t1y = b1y - 0.9f;
 
         return new Vector3f[][]{
-            {new Vector3f(bx - 0.5f, by + 0.5f, -0.2f), new Vector3f(bx + 0.5f, by + 0.25f, -0.2f),
-             new Vector3f(tx, ty, 0.0f), new Vector3f(tx, ty, 0.0f)},
-            {new Vector3f(bx + 0.5f, by + 0.25f, 0.2f), new Vector3f(bx - 0.5f, by + 0.5f, 0.2f),
-             new Vector3f(tx, ty, 0.0f), new Vector3f(tx, ty, 0.0f)},
-            {new Vector3f(bx - 0.5f, by + 0.5f, -0.2f), new Vector3f(tx, ty, 0.0f),
-             new Vector3f(tx, ty, 0.0f), new Vector3f(bx - 0.5f, by + 0.5f, 0.2f)},
-            {new Vector3f(bx + 0.5f, by + 0.25f, 0.2f), new Vector3f(tx, ty, 0.0f),
-             new Vector3f(tx, ty, 0.0f), new Vector3f(bx + 0.5f, by + 0.25f, -0.2f)}
+            {new Vector3f(b0x - 0.45f, b0y + 0.45f, -0.2f), new Vector3f(b0x + 0.45f, b0y + 0.22f, -0.2f),
+             new Vector3f(t0x, t0y, 0.0f), new Vector3f(t0x, t0y, 0.0f)},
+            {new Vector3f(b0x + 0.45f, b0y + 0.22f, 0.2f), new Vector3f(b0x - 0.45f, b0y + 0.45f, 0.2f),
+             new Vector3f(t0x, t0y, 0.0f), new Vector3f(t0x, t0y, 0.0f)},
+            {new Vector3f(b0x - 0.45f, b0y + 0.45f, -0.2f), new Vector3f(t0x, t0y, 0.0f),
+             new Vector3f(t0x, t0y, 0.0f), new Vector3f(b0x - 0.45f, b0y + 0.45f, 0.2f)},
+            {new Vector3f(b0x + 0.45f, b0y + 0.22f, 0.2f), new Vector3f(t0x, t0y, 0.0f),
+             new Vector3f(t0x, t0y, 0.0f), new Vector3f(b0x + 0.45f, b0y + 0.22f, -0.2f)},
+
+            {new Vector3f(b1x - 0.45f, b1y + 0.45f, -0.2f), new Vector3f(b1x + 0.45f, b1y + 0.22f, -0.2f),
+             new Vector3f(t1x, t1y, 0.0f), new Vector3f(t1x, t1y, 0.0f)},
+            {new Vector3f(b1x + 0.45f, b1y + 0.22f, 0.2f), new Vector3f(b1x - 0.45f, b1y + 0.45f, 0.2f),
+             new Vector3f(t1x, t1y, 0.0f), new Vector3f(t1x, t1y, 0.0f)},
+            {new Vector3f(b1x - 0.45f, b1y + 0.45f, -0.2f), new Vector3f(t1x, t1y, 0.0f),
+             new Vector3f(t1x, t1y, 0.0f), new Vector3f(b1x - 0.45f, b1y + 0.45f, 0.2f)},
+            {new Vector3f(b1x + 0.45f, b1y + 0.22f, 0.2f), new Vector3f(t1x, t1y, 0.0f),
+             new Vector3f(t1x, t1y, 0.0f), new Vector3f(b1x + 0.45f, b1y + 0.22f, -0.2f)}
         };
     }
 
@@ -436,7 +457,7 @@ public class GodWandModel extends Model {
     }
 
     private void renderDiamondBezel(PoseStack matrices, VertexConsumer vertices, int light, int overlay) {
-        float sizeX = 2.6f, sizeY = 3.6f, width = 0.45f, halfT = 0.22f;
+        float sizeX = 2.4f, sizeY = 3.3f, width = 0.42f, halfT = 0.20f;
         Vector3f[] outPts = {
             new Vector3f(0.0f, sizeY, 0.0f),
             new Vector3f(sizeX, 0.0f, 0.0f),
