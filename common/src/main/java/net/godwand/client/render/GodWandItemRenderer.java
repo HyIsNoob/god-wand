@@ -13,7 +13,7 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
 public class GodWandItemRenderer {
-    private static final ResourceLocation TEXTURE = ResourceLocation.withDefaultNamespace("textures/block/white_concrete.png");
+    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(GodWandMod.MOD_ID, "textures/item/eclipse_materials.png");
     private final GodWandModel model;
     private static ItemStack chargingStack, releasedStack;
     private static float previousCharge;

@@ -21,7 +21,7 @@ class GodWandModelTest {
         var mesh = new Mesh();
         model.renderWand(new PoseStack(), () -> mesh, () -> mesh, 0, 0, 0xFFFFE05A);
         for (int i = 0; i < mesh.vertices.size(); i += 4) {
-            if (mesh.vertices.get(i)[3] != 36) continue;
+            if (mesh.vertices.get(i)[3] != 54) continue;
             for (int j = 0; j < mesh.vertices.size(); j += 4) {
                 if (mesh.vertices.get(j)[3] != 184) continue;
                 for (int axis = 0; axis < 3; axis++) {
@@ -81,8 +81,12 @@ class GodWandModelTest {
         double height = mesh.vertices.stream().mapToDouble(v -> v[1]).max().orElseThrow()
                 - mesh.vertices.stream().mapToDouble(v -> v[1]).min().orElseThrow();
         assertEquals(1.75, height * .44, .08, "Third-person staff must be full-length without the needle-thin proportions");
-        double headDepth = mesh.vertices.stream().filter(v -> v[1] > 1).mapToDouble(v -> v[2]).max().orElseThrow()
-                - mesh.vertices.stream().filter(v -> v[1] > 1).mapToDouble(v -> v[2]).min().orElseThrow();
+        var blade = new Mesh();
+        var renderBlade = GodWandModel.class.getDeclaredMethod("renderCrescent", PoseStack.class, VertexConsumer.class, int.class, int.class);
+        renderBlade.setAccessible(true);
+        renderBlade.invoke(null, new PoseStack(), blade, 0, 0);
+        double headDepth = blade.vertices.stream().mapToDouble(v -> v[2]).max().orElseThrow()
+                - blade.vertices.stream().mapToDouble(v -> v[2]).min().orElseThrow();
         assertTrue(headDepth < .18, "The crescent must remain thin");
         var grip = mesh.vertices.stream().filter(v -> v[3] == 99).toList();
         assertFalse(grip.isEmpty(), "Red leather must be a real solid model part");
@@ -165,7 +169,7 @@ class GodWandModelTest {
         assertTrue(sphere.size() > 200);
         for (var v : sphere) {
             double x = v[0] + .55 / 16, y = v[1] - 21.2 / 16, z = v[2];
-            assertEquals(1.3 / 16, Math.sqrt(x*x + y*y + z*z), .00001,
+            assertEquals(1.65 / 16, Math.sqrt(x*x + y*y + z*z), .00001,
                     "The idle energy body must be spherical, not a cut crystal");
         }
         assertFalse(energy.vertices.isEmpty(), "Idle glow and the satellite must stay visible");
@@ -193,6 +197,25 @@ class GodWandModelTest {
                 "Every blade edge must belong to exactly two faces; no cracks or overlapping segment caps");
     }
 
+    @Test
+    void crescentActuallySamplesTheObsidianAndGoldTextureTiles() throws Exception {
+        var mesh = new Mesh();
+        var render = GodWandModel.class.getDeclaredMethod("renderCrescent", PoseStack.class, VertexConsumer.class, int.class, int.class);
+        render.setAccessible(true);
+        render.invoke(null, new PoseStack(), mesh, 0, 0);
+        double minU = 1, maxU = 0, minV = 1, maxV = 0;
+        for (var v : mesh.vertices) {
+            boolean gold = v[3] == 184;
+            assertTrue(v[7] >= (gold ? .5f : 0) && v[7] < (gold ? 1 : .5f));
+            assertTrue(v[8] >= 0 && v[8] < .5f);
+            double materialU = v[7] - (gold ? .5 : 0);
+            minU = Math.min(minU, materialU); maxU = Math.max(maxU, materialU);
+            minV = Math.min(minV, v[8]); maxV = Math.max(maxV, v[8]);
+        }
+        assertTrue(maxU-minU > .1 && maxV-minV > .1,
+                "Flat sampling at one texel cannot show material grain");
+    }
+
     private static class Mesh implements VertexConsumer {
         final List<float[]> vertices = new ArrayList<>();
         float[] current;
@@ -200,7 +223,7 @@ class GodWandModelTest {
         public VertexConsumer addVertex(float x, float y, float z) {
             validate.run();
             assertTrue(Float.isFinite(x) && Float.isFinite(y) && Float.isFinite(z));
-            current = new float[]{x, y, z, 0, 0, 0, 255};
+            current = new float[]{x, y, z, 0, 0, 0, 255, 0, 0};
             vertices.add(current);
             return this;
         }
@@ -208,7 +231,7 @@ class GodWandModelTest {
             current[3] = r; current[4] = g; current[5] = b; current[6] = a;
             return this;
         }
-        public VertexConsumer setUv(float u, float v) { return this; }
+        public VertexConsumer setUv(float u, float v) { current[7] = u; current[8] = v; return this; }
         public VertexConsumer setUv1(int u, int v) { return this; }
         public VertexConsumer setUv2(int u, int v) { return this; }
         public VertexConsumer setNormal(float x, float y, float z) { return this; }

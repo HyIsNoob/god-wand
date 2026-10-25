@@ -36,20 +36,20 @@ public class GodWandModel extends Model {
         var trim = CubeListBuilder.create();
         for (float y : new float[]{-35.8f, -6, 5.5f}) {
             float width = y == -35.8f ? 1.9f : 2.3f;
-            trim.texOffs(0, 0).addBox(-width / 2, y, -width / 2, width, .4f, width);
+            trim.texOffs(64, 0).addBox(-width / 2, y, -width / 2, width, .4f, width);
         }
         root.addOrReplaceChild("gold", trim, PartPose.ZERO);
         // Both hands hold the origin, in the middle of the thicker red leather sleeve.
-        root.addOrReplaceChild("leather", CubeListBuilder.create().texOffs(0, 0)
+        root.addOrReplaceChild("leather", CubeListBuilder.create().texOffs(0, 64)
                 .addBox(-1.025f, -5.5f, -1.025f, 2.05f, 11, 2.05f), PartPose.ZERO);
         var wraps = CubeListBuilder.create();
         for (int band = 0; band < 10; band++) {
-            wraps.texOffs(0, 0).addBox(-1.055f, -5.2f + band * 1.1f, -1.055f, 2.11f, .12f, 2.11f);
+            wraps.texOffs(0, 64).addBox(-1.055f, -5.2f + band * 1.1f, -1.055f, 2.11f, .12f, 2.11f);
         }
         root.addOrReplaceChild("wrapping", wraps, PartPose.ZERO);
         root.addOrReplaceChild("singularity_core", CubeListBuilder.create(), PartPose.offset(-.55f, 21.2f, 0));
         root.addOrReplaceChild("orbit", CubeListBuilder.create(), PartPose.offset(-.55f, 21.2f, 0));
-        return LayerDefinition.create(mesh, 64, 64);
+        return LayerDefinition.create(mesh, 128, 128);
     }
 
     public void setupProceduralAnimations(float time, float chargeRatio, int activeSkillId) {
@@ -74,7 +74,7 @@ public class GodWandModel extends Model {
     public void renderWand(PoseStack matrices, Supplier<VertexConsumer> solidBuffer, Supplier<VertexConsumer> coreBuffer,
                            int light, int overlay, int coreColor) {
         VertexConsumer solid = solidBuffer.get();
-        obsidian.render(matrices, solid, light, overlay, 0xFF24212E);
+        obsidian.render(matrices, solid, light, overlay, 0xFF36313F);
         renderCrescent(matrices, solid, light, overlay);
         renderNeck(matrices, solid, light, overlay);
         gold.render(matrices, solid, light, overlay, 0xFFB88A43);
@@ -82,17 +82,20 @@ public class GodWandModel extends Model {
         wrapping.render(matrices, solid, light, overlay, 0xFF832E43);
         matrices.pushPose();
         singularityCore.translateAndRotate(matrices);
-        renderSphere(matrices, solid, 1.3f, 255, coreColor, overlay);
+        renderSphere(matrices, solid, 1.65f, 255, coreColor, overlay);
         matrices.popPose();
         // Keep an opaque luminous body under the translucent aura for shaderpack depth stability.
         VertexConsumer emissive = coreBuffer.get();
         matrices.pushPose();
         singularityCore.translateAndRotate(matrices);
-        renderSphere(matrices, emissive, 1.42f, 20 + (int)(charge * 30), coreColor, overlay);
+        int auraColor = 0xFF000000 | (((((coreColor >> 16) & 255)+255)/2)<<16)
+                | (((((coreColor >> 8) & 255)+255)/2)<<8) | (((coreColor & 255)+255)/2);
+        renderSphere(matrices, emissive, 1.78f, 44 + (int)(charge * 36), auraColor, overlay);
+        renderSphere(matrices, emissive, 2.0f, 12 + (int)(charge * 12), auraColor, overlay);
         matrices.popPose();
         matrices.pushPose();
         orbit.translateAndRotate(matrices);
-        matrices.translate(2.05f / 16, 0, 0);
+        matrices.translate(2.45f / 16, 0, 0);
         renderSphere(matrices, emissive, .16f, 255, 0xFFFFDFFF, overlay);
         matrices.popPose();
     }
@@ -101,16 +104,21 @@ public class GodWandModel extends Model {
         var sections = new org.joml.Vector3f[49][8];
         for (int i = 0; i < sections.length; i++) {
             double t = i / 48.0, angle = Math.toRadians(50 + 260 * t);
-            float halfWidth = .07f + .95f * (float)Math.pow(Math.sin(t * Math.PI), .8);
-            float depth = .09f + .71f * (float)Math.pow(Math.sin(t * Math.PI), .45);
-            float bevel = Math.min(.18f, halfWidth * .4f);
-            float[][] section = {{-halfWidth+bevel,-depth},{halfWidth-bevel,-depth},
-                    {halfWidth,-depth+bevel},{halfWidth,depth-bevel},{halfWidth-bevel,depth},
-                    {-halfWidth+bevel,depth},{-halfWidth,depth-bevel},{-halfWidth,-depth+bevel}};
-            double normal = Math.atan2(5.2 * Math.sin(angle), 6.3 * Math.cos(angle));
+            float envelope = (float)Math.pow(Math.sin(t * Math.PI), .8);
+            float inner = .07f + .95f * envelope;
+            float outer = inner * (1 + .12f * (float)Math.sin(2*Math.PI*t + .5));
+            // Broad, unequal forged ridges change surface relief while the inner cutting edge stays smooth.
+            float ridge = envelope * (.13f*(float)Math.exp(-Math.pow((t-.30)/.08,2))
+                    + .08f*(float)Math.exp(-Math.pow((t-.70)/.055,2)));
+            float back = .09f + .71f * (float)Math.pow(Math.sin(t*Math.PI), .45);
+            float front = back + ridge;
+            float bevel = Math.min(.18f, inner * .4f);
+            float[][] section = {{-inner+bevel,-front},{outer-bevel,-front},
+                    {outer,-front+bevel},{outer,back-bevel},{outer-bevel,back},
+                    {-inner+bevel,back},{-inner,back-bevel},{-inner,-front+bevel}};
             for (int j = 0; j < 8; j++) sections[i][j] = new org.joml.Vector3f(
-                    -.55f + (float)Math.cos(angle) * 5.2f + section[j][0] * (float)Math.cos(normal),
-                    21.2f + (float)Math.sin(angle) * 6.3f + section[j][0] * (float)Math.sin(normal), section[j][1]);
+                    -.55f + ((float)Math.cos(angle) * (5.8f + section[j][0])),
+                    21.2f + ((float)Math.sin(angle) * (5.8f + section[j][0])), section[j][1]);
         }
         return sections;
     }
@@ -119,7 +127,7 @@ public class GodWandModel extends Model {
         // Adjacent surfaces use the same cross-section vertices; there are no internal caps or overlaps.
         for (int i = 0; i < CRESCENT.length - 1; i++) for (int side = 0; side < 8; side++) {
             int next = (side + 1) % 8;
-            int color = side >= 5 ? 0xFFB88A43 : side == 0 || side == 4 ? 0xFF302C3A : 0xFF24212E;
+            int color = side >= 5 ? 0xFFB88A43 : side == 0 || side == 4 ? 0xFF605769 : 0xFF302A38;
             quad(matrices, vertices, CRESCENT[i][side], CRESCENT[i+1][side],
                     CRESCENT[i+1][next], CRESCENT[i][next], light, overlay, color);
         }
@@ -157,12 +165,13 @@ public class GodWandModel extends Model {
                 var normal = new org.joml.Vector3f((float)(Math.cos(theta)*Math.cos(phi)),
                         (float)Math.sin(theta), (float)(Math.cos(theta)*Math.sin(phi)));
                 float ribbon = (float)Math.pow(Math.max(0, Math.sin(theta*6+phi*2-animationTime*.09)), 10);
-                float brightness = .72f + normal.y*.12f + ribbon*(.16f+charge*.1f);
-                int red = Math.min(255, Math.round(((color >> 16) & 255)*brightness + ribbon*35));
-                int green = Math.min(255, Math.round(((color >> 8) & 255)*brightness + ribbon*35));
-                int blue = Math.min(255, Math.round((color & 255)*brightness + ribbon*35));
+                float brightness = .90f + normal.y*.08f + ribbon*(.22f+charge*.1f);
+                int red = Math.min(255, Math.round(((color >> 16) & 255)*brightness + ribbon*60));
+                int green = Math.min(255, Math.round(((color >> 8) & 255)*brightness + ribbon*60));
+                int blue = Math.min(255, Math.round((color & 255)*brightness + ribbon*60));
                 vertex(matrices, vertices, new org.joml.Vector3f(normal).mul(radius), normal,
-                        LightTexture.FULL_BRIGHT, overlay, (alpha<<24)|(red<<16)|(green<<8)|blue);
+                        LightTexture.FULL_BRIGHT, overlay, (alpha<<24)|(red<<16)|(green<<8)|blue,
+                        .52f + corner[1]/16f*.46f, .52f + corner[0]/8f*.46f);
             }
         }
     }
@@ -171,13 +180,18 @@ public class GodWandModel extends Model {
                              org.joml.Vector3f b, org.joml.Vector3f c, org.joml.Vector3f d,
                              int light, int overlay, int color) {
         var normal = new org.joml.Vector3f(b).sub(a).cross(new org.joml.Vector3f(c).sub(a)).normalize();
-        for (var point : new org.joml.Vector3f[]{a,b,c,d}) vertex(matrices, vertices, point, normal, light, overlay, color);
+        for (var point : new org.joml.Vector3f[]{a,b,c,d}) {
+            boolean gold = ((color >> 16) & 255) == 184;
+            float u = .02f + (point.x + 7.5f)/13f*.46f + (gold ? .5f : 0);
+            float v = Math.clamp(.02f + (point.y - 12)/17f*.46f, .02f, .48f);
+            vertex(matrices, vertices, point, normal, light, overlay, color, u, v);
+        }
     }
 
     private static void vertex(PoseStack matrices, VertexConsumer vertices, org.joml.Vector3f point,
-                               org.joml.Vector3f normal, int light, int overlay, int color) {
+                               org.joml.Vector3f normal, int light, int overlay, int color, float u, float v) {
         vertices.addVertex(matrices.last().pose(), point.x/16, point.y/16, point.z/16)
-                .setColor((color>>16)&255, (color>>8)&255, color&255, color>>>24).setUv(.5f, .5f)
+                .setColor((color>>16)&255, (color>>8)&255, color&255, color>>>24).setUv(u, v)
                 .setUv1(overlay&65535, overlay>>16).setUv2(light&65535, light>>16)
                 .setNormal(matrices.last(), normal.x, normal.y, normal.z);
     }

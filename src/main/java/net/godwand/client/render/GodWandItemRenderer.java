@@ -14,7 +14,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.RotationAxis;
 
 public class GodWandItemRenderer implements BuiltinItemRendererRegistry.DynamicItemRenderer {
-    private static final Identifier TEXTURE = Identifier.ofVanilla("textures/block/white_concrete.png");
+    private static final Identifier TEXTURE = Identifier.of(GodWandMod.MOD_ID, "textures/item/eclipse_materials.png");
     private final GodWandModel model;
     private static ItemStack chargingStack, releasedStack;
     private static float previousCharge;
