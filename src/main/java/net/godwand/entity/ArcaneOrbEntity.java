@@ -20,7 +20,8 @@ import net.minecraft.world.World;
 import org.joml.Vector3f;
 
 public class ArcaneOrbEntity extends ProjectileEntity {
-    private int chargeLevel = 1;
+    private static final net.minecraft.entity.data.TrackedData<Integer> CHARGE_LEVEL =
+            DataTracker.registerData(ArcaneOrbEntity.class, net.minecraft.entity.data.TrackedDataHandlerRegistry.INTEGER);
 
     public ArcaneOrbEntity(EntityType<? extends ProjectileEntity> entityType, World world) {
         super(entityType, world);
@@ -35,28 +36,29 @@ public class ArcaneOrbEntity extends ProjectileEntity {
     }
 
     public void setChargeLevel(int level) {
-        this.chargeLevel = level;
+        this.dataTracker.set(CHARGE_LEVEL, Math.clamp(level, 1, 3));
     }
 
     public int getChargeLevel() {
-        return this.chargeLevel;
+        return this.dataTracker.get(CHARGE_LEVEL);
     }
 
     @Override
     protected void initDataTracker(DataTracker.Builder builder) {
+        builder.add(CHARGE_LEVEL, 1);
     }
 
     @Override
     protected void writeCustomDataToNbt(NbtCompound nbt) {
         super.writeCustomDataToNbt(nbt);
-        nbt.putInt("ChargeLevel", this.chargeLevel);
+        nbt.putInt("ChargeLevel", getChargeLevel());
         nbt.putInt("Age", this.age);
     }
 
     @Override
     protected void readCustomDataFromNbt(NbtCompound nbt) {
         super.readCustomDataFromNbt(nbt);
-        this.chargeLevel = nbt.getInt("ChargeLevel");
+        setChargeLevel(nbt.getInt("ChargeLevel"));
         this.age = nbt.getInt("Age");
     }
 
@@ -106,7 +108,7 @@ public class ArcaneOrbEntity extends ProjectileEntity {
     protected void onCollision(HitResult hitResult) {
         super.onCollision(hitResult);
         if (!this.getWorld().isClient()) {
-            double radius = switch (this.chargeLevel) {
+            double radius = switch (getChargeLevel()) {
                 case 1 -> 5.0;
                 case 2 -> 10.0;
                 default -> 16.0; // Calamity Level 3

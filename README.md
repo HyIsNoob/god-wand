@@ -6,7 +6,7 @@ A magic wand mod for Minecraft 1.21.1 supporting both Fabric and NeoForge. Featu
 
 ## Skills
 
-To switch skills: hold **V** while holding the wand to open the skill wheel, move your mouse, and release. You can also press **Shift + Right-Click** to cycle through skills.
+To switch skills: hold **V** while holding the wand to open the skill wheel, move your mouse, and release.
 
 1. **Skill 1 - Spatial Path:**
    - Walk through mountains: opens a 3x4 tunnel ahead of you and seals itself behind you without damaging the terrain.
@@ -38,7 +38,6 @@ To switch skills: hold **V** while holding the wand to open the skill wheel, mov
 | Action | Skill Mode | Description |
 | :--- | :--- | :--- |
 | Hold V | Any | Open skill wheel to pick a skill |
-| Shift + Right-Click | Any | Cycle to the next skill |
 | Right-Click | Skill 1 | Turn tunnel and shield on / off |
 | Shift (Tap) | Skill 1 (Active) | Turn temporary bridge on / off |
 | Hold & Release Right-Click | Skill 2 | Charge and shoot gravity orb |

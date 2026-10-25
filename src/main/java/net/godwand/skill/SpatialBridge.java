@@ -124,7 +124,7 @@ public final class SpatialBridge {
                             && !wanted.contains(record.bridgeDestination) && !occupied(world, record.bridgeDestination)
                             && world.getChunkManager().isChunkLoaded(record.bridgeDestination.getX() >> 4, record.bridgeDestination.getZ() >> 4)
                             && world.getBlockState(record.bridgeDestination).equals(record.originalState)) {
-                        world.removeBlock(record.bridgeDestination, false);
+                        if (!world.removeBlock(record.bridgeDestination, false)) continue;
                         source = record; break;
                     }
                 }
@@ -194,7 +194,7 @@ public final class SpatialBridge {
             if (player != null && player.isAlive() && player.getServerWorld() == world && SpatialPathWalker.isActive(player) && ENABLED.contains(player.getUuid())
                     && target.toCenterPos().squaredDistanceTo(player.getPos()) < 100) continue;
             if (!world.getChunkManager().isChunkLoaded(record.pos.getX() >> 4, record.pos.getZ() >> 4)) continue;
-            world.removeBlock(target, false);
+            if (!world.removeBlock(target, false)) continue;
             SpatialDisplacementManager.moveBridge(record, null);
             SpatialDisplacementManager.executeTwoPassRestoration(world, List.of(record));
         }

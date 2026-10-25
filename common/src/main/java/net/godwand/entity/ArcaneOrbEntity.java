@@ -20,7 +20,8 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 
 public class ArcaneOrbEntity extends Projectile {
-    private int chargeLevel = 1;
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Integer> CHARGE_LEVEL =
+            SynchedEntityData.defineId(ArcaneOrbEntity.class, net.minecraft.network.syncher.EntityDataSerializers.INT);
 
     public ArcaneOrbEntity(EntityType<? extends Projectile> entityType, Level world) {
         super(entityType, world);
@@ -35,28 +36,29 @@ public class ArcaneOrbEntity extends Projectile {
     }
 
     public void setChargeLevel(int level) {
-        this.chargeLevel = level;
+        this.entityData.set(CHARGE_LEVEL, Math.clamp(level, 1, 3));
     }
 
     public int getChargeLevel() {
-        return this.chargeLevel;
+        return this.entityData.get(CHARGE_LEVEL);
     }
 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        builder.define(CHARGE_LEVEL, 1);
     }
 
     @Override
     protected void addAdditionalSaveData(CompoundTag nbt) {
         super.addAdditionalSaveData(nbt);
-        nbt.putInt("ChargeLevel", this.chargeLevel);
+        nbt.putInt("ChargeLevel", getChargeLevel());
         nbt.putInt("Age", this.tickCount);
     }
 
     @Override
     protected void readAdditionalSaveData(CompoundTag nbt) {
         super.readAdditionalSaveData(nbt);
-        this.chargeLevel = nbt.getInt("ChargeLevel");
+        setChargeLevel(nbt.getInt("ChargeLevel"));
         this.tickCount = nbt.getInt("Age");
     }
 
@@ -106,7 +108,7 @@ public class ArcaneOrbEntity extends Projectile {
     protected void onHit(HitResult hitResult) {
         super.onHit(hitResult);
         if (!this.level().isClientSide()) {
-            double radius = switch (this.chargeLevel) {
+            double radius = switch (getChargeLevel()) {
                 case 1 -> 5.0;
                 case 2 -> 10.0;
                 default -> 16.0; // Calamity Level 3

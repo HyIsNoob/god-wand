@@ -370,13 +370,11 @@ public class SpatialDisplacementManager {
 
                     // Pha 3 - Pass 1 (restoreTick == 14): Khôi phục khối đặc đúng 1:1
                     if (record.restoreTick == 14 && record.originalState.isFullCube(world, record.pos)) {
-                        restoreRecordDirectly(world, record, display);
-                        toRemove.add(record);
+                        if (restoreRecordDirectly(world, record, display)) toRemove.add(record);
                     }
                     // Pha 3 - Pass 2 (restoreTick >= 15): Khôi phục khối đính kèm (Đuốc, Đèn lồng, Hoa...)
                     else if (record.restoreTick >= 15) {
-                        restoreRecordDirectly(world, record, display);
-                        toRemove.add(record);
+                        if (restoreRecordDirectly(world, record, display)) toRemove.add(record);
                     }
 
                     record.restoreTick++;
@@ -588,22 +586,26 @@ public class SpatialDisplacementManager {
         }
     }
 
-    private static void restoreRecordDirectly(ServerWorld world, DisplacedBlockRecord r, BlockDisplayEntity display) {
+    private static boolean restoreRecordDirectly(ServerWorld world, DisplacedBlockRecord r, BlockDisplayEntity display) {
         if (r.bridgeDestination != null) {
-            if (world.getChunkManager().isChunkLoaded(r.bridgeDestination.getX() >> 4, r.bridgeDestination.getZ() >> 4)) {
-                if (world.getBlockState(r.bridgeDestination).equals(r.originalState)) {
-                    world.removeBlock(r.bridgeDestination, false);
-                }
+            // Keep the journal until both ends can be reconciled without loading chunks.
+            if (!world.getChunkManager().isChunkLoaded(r.bridgeDestination.getX() >> 4, r.bridgeDestination.getZ() >> 4)
+                    || !world.getChunkManager().isChunkLoaded(r.pos.getX() >> 4, r.pos.getZ() >> 4)) return false;
+            if (!world.getBlockState(r.bridgeDestination).equals(r.originalState)) {
+                removeActiveRecord(r.worldKey, r.pos);
+                return true;
             }
+            if (!world.removeBlock(r.bridgeDestination, false)) return false;
             BRIDGE_DESTINATIONS.remove(new DimensionPos(r.worldKey, r.bridgeDestination));
             r.bridgeDestination = null;
         }
         if (r.permanentDestruction) {
             removeActiveRecord(r.worldKey, r.pos);
-            return;
+            return true;
         }
         // Exact 1:1 original BlockState and NBT restoration
-        world.setBlockState(r.pos, r.originalState, Block.FORCE_STATE | Block.NOTIFY_LISTENERS);
+        if (!world.setBlockState(r.pos, r.originalState, Block.FORCE_STATE | Block.NOTIFY_LISTENERS)
+                && !world.getBlockState(r.pos).equals(r.originalState)) return false;
         if (r.blockEntityNbt != null) {
             BlockEntity be = world.getBlockEntity(r.pos);
             if (be != null) {
@@ -627,6 +629,7 @@ public class SpatialDisplacementManager {
         } else if (r.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER) {
             shouldPlayPathSound(r.boundPlayerUuid, world.getTime(), true);
         }
+        return true;
     }
 
     public static void collapsePlayerAura(UUID playerUuid) {
@@ -693,8 +696,7 @@ public class SpatialDisplacementManager {
         for (DisplacedBlockRecord r : records) {
             if (r.isFullCube) {
                 BlockDisplayEntity d = r.displayEntityUuid != null ? ACTIVE_ENTITIES.get(r.displayEntityUuid) : null;
-                restoreRecordDirectly(world, r, d);
-                ACTIVE_RECORDS.remove(new DimensionPos(r.worldKey, r.pos));
+                if (restoreRecordDirectly(world, r, d)) ACTIVE_RECORDS.remove(new DimensionPos(r.worldKey, r.pos));
             }
         }
         // Pass 2: Attached & delicate blocks (Torches, Lanterns, Signs, Doors, Plants)
@@ -708,8 +710,7 @@ public class SpatialDisplacementManager {
         delicate.sort(Comparator.comparingInt(r -> r.pos.getY()));
         for (DisplacedBlockRecord r : delicate) {
             BlockDisplayEntity d = r.displayEntityUuid != null ? ACTIVE_ENTITIES.get(r.displayEntityUuid) : null;
-            restoreRecordDirectly(world, r, d);
-            ACTIVE_RECORDS.remove(new DimensionPos(r.worldKey, r.pos));
+            if (restoreRecordDirectly(world, r, d)) ACTIVE_RECORDS.remove(new DimensionPos(r.worldKey, r.pos));
         }
         DisplacementPersistentState.getServerState(world).markDirty();
     }

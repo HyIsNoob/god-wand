@@ -131,15 +131,16 @@ public class DisplacementPersistentState extends SavedData {
             List<DisplacedBlockRecord> toRestore = new ArrayList<>();
             for (DisplacedBlockRecord r : unrestoredRecords) {
                 if (r.worldKey.equals(world.dimension())) {
-                    if (r.bridgeDestination != null) SpatialDisplacementManager.recoverBridge(r);
-                    else toRestore.add(r);
+                    // Failed restores must remain tracked for ticking and the next save.
+                    SpatialDisplacementManager.recoverBridge(r);
+                    if (r.bridgeDestination == null) toRestore.add(r);
                 }
             }
             if (!toRestore.isEmpty()) {
                 SpatialDisplacementManager.executeTwoPassRestoration(world, toRestore);
                 unrestoredRecords.removeAll(toRestore);
                 setDirty();
-                GodWandMod.LOGGER.info("Crash recovery: Restored {} orphaned displaced blocks in {}", toRestore.size(), world.dimension().location());
+                GodWandMod.LOGGER.info("Crash recovery: Attempted restoration of {} orphaned displaced blocks in {}", toRestore.size(), world.dimension().location());
             }
         }
 

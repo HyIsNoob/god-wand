@@ -64,7 +64,7 @@ class SpatialBridgeTest {
     }
 
     @Test
-    void restoreAllForPlayerHandlesPlayerRecordsSafely() {
+    void missingWorldKeepsPlayerRecordsPendingRestoration() {
         SpatialDisplacementManager.clearRuntimeState();
         java.util.UUID playerUuid = java.util.UUID.randomUUID();
         var record1 = new DisplacedBlockRecord(new BlockPos(10, 64, 10), Level.OVERWORLD, null, null,
@@ -74,8 +74,12 @@ class SpatialBridgeTest {
         SpatialDisplacementManager.moveBridge(record1, new BlockPos(10, 64, 15));
 
         assertEquals(1, SpatialDisplacementManager.getActiveRecordCount());
-        SpatialDisplacementManager.restoreAllForPlayer(playerUuid, null);
-        SpatialDisplacementManager.clearRuntimeState();
-        assertEquals(0, SpatialDisplacementManager.getActiveRecordCount());
+        try {
+            SpatialDisplacementManager.restoreAllForPlayer(playerUuid, null);
+            assertSame(record1, SpatialDisplacementManager.getActiveRecord(Level.OVERWORLD, record1.pos));
+            assertEquals(new BlockPos(10, 64, 15), record1.bridgeDestination);
+        } finally {
+            SpatialDisplacementManager.clearRuntimeState();
+        }
     }
 }

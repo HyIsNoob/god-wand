@@ -422,7 +422,7 @@ public class GodWandItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag type) {
         int mode = getSkillMode(stack);
-        tooltip.add(Component.literal("§7[Shift + Right-Click]: §eSwitch skill"));
+        tooltip.add(Component.literal("§7[Hold V]: §eSelect skill"));
         switch (mode) {
             case MODE_SPATIAL_PATH -> tooltip.add(Component.literal("§a§bSpatial Path §7(Toggle)"));
             case MODE_ARCANE_ORB -> tooltip.add(Component.literal("§a§dSingularity §7(Hold to charge)"));

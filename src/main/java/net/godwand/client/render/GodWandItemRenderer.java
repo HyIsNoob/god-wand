@@ -55,10 +55,10 @@ public class GodWandItemRenderer implements BuiltinItemRendererRegistry.DynamicI
             case 4 -> 0xFFF1C0;
             default -> 0xFFE05A;
         };
-        float t = Math.clamp(charge, 0, 1);
+        float t = .28f + Math.clamp(charge, 0, 1) * .72f;
         int color = 0xFF000000;
         for (int shift : new int[]{16, 8, 0}) {
-            int idle = (0xFFE05A >> shift) & 255;
+            int idle = (0xB85CBA >> shift) & 255;
             color |= Math.round(idle + (((target >> shift) & 255) - idle) * t) << shift;
         }
         return color;
@@ -94,7 +94,7 @@ public class GodWandItemRenderer implements BuiltinItemRendererRegistry.DynamicI
             matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-draw * 7 - recoil * 16));
         }
 
-        // Update procedural animations (hovering spire, spinning singularity core)
+        // Animate the floating core without moving the crescent or the grip.
         this.model.setupProceduralAnimations(time, chargeRatio, currentMode);
 
         // Render solid geometry and emissive core
@@ -108,57 +108,43 @@ public class GodWandItemRenderer implements BuiltinItemRendererRegistry.DynamicI
 
     private void applyDisplayTransform(MatrixStack matrices, ModelTransformationMode mode) {
         switch (mode) {
-            case FIRST_PERSON_RIGHT_HAND -> {
-                matrices.translate(0.08F, -0.05F, -0.05F);
-                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-28.0F));
-                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-25.0F));
-                matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(18.0F));
-                matrices.scale(0.48F, 0.48F, 0.48F);
-                matrices.translate(0.0F, 2.0F / 16.0F, 0.0F); // Grip at shaft
+            case FIRST_PERSON_RIGHT_HAND, FIRST_PERSON_LEFT_HAND -> {
+                int hand = mode == ModelTransformationMode.FIRST_PERSON_RIGHT_HAND ? 1 : -1;
+                matrices.translate(hand * .01f, -.025f, -.04f);
+                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-12));
+                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(hand * -35));
+                matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(hand * 12));
+                matrices.scale(.50f, .50f, .50f);
             }
-            case FIRST_PERSON_LEFT_HAND -> {
-                matrices.translate(-0.08F, -0.05F, -0.05F);
-                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-28.0F));
-                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(25.0F));
-                matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-18.0F));
-                matrices.scale(0.48F, 0.48F, 0.48F);
-                matrices.translate(0.0F, 2.0F / 16.0F, 0.0F);
-            }
-            case THIRD_PERSON_RIGHT_HAND -> {
-                matrices.translate(0.0F, -0.08F, 0.05F);
-                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(20.0F));
-                matrices.scale(0.60F, 0.60F, 0.60F);
-                matrices.translate(0.0F, 2.0F / 16.0F, 0.0F);
-            }
-            case THIRD_PERSON_LEFT_HAND -> {
-                matrices.translate(0.0F, -0.08F, 0.05F);
-                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(20.0F));
-                matrices.scale(0.60F, 0.60F, 0.60F);
-                matrices.translate(0.0F, 2.0F / 16.0F, 0.0F);
+            case THIRD_PERSON_RIGHT_HAND, THIRD_PERSON_LEFT_HAND -> {
+                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(20));
+                matrices.scale(.39f, .39f, .39f);
             }
             case GUI -> {
-                // Diagonally across hotbar slot, perfectly centered, showing 3D Gothic relief
+                // Diagonally across hotbar slot, perfectly centered, showing the crescent profile
                 matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-45.0F));
                 matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45.0F));
-                matrices.scale(0.27F, 0.27F, 0.27F);
-                matrices.translate(0.0F, -3.75F / 16.0F, 0.0F); // Center geometric height in slot
+                matrices.scale(0.24F, 0.24F, 0.24F);
+                matrices.translate(0.0F, 10F / 16.0F, 0.0F); // Center geometric height in slot
             }
             case FIXED -> {
                 // In item frame: tilted 45 degrees, centered
                 matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-45.0F));
                 matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(45.0F));
-                matrices.scale(0.30F, 0.30F, 0.30F);
-                matrices.translate(0.0F, -3.75F / 16.0F, 0.0F);
+                matrices.scale(0.25F, 0.25F, 0.25F);
+                matrices.translate(0.0F, 10F / 16.0F, 0.0F);
             }
             case GROUND -> {
-                // Dropped on ground
-                matrices.translate(0.0F, -0.10F, 0.0F);
-                matrices.scale(0.45F, 0.45F, 0.45F);
-                matrices.translate(0.0F, -3.75F / 16.0F, 0.0F);
+                // Lay the long staff along the ground instead of burying its lower half.
+                matrices.translate(0.0F, 0.08F, 0.0F);
+                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90));
+                matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-25));
+                matrices.scale(0.30F, 0.30F, 0.30F);
+                matrices.translate(0.0F, 10F / 16.0F, 0.0F);
             }
             default -> {
                 matrices.scale(0.50F, 0.50F, 0.50F);
-                matrices.translate(0.0F, -3.75F / 16.0F, 0.0F);
+                matrices.translate(0.0F, 10F / 16.0F, 0.0F);
             }
         }
     }

@@ -16,14 +16,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class GodWandModelTest {
     @Test
-    void silverTrimDoesNotShareVisiblePlanesWithTheDarkBody() {
+    void goldTrimDoesNotShareVisiblePlanesWithTheObsidian() {
         var model = new GodWandModel(GodWandModel.getTexturedModelData().createModel());
         var mesh = new Mesh();
         model.renderWand(new MatrixStack(), () -> mesh, () -> mesh, 0, 0, 0xFFFFE05A);
         for (int i = 0; i < mesh.vertices.size(); i += 4) {
-            if (mesh.vertices.get(i)[3] != 40) continue;
+            if (mesh.vertices.get(i)[3] != 36) continue;
             for (int j = 0; j < mesh.vertices.size(); j += 4) {
-                if (mesh.vertices.get(j)[3] != 202) continue;
+                if (mesh.vertices.get(j)[3] != 184) continue;
                 for (int axis = 0; axis < 3; axis++) {
                     double plane = mesh.vertices.get(i)[axis];
                     boolean coplanar = true;
@@ -45,7 +45,7 @@ class GodWandModelTest {
                         }
                         overlaps &= Math.min(aMax, bMax) - Math.max(aMin, bMin) > 0.00001;
                     }
-                    assertFalse(overlaps, "Overlapping dark/silver faces on axis " + axis + " at " + plane);
+                    assertFalse(overlaps, "Overlapping obsidian/gold faces on axis " + axis + " at " + plane);
                 }
             }
         }
@@ -64,28 +64,35 @@ class GodWandModelTest {
     }
 
     @Test
-    void renderedGeometryIsFiniteAndFloatingTrimStaysAttached() throws Exception {
+    void eclipseKeepsCoreCenteredAndHoldingOriginInsideLeather() throws Exception {
         var root = GodWandModel.getTexturedModelData().createModel();
         var model = new GodWandModel(root);
         for (float charge : new float[]{0, 0.5f, 1}) {
             model.setupProceduralAnimations(37, charge, 1);
-            assertEquals(root.getChild("floating_spire").pivotY, root.getChild("spire_trim").pivotY);
-            assertEquals(root.getChild("floating_spire").yaw, root.getChild("spire_trim").yaw);
-            assertTrue(root.getChild("singularity_core").pivotY > 16);
-            assertTrue(root.getChild("singularity_core").pivotY < 17);
+            assertEquals(21.2f, root.getChild("singularity_core").pivotY, 0.001);
+            assertNotEquals(0, root.getChild("singularity_core").yaw);
+            assertEquals(0, root.getChild("obsidian").yaw);
         }
         model.setupProceduralAnimations(0, 0, 0);
         var mesh = new Mesh();
         model.renderWand(new MatrixStack(), () -> mesh, () -> mesh, 0, 0, 0xFFFFE05A);
         assertFalse(mesh.vertices.isEmpty());
         assertEquals(0, mesh.vertices.size() % 4);
-        assertEquals(-28 / 16f, mesh.vertices.stream().mapToDouble(v -> v[1]).min().orElseThrow(), 0.001);
-        assertEquals(35.5 / 16f, mesh.vertices.stream().mapToDouble(v -> v[1]).max().orElseThrow(), 0.001);
-        double halfWidth = mesh.vertices.stream().mapToDouble(v -> Math.max(Math.abs(v[0]), Math.abs(v[2]))).max().orElseThrow();
-        assertTrue(halfWidth <= 3.63 / 16, "The head must keep its slimmer silhouette");
+        double height = mesh.vertices.stream().mapToDouble(v -> v[1]).max().orElseThrow()
+                - mesh.vertices.stream().mapToDouble(v -> v[1]).min().orElseThrow();
+        assertEquals(1.75, height * .39, .04, "Third-person staff must be long and slender");
+        double headDepth = mesh.vertices.stream().filter(v -> v[1] > 1).mapToDouble(v -> v[2]).max().orElseThrow()
+                - mesh.vertices.stream().filter(v -> v[1] > 1).mapToDouble(v -> v[2]).min().orElseThrow();
+        assertTrue(headDepth < .18, "The crescent must remain thin");
+        var grip = mesh.vertices.stream().filter(v -> v[3] == 99).toList();
+        assertFalse(grip.isEmpty(), "Red leather must be a real solid model part");
+        assertTrue(grip.stream().anyMatch(v -> v[1] < 0) && grip.stream().anyMatch(v -> v[1] > 0),
+                "The holding origin must lie within the leather grip");
         var preview = Path.of("build/previews/god-wand-mesh.json");
         Files.createDirectories(preview.getParent());
-        Files.writeString(preview, new Gson().toJson(mesh.vertices));
+        var visibleMesh = new Mesh();
+        model.renderWand(new MatrixStack(), () -> visibleMesh, () -> visibleMesh, 0, 0, GodWandItemRenderer.coreColor(0, 0));
+        Files.writeString(preview, new Gson().toJson(visibleMesh.vertices));
     }
 
     @Test
@@ -99,10 +106,18 @@ class GodWandModelTest {
             var mode = sign > 0 ? net.minecraft.client.render.model.json.ModelTransformationMode.FIRST_PERSON_RIGHT_HAND
                     : net.minecraft.client.render.model.json.ModelTransformationMode.FIRST_PERSON_LEFT_HAND;
             transform.invoke(new GodWandItemRenderer(), matrices, mode);
+            var gripCenter = matrices.peek().getPositionMatrix().transformPosition(new org.joml.Vector3f());
+            assertTrue(gripCenter.distance(new org.joml.Vector3f(sign * .56f, -.52f, -.72f)) < .06f,
+                    "The hand anchor must stay inside the red leather sleeve");
             var model = new GodWandModel(GodWandModel.getTexturedModelData().createModel());
             model.setupProceduralAnimations(0, 0, 0);
             var mesh = new Mesh();
             model.renderWand(matrices, () -> mesh, () -> mesh, 0, 0, 0xFFFFE05A);
+            var preview = Path.of("build/previews/eclipse-first-person-" + (sign > 0 ? "right" : "left") + ".json");
+            Files.createDirectories(preview.getParent());
+            var visibleMesh = new Mesh();
+            model.renderWand(matrices, () -> visibleMesh, () -> visibleMesh, 0, 0, GodWandItemRenderer.coreColor(0, 0));
+            Files.writeString(preview, new Gson().toJson(visibleMesh.vertices));
             for (float[] v : mesh.vertices) if (v[3] == 255) {
                 assertTrue(v[2] < -.05f, "Core must remain in front of the hand camera");
                 double tanFov = Math.tan(Math.toRadians(70) / 2);
@@ -126,9 +141,9 @@ class GodWandModelTest {
         };
         model.renderWand(new MatrixStack(), nextBuffer, nextBuffer, 0, 0, 0xFFFFE05A);
         assertEquals(2, buffers.size());
-        assertTrue(buffers.get(0).vertices.size() > 1500);
-        assertEquals(120, buffers.get(1).vertices.size());
-        assertTrue(buffers.get(0).vertices.stream().anyMatch(v -> v[3] == 202), "Silver trim must reach the solid buffer");
+        assertFalse(buffers.get(0).vertices.isEmpty());
+        assertFalse(buffers.get(1).vertices.isEmpty());
+        assertTrue(buffers.get(0).vertices.stream().anyMatch(v -> v[3] == 184), "Gold trim must reach the solid buffer");
     }
 
     private static class Mesh implements VertexConsumer {

@@ -87,7 +87,7 @@ public class SupernovaManager {
         public final Map<BlockPos, Quaternionf> baseRotationMap = new HashMap<>();
         public final Map<BlockPos, Float> blockScaleMap = new HashMap<>();
 
-        final SupernovaCraterCursor crater = new SupernovaCraterCursor((int)terrainRadius);
+        final SupernovaCraterCursor candidateColumns = new SupernovaCraterCursor((int)Math.ceil(maxRadius));
 
         public SupernovaTask(ServerLevel world, ServerPlayer caster, BlockPos groundCenter, Vec3 corePos) {
             this.world = world;
@@ -130,76 +130,6 @@ public class SupernovaManager {
         Vec3 corePos = groundCenter.getCenter().add(0, 20.0, 0);
         SupernovaTask task = new SupernovaTask(world, player, groundCenter, corePos);
 
-        // 1. Kích hoạt Shader Hố Đen 3D độc quyền của Chiêu 4 (340 ticks tích tụ đơn điệu)
-
-        // 2. Thu thập danh sách khối ứng viên trong bán kính hút R = 34.0m
-        // QUÉT CẢ VÙNG NÚI NON PHÍA TRÊN & TẠO LÒNG CHẢO HÌNH CẦU/PARABOL GỒ GHỀ (KHÔNG PHẲNG LÌ)
-        int intR = (int) Math.ceil(task.maxRadius);
-        double maxRadiusSq = task.maxRadius * task.maxRadius;
-        BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
-
-        List<BlockPos> surfaceCandidates = new ArrayList<>();
-        List<BlockPos> subSurfaceCandidates = new ArrayList<>();
-        int groundY = groundCenter.getY();
-        int maxY = Math.min(world.getMaxBuildHeight() - 1, groundY + 54);
-
-        for (int x = -intR; x <= intR; x++) {
-            for (int z = -intR; z <= intR; z++) {
-                double dSq2D = x * x + z * z;
-                if (dSq2D > maxRadiusSq) continue;
-
-                double dist2D = Math.sqrt(dSq2D);
-                int colX = groundCenter.getX() + x;
-                int colZ = groundCenter.getZ() + z;
-
-                // Độ sâu hố hút hình cầu / lòng chảo parabol tự nhiên (Curved Spherical Cavity)
-                // Tâm hố sâu 14-16 blocks, thoải dần theo hình cầu ra mép 34m
-                double normR = dist2D / task.maxRadius;
-                double bowlDepth = 15.0 * Math.pow(1.0 - normR, 1.35);
-
-                // Fractal noise lởm chởm gập ghềnh tự nhiên (tuyệt đối không phẳng lì!)
-                double noise = (SpatialMath.hash01(new BlockPos(colX * 2, 0, colZ * 2)) - 0.5) * 6.5;
-                noise += Math.sin(colX * 0.4) * Math.cos(colZ * 0.4) * 2.5;
-
-                int colMinY = Math.max(world.getMinBuildHeight() + 4, (int) Math.round(groundY - bowlDepth + noise));
-                int surfaceY = world.getHeight(Heightmap.Types.WORLD_SURFACE, colX, colZ) - 1;
-                int solidCount = 0;
-
-                for (int y = Math.min(maxY, surfaceY + 4); y >= colMinY; y--) {
-                    mutable.set(colX, y, colZ);
-                    BlockState state = world.getBlockState(mutable);
-                    if (state.isAir() || state.getBlock() == Blocks.BEDROCK) continue;
-                    if (!SpatialDisplacementManager.canDisplace(world, mutable, state)) continue;
-
-                    solidCount++;
-                    if (isFoliageOrNonSolid(world, mutable, state)) {
-                        subSurfaceCandidates.add(mutable.immutable());
-                    } else if (solidCount <= 3) {
-                        surfaceCandidates.add(mutable.immutable());
-                    } else {
-                        subSurfaceCandidates.add(mutable.immutable());
-                    }
-                }
-            }
-        }
-
-        // Sắp xếp bóc tách: Ưu tiên khối bề mặt/núi non trên cao bóc trước, và từ tâm lan dần ra
-        Comparator<BlockPos> radialComp = (a, b) -> {
-            double distA = Math.sqrt(a.distToLowCornerSqr(task.groundCenter.getX(), a.getY(), task.groundCenter.getZ()));
-            double distB = Math.sqrt(b.distToLowCornerSqr(task.groundCenter.getX(), b.getY(), task.groundCenter.getZ()));
-            double scoreA = distA * 0.7 - (a.getY() - groundY) * 0.45;
-            double scoreB = distB * 0.7 - (b.getY() - groundY) * 0.45;
-            return Double.compare(scoreA, scoreB);
-        };
-
-        surfaceCandidates.sort(radialComp);
-        subSurfaceCandidates.sort(radialComp);
-
-        task.candidatePositions.addAll(surfaceCandidates);
-        task.candidatePositions.addAll(subSurfaceCandidates);
-
-        // Âm thanh khởi sinh Hố Đen Tận Thế (Trầm bổng, ngân vang)
-
         CinematicFxPayload castShake = new CinematicFxPayload(
                 CinematicFxPayload.EVENT_TRAUMA_SHAKE,
                 corePos.x, corePos.y, corePos.z,
@@ -208,7 +138,7 @@ public class SupernovaManager {
         Services.NETWORK.sendToNearby(world, corePos, 120.0, castShake);
 
         ACTIVE_TASKS.add(task);
-        // Start the client clock only after preparing the server task.
+        // Terrain preparation is spread across the buildup ticks.
         ImpactFxPayload blackHolePayload = new ImpactFxPayload(
                 corePos.x, corePos.y, corePos.z,
                 ImpactFxPayload.TYPE_BLACK_HOLE, IMPACT_TICK, 1.0f
@@ -216,6 +146,31 @@ public class SupernovaManager {
         Services.NETWORK.sendToNearby(world, corePos, 250.0, blackHolePayload);
         if (player.isAlive()) Services.NETWORK.sendToPlayer(player, blackHolePayload);
 
+    }
+
+    private static void prepareTerrain(SupernovaTask task) {
+        ServerLevel world = task.world;
+        int groundY = task.groundCenter.getY();
+        int maxY = Math.min(world.getMaxBuildHeight() - 1, groundY + 54);
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        // Bound preparation work and reuse the center-out cursor instead of sorting all terrain at cast time.
+        for (int columns = 0; columns < 64 && !task.candidateColumns.finished(); columns++) {
+            int x = task.candidateColumns.x(), z = task.candidateColumns.z();
+            task.candidateColumns.advance();
+            double distance = Math.hypot(x, z);
+            int colX = task.groundCenter.getX() + x, colZ = task.groundCenter.getZ() + z;
+            if (distance > task.maxRadius || !world.getChunkSource().hasChunk(colX >> 4, colZ >> 4)) continue;
+            double bowlDepth = 15.0 * Math.pow(1.0 - distance / task.maxRadius, 1.35);
+            double noise = (SpatialMath.hash01(new BlockPos(colX * 2, 0, colZ * 2)) - 0.5) * 6.5;
+            noise += Math.sin(colX * 0.4) * Math.cos(colZ * 0.4) * 2.5;
+            int floorY = Math.max(world.getMinBuildHeight() + 4, (int)Math.round(groundY - bowlDepth + noise));
+            int surfaceY = world.getHeight(Heightmap.Types.WORLD_SURFACE, colX, colZ) - 1;
+            for (int y = Math.min(maxY, surfaceY + 4); y >= floorY; y--) {
+                pos.set(colX, y, colZ);
+                BlockState state = world.getBlockState(pos);
+                if (SpatialDisplacementManager.canDisplace(world, pos, state)) task.candidatePositions.add(pos.immutable());
+            }
+        }
     }
 
     public static void tick(ServerLevel world) {
@@ -226,6 +181,7 @@ public class SupernovaManager {
             if (task.world != world) continue;
 
             task.ageTicks++;
+            if (task.ageTicks < SupernovaSequence.PEEL_END) prepareTerrain(task);
             if (task.ageTicks >= DETONATION_TICK && task.ageTicks < DETONATION_TICK + 60) {
                 carveSphericalCraterShell(task, task.ageTicks - DETONATION_TICK, 60);
             }
@@ -273,6 +229,7 @@ public class SupernovaManager {
                     int size = task.candidatePositions.size();
                     for (int i = task.candidateScanIndex; i < size; i++) {
                         BlockPos pos = task.candidatePositions.get(i);
+                        if (!world.getChunkSource().hasChunk(pos.getX() >> 4, pos.getZ() >> 4)) continue;
                         if (task.peeledPositions.contains(pos)) {
                             if (i == task.candidateScanIndex) task.candidateScanIndex++;
                             continue;
@@ -590,7 +547,7 @@ public class SupernovaManager {
     private static void carveSphericalCraterShell(SupernovaTask task, int step, int totalSteps) {
         ServerLevel world = task.world;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        double maxR = Math.min(180.0, Math.max(120.0, task.terrainRadius));
+        double maxR = task.terrainRadius;
         double maxDepth = 52.0;
         double rMin = step == 0 ? 0.0 : maxR * ((double) step / totalSteps);
         double rMax = maxR * ((double) (step + 1) / totalSteps);
