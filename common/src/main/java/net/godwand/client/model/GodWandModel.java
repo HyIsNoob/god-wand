@@ -55,7 +55,6 @@ public class GodWandModel extends Model {
         MeshDefinition mesh = new MeshDefinition();
         PartDefinition root = mesh.getRoot();
 
-        // ModelPart hierarchy for animation roots and compatibility
         root.addOrReplaceChild("obsidian", CubeListBuilder.create(), PartPose.ZERO);
         root.addOrReplaceChild("gold", CubeListBuilder.create(), PartPose.ZERO);
         root.addOrReplaceChild("leather", CubeListBuilder.create(), PartPose.ZERO);
@@ -254,28 +253,10 @@ public class GodWandModel extends Model {
             addOctagonalPrism(list, 0.22f, 0.22f, 7.2f, 10.0f, sx, sz);
         }
 
-        // Neck stepped collars
+        // Neck stepped collars (terminating cleanly without vertical spine)
         addBeveledRing(list, 0.80f, 1.45f, 11.2f, 0.85f, 0.0f, 0.0f);
         addBeveledRing(list, 0.95f, 1.65f, 13.2f, 1.35f, 0.0f, 0.0f);
         addBeveledRing(list, 1.05f, 1.85f, 14.6f, 1.55f, 0.0f, 0.0f);
-
-        // Vertical golden spine connecting neck upward into crescent inner base
-        list.add(new Vector3f[]{
-            new Vector3f(-0.45f, 14.5f, -0.65f), new Vector3f(-0.45f, 18.2f, -0.65f),
-            new Vector3f( 0.45f, 18.2f, -0.65f), new Vector3f( 0.45f, 14.5f, -0.65f)
-        });
-        list.add(new Vector3f[]{
-            new Vector3f( 0.45f, 14.5f,  0.65f), new Vector3f( 0.45f, 18.2f,  0.65f),
-            new Vector3f(-0.45f, 18.2f,  0.65f), new Vector3f(-0.45f, 14.5f,  0.65f)
-        });
-        list.add(new Vector3f[]{
-            new Vector3f(-0.45f, 14.5f,  0.65f), new Vector3f(-0.45f, 18.2f,  0.65f),
-            new Vector3f(-0.45f, 18.2f, -0.65f), new Vector3f(-0.45f, 14.5f, -0.65f)
-        });
-        list.add(new Vector3f[]{
-            new Vector3f( 0.45f, 14.5f, -0.65f), new Vector3f( 0.45f, 18.2f, -0.65f),
-            new Vector3f( 0.45f, 18.2f,  0.65f), new Vector3f( 0.45f, 14.5f,  0.65f)
-        });
 
         // Pommel transition collar
         addBeveledRing(list, 0.85f, 1.35f, -37.2f, 0.85f, 0.0f, 0.0f);
@@ -364,7 +345,6 @@ public class GodWandModel extends Model {
                 }
             }
 
-            // Beveled faceted end-caps at segment seams
             Vector3f center0 = new Vector3f(CX + (float)Math.cos(aStart) * (C_RADIUS + wRad * 0.5f),
                                             CY + (float)Math.sin(aStart) * (C_RADIUS + wRad * 0.5f), 0.0f);
             for (int v = 0; v < 8; v++) {
@@ -386,12 +366,12 @@ public class GodWandModel extends Model {
 
     private static Vector3f[][] createGoldRail() {
         List<Vector3f[]> list = new ArrayList<>();
-        int steps = 36;
+        int steps = 38;
         for (int i = 0; i < steps - 1; i++) {
             double t0 = i / (double)(steps - 1);
             double t1 = (i + 1) / (double)(steps - 1);
-            double a0 = Math.toRadians(38 + 274 * t0);
-            double a1 = Math.toRadians(38 + 274 * t1);
+            double a0 = Math.toRadians(40 + 268 * t0);
+            double a1 = Math.toRadians(40 + 268 * t1);
             float rInner = C_RADIUS - 0.45f;
             float rRailMid = C_RADIUS - 0.08f;
             float rRailOut = C_RADIUS + 0.28f;
@@ -488,29 +468,55 @@ public class GodWandModel extends Model {
 
     private static Vector3f[][] createTopTalon() {
         List<Vector3f[]> list = new ArrayList<>();
-        // Top talon
+        // Top curved talon / hook at the upper tip of C (a = 40 deg, curves inwards along arc to 21 deg)
         double aTop = Math.toRadians(40);
-        float caTop = (float)Math.cos(aTop), saTop = (float)Math.sin(aTop);
-        Vector3f tipTop = new Vector3f(CX + caTop * C_RADIUS - 1.35f, CY + saTop * C_RADIUS + 1.45f, 0.0f);
-        Vector3f baseTopF = new Vector3f(CX + caTop * C_RADIUS, CY + saTop * C_RADIUS + 0.30f, -0.34f);
-        Vector3f baseTopB = new Vector3f(CX + caTop * C_RADIUS, CY + saTop * C_RADIUS + 0.30f,  0.34f);
-        Vector3f baseTopOut = new Vector3f(CX + caTop * (C_RADIUS + 1.30f), CY + saTop * (C_RADIUS + 1.30f), 0.0f);
+        float ca = (float)Math.cos(aTop), sa = (float)Math.sin(aTop);
+        float rIn = C_RADIUS - 0.15f;
+        float rOut = C_RADIUS + 1.25f;
 
-        list.add(new Vector3f[]{baseTopF, baseTopOut, tipTop, tipTop});
-        list.add(new Vector3f[]{baseTopOut, baseTopB, tipTop, tipTop});
-        list.add(new Vector3f[]{baseTopB, baseTopF, tipTop, tipTop});
+        Vector3f bInF  = new Vector3f(CX + ca * rIn,  CY + sa * rIn,  -0.45f);
+        Vector3f bOutF = new Vector3f(CX + ca * rOut, CY + sa * rOut, -0.45f);
+        Vector3f bOutB = new Vector3f(CX + ca * rOut, CY + sa * rOut,  0.45f);
+        Vector3f bInB  = new Vector3f(CX + ca * rIn,  CY + sa * rIn,   0.45f);
 
-        // Bottom tip claw
+        // Mid section of curved hook (continuing arc down to 30 deg, curving inward)
+        double aMid = Math.toRadians(30);
+        float caM = (float)Math.cos(aMid), saM = (float)Math.sin(aMid);
+        Vector3f mInF  = new Vector3f(CX + caM * (C_RADIUS - 0.15f), CY + saM * (C_RADIUS - 0.15f), -0.32f);
+        Vector3f mOutF = new Vector3f(CX + caM * (C_RADIUS + 0.95f), CY + saM * (C_RADIUS + 0.95f), -0.32f);
+        Vector3f mOutB = new Vector3f(CX + caM * (C_RADIUS + 0.95f), CY + saM * (C_RADIUS + 0.95f),  0.32f);
+        Vector3f mInB  = new Vector3f(CX + caM * (C_RADIUS - 0.15f), CY + saM * (C_RADIUS - 0.15f),  0.32f);
+
+        // Sharp hook beak tip (curving down and inward to 21 deg)
+        double aTip = Math.toRadians(21);
+        float caT = (float)Math.cos(aTip), saT = (float)Math.sin(aTip);
+        Vector3f tip = new Vector3f(CX + caT * (C_RADIUS - 0.65f), CY + saT * (C_RADIUS - 0.65f), 0.0f);
+
+        // Base collar to mid hook
+        list.add(new Vector3f[]{bOutF, bOutB, mOutB, mOutF});
+        list.add(new Vector3f[]{bInB, bInF, mInF, mInB});
+        list.add(new Vector3f[]{bInF, bOutF, mOutF, mInF});
+        list.add(new Vector3f[]{bOutB, bInB, mInB, mOutB});
+
+        // Mid hook to sharp beak tip
+        list.add(new Vector3f[]{mOutF, mOutB, tip, tip});
+        list.add(new Vector3f[]{mInB, mInF, tip, tip});
+        list.add(new Vector3f[]{mInF, mOutF, tip, tip});
+        list.add(new Vector3f[]{mOutB, mInB, tip, tip});
+
+        // Bottom tip collar cap (at a = 308 deg)
         double aBot = Math.toRadians(308);
-        float caBot = (float)Math.cos(aBot), saBot = (float)Math.sin(aBot);
-        Vector3f tipBot = new Vector3f(CX + caBot * C_RADIUS + 1.45f, CY + saBot * C_RADIUS - 1.25f, 0.0f);
-        Vector3f baseBotF = new Vector3f(CX + caBot * C_RADIUS, CY + saBot * C_RADIUS - 0.30f, -0.34f);
-        Vector3f baseBotB = new Vector3f(CX + caBot * C_RADIUS, CY + saBot * C_RADIUS - 0.30f,  0.34f);
-        Vector3f baseBotOut = new Vector3f(CX + caBot * (C_RADIUS + 1.30f), CY + saBot * (C_RADIUS + 1.30f), 0.0f);
+        float caB = (float)Math.cos(aBot), saB = (float)Math.sin(aBot);
+        Vector3f botInF  = new Vector3f(CX + caB * rIn,  CY + saB * rIn,  -0.45f);
+        Vector3f botOutF = new Vector3f(CX + caB * rOut, CY + saB * rOut, -0.45f);
+        Vector3f botOutB = new Vector3f(CX + caB * rOut, CY + saB * rOut,  0.45f);
+        Vector3f botInB  = new Vector3f(CX + caB * rIn,  CY + saB * rIn,   0.45f);
+        Vector3f tipBot   = new Vector3f(CX + caB * (C_RADIUS + 0.55f) + 0.65f, CY + saB * (C_RADIUS + 0.55f) - 0.45f, 0.0f);
 
-        list.add(new Vector3f[]{baseBotOut, baseBotF, tipBot, tipBot});
-        list.add(new Vector3f[]{baseBotB, baseBotOut, tipBot, tipBot});
-        list.add(new Vector3f[]{baseBotF, baseBotB, tipBot, tipBot});
+        list.add(new Vector3f[]{botOutF, botOutB, tipBot, tipBot});
+        list.add(new Vector3f[]{botInB, botInF, tipBot, tipBot});
+        list.add(new Vector3f[]{botInF, botOutF, tipBot, tipBot});
+        list.add(new Vector3f[]{botOutB, botInB, tipBot, tipBot});
 
         return list.toArray(new Vector3f[0][]);
     }

@@ -87,8 +87,6 @@ public class GodWandForgeClientMod {
                 SupernovaAccretionRenderer.render(matrices, camera, tickDelta);
                 GodWandPostFxManager.onWorldRender(matrices.last().pose(), event.getProjectionMatrix(), tickDelta);
             } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
-                float tickDelta = event.getPartialTick();
-                GodWandPostFxManager.onWorldRender(event.getPoseStack().last().pose(), event.getProjectionMatrix(), tickDelta);
                 GodWandPostFxManager.renderAfterWorld();
             }
         }
