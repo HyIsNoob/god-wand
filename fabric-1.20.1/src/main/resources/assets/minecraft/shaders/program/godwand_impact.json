@@ -1,0 +1,48 @@
+{
+    "blend": {
+        "func": "add",
+        "srcrgb": "one",
+        "dstrgb": "zero"
+    },
+    "vertex": "blit",
+    "fragment": "godwand_impact",
+    "attributes": [ "Position" ],
+    "samplers": [
+        { "name": "DiffuseSampler" },
+        { "name": "MainDepthSampler" }
+    ],
+    "uniforms": [
+        { "name": "ProjMat",          "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "InvProjMat",       "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "InvViewMat",       "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+        { "name": "OutSize",          "type": "float",     "count": 2,  "values": [ 1.0, 1.0 ] },
+        { "name": "ImpactIntensity",  "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "ImpactFrame",      "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "ImpactMode",       "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "ShockwaveRadius",  "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "DistortionPower",  "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "ChromaticAmount",  "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "ZoomBlur",         "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "RetinaBurn",       "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "CenterX",          "type": "float",     "count": 1,  "values": [ 0.5 ] },
+        { "name": "CenterY",          "type": "float",     "count": 1,  "values": [ 0.5 ] },
+        { "name": "Aspect",           "type": "float",     "count": 1,  "values": [ 1.7777 ] },
+        { "name": "GTime",            "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "CollapseProgress", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "EmissionOnly", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "SkyRiftCenter", "type": "float", "count": 3, "values": [ 0.0, 0.0, 0.0 ] },
+        { "name": "SkyRiftScale", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "SkyRiftCollapse", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "SkyBlackout", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "RiftPulseRadius", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "RiftPulseStrength", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "SkyRiftAge", "type": "float", "count": 1, "values": [ -1.0 ] },
+        { "name": "NovaProgress", "type": "float", "count": 1, "values": [ 0.0 ] },
+        { "name": "NovaAftermath",    "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "CoreRadius",       "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "LensingPower",     "type": "float",     "count": 1,  "values": [ 0.0 ] },
+        { "name": "CameraPos",        "type": "float",     "count": 3,  "values": [ 0.0, 0.0, 0.0 ] },
+        { "name": "BlastCenter",      "type": "float",     "count": 3,  "values": [ 0.0, 0.0, 0.0 ] },
+        { "name": "FxType",           "type": "float",     "count": 1,  "values": [ 0.0 ] }
+    ]
+}
