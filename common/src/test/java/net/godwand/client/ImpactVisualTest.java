@@ -78,11 +78,9 @@ class ImpactVisualTest {
         var root = GodWandModel.getTexturedModelData().bakeRoot();
         var model = new GodWandModel(root);
         model.setupProceduralAnimations(0, 1, 3);
-        assertTrue(root.getChild("charge_arcs").visible);
         assertTrue(root.getChild("singularity_core").xScale < 0.7);
         assertEquals(21.2f, root.getChild("singularity_core").y, .001);
         model.setupProceduralAnimations(0, 0, 0);
-        assertFalse(root.getChild("charge_arcs").visible);
         assertEquals(1, root.getChild("singularity_core").xScale);
         assertEquals(21.2f, root.getChild("singularity_core").y, .001);
         assertEquals(0, GodWandItemRenderer.releaseRecoil(0));

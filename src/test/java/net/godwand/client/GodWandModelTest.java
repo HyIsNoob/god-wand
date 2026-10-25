@@ -147,10 +147,50 @@ class GodWandModelTest {
         model.renderWand(new MatrixStack(), nextBuffer, nextBuffer, 0, 0, 0xFF00FF00);
         assertEquals(2, buffers.size());
         assertTrue(buffers.get(0).vertices.stream().anyMatch(v -> v[4] > v[3] && v[4] > v[5]),
-                "The faceted core must have an opaque body, not rely on a translucent shader pass");
+                "The luminous sphere must have an opaque body, not rely on a translucent shader pass");
         assertFalse(buffers.get(0).vertices.isEmpty());
         assertFalse(buffers.get(1).vertices.isEmpty());
         assertTrue(buffers.get(0).vertices.stream().anyMatch(v -> v[3] == 184), "Gold trim must reach the solid buffer");
+    }
+
+    @Test
+    void idleCoreIsSphericalAndItsSatelliteKeepsOrbiting() {
+        var root = GodWandModel.getTexturedModelData().createModel();
+        var model = new GodWandModel(root);
+        model.setupProceduralAnimations(0, 0, 0);
+        var solid = new Mesh();
+        var energy = new Mesh();
+        model.renderWand(new MatrixStack(), () -> solid, () -> energy, 0, 0, 0xFF00FF00);
+        var sphere = solid.vertices.stream().filter(v -> v[4] > v[3] && v[4] > v[5]).toList();
+        assertTrue(sphere.size() > 200);
+        for (var v : sphere) {
+            double x = v[0] + .55 / 16, y = v[1] - 21.2 / 16, z = v[2];
+            assertEquals(1.3 / 16, Math.sqrt(x*x + y*y + z*z), .00001,
+                    "The idle energy body must be spherical, not a cut crystal");
+        }
+        assertFalse(energy.vertices.isEmpty(), "Idle glow and the satellite must stay visible");
+        float before = root.getChild("orbit").yaw;
+        model.setupProceduralAnimations(30, 0, 0);
+        assertNotEquals(before, root.getChild("orbit").yaw);
+    }
+
+    @Test
+    void crescentHasNoOpenSeamsOrInternalSegmentCaps() throws Exception {
+        var render = GodWandModel.class.getDeclaredMethod("renderCrescent", MatrixStack.class, VertexConsumer.class, int.class, int.class);
+        render.setAccessible(true);
+        var mesh = new Mesh();
+        render.invoke(null, new MatrixStack(), mesh, 0, 0);
+        assertFalse(mesh.vertices.isEmpty());
+        var edges = new java.util.HashMap<String, Integer>();
+        for (int i = 0; i < mesh.vertices.size(); i += 4) for (int j = 0; j < 4; j++) {
+            float[] a = mesh.vertices.get(i+j), b = mesh.vertices.get(i+(j+1)%4);
+            String first = a[0]+","+a[1]+","+a[2], second = b[0]+","+b[1]+","+b[2];
+            if (first.equals(second)) continue;
+            String key = first.compareTo(second) < 0 ? first+"/"+second : second+"/"+first;
+            edges.merge(key, 1, Integer::sum);
+        }
+        for (int count : edges.values()) assertEquals(2, count,
+                "Every blade edge must belong to exactly two faces; no cracks or overlapping segment caps");
     }
 
     private static class Mesh implements VertexConsumer {
@@ -160,12 +200,12 @@ class GodWandModelTest {
         public VertexConsumer vertex(float x, float y, float z) {
             validate.run();
             assertTrue(Float.isFinite(x) && Float.isFinite(y) && Float.isFinite(z));
-            current = new float[]{x, y, z, 0, 0, 0};
+            current = new float[]{x, y, z, 0, 0, 0, 255};
             vertices.add(current);
             return this;
         }
         public VertexConsumer color(int r, int g, int b, int a) {
-            current[3] = r; current[4] = g; current[5] = b;
+            current[3] = r; current[4] = g; current[5] = b; current[6] = a;
             return this;
         }
         public VertexConsumer texture(float u, float v) { return this; }
