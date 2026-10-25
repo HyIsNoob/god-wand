@@ -110,13 +110,13 @@ public class GodWandItemRenderer {
                 int hand = mode == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND ? 1 : -1;
                 matrices.translate(hand * .01f, -.025f, -.04f);
                 matrices.mulPose(Axis.XP.rotationDegrees(-12));
-                matrices.mulPose(Axis.YP.rotationDegrees(hand * -35));
-                matrices.mulPose(Axis.ZP.rotationDegrees(hand * 12));
+                matrices.mulPose(Axis.YP.rotationDegrees(hand * 140));
+                matrices.mulPose(Axis.ZP.rotationDegrees(hand * 8));
                 matrices.scale(.50f, .50f, .50f);
             }
             case THIRD_PERSON_RIGHT_HAND, THIRD_PERSON_LEFT_HAND -> {
                 matrices.mulPose(Axis.XP.rotationDegrees(20));
-                matrices.scale(.39f, .39f, .39f);
+                matrices.scale(.44f, .44f, .44f);
             }
             case GUI -> {
                 // Diagonally across hotbar slot, perfectly centered, showing the crescent profile

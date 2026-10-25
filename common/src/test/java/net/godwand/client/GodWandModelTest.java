@@ -80,12 +80,15 @@ class GodWandModelTest {
         assertEquals(0, mesh.vertices.size() % 4);
         double height = mesh.vertices.stream().mapToDouble(v -> v[1]).max().orElseThrow()
                 - mesh.vertices.stream().mapToDouble(v -> v[1]).min().orElseThrow();
-        assertEquals(1.75, height * .39, .04, "Third-person staff must be long and slender");
+        assertEquals(1.75, height * .44, .08, "Third-person staff must be full-length without the needle-thin proportions");
         double headDepth = mesh.vertices.stream().filter(v -> v[1] > 1).mapToDouble(v -> v[2]).max().orElseThrow()
                 - mesh.vertices.stream().filter(v -> v[1] > 1).mapToDouble(v -> v[2]).min().orElseThrow();
         assertTrue(headDepth < .18, "The crescent must remain thin");
         var grip = mesh.vertices.stream().filter(v -> v[3] == 99).toList();
         assertFalse(grip.isEmpty(), "Red leather must be a real solid model part");
+        double gripWidth = grip.stream().mapToDouble(v -> v[0]).max().orElseThrow()
+                - grip.stream().mapToDouble(v -> v[0]).min().orElseThrow();
+        assertTrue(gripWidth >= .12, "The grip needs enough volume to read as a staff in third person");
         assertTrue(grip.stream().anyMatch(v -> v[1] < 0) && grip.stream().anyMatch(v -> v[1] > 0),
                 "The holding origin must lie within the leather grip");
         var preview = Path.of("build/previews/god-wand-mesh.json");
@@ -112,13 +115,14 @@ class GodWandModelTest {
             var model = new GodWandModel(GodWandModel.getTexturedModelData().bakeRoot());
             model.setupProceduralAnimations(0, 0, 0);
             var mesh = new Mesh();
-            model.renderWand(matrices, () -> mesh, () -> mesh, 0, 0, 0xFFFFE05A);
+            model.renderWand(matrices, () -> mesh, () -> mesh, 0, 0, 0xFF00FF00);
             var preview = Path.of("build/previews/eclipse-first-person-" + (sign > 0 ? "right" : "left") + ".json");
             Files.createDirectories(preview.getParent());
             var visibleMesh = new Mesh();
             model.renderWand(matrices, () -> visibleMesh, () -> visibleMesh, 0, 0, GodWandItemRenderer.coreColor(0, 0));
             Files.writeString(preview, new Gson().toJson(visibleMesh.vertices));
-            for (float[] v : mesh.vertices) if (v[3] == 255) {
+            assertTrue(mesh.vertices.stream().anyMatch(v -> v[4] > v[3] && v[4] > v[5]));
+            for (float[] v : mesh.vertices) if (v[4] > v[3] && v[4] > v[5]) {
                 assertTrue(v[2] < -.05f, "Core must remain in front of the hand camera");
                 double tanFov = Math.tan(Math.toRadians(70) / 2);
                 assertTrue(Math.abs(v[0] / (-v[2] * tanFov * 16 / 9)) < .9);
@@ -130,6 +134,7 @@ class GodWandModelTest {
     @Test
     void materialSwitchDoesNotWriteIntoAFlushedFirstPersonBuffer() {
         var model = new GodWandModel(GodWandModel.getTexturedModelData().bakeRoot());
+        model.setupProceduralAnimations(17, .5f, 1);
         var buffers = new ArrayList<Mesh>();
         int[] active = {0};
         java.util.function.Supplier<VertexConsumer> nextBuffer = () -> {
@@ -139,8 +144,10 @@ class GodWandModelTest {
             buffers.add(mesh);
             return mesh;
         };
-        model.renderWand(new PoseStack(), nextBuffer, nextBuffer, 0, 0, 0xFFFFE05A);
+        model.renderWand(new PoseStack(), nextBuffer, nextBuffer, 0, 0, 0xFF00FF00);
         assertEquals(2, buffers.size());
+        assertTrue(buffers.get(0).vertices.stream().anyMatch(v -> v[4] > v[3] && v[4] > v[5]),
+                "The faceted core must have an opaque body, not rely on a translucent shader pass");
         assertFalse(buffers.get(0).vertices.isEmpty());
         assertFalse(buffers.get(1).vertices.isEmpty());
         assertTrue(buffers.get(0).vertices.stream().anyMatch(v -> v[3] == 184), "Gold trim must reach the solid buffer");

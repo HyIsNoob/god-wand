@@ -112,13 +112,13 @@ public class GodWandItemRenderer implements BuiltinItemRendererRegistry.DynamicI
                 int hand = mode == ModelTransformationMode.FIRST_PERSON_RIGHT_HAND ? 1 : -1;
                 matrices.translate(hand * .01f, -.025f, -.04f);
                 matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-12));
-                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(hand * -35));
-                matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(hand * 12));
+                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(hand * 140));
+                matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(hand * 8));
                 matrices.scale(.50f, .50f, .50f);
             }
             case THIRD_PERSON_RIGHT_HAND, THIRD_PERSON_LEFT_HAND -> {
                 matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(20));
-                matrices.scale(.39f, .39f, .39f);
+                matrices.scale(.44f, .44f, .44f);
             }
             case GUI -> {
                 // Diagonally across hotbar slot, perfectly centered, showing the crescent profile
