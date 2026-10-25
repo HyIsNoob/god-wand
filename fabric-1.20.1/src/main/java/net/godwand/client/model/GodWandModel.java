@@ -7,6 +7,7 @@ import net.minecraft.client.model.geom.builders.*;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.RenderType;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import org.joml.Vector3f;
 import net.minecraft.util.Mth;
@@ -110,17 +111,19 @@ public class GodWandModel extends Model {
             default -> 0.035f + charge * 0.08f;
         };
 
+        // Gemstone and diamond bezel rotate and precess together as a unified core assembly
         singularityCore.yRot = time * speed;
-        singularityCore.xRot = (float)Math.sin(time * 0.04f) * 0.10f;
-        singularityCore.zRot = (float)Math.sin(time * 0.03f) * 0.08f;
-        singularityCore.y = CY + (float)Math.sin(time * 0.06f) * 0.15f;
+        singularityCore.xRot = (float)Math.sin(time * 0.04f) * 0.12f;
+        singularityCore.zRot = (float)Math.cos(time * 0.03f) * 0.10f;
+        singularityCore.y = CY;
 
         float size = activeSkillId == 3 ? 1.0f - 0.45f * charge * charge : 1.0f + charge * 0.14f;
         singularityCore.xScale = singularityCore.yScale = singularityCore.zScale = size;
 
-        orbit.xRot = 0.45f + (float)Math.sin(time * 0.035f) * 0.08f;
-        orbit.yRot = -time * (speed * 0.85f);
-        orbit.zRot = 0.30f + (float)Math.cos(time * 0.025f) * 0.06f;
+        // Orbiting crystalline ember flecks
+        orbit.xRot = (float)Math.sin(time * 0.035f) * 0.15f;
+        orbit.yRot = time * (speed * 0.9f);
+        orbit.zRot = (float)Math.cos(time * 0.025f) * 0.15f;
 
         satellite.yRot = time * (0.05f + charge * 0.14f);
     }
@@ -134,39 +137,58 @@ public class GodWandModel extends Model {
         renderPart(leather, matrices, solid, light, overlay, 0xFF632335);
         renderPart(wrapping, matrices, solid, light, overlay, 0xFF832E43);
 
+        // 2. Procedural crescent blade, inner gold rail, brackets, top talon beak (rotated 16 deg CCW to point upwards)
+        matrices.pushPose();
+        matrices.translate(CX / 16.0f, CY / 16.0f, 0.0f);
+        matrices.mulPose(Axis.ZP.rotationDegrees(16.0f));
+        matrices.translate(-CX / 16.0f, -CY / 16.0f, 0.0f);
+
         renderCrescent(matrices, solid, light, overlay);
         renderGoldRail(matrices, solid, light, overlay);
         renderGoldBrackets(matrices, solid, light, overlay);
         renderTopTalon(matrices, solid, light, overlay);
+        matrices.popPose();
+
         renderPommelBlade(matrices, solid, light, overlay);
 
-        matrices.pushPose();
-        orbit.translateAndRotate(matrices);
-        renderDiamondBezel(matrices, solid, light, overlay);
-        matrices.popPose();
-
+        // 3 & 4. Floating Core Assembly: Diamond Bezel Frame + Faceted Ruby Gemstone (synchronized)
         matrices.pushPose();
         singularityCore.translateAndRotate(matrices);
-        renderFacetedGem(matrices, solid, light, overlay, 1.45f, 2.2f, 1.45f, coreColor);
+        float bob = (float)Math.sin(animationTime * 0.05f) * 0.12f;
+        matrices.translate(0, bob, 0);
+
+        renderDiamondBezel(matrices, solid, light, overlay);
+        renderFacetedGem(matrices, solid, light, overlay, 1.35f, 2.05f, 1.35f, coreColor);
         matrices.popPose();
 
+        // 5. Emissive luminous pass (reactor capsule, pommel gem, vents, inner crystal, aura)
         VertexConsumer emissive = coreBuffer.get();
         renderPart(reactorCapsule, matrices, emissive, LightTexture.FULL_BRIGHT, overlay, 0xFFFF2548);
         renderPart(pommelGem, matrices, emissive, LightTexture.FULL_BRIGHT, overlay, 0xFFFF2548);
-        renderRedVents(matrices, emissive, overlay);
 
+        // Red vents (rotated with crescent head)
+        matrices.pushPose();
+        matrices.translate(CX / 16.0f, CY / 16.0f, 0.0f);
+        matrices.mulPose(Axis.ZP.rotationDegrees(16.0f));
+        matrices.translate(-CX / 16.0f, -CY / 16.0f, 0.0f);
+        renderRedVents(matrices, emissive, overlay);
+        matrices.popPose();
+
+        // Glowing faceted ruby heart & translucent bloom auras
         matrices.pushPose();
         singularityCore.translateAndRotate(matrices);
-        renderFacetedGem(matrices, emissive, LightTexture.FULL_BRIGHT, overlay, 0.85f, 1.3f, 0.85f, 0xFFFFFFFF);
+        matrices.translate(0, bob, 0);
+        renderFacetedGem(matrices, emissive, LightTexture.FULL_BRIGHT, overlay, 0.80f, 1.25f, 0.80f, 0xFFFFFFFF);
 
         int auraColor = 0xFF000000 | (((((coreColor >> 16) & 255) + 255) / 2) << 16)
                 | (((((coreColor >> 8) & 255) + 255) / 2) << 8) | (((coreColor & 255) + 255) / 2);
-        renderFacetedGem(matrices, emissive, LightTexture.FULL_BRIGHT, overlay, 1.62f, 2.45f, 1.62f,
+        renderFacetedGem(matrices, emissive, LightTexture.FULL_BRIGHT, overlay, 1.50f, 2.25f, 1.50f,
                 (auraColor & 0x00FFFFFF) | ((40 + (int)(charge * 36)) << 24));
-        renderFacetedGem(matrices, emissive, LightTexture.FULL_BRIGHT, overlay, 1.90f, 2.85f, 1.90f,
+        renderFacetedGem(matrices, emissive, LightTexture.FULL_BRIGHT, overlay, 1.75f, 2.60f, 1.75f,
                 (auraColor & 0x00FFFFFF) | ((12 + (int)(charge * 14)) << 24));
         matrices.popPose();
 
+        // Orbiting crystalline ember flecks
         matrices.pushPose();
         orbit.translateAndRotate(matrices);
         satellite.translateAndRotate(matrices);
@@ -409,7 +431,7 @@ public class GodWandModel extends Model {
     }
 
     private void renderDiamondBezel(PoseStack matrices, VertexConsumer vertices, int light, int overlay) {
-        float sizeX = 2.8f, sizeY = 3.8f, width = 0.45f, halfT = 0.20f;
+        float sizeX = 2.6f, sizeY = 3.6f, width = 0.45f, halfT = 0.22f;
         Vector3f[] outPts = {
             new Vector3f(0.0f, sizeY, 0.0f),
             new Vector3f(sizeX, 0.0f, 0.0f),
