@@ -105,23 +105,25 @@ public class GodWandModel extends Model {
     }
 
     private static org.joml.Vector3f[][] createCrescent() {
-        var sections = new org.joml.Vector3f[49][8];
+        var sections = new org.joml.Vector3f[49][10];
         for (int i = 0; i < sections.length; i++) {
             double t = i / 48.0, angle = Math.toRadians(50 + 260 * t);
             float envelope = (float)Math.pow(Math.sin(t * Math.PI), .8);
             float inner = .07f + .95f * envelope;
-            float outer = inner * (1 + .12f * (float)Math.sin(2*Math.PI*t + .5));
+            float outer = inner * (1.4f + .12f * (float)Math.sin(2*Math.PI*t + .5));
             // Broad, unequal forged ridges change surface relief while the inner cutting edge stays smooth.
             float ridge = envelope * (.13f*(float)Math.exp(-Math.pow((t-.30)/.08,2))
                     + .08f*(float)Math.exp(-Math.pow((t-.70)/.055,2)));
-            float back = .09f + .71f * (float)Math.pow(Math.sin(t*Math.PI), .45);
+            float back = .12f + .98f * (float)Math.pow(Math.sin(t*Math.PI), .45);
             float front = back + ridge;
+            float spine = .20f * envelope;
             float bevel = Math.min(.18f, inner * .4f);
-            float[][] section = {{-inner+bevel,-front},{outer-bevel,-front},
-                    {outer,-front+bevel},{outer,back-bevel},{outer-bevel,back},
+            float[][] section = {{-inner+bevel,-front},{outer*.1f,-front-spine},
+                    {outer-bevel,-front*.93f},{outer,-front+bevel},{outer,back-bevel},
+                    {outer-bevel,back},{outer*.05f,back+spine*.35f},
                     {-inner+bevel,back},{-inner,back-bevel},{-inner,-front+bevel}};
-            for (int j = 0; j < 8; j++) sections[i][j] = new org.joml.Vector3f(
-                    -.55f + ((float)Math.cos(angle) * (5.8f + section[j][0])),
+            for (int j = 0; j < section.length; j++) sections[i][j] = new org.joml.Vector3f(
+                -.55f + ((float)Math.cos(angle) * (5.8f + section[j][0])),
                     21.2f + ((float)Math.sin(angle) * (5.8f + section[j][0])), section[j][1]);
         }
         return sections;
@@ -129,13 +131,13 @@ public class GodWandModel extends Model {
 
     private static void renderCrescent(PoseStack matrices, VertexConsumer vertices, int light, int overlay) {
         // Adjacent surfaces use the same cross-section vertices; there are no internal caps or overlaps.
-        for (int i = 0; i < CRESCENT.length - 1; i++) for (int side = 0; side < 8; side++) {
-            int next = (side + 1) % 8;
-            int color = side >= 5 ? 0xFFB88A43 : side == 0 || side == 4 ? 0xFF605769 : 0xFF302A38;
+        for (int i = 0; i < CRESCENT.length - 1; i++) for (int side = 0; side < CRESCENT[i].length; side++) {
+            int next = (side + 1) % CRESCENT[i].length;
+            int color = side >= 7 ? 0xFFB88A43 : side <= 1 || side == 5 || side == 6 ? 0xFF605769 : 0xFF302A38;
             quad(matrices, vertices, CRESCENT[i][side], CRESCENT[i+1][side],
                     CRESCENT[i+1][next], CRESCENT[i][next], light, overlay, color);
         }
-        for (int j = 1; j < 7; j++) {
+        for (int j = 1; j < CRESCENT[0].length-1; j++) {
             var start = CRESCENT[0];
             var end = CRESCENT[CRESCENT.length-1];
             quad(matrices, vertices, start[0], start[j], start[j+1], start[j+1], light, overlay, 0xFF24212E);
@@ -148,18 +150,19 @@ public class GodWandModel extends Model {
         double angle = side * Math.PI / 8;
         float x = (float)Math.cos(angle), z = (float)Math.sin(angle);
         float square = .72f / Math.max(Math.abs(x), Math.abs(z));
-        return new org.joml.Vector3f(-.4f*t*t + x*(square*(1-t)+1.05f*t),
-                10.45f + 5.15f*t, z*(square*(1-t)+.40f*t));
+        float cuff = ring == 2 || ring == 3 || ring == 5 || ring == 6 ? .10f : 0;
+        return new org.joml.Vector3f(-.55f*t*t + x*(square*(1-t)+1.05f*t+cuff),
+                10.45f + 5.15f*t, z*(square*(1-t)+.40f*t+cuff));
     }
 
     private static void renderNeck(PoseStack matrices, VertexConsumer vertices, int light, int overlay) {
         for (int ring = 0; ring < 8; ring++) for (int side = 0; side < 16; side++) {
             quad(matrices, vertices, neckPoint(ring,side), neckPoint(ring+1,side),
                     neckPoint(ring+1,side+1), neckPoint(ring,side+1), light, overlay,
-                    ring == 5 ? 0xFFB88A43 : 0xFF24212E);
+                    ring == 2 || ring == 5 ? 0xFFB88A43 : 0xFF24212E);
         }
         for (int side = 0; side < 16; side++) {
-            var center = new org.joml.Vector3f(-.4f, 15.6f, 0);
+            var center = new org.joml.Vector3f(-.55f, 15.6f, 0);
             quad(matrices, vertices, center, neckPoint(8,side+1), neckPoint(8,side), neckPoint(8,side), light, overlay, 0xFF24212E);
         }
     }

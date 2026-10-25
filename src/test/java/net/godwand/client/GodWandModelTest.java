@@ -87,7 +87,7 @@ class GodWandModelTest {
         renderBlade.invoke(null, new MatrixStack(), blade, 0, 0);
         double headDepth = blade.vertices.stream().mapToDouble(v -> v[2]).max().orElseThrow()
                 - blade.vertices.stream().mapToDouble(v -> v[2]).min().orElseThrow();
-        assertTrue(headDepth < .18, "The crescent must remain thin");
+        assertTrue(headDepth > .14 && headDepth < .22, "The crescent needs real depth without becoming a slab");
         var grip = mesh.vertices.stream().filter(v -> v[3] == 99).toList();
         assertFalse(grip.isEmpty(), "Red leather must be a real solid model part");
         double gripWidth = grip.stream().mapToDouble(v -> v[0]).max().orElseThrow()
@@ -279,6 +279,31 @@ class GodWandModelTest {
             if (edge2.dot(q) / determinant > 1e-6f) hits++;
         }
         return hits % 2 == 1;
+    }
+
+    @Test
+    void chargedAndCancelledStaffNeverCrossesTheCameraOrCoversTheCrosshair() throws Exception {
+        var display = GodWandItemRenderer.class.getDeclaredMethod("applyDisplayTransform", MatrixStack.class, net.minecraft.client.render.model.json.ModelTransformationMode.class);
+        display.setAccessible(true);
+        var use = assertDoesNotThrow(() -> GodWandItemRenderer.class.getDeclaredMethod("applyUseTransform", MatrixStack.class, float.class, float.class));
+        use.setAccessible(true);
+        for (int hand : new int[]{-1, 1}) for (float[] state : new float[][]{{0,0},{.5f,0},{1,0},{0,GodWandItemRenderer.releaseRecoil(2)}}) {
+            var pose = new MatrixStack();
+            pose.translate(hand*.56f, -.52f, -.72f);
+            display.invoke(new GodWandItemRenderer(), pose, hand > 0 ? net.minecraft.client.render.model.json.ModelTransformationMode.FIRST_PERSON_RIGHT_HAND : net.minecraft.client.render.model.json.ModelTransformationMode.FIRST_PERSON_LEFT_HAND);
+            use.invoke(null, pose, state[0], state[1]);
+            var model = new GodWandModel(GodWandModel.getTexturedModelData().createModel());
+            model.setupProceduralAnimations(20, state[0], 3);
+            var mesh = new Mesh();
+            model.renderWand(pose, () -> mesh, () -> mesh, 0, 0, 0xFF00FF00);
+            for (float[] v : mesh.vertices) {
+                assertTrue(v[2] < -.08f, "Charging or release must not pull geometry through the camera");
+                for (int fov : new int[]{50,70,90}) {
+                    double x = v[0]/(-v[2]*Math.tan(Math.toRadians(fov)/2)*16/9);
+                    assertTrue(hand*x > .12, "The central aiming area must stay clear while charging or cancelling");
+                }
+            }
+        }
     }
 
     private static class Mesh implements VertexConsumer {

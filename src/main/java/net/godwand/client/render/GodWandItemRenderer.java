@@ -89,9 +89,7 @@ public class GodWandItemRenderer implements BuiltinItemRendererRegistry.DynamicI
         if (mode == ModelTransformationMode.FIRST_PERSON_RIGHT_HAND || mode == ModelTransformationMode.FIRST_PERSON_LEFT_HAND) {
             float recoil = stack == releasedStack && client.world != null
                     ? releaseRecoil(client.world.getTime() - releaseTick + tickDelta) * previousCharge : 0;
-            float draw = chargeRatio * chargeRatio;
-            matrices.translate(0, -draw * 0.08 + recoil * 0.08, draw * 0.14 + recoil * 0.24);
-            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-draw * 7 - recoil * 16));
+            applyUseTransform(matrices, chargeRatio, recoil);
         }
 
         // Animate the floating core without moving the crescent or the grip.
@@ -104,6 +102,13 @@ public class GodWandItemRenderer implements BuiltinItemRendererRegistry.DynamicI
                 light, overlay, coreColor(currentMode, chargeRatio));
 
         matrices.pop();
+    }
+
+    private static void applyUseTransform(MatrixStack matrices, float chargeRatio, float recoil) {
+        float draw = chargeRatio * chargeRatio;
+        // Keep the long shaft away from the camera, including the first frames after cancellation.
+        matrices.translate(0, -draw*.06f + recoil*.03f, -draw*.04f - recoil*.03f);
+        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-draw*4 - recoil*5));
     }
 
     private void applyDisplayTransform(MatrixStack matrices, ModelTransformationMode mode) {
