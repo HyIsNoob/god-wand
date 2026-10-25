@@ -149,6 +149,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         WorldRenderEvents.LAST.register(context -> {
             float tickDelta = context.tickDelta();
             GodWandPostFxManager.onWorldRender(context.matrixStack().last().pose(), context.projectionMatrix(), tickDelta);
+            GodWandPostFxManager.renderAfterWorld();
         });
 
         HudRenderCallback.EVENT.register(CustomImpactFrameOverlay::render);
