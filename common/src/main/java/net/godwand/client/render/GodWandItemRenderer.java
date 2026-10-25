@@ -47,17 +47,18 @@ public class GodWandItemRenderer {
 
     public static int coreColor(int mode, float charge) {
         int target = switch (mode) {
-            case 0 -> 0xA4EAFF;
+            case 0 -> 0xFF2D55;
             case 1 -> 0xBE88FF;
             case 2 -> 0xFF6D31;
             case 3 -> 0x160D26;
             case 4 -> 0xFFF1C0;
-            default -> 0xFFE05A;
+            case 5 -> 0x00E676;
+            default -> 0xFF2D55;
         };
         float t = .28f + Math.clamp(charge, 0, 1) * .72f;
         int color = 0xFF000000;
         for (int shift : new int[]{16, 8, 0}) {
-            int idle = (0xB85CBA >> shift) & 255;
+            int idle = (0xFF2048 >> shift) & 255;
             color |= Math.round(idle + (((target >> shift) & 255) - idle) * t) << shift;
         }
         return color;
