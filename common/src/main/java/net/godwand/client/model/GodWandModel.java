@@ -11,7 +11,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.function.Supplier;
 
 public class GodWandModel extends Model {
-    private final ModelPart root, obsidian, gold, leather, wrapping, singularityCore, orbit;
+    private final ModelPart root, obsidian, gold, leather, wrapping, singularityCore, orbit, satellite;
     private float charge, animationTime;
     private static final org.joml.Vector3f[][] CRESCENT = createCrescent();
 
@@ -24,6 +24,7 @@ public class GodWandModel extends Model {
         wrapping = root.getChild("wrapping");
         singularityCore = root.getChild("singularity_core");
         orbit = root.getChild("orbit");
+        satellite = orbit.getChild("satellite");
     }
 
     public static LayerDefinition getTexturedModelData() {
@@ -48,7 +49,8 @@ public class GodWandModel extends Model {
         }
         root.addOrReplaceChild("wrapping", wraps, PartPose.ZERO);
         root.addOrReplaceChild("singularity_core", CubeListBuilder.create(), PartPose.offset(-.55f, 21.2f, 0));
-        root.addOrReplaceChild("orbit", CubeListBuilder.create(), PartPose.offset(-.55f, 21.2f, 0));
+        root.addOrReplaceChild("orbit", CubeListBuilder.create(), PartPose.offset(-.55f, 21.2f, 0))
+                .addOrReplaceChild("satellite", CubeListBuilder.create(), PartPose.ZERO);
         return LayerDefinition.create(mesh, 128, 128);
     }
 
@@ -67,7 +69,7 @@ public class GodWandModel extends Model {
         singularityCore.zRot = (float)Math.sin(time * .03f) * .08f;
         float size = activeSkillId == 3 ? 1 - .45f * charge * charge : 1 + charge * .12f;
         singularityCore.xScale = singularityCore.yScale = singularityCore.zScale = size;
-        orbit.yRot = time * (.045f + charge * .12f);
+        satellite.yRot = time * (.045f + charge * .12f);
         orbit.xRot = .65f;
     }
 
@@ -82,7 +84,7 @@ public class GodWandModel extends Model {
         wrapping.render(matrices, solid, light, overlay, 0xFF832E43);
         matrices.pushPose();
         singularityCore.translateAndRotate(matrices);
-        renderSphere(matrices, solid, 1.65f, 255, coreColor, overlay);
+        renderSphere(matrices, solid, 1.9f, 255, coreColor, overlay);
         matrices.popPose();
         // Keep an opaque luminous body under the translucent aura for shaderpack depth stability.
         VertexConsumer emissive = coreBuffer.get();
@@ -90,13 +92,15 @@ public class GodWandModel extends Model {
         singularityCore.translateAndRotate(matrices);
         int auraColor = 0xFF000000 | (((((coreColor >> 16) & 255)+255)/2)<<16)
                 | (((((coreColor >> 8) & 255)+255)/2)<<8) | (((coreColor & 255)+255)/2);
-        renderSphere(matrices, emissive, 1.78f, 44 + (int)(charge * 36), auraColor, overlay);
-        renderSphere(matrices, emissive, 2.0f, 12 + (int)(charge * 12), auraColor, overlay);
+        renderSphere(matrices, emissive, 2.05f, 44 + (int)(charge * 36), auraColor, overlay);
+        renderSphere(matrices, emissive, 2.28f, 12 + (int)(charge * 12), auraColor, overlay);
         matrices.popPose();
         matrices.pushPose();
         orbit.translateAndRotate(matrices);
-        matrices.translate(2.45f / 16, 0, 0);
-        renderSphere(matrices, emissive, .16f, 255, 0xFFFFDFFF, overlay);
+        renderOrbitRing(matrices, emissive, overlay, auraColor);
+        satellite.translateAndRotate(matrices);
+        matrices.translate(2.75f / 16, 0, 0);
+        renderSphere(matrices, emissive, .29f, 255, 0xFFFFDFFF, overlay);
         matrices.popPose();
     }
 
@@ -144,8 +148,8 @@ public class GodWandModel extends Model {
         double angle = side * Math.PI / 8;
         float x = (float)Math.cos(angle), z = (float)Math.sin(angle);
         float square = .72f / Math.max(Math.abs(x), Math.abs(z));
-        return new org.joml.Vector3f(-.4f*t*t + x*(square*(1-t)+1.15f*t),
-                10.5f + 4.8f*t, z*(square*(1-t)+.74f*t));
+        return new org.joml.Vector3f(-.4f*t*t + x*(square*(1-t)+1.05f*t),
+                10.45f + 5.15f*t, z*(square*(1-t)+.40f*t));
     }
 
     private static void renderNeck(PoseStack matrices, VertexConsumer vertices, int light, int overlay) {
@@ -153,6 +157,30 @@ public class GodWandModel extends Model {
             quad(matrices, vertices, neckPoint(ring,side), neckPoint(ring+1,side),
                     neckPoint(ring+1,side+1), neckPoint(ring,side+1), light, overlay,
                     ring == 5 ? 0xFFB88A43 : 0xFF24212E);
+        }
+        for (int side = 0; side < 16; side++) {
+            var center = new org.joml.Vector3f(-.4f, 15.6f, 0);
+            quad(matrices, vertices, center, neckPoint(8,side+1), neckPoint(8,side), neckPoint(8,side), light, overlay, 0xFF24212E);
+        }
+    }
+
+    private static org.joml.Vector3f orbitPoint(int segment, int side) {
+        double angle = segment * Math.PI / 16, section = side * Math.PI / 2;
+        float radius = 2.75f + .055f * (float)Math.cos(section);
+        return new org.joml.Vector3f(radius*(float)Math.cos(angle), .055f*(float)Math.sin(section), radius*(float)Math.sin(angle));
+    }
+
+    private static void renderOrbitRing(PoseStack matrices, VertexConsumer vertices, int overlay, int color) {
+        int glow = (color & 0xFFFFFF) | (160 << 24);
+        for (int segment = 0; segment < 32; segment++) for (int side = 0; side < 4; side++) {
+            var a = orbitPoint(segment, side);
+            var b = orbitPoint(segment+1, side);
+            var c = orbitPoint(segment+1, side+1);
+            var d = orbitPoint(segment, side+1);
+            var normal = new org.joml.Vector3f(d).sub(a).cross(new org.joml.Vector3f(c).sub(a)).normalize();
+            for (var point : new org.joml.Vector3f[]{a,d,c,b}) {
+                vertex(matrices, vertices, point, normal, LightTexture.FULL_BRIGHT, overlay, glow, .75f, .75f);
+            }
         }
     }
 

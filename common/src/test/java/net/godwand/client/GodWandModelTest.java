@@ -169,13 +169,13 @@ class GodWandModelTest {
         assertTrue(sphere.size() > 200);
         for (var v : sphere) {
             double x = v[0] + .55 / 16, y = v[1] - 21.2 / 16, z = v[2];
-            assertEquals(1.65 / 16, Math.sqrt(x*x + y*y + z*z), .00001,
+            assertEquals(1.9 / 16, Math.sqrt(x*x + y*y + z*z), .00001,
                     "The idle energy body must be spherical, not a cut crystal");
         }
         assertFalse(energy.vertices.isEmpty(), "Idle glow and the satellite must stay visible");
-        float before = root.getChild("orbit").yRot;
+        float before = root.getChild("orbit").getChild("satellite").yRot;
         model.setupProceduralAnimations(30, 0, 0);
-        assertNotEquals(before, root.getChild("orbit").yRot);
+        assertNotEquals(before, root.getChild("orbit").getChild("satellite").yRot);
     }
 
     @Test
@@ -214,6 +214,71 @@ class GodWandModelTest {
         }
         assertTrue(maxU-minU > .1 && maxV-minV > .1,
                 "Flat sampling at one texel cannot show material grain");
+    }
+
+    @Test
+    void neckTopIsBuriedInsideTheCrescentFromEverySide() throws Exception {
+        var mesh = new Mesh();
+        var blade = GodWandModel.class.getDeclaredMethod("renderCrescent", PoseStack.class, VertexConsumer.class, int.class, int.class);
+        blade.setAccessible(true);
+        blade.invoke(null, new PoseStack(), mesh, 0, 0);
+        var neck = GodWandModel.class.getDeclaredMethod("neckPoint", int.class, int.class);
+        neck.setAccessible(true);
+        for (int side = 0; side < 16; side++) {
+            var point = ((org.joml.Vector3f)neck.invoke(null, 8, side)).div(16);
+            assertTrue(insideBlade(mesh.vertices, point), "Neck top protrudes outside the blade at side " + side);
+        }
+    }
+
+    @Test
+    void idleSatelliteHasVisibleVolumeAndATiltedEnergyRing() throws Exception {
+        var model = new GodWandModel(GodWandModel.getTexturedModelData().bakeRoot());
+        model.setupProceduralAnimations(0, 0, 0);
+        var energy = new Mesh();
+        model.renderWand(new PoseStack(), Mesh::new, () -> energy, 0, 0, 0xFF00FF00);
+        var satellite = energy.vertices.stream().filter(v -> v[6] == 255).toList();
+        assertFalse(satellite.isEmpty());
+        double width = satellite.stream().mapToDouble(v -> v[0]).max().orElseThrow()
+                - satellite.stream().mapToDouble(v -> v[0]).min().orElseThrow();
+        assertTrue(width >= .55 / 16, "The satellite should read as a small orb, not a single pixel");
+        assertTrue(energy.vertices.stream().anyMatch(v -> v[6] > 60 && v[6] < 220), "The orbit ring must be visible at idle");
+        var ringMesh = new Mesh();
+        var ring = GodWandModel.class.getDeclaredMethod("renderOrbitRing", PoseStack.class, VertexConsumer.class, int.class, int.class);
+        ring.setAccessible(true);
+        ring.invoke(null, new PoseStack(), ringMesh, 0, 0xFFFFFFFF);
+        assertFalse(ringMesh.vertices.isEmpty());
+        for (int i = 0; i < ringMesh.vertices.size(); i += 4) {
+            var a = new org.joml.Vector3f(ringMesh.vertices.get(i));
+            var b = new org.joml.Vector3f(ringMesh.vertices.get(i+1));
+            var c = new org.joml.Vector3f(ringMesh.vertices.get(i+2));
+            var d = new org.joml.Vector3f(ringMesh.vertices.get(i+3));
+            var center = new org.joml.Vector3f(a).add(b).add(c).add(d).mul(.25f);
+            var tubeCenter = new org.joml.Vector3f(center.x, 0, center.z).normalize().mul(2.75f/16);
+            var outward = new org.joml.Vector3f(center).sub(tubeCenter);
+            var normal = new org.joml.Vector3f(b).sub(a).cross(new org.joml.Vector3f(c).sub(a));
+            assertTrue(normal.dot(outward) > 0, "Orbit ring faces must point outward for shader culling");
+        }
+    }
+
+    private static boolean insideBlade(List<float[]> vertices, org.joml.Vector3f origin) {
+        var direction = new org.joml.Vector3f(.173f, .291f, 1).normalize();
+        int hits = 0;
+        for (int i = 0; i < vertices.size(); i += 4) for (int[] triangle : new int[][]{{0,1,2},{0,2,3}}) {
+            var a = new org.joml.Vector3f(vertices.get(i+triangle[0]));
+            var edge1 = new org.joml.Vector3f(vertices.get(i+triangle[1])).sub(a);
+            var edge2 = new org.joml.Vector3f(vertices.get(i+triangle[2])).sub(a);
+            var cross = new org.joml.Vector3f(direction).cross(edge2);
+            float determinant = edge1.dot(cross);
+            if (Math.abs(determinant) < 1e-8f) continue;
+            var offset = new org.joml.Vector3f(origin).sub(a);
+            float u = offset.dot(cross) / determinant;
+            if (u < 0 || u > 1) continue;
+            var q = new org.joml.Vector3f(offset).cross(edge1);
+            float v = direction.dot(q) / determinant;
+            if (v < 0 || u+v > 1) continue;
+            if (edge2.dot(q) / determinant > 1e-6f) hits++;
+        }
+        return hits % 2 == 1;
     }
 
     private static class Mesh implements VertexConsumer {
