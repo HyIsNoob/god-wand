@@ -2,6 +2,19 @@
 
 All notable changes to the God Wand mod are documented here.
 
+## [1.2.0] - 2026-10-25
+
+### Added
+- Brand-new custom 3D model (Eclipse): Sculpted crescent blade with raised spine, gold trim, red leather grip, and floating singularity core.
+- Procedural animations: Singularity core rotates dynamically according to active skill and shrinks during gravity collapse, framed by an orbiting energy ring and satellite.
+- Texture materials atlas: Dedicated high-definition materials atlas featuring volcanic obsidian, hammered gold, fine leather grain, and swirling energy mist.
+- Multi-version port: Official support for Minecraft 1.20.1 (Forge & Fabric) alongside 1.21.1 (NeoForge & Fabric).
+
+### Changed & Refined
+- Skill 4 (Supernova): Restored dynamic spear-casting animation pose. Tailored first-person camera offset so the long staff and glowing crescent remain visible in heroic throwing stance without blocking the crosshair or obstructing player view.
+
+---
+
 ## [1.1.1] - 2026-10-24
 
 ### Fixed
