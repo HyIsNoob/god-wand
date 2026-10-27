@@ -5,7 +5,7 @@ import net.minecraft.world.phys.Vec3;
 /** One clock for the server blast, energy geometry, camera cuts and typography. */
 public final class AtomicSequence {
     public static final int CHARGE_TICKS=380, WAIT_TICK=406, DETONATION=414, END=834;
-    public static final int MAX_RADIUS=98, CAGE_RADIUS=26, ATOMIC_WORD=396, BEAM_HEIGHT=1024, SCAR_FADE_START=END+600, SCAR_END=END+660;
+    public static final int MAX_RADIUS=98, CAGE_RADIUS=26, ATOMIC_WORD=396, BEAM_HEIGHT=1024, BEAM_DEPTH=28, SCAR_FADE_START=END+600, SCAR_END=END+660;
     public record Shot(Vec3 offset,Vec3 focus,float fov) {}
     public static float phase(double age,double start,double end) {
         float t=(float)Math.clamp((age-start)/(end-start),0,1);
@@ -84,9 +84,9 @@ public final class AtomicSequence {
             double root=Math.sqrt(discriminant);
             near=Math.max(near,(-b-root)/a); far=Math.min(far,(-b+root)/a);
         }
-        if(Math.abs(d.y)<1e-8) { if(eye.y<0||eye.y>height)return false; }
+        if(Math.abs(d.y)<1e-8) { if(eye.y<-BEAM_DEPTH||eye.y>height)return false; }
         else {
-            double low=-eye.y/d.y, high=(height-eye.y)/d.y;
+            double low=(-BEAM_DEPTH-eye.y)/d.y, high=(height-eye.y)/d.y;
             near=Math.max(near,Math.min(low,high)); far=Math.min(far,Math.max(low,high));
         }
         return far>near && near<1-1e-6;

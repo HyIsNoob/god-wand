@@ -57,7 +57,7 @@ public final class AtomicPortSelfCheck {
     private static final class Mesh implements VertexConsumer {
         int vertices;
         public VertexConsumer vertex(double x,double y,double z) {
-            check(Double.isFinite(x)&&Double.isFinite(y)&&Double.isFinite(z)&&Math.abs(x)<=330&&Math.abs(z)<=330&&y>=-10&&y<=1100,"Invalid vertex");
+            check(Double.isFinite(x)&&Double.isFinite(y)&&Double.isFinite(z)&&Math.abs(x)<=330&&Math.abs(z)<=330&&y>=-AtomicSequence.BEAM_DEPTH-1&&y<=1100,"Invalid vertex");
             return this;
         }
         public VertexConsumer color(int r,int g,int b,int a) {check(a>=0&&a<=255,"Invalid opacity");return this;}

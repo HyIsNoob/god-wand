@@ -73,6 +73,7 @@ public final class AtomicPostFx {
             chain.setUniform("HoloRadius",net.godwand.skill.AtomicSequence.holoRadius(fx.age()));
             chain.setUniform("BeamRadius",net.godwand.skill.AtomicSequence.beamRadius(fx.age()));
             chain.setUniform("BeamHeight",net.godwand.skill.AtomicSequence.beamHeight(fx.age()));
+            chain.setUniform("BeamDepth",(float)net.godwand.skill.AtomicSequence.BEAM_DEPTH);
             chain.setUniform("BlastPulse",GodWandConfig.CLIENT.impactFrames?net.godwand.skill.AtomicSequence.blastPulse(fx.age()):1);
             chain.setUniform("ShockRadius",net.godwand.skill.AtomicSequence.shockRadius(fx.age()));
             chain.setUniform("ObserverGain",AtomicRenderer.distanceGain(client.player.position().distanceTo(fx.center())));

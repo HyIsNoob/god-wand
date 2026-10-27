@@ -1,6 +1,8 @@
 # God Wand 1.3.0
 
-Six magic skills for exploration, terrain control and combat, including the interactive **I am Atomic** cutscene.
+One wand with six skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile or hold **I am Atomic** until you choose to release.
+
+[Full mod description](DESCRIPTION.md) · [1.3.0 changelog](CHANGELOG.md)
 
 [Hướng dẫn nhanh bằng tiếng Việt](BAT_DAU_O_DAY.md)
 

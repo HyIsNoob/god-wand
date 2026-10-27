@@ -36,7 +36,7 @@ final class AtomicCrater {
                 if(distanceSquared>expandedRadius*expandedRadius)break;
                 y = Math.min(Math.min(world.getMaxBuildHeight()-1,center.getY()+AtomicSequence.BEAM_HEIGHT),
                         world.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE,x,z)-1);
-                bottom = Math.max(world.getMinBuildHeight(), center.getY() - (int) (28 * (1 - distanceSquared / (double)(radius * radius))));
+                bottom = Math.max(world.getMinBuildHeight(), center.getY() - (int) (AtomicSequence.BEAM_DEPTH * (1 - distanceSquared / (double)(radius * radius))));
                 if (y < bottom) { columns.advance(); continue; }
                 inColumn = true;
             } else {

@@ -17,6 +17,7 @@ uniform float Cut;
 uniform float HoloRadius;
 uniform float BeamRadius;
 uniform float BeamHeight;
+uniform float BeamDepth;
 uniform float BlastPulse;
 uniform float ShockRadius;
 uniform float EmissionOnly;
@@ -115,7 +116,7 @@ void main() {
         }
     } else {
         float t=Age-DetonationTick, beamRadius=BeamRadius;
-        vec2 hit=cylinderHit(origin,direction,beamRadius+8.0,BeamHeight);
+        vec2 hit=cylinderHit(origin+vec3(0,BeamDepth,0),direction,beamRadius+8.0,BeamHeight+BeamDepth);
         hit.y=min(hit.y,sceneDistance);
         if(hit.y>hit.x&&(beamRadius>.001)) {
             float stepSize=(hit.y-hit.x)/32.0;
@@ -128,7 +129,7 @@ void main() {
                 float turbulence=noise(p*vec3(.18,.065,.18)-vec3(0,t*.09,0));
                 float threads=pow(.5+.5*sin(atan(p.z,p.x)*23.0+p.y*.14-t*.3+turbulence*4.0),10.0);
                 float gates=pow(.5+.5*sin(p.y*.42-t*.32+turbulence*2.0),5.0);
-                float column=(interior*.48+corona*(.055+.2*threads+.12*gates))*(1.0-step(BeamHeight,p.y))*step(0.0,p.y);
+                float column=(interior*.48+corona*(.055+.2*threads+.12*gates))*(1.0-step(BeamHeight,p.y))*step(-BeamDepth,p.y);
                 float density=column*fade*BlastPulse;
                 float opacity=1.0-exp(-density*stepSize);
                 vec3 color=mix(vec3(.5,.02,2.1)*(1.0+turbulence),vec3(3.8,3.1,4.4),interior*.85+threads*.15);
@@ -154,7 +155,7 @@ void main() {
         float auraLife=phase(Age,DetonationTick,DetonationTick+5.0)*(1.0-phase(Age,574.0,734.0));
         vec2 auraHit=cylinderHit(origin,direction,310.0,72.0);
         auraHit.y=min(auraHit.y,sceneDistance);
-        vec2 solidColumn=cylinderHit(origin,direction,beamRadius,BeamHeight);
+        vec2 solidColumn=cylinderHit(origin+vec3(0,BeamDepth,0),direction,beamRadius,BeamHeight+BeamDepth);
         if(solidColumn.y>solidColumn.x) auraHit.y=min(auraHit.y,solidColumn.x);
         if(auraLife>0.0&&auraHit.y>auraHit.x) {
             float stepSize=(auraHit.y-auraHit.x)/24.0, transmit=1.0;

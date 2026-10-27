@@ -3,7 +3,7 @@
   "id": "godwand",
   "version": "${version}",
   "name": "God Wand",
-  "description": "A divine magic wand with 6 unique skills for exploration, terrain control, and combat.",
+  "description": "Six spells in one wand. Shape terrain, control gravity and hold I am Atomic until you choose to release.",
   "authors": ["GodWand Team"],
   "license": "MIT",
   "environment": "*",

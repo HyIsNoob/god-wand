@@ -26,7 +26,7 @@ class AtomicPortParityTest {
             assertEquals(normalized(method(Files.readString(common.resolve("config/GodWandConfig.java")),"read")),
                     normalized(method(Files.readString(port.resolve("config/GodWandConfig.java")),"read")),loader+": config migration");
             String source=Files.readString(common.resolve("client/AtomicRenderer.java")),copy=Files.readString(port.resolve("client/AtomicRenderer.java"));
-            for(String name:new String[]{"emit","charge","fortress","blast","pressureAura","captureSwordTip","sampleSwordTip","swordTrail","bladeConvergence","receive","stop","tick","reset"})
+            for(String name:new String[]{"emit","cylinder","charge","fortress","blast","pressureAura","captureSwordTip","sampleSwordTip","swordTrail","bladeConvergence","receive","stop","tick","reset"})
                 assertEquals(normalized(method(source,name)),normalized(method(copy,name)),loader+": "+name);
             String cinematic=Files.readString(common.resolve("client/AtomicCinematic.java"));
             String portCinematic=Files.readString(port.resolve("client/AtomicCinematic.java"));

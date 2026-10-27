@@ -506,9 +506,9 @@ public final class AtomicRenderer {
             cylinder(v,m,radius,height,.22f*fade,0x932BFF,age+10);
             for(int i=0;i<40;i++) {
                 double a=i*Math.PI/20 + .004*age;
-                Vec3 last=polar(radius*(.88+.06*Math.sin(i)),.1,a);
+                Vec3 last=polar(radius*(.88+.06*Math.sin(i)),-AtomicSequence.BEAM_DEPTH,a);
                 for(int j=1;j<=5;j++) {
-                    double y=j*height/5, jitter=Math.sin(i*18.23+j*8.3+age*.11)*.035;
+                    double y=-AtomicSequence.BEAM_DEPTH+j*(height+AtomicSequence.BEAM_DEPTH)/5, jitter=Math.sin(i*18.23+j*8.3+age*.11)*.035;
                     Vec3 next=polar(radius*(.93+jitter),y,a+jitter);
                     stroke(v,m,last,next,.045f+(i%4)*.016f,fade*(i%3==0?.85f:.35f)); last=next;
                 }
@@ -641,7 +641,7 @@ public final class AtomicRenderer {
         for(int i=0;i<64;i++) {
             double a=i*Math.PI/32,b=(i+1)*Math.PI/32;
             for(int j=0;j<6;j++) {
-                double low=height*j/6, high=height*(j+1)/6;
+                double low=-AtomicSequence.BEAM_DEPTH+(height+AtomicSequence.BEAM_DEPTH)*j/6, high=-AtomicSequence.BEAM_DEPTH+(height+AtomicSequence.BEAM_DEPTH)*(j+1)/6;
                 double ra=r*(.94+.06*Math.sin(i*2.7+j*1.8+age*.13));
                 quad(v,m,polar(ra,low,a),polar(ra,low,b),polar(ra,high,b),polar(ra,high,a),color,alpha);
             }
