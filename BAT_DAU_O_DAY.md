@@ -14,6 +14,6 @@ Chạy từ thư mục repo này:
 .\gradlew.bat :fabric:runClient      # tự test Fabric 1.21.1
 ```
 
-`runClient` bình thường không nạp QA probe. Bản source mới nhất đã gồm tia tụ từ trên/dưới vào kiếm, chuyển sang trail lúc kéo kiếm ngang, rung nhẹ, camera có cùng giới hạn lùi và crater sâu hơn. Hình ảnh/FPS vẫn chờ test thủ công; SFX Atomic riêng còn đang chờ.
+`runClient` bình thường không nạp QA probe. Bản source mới nhất đã gồm tia tụ từ trên/dưới vào kiếm, chuyển sang trail lúc kéo kiếm ngang, rung nhẹ, camera có cùng giới hạn lùi và crater sâu hơn. Visual đã được bạn duyệt; SFX Atomic riêng đã tích hợp, chờ nghe thử trong game. Config cũ tự bổ sung option mới và cả bốn bản đều có recipe trượng.
 
 Repo GitHub công khai mã nguồn, không đăng JAR God Wand hay GitHub Release. Người khác vẫn có thể tự build mã nguồn. JAR phát hành chính thức sẽ được đăng riêng theo kế hoạch CurseForge.

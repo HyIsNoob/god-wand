@@ -20,6 +20,10 @@ Presets: config-presets/preserve-terrain.json disables terrain movement for 3/4 
 
 Reversible lift temporarily removes real blocks and restores original states/NBT using the existing persisted spatial journal, including paired doors/plants/beds. For a build area where even temporary block movement is unwanted, disable the lift options too. Other mods' claims/protection systems have not been tested with this change.
 
+## Config upgrades
+
+On startup, valid older client/server JSON files gain any missing options automatically. Existing values and unknown keys are preserved; complete files are left untouched. Upgrades write a temporary file before replacing the original. Newly introduced options use their documented defaults, including terrain destruction enabled by default.
+
 ## Invalid config and restoration conflicts
 
 An unreadable or malformed godwand-server.json now stops startup instead of enabling destructive defaults. The existing file is preserved; correct it before restarting. Missing files are still created with the documented defaults.

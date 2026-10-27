@@ -9,6 +9,21 @@ import static org.junit.jupiter.api.Assertions.*;
 class GodWandConfigTest {
     @TempDir Path directory;
 
+    @Test void upgradesOldConfigOnDiskWithoutReplacingUserValuesOrUnknownKeys() throws Exception {
+        Path file=directory.resolve("godwand-server.json");
+        Files.writeString(file,"{\"damageMultiplier\":2.5,\"supernovaTerrainDamage\":false,\"packNote\":\"keep\"}");
+        GodWandConfig.read(file,GodWandConfig.Server.class,new GodWandConfig.Server());
+        var saved=com.google.gson.JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+        assertTrue(saved.has("atomicTerrainDamage"));
+        assertTrue(saved.has("earthDrillBlockLift"));
+        assertEquals(2.5,saved.get("damageMultiplier").getAsDouble());
+        assertFalse(saved.get("supernovaTerrainDamage").getAsBoolean());
+        assertEquals("keep",saved.get("packNote").getAsString());
+        String upgraded=Files.readString(file);
+        GodWandConfig.read(file,GodWandConfig.Server.class,new GodWandConfig.Server());
+        assertEquals(upgraded,Files.readString(file));
+    }
+
     @Test void atomicDamageDefaultsMigrateFromPartialConfigsAndRejectInvalidValues() throws Exception {
         Path file=directory.resolve("server.json"); Files.writeString(file,"{\"atomicTerrainRadius\":32}");
         var server=GodWandConfig.read(file,GodWandConfig.Server.class,new GodWandConfig.Server());

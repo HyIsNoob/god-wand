@@ -105,8 +105,27 @@ public final class GodWandConfig {
     static <T> T read(Path file, Class<T> type, T defaults) {
         try {
             if (Files.exists(file)) {
-                T value = JSON.fromJson(Files.readString(file), type);
+                var object = com.google.gson.JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+                T value = JSON.fromJson(object, type);
                 if (value == null) throw new IllegalArgumentException("Expected a JSON object");
+                boolean upgraded = false;
+                for (var entry : JSON.toJsonTree(defaults).getAsJsonObject().entrySet()) {
+                    if (!object.has(entry.getKey())) {
+                        object.add(entry.getKey(), entry.getValue()); upgraded = true;
+                    }
+                }
+                if (upgraded) {
+                    // Replace only after a complete write so an interrupted upgrade preserves the old config.
+                    Path temporary = Files.createTempFile(file.toAbsolutePath().getParent(), file.getFileName().toString(), ".tmp");
+                    try {
+                        Files.writeString(temporary, JSON.toJson(object) + System.lineSeparator());
+                        try {
+                            Files.move(temporary, file, java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        } catch (java.nio.file.AtomicMoveNotSupportedException exception) {
+                            Files.move(temporary, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        }
+                    } finally { Files.deleteIfExists(temporary); }
+                }
                 return value;
             }
             Files.createDirectories(file.getParent());

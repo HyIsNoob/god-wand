@@ -53,7 +53,7 @@ See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [sou
 
 ## Release status
 
-1.3.0 is a release candidate. Recent sword/aura visuals still need in-game approval; custom Atomic SFX is pending. Remaining audit findings are tracked in [the audit report](docs/AUDIT_2026-10-27.md).
+1.3.0 is a release candidate. Atomic visuals have user approval; authored Atomic SFX is integrated and awaits in-game audio testing. Remaining audit findings are tracked in [the audit report](docs/AUDIT_2026-10-27.md).
 
 ## License
 

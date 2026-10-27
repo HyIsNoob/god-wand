@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class AtomicPortParityTest {
     private static String normalized(String text) {
-        return text.replace("net.minecraft.util.Mth.clamp","Math.clamp").replaceAll("\\s+", "");
+        return text.replaceAll("ResourceLocation\\.fromNamespaceAndPath\\(","new ResourceLocation(").replace("net.minecraft.util.Mth.clamp","Math.clamp").replaceAll("\\s+", "");
     }
     private static String method(String text,String name) {
         var match=java.util.regex.Pattern.compile("(?:(?:public|private) )?static [^\\n]+\\b"+name+"\\(").matcher(text);
@@ -23,8 +23,10 @@ class AtomicPortParityTest {
             Path port=root.resolve(loader+"/src/main/java/net/godwand");
             for(String file:new String[]{"skill/AtomicSequence.java","mixin/AtomicPoseMixin.java"})
                 assertEquals(normalized(Files.readString(common.resolve(file))),normalized(Files.readString(port.resolve(file))),loader+": "+file);
+            assertEquals(normalized(method(Files.readString(common.resolve("config/GodWandConfig.java")),"read")),
+                    normalized(method(Files.readString(port.resolve("config/GodWandConfig.java")),"read")),loader+": config migration");
             String source=Files.readString(common.resolve("client/AtomicRenderer.java")),copy=Files.readString(port.resolve("client/AtomicRenderer.java"));
-            for(String name:new String[]{"emit","charge","fortress","blast","pressureAura","captureSwordTip","sampleSwordTip","swordTrail","bladeConvergence"})
+            for(String name:new String[]{"emit","charge","fortress","blast","pressureAura","captureSwordTip","sampleSwordTip","swordTrail","bladeConvergence","receive","stop","tick","reset"})
                 assertEquals(normalized(method(source,name)),normalized(method(copy,name)),loader+": "+name);
             String cinematic=Files.readString(common.resolve("client/AtomicCinematic.java"));
             String portCinematic=Files.readString(port.resolve("client/AtomicCinematic.java"));

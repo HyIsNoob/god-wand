@@ -21,6 +21,7 @@ import java.util.*;
 public final class AtomicRenderer {
     public record Frame(int casterId, long startedAt, Vec3 center, float age, float yaw, float waitTicks, boolean waiting) {}
     private static final Map<Integer, State> ACTIVE = new LinkedHashMap<>();
+    private static final List<State> AUDIO_TAILS = new ArrayList<>();
     private record Scar(Vec3 center,long started) {}
     private static final Map<Integer,Scar> SCARS=new LinkedHashMap<>();
     private static final ResourceLocation ENERGY_TEXTURE=new ResourceLocation("godwand","atomic_energy");
@@ -34,11 +35,10 @@ public final class AtomicRenderer {
         double bladeTime;
         double pendingTipTime;
         final float yaw;
-        SimpleSoundInstance charge, blast, hold, heartbeatSound;
-        long lastAge = -1, lastHeartbeat = -1;
+        SimpleSoundInstance charge, blast, heartbeatSound;
+        long lastHeartbeat = -1;
         State(AtomicFxPayload payload, float yaw) {
             this.payload = payload; this.yaw = yaw;
-            lastAge=world.getGameTime()-payload.startedAt()-1;
         }
     }
 
@@ -54,6 +54,10 @@ public final class AtomicRenderer {
         State state = ACTIVE.get(payload.casterId());
         if (payload.phase() == AtomicFxPayload.CANCEL) {
             if (state != null) { stop(state); ACTIVE.remove(payload.casterId()); }
+            AUDIO_TAILS.removeIf(tail -> {
+                if(tail.payload.casterId()!=payload.casterId())return false;
+                stop(tail); return true;
+            });
             return;
         }
         boolean newBurst = payload.phase() == AtomicFxPayload.BURST && (state == null || state.payload.phase() != AtomicFxPayload.BURST);
@@ -65,13 +69,11 @@ public final class AtomicRenderer {
             if (payload.phase() == AtomicFxPayload.CHARGE) state.charge = sound("atomic_charge", payload, .8f);
         }
         state.payload = payload;
-        if (payload.phase() != AtomicFxPayload.CHARGE && state.charge != null) {
-            client.getSoundManager().stop(state.charge); state.charge = null;
-        }
+        if ((payload.phase() == AtomicFxPayload.RELEASE || newBurst) && state.blast == null)
+            state.blast = sound("atomic_blast", payload, 1);
         if (newBurst) {
             SCARS.put(payload.casterId(),new Scar(new Vec3(payload.x(),payload.y(),payload.z()),payload.releasedAt()-AtomicSequence.WAIT_TICK));
             if(SCARS.size()>64)SCARS.remove(SCARS.keySet().iterator().next());
-            state.blast = sound("atomic_blast", payload, 1);
             float gain = distanceGain(client.player == null ? 256 : client.player.position().distanceTo(new Vec3(payload.x(), payload.y(), payload.z())));
             GodWandCinematicEngine.addTrauma(.94f * gain, 18);
         }
@@ -89,48 +91,34 @@ public final class AtomicRenderer {
         var sounds = Minecraft.getInstance().getSoundManager();
         if (state.charge != null) sounds.stop(state.charge);
         if (state.blast != null) sounds.stop(state.blast);
-        if (state.hold != null) sounds.stop(state.hold);
         if (state.heartbeatSound != null) sounds.stop(state.heartbeatSound);
     }
     public static void tick(Minecraft client) {
         if (client.level != world || client.player == null) { reset(); return; }
+        AUDIO_TAILS.removeIf(tail -> (tail.charge==null||!client.getSoundManager().isActive(tail.charge))
+                &&(tail.blast==null||!client.getSoundManager().isActive(tail.blast)));
         SCARS.values().removeIf(s -> world.getGameTime()-s.started>=AtomicSequence.SCAR_END);
         for (var iterator = ACTIVE.values().iterator(); iterator.hasNext();) {
             State state = iterator.next();
             var view=frame(state,0);
             float age=view.age();
+            boolean waiting=view.waiting()&&state.payload.releasedAt()<0;
             long heartbeat=(long)(view.waitTicks()/28);
-            if(view.waiting()&&heartbeat!=state.lastHeartbeat) {
+            if(waiting&&heartbeat!=state.lastHeartbeat) {
                 state.lastHeartbeat=heartbeat;
                 float gain=distanceGain(client.player.position().distanceTo(view.center()));
                 state.heartbeatSound=new SimpleSoundInstance(new ResourceLocation("minecraft","entity.warden.heartbeat"),SoundSource.PLAYERS,
-                        gain*.22f,.8f,RandomSource.create(),false,0,SoundInstance.Attenuation.NONE,0,0,0,true);
+                        gain*.30f,.8f,RandomSource.create(),false,0,SoundInstance.Attenuation.NONE,0,0,0,true);
                 client.getSoundManager().play(state.heartbeatSound);
             }
-            if(!view.waiting()&&state.heartbeatSound!=null) {
+            if(!waiting&&state.heartbeatSound!=null) {
                 client.getSoundManager().stop(state.heartbeatSound); state.heartbeatSound=null;
             }
-            if(view.waiting()&&state.hold==null) {
-                float gain=distanceGain(client.player.position().distanceTo(view.center()));
-                state.hold=new SimpleSoundInstance(new ResourceLocation("minecraft", "block.beacon.ambient"),SoundSource.PLAYERS,
-                        gain*.18f,.55f,RandomSource.create(),true,0,SoundInstance.Attenuation.NONE,0,0,0,true);
-                client.getSoundManager().play(state.hold);
-            } else if(!view.waiting()&&state.hold!=null) {
-                client.getSoundManager().stop(state.hold); state.hold=null;
-            }
-            if (age >= AtomicSequence.END || age < -20 || (state.payload.phase() == AtomicFxPayload.CHARGE && world.getGameTime()-state.payload.startedAt() > AtomicSequence.CHARGE_TICKS + 40)) {
+            if (age >= AtomicSequence.END) {
+                // Let authored audio finish after the camera returns; cancellation/reset still owns it.
+                AUDIO_TAILS.add(state); iterator.remove();
+            } else if (age < -20 || (state.payload.phase() == AtomicFxPayload.CHARGE && world.getGameTime()-state.payload.startedAt() > AtomicSequence.CHARGE_TICKS + 40)) {
                 stop(state); iterator.remove();
-            } else {
-                if (age >= AtomicSequence.CHARGE_TICKS && state.charge != null) { client.getSoundManager().stop(state.charge); state.charge = null; }
-                int[] cues={10,180,AtomicSequence.ATOMIC_WORD,AtomicSequence.WAIT_TICK+1};
-                String[] sounds={"block.stone.break","block.amethyst_block.resonate","block.respawn_anchor.charge","block.amethyst_block.chime"};
-                for(int i=0;i<cues.length;i++) if(state.lastAge<cues[i]&&age>=cues[i]) {
-                    float gain=distanceGain(client.player.position().distanceTo(new Vec3(state.payload.x(),state.payload.y(),state.payload.z())));
-                    var cue=new SimpleSoundInstance(new ResourceLocation("minecraft", sounds[i]),SoundSource.PLAYERS,
-                            gain*.35f,.65f+i*.25f,RandomSource.create(),false,0,SoundInstance.Attenuation.NONE,0,0,0,true);
-                    client.getSoundManager().play(cue);
-                }
-                state.lastAge=(long)age;
             }
         }
         AtomicCinematic.tick(client);
@@ -217,7 +205,8 @@ public final class AtomicRenderer {
     }
     public static void reset() {
         for (State state : ACTIVE.values()) stop(state);
-        ACTIVE.clear(); SCARS.clear(); world = null;
+        for (State state : AUDIO_TAILS) stop(state);
+        AUDIO_TAILS.clear(); ACTIVE.clear(); SCARS.clear(); world = null;
         AtomicCinematic.reset(); AtomicPostFx.reset();
     }
 

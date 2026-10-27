@@ -29,6 +29,6 @@ The obsolete root `src/`, debug screenshots, anime/reference images and historic
 
 Build logs belong to this checkout's build directories. Latest gameplay visuals are still awaiting owner testing. A previous automated run was interrupted with Escape; its optional development probe then asserted that the skipped waiting camera had frozen. That assertion is not part of the production mod and is not evidence of a release-jar crash.
 
-Dedicated development-server boot checks from the older integration do not establish multiplayer behavior for every later change. Custom Atomic SFX and the remaining audit work are still pending. Publishing source does not mark the mod as a tested final release.
+Dedicated development-server boot checks from the older integration do not establish multiplayer behavior for every later change. Atomic visuals have user approval. Authored SFX is integrated; in-game audio testing and the remaining audit work are pending. Publishing source does not mark the mod as a tested final release.
 
 The consolidated releaseJars build passed for all four variants. The updated common JUnit suite passed 199 tests with zero failures/errors. Packaged jars contain the MIT license and no QA probe or ModMenu compile stubs. Build logs and checksums are kept locally under build/.

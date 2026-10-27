@@ -1,4 +1,4 @@
-"""Generate original Atomic charge/blast Foley; requires numpy and ffmpeg."""
+"""Generate legacy placeholder Foley into build/ only; never overwrite authored release SFX."""
 from pathlib import Path
 import subprocess
 import tempfile
@@ -7,7 +7,7 @@ import numpy as np
 
 RATE = 44100
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "common/src/main/resources/assets/godwand/sounds"
+OUT = ROOT / "build/legacy-atomic-audio"
 rng = np.random.default_rng(1300)
 
 

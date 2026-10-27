@@ -138,3 +138,12 @@ Emitters1024 ->1536, slightly brighter, still small circular sprites at random p
 
 
 Final V30 validation:177 tests pass and both loader jars built. The full vanilla probe passes for damage/density/radial source/interactive-release cleanup; it predates the user-requested removal of the crossed step. The final single full Iris/Complementary cast confirms normal vanilla legs, correct9999-center falloff and15HP pressure hits, held release, GPU atlas/shader, camera restoration and settings restoration. Local1280x720/8chunk buildup samples: vanilla min159/median165FPS; Iris/Complementary min62/median73FPS. These are current local observations, not a comparison against V29 or a full-modpack performance guarantee. Native verification and hashes in docs/HANDOFF.md. The QA-only -PatomicQaSingleCast flag stops after one full cast; omit it to run the complete scar/fallback suite.
+
+
+### Authored SFX (2026-10-27)
+
+Visuals are approved by the user. `sfx/atomic-first.ogg` (23.856s, mono Vorbis/48kHz) ships as `godwand:atomic_charge`; it starts on CHARGE and runs to completion across ARMED, hold and release. `sfx/atomic-last.ogg` (22.056s, same format) ships as `godwand:atomic_blast`; it starts once on RELEASE, with BURST only as a fallback for observers missing the release. Both are copied unchanged into all four builds and stream without looping. Cancellation/world reset stops both; natural cinematic completion lets their audio tails finish without extending the camera.
+
+Hold retains Minecraft warden heartbeats every 28 ticks at pitch0.8; gain increases0.22 to0.30. Temporary beacon ambience and the four placeholder sound cues are removed so they do not overlay the authored mix. `tools/generate_atomic_audio.py` now writes legacy previews to build/legacy-atomic-audio, never to release assets.
+
+Verification: releaseJars --offline succeeded for all four loaders/versions; common JUnit202 tests, zero failures/errors, plus loader/port checks passed. Every installable JAR was inspected for exact authored audio bytes, streaming declarations, the existing shaped recipe in the appropriate version-specific data directory, recipe-book unlock and MIT LICENSE. Native audio playback/crafting is left for user testing. Logs: build/atomic-sfx-release.log; checksums: build/release/SHA256SUMS.txt.
