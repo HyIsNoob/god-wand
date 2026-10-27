@@ -1,0 +1,2 @@
+Built-in Imagegen, using a preview rendered from the actual Eclipse mesh as the reference.
+Prompt: Simple square avatar, single Eclipse staff, preserve the dark crescent head, gold trim, floating red diamond, burgundy grip and long dark shaft. Clean low-poly 3D illustration, diagonal composition, plain charcoal background, subtle red glow, no text or scenery.

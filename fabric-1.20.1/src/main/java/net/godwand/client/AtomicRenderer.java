@@ -53,6 +53,11 @@ public final class AtomicRenderer {
             AtomicCinematic.onCastStart();
         State state = ACTIVE.get(payload.casterId());
         if (payload.phase() == AtomicFxPayload.CANCEL) {
+            // The server also sends CANCEL for normal completion; keep the authored audio tail.
+            if(payload.releasedAt()>=0&&AtomicSequence.castAge(world.getGameTime(),payload.startedAt(),payload.releasedAt())>=AtomicSequence.END) {
+                if(state!=null) { AUDIO_TAILS.add(state); ACTIVE.remove(payload.casterId()); }
+                return;
+            }
             if (state != null) { stop(state); ACTIVE.remove(payload.casterId()); }
             AUDIO_TAILS.removeIf(tail -> {
                 if(tail.payload.casterId()!=payload.casterId())return false;

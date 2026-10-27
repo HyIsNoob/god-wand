@@ -15,10 +15,10 @@ class AtomicVisualTest {
         AtomicRenderer.emit(mesh,new Matrix4f(),500,new net.minecraft.world.phys.Vec3(0,2,160));
         var core=mesh.vertices.stream().filter(p -> p[3]==245&&p[4]==223&&p[5]==255).toList();
         assertFalse(core.isEmpty());
-        assertEquals(-28,core.stream().mapToDouble(p -> p[1]).min().orElseThrow(),.001);
+        assertEquals(-30,core.stream().mapToDouble(p -> p[1]).min().orElseThrow(),.001);
         assertEquals(1024,core.stream().mapToDouble(p -> p[1]).max().orElseThrow(),.001);
         assertTrue(AtomicSequence.columnOccludes(new net.minecraft.world.phys.Vec3(0,-20,160),new net.minecraft.world.phys.Vec3(0,-20,-160),500));
-        assertFalse(AtomicSequence.columnOccludes(new net.minecraft.world.phys.Vec3(0,-30,160),new net.minecraft.world.phys.Vec3(0,-30,-160),500));
+        assertFalse(AtomicSequence.columnOccludes(new net.minecraft.world.phys.Vec3(0,-31,160),new net.minecraft.world.phys.Vec3(0,-31,-160),500));
     }
     @Test void meshesStayBoundedAndGiveWayToTheAftermath() throws Exception {
         for (int age : new int[]{0, 36, 72, 114, 150, 174, 199, 209, 216, 240, 296, 344, 370, 385, 396, 398, 400, 402, 404, 406, 408, 410, 412, 413, 414, 416, 434, 474, 534, 594, 674, 754, 834}) {
@@ -31,7 +31,7 @@ class AtomicVisualTest {
             for (float[] vertex : mesh.vertices) {
                 for (float n : vertex) assertTrue(Float.isFinite(n));
                 assertTrue(Math.abs(vertex[0]) <= 330 && Math.abs(vertex[2]) <= 330);
-                assertTrue(vertex[1] >= -29 && vertex[1] <= 1100);
+                assertTrue(vertex[1] >= -31 && vertex[1] <= 1100);
                 assertTrue(vertex[6] >= 0 && vertex[6] <= 255);
             }
             Path path = Path.of("build/previews/atomic-" + age + "-mesh.json");

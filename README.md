@@ -24,7 +24,7 @@ Hold **V** with the wand to select a skill. Press **K** for client graphics and 
 3. **Earth Drill:** charge a drill of floating blocks and slam it into the ground.
 4. **Supernova:** hold right-click for seven seconds to release a black hole and explosion.
 5. **Stone Cannon:** charge and release a piercing stone projectile.
-6. **I am Atomic:** hold through the buildup, ATOMIC pose and compression. The dark pause waits for you to release right-click, triggering the blast. Movement is locked and incoming damage is blocked during the cast. Esc/F5 skips its camera.
+6. **I am Atomic:** hold through the buildup, ATOMIC pose and compression. The dark pause waits for you to release right-click, triggering the blast. Movement is locked and incoming damage is blocked during the cast. Esc/F5 skips its camera; skipping after detonation also restores movement.
 
 AUTO selects Aqua Heartia for skills 3/5, Shadow Blade for skill 6, and Eclipse for the others. K also supports a manual model choice.
 

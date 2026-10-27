@@ -136,6 +136,11 @@ public class GodWandNeoForgeMod {
     private void registerPayloadHandlers(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar(GodWandMod.MOD_ID).versioned("1.3.0");
 
+        registrar.playToServer(net.godwand.network.AtomicSkipPayload.ID, net.godwand.network.AtomicSkipPayload.CODEC,
+                (payload,context) -> context.enqueueWork(() -> {
+                    if(context.player() instanceof ServerPlayer player)net.godwand.skill.AtomicManager.releaseMovement(player,payload.startedAt());
+                }));
+
         registrar.playToServer(
                 SelectSkillPayload.ID,
                 SelectSkillPayload.CODEC,

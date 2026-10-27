@@ -151,3 +151,11 @@ Verification: releaseJars --offline succeeded for all four loaders/versions; com
 ### Column base correction (2026-10-27)
 
 The blast column now extends28 blocks below the cast origin, matching the maximum crater depth. Its top height, ground rings, pressure aura and camera path are unchanged. Both volumetric rendering and fallback geometry use the deeper base; column occlusion covers it too. The shared crater-depth constant retains the existing excavation behavior. All four release builds and203 common tests pass, including a regression for the bottom/top heights and below-ground occlusion. Packaged uniforms, shader depth, authored audio and recipes were inspected. Native visuals remain for user testing. The camera still uses its existing wall-clearance behavior; no camera noclip change is included.
+
+### Camera passage and blast skip (2026-10-27)
+
+The user approved camera passage through blocks. Removed only the caster-to-camera wall ray snap; loaded-neighborhood limits, wide-shot ground framing and return blend remain. Esc/F5 after detonation releases local movement and sends the cast start identity to the server. The server validates the sender's own current cast, matching start, world, living/non-spectator state and detonation/end bounds before lifting its movement lock. Blast center, damage, terrain and cast protection remain unchanged. Skipping before detonation does not release movement, and the next cast resets the skip state.
+
+The crater starts one block below the caster's floored position; its depth remains28. The visual column now extends30 below the exact cast position to cover that offset and partial-block standing heights. Normal completion uses the same old CANCEL message as interruption; it now retires the visuals while retaining authored audio tails. Actual pre-completion cancellation/world reset still stops audio.
+
+Verification: all four builds and207 common tests passed; the final expanded client/server port parity test also passed. Packaged skip-message classes, beam-depth uniforms and exact authored SFX bytes were checked in each JAR. No native game or multiplayer test was run. Avatar artwork was generated from a preview of the actual Eclipse mesh, using built-in Imagegen, and saved separately as assets/god-wand-avatar.png; it does not replace the installed mod icon.

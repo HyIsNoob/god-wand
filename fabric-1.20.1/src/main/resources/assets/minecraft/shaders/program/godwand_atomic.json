@@ -192,7 +192,7 @@
       "name": "BeamDepth",
       "type": "float",
       "count": 1,
-      "values": [28]
+      "values": [30]
     },
     {
       "name": "BeamHeight",

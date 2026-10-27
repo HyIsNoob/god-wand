@@ -30,7 +30,7 @@ The fortress compresses. The screen goes dark. A heartbeat repeats while the spe
 
 **Let go to detonate.** A column of light expands across the area, with outward shockwaves and purple wind. After it contracts, glowing marks remain on the ground for 30 seconds before fading.
 
-Atomic includes its own camera sequence, character poses and sound effects. Your movement is locked and incoming damage is blocked while casting. Release before the initial charge finishes to cancel.
+Atomic includes its own camera sequence, character poses and sound effects. Your movement is locked and incoming damage is blocked while casting. Once the explosion begins, skipping the camera lets you move again. Release before the initial charge finishes to cancel.
 
 ## Pick your wand's appearance
 

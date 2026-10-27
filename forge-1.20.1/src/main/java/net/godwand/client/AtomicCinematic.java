@@ -6,8 +6,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.glfw.GLFW;
 
@@ -15,7 +13,7 @@ import org.lwjgl.glfw.GLFW;
 public final class AtomicCinematic {
     private static final net.minecraft.resources.ResourceLocation TITLE_FONT = new net.minecraft.resources.ResourceLocation("godwand", "atomic_title");
     public record Pose(Vec3 position, float yaw, float pitch) {}
-    private static boolean skipped;
+    private static boolean skipped, movementReleased, movementReleaseSent;
     private static long wideStarted=Long.MIN_VALUE;
     private static float wideAngle;
     private static double wideHeight;
@@ -24,7 +22,7 @@ public final class AtomicCinematic {
     public static boolean movementLocked() {
         var client=Minecraft.getInstance();
         var frame=AtomicRenderer.localFrame(0);
-        return frame!=null && client.player.isAlive() && !client.player.isSpectator() && AtomicSequence.movementLocked(frame.age());
+        return frame!=null && client.player.isAlive() && !client.player.isSpectator() && !movementReleased && AtomicSequence.movementLocked(frame.age());
     }
     public static boolean active() {
         var client = Minecraft.getInstance();
@@ -39,15 +37,24 @@ public final class AtomicCinematic {
             float distance = AtomicRenderer.distanceGain(client.player.position().distanceTo(nearest.center()));
             environmentGain = 1 - .98f * distance * AtomicSequence.phase(nearest.age(), 392, 402);
         }
-        if (AtomicRenderer.localFrame(0) == null) return;
+        var local=AtomicRenderer.localFrame(0);
+        if (local == null) return;
+        if(movementReleased&&!movementReleaseSent) {
+            net.godwand.platform.Services.NETWORK.sendToServer(new net.godwand.network.AtomicSkipPayload(local.startedAt()));
+            movementReleaseSent=true;
+        }
         if(!client.isWindowActive()||client.screen!=null)return;
         long window = client.getWindow().getWindow();
         if (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_ESCAPE) == GLFW.GLFW_PRESS
                 || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_F5) == GLFW.GLFW_PRESS) skip();
     }
-    public static void reset() { skipped=false; wideStarted=Long.MIN_VALUE; environmentGain = 1; }
-    public static void onCastStart() { skipped=false; wideStarted=Long.MIN_VALUE; }
-    public static void skip() { skipped=true; }
+    public static void reset() { skipped=false; movementReleased=false; movementReleaseSent=false; wideStarted=Long.MIN_VALUE; environmentGain = 1; }
+    public static void onCastStart() { skipped=false; movementReleased=false; movementReleaseSent=false; wideStarted=Long.MIN_VALUE; }
+    public static void skip() {
+        skipped=true;
+        var frame=AtomicRenderer.localFrame(0);
+        if(frame!=null&&frame.age()>=AtomicSequence.DETONATION)movementReleased=true;
+    }
 
     public static Pose camera(float delta, Vec3 vanillaPosition, float vanillaYaw, float vanillaPitch) {
         if (!active()) return null;
@@ -69,7 +76,6 @@ public final class AtomicCinematic {
             offset = new Vec3(offset.x*.8,offset.y,offset.z*.8);
             desired = frame.center().add(offset);
         }
-        Vec3 eye = client.player.getEyePosition(delta);
         if(wide) {
             double radius=offset.horizontalDistance();
             if(wideStarted!=frame.startedAt()) {
@@ -86,9 +92,6 @@ public final class AtomicCinematic {
             desired=frame.center().add(offset.x,wideHeight,offset.z);
             double lens=GodWandConfig.CLIENT.cameraFov?shot.fov():client.options.fov().get();
             target=frame.center().add(AtomicSequence.wideFocus(desired.subtract(frame.center()),lens));
-        } else {
-            var hit = client.level.clip(new ClipContext(eye, desired, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, client.player));
-            if (hit.getType() != HitResult.Type.MISS) desired = hit.getLocation().add(eye.subtract(desired).normalize().scale(.35));
         }
         Vec3 direction = target.subtract(desired);
         float yaw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));

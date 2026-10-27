@@ -10,6 +10,7 @@
 - More settings for damage, cooldowns and terrain destruction, including damage-only spells.
 
 ### Improved
+- Atomic's camera can pass through blocks. Skipping its camera after detonation restores movement.
 - Reworked the **V** skill selection menu.
 - Refined wand models, holding poses and spell effects.
 

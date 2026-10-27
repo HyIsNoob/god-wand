@@ -25,7 +25,7 @@ public final class AtomicManager {
         final InteractionHand hand;
         final ItemStack wand;
         Vec3 center;
-        boolean armed, exploded;
+        boolean armed, exploded, movementReleased;
         final Set<UUID> struck=new HashSet<>();
         final Map<UUID,Long> pressureHits=new HashMap<>();
         AtomicCrater crater;
@@ -43,7 +43,15 @@ public final class AtomicManager {
     public static boolean movementLocked(ServerPlayer player) {
         Task task=TASKS.get(player.getUUID());
         return task!=null && player.isAlive() && !player.isSpectator() && task.world==player.serverLevel()
-                && AtomicSequence.movementLocked(AtomicSequence.castAge(task.world.getGameTime(),task.started,task.releasedAt));
+                && !task.movementReleased && AtomicSequence.movementLocked(AtomicSequence.castAge(task.world.getGameTime(),task.started,task.releasedAt));
+    }
+    public static boolean releaseMovement(ServerPlayer player,long startedAt) {
+        Task task=TASKS.get(player.getUUID());
+        if(task==null||task.started!=startedAt||task.world!=player.serverLevel()||!player.isAlive()||player.isSpectator()||task.releasedAt<0)return false;
+        double age=AtomicSequence.castAge(task.world.getGameTime(),task.started,task.releasedAt);
+        if(age<AtomicSequence.DETONATION||age>=AtomicSequence.END)return false;
+        task.movementReleased=true;
+        return true;
     }
     public static boolean beginCharge(ServerPlayer player,InteractionHand hand) {
         if(player.isPassenger() || !GodWandConfig.SERVER.isDimensionAllowed(player.level().dimension().location().toString()))return false;

@@ -125,6 +125,14 @@ public final class GodWandForgeNetwork {
                     ctx.get().setPacketHandled(true);
                 })
                 .add();
+        CHANNEL.messageBuilder(net.godwand.network.AtomicSkipPayload.class, id++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(net.godwand.network.AtomicSkipPayload::write)
+                .decoder(net.godwand.network.AtomicSkipPayload::read)
+                .consumerMainThread((payload,ctx) -> {
+                    var player=ctx.get().getSender();
+                    if(player!=null)ctx.get().enqueueWork(() -> net.godwand.skill.AtomicManager.releaseMovement(player,payload.startedAt()));
+                    ctx.get().setPacketHandled(true);
+                }).add();
     }
 
     public static void sendToPlayer(ServerPlayer player, GodWandPacket packet) {

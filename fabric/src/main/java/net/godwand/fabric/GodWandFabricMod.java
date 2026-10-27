@@ -84,6 +84,10 @@ public class GodWandFabricMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(ImpactFxPayload.ID, ImpactFxPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(CinematicFxPayload.ID, CinematicFxPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(SelectSkillPayload.ID, SelectSkillPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(net.godwand.network.AtomicSkipPayload.ID, net.godwand.network.AtomicSkipPayload.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.AtomicSkipPayload.ID, (payload, context) ->
+                context.server().execute(() -> net.godwand.skill.AtomicManager.releaseMovement(context.player(),payload.startedAt())));
+
 
         ServerPlayNetworking.registerGlobalReceiver(SelectSkillPayload.ID, (payload, context) -> {
             ServerPlayer player = context.player();

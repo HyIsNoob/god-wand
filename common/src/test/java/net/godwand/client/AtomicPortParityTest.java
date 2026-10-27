@@ -25,12 +25,15 @@ class AtomicPortParityTest {
                 assertEquals(normalized(Files.readString(common.resolve(file))),normalized(Files.readString(port.resolve(file))),loader+": "+file);
             assertEquals(normalized(method(Files.readString(common.resolve("config/GodWandConfig.java")),"read")),
                     normalized(method(Files.readString(port.resolve("config/GodWandConfig.java")),"read")),loader+": config migration");
+            for(String name:new String[]{"releaseMovement","movementLocked"})
+                assertEquals(normalized(method(Files.readString(common.resolve("skill/AtomicManager.java")),name)),
+                        normalized(method(Files.readString(port.resolve("skill/AtomicManager.java")),name)),loader+": server "+name);
             String source=Files.readString(common.resolve("client/AtomicRenderer.java")),copy=Files.readString(port.resolve("client/AtomicRenderer.java"));
             for(String name:new String[]{"emit","cylinder","charge","fortress","blast","pressureAura","captureSwordTip","sampleSwordTip","swordTrail","bladeConvergence","receive","stop","tick","reset"})
                 assertEquals(normalized(method(source,name)),normalized(method(copy,name)),loader+": "+name);
             String cinematic=Files.readString(common.resolve("client/AtomicCinematic.java"));
             String portCinematic=Files.readString(port.resolve("client/AtomicCinematic.java"));
-            for(String name:new String[]{"active","skip","reset","onCastStart","camera","wideClearance","fov"})
+            for(String name:new String[]{"active","movementLocked","skip","reset","onCastStart","camera","wideClearance","fov"})
                 assertEquals(normalized(method(cinematic,name)),normalized(method(portCinematic,name)),loader+": "+name);
             String held=Files.readString(common.resolve("client/render/GodWandItemRenderer.java"));
             String portHeld=Files.readString(port.resolve("client/render/GodWandItemRenderer.java"));

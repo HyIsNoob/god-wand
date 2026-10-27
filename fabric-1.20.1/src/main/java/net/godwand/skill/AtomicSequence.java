@@ -5,7 +5,7 @@ import net.minecraft.world.phys.Vec3;
 /** One clock for the server blast, energy geometry, camera cuts and typography. */
 public final class AtomicSequence {
     public static final int CHARGE_TICKS=380, WAIT_TICK=406, DETONATION=414, END=834;
-    public static final int MAX_RADIUS=98, CAGE_RADIUS=26, ATOMIC_WORD=396, BEAM_HEIGHT=1024, BEAM_DEPTH=28, SCAR_FADE_START=END+600, SCAR_END=END+660;
+    public static final int MAX_RADIUS=98, CAGE_RADIUS=26, ATOMIC_WORD=396, BEAM_HEIGHT=1024, BEAM_DEPTH=30, CRATER_DEPTH=28, SCAR_FADE_START=END+600, SCAR_END=END+660;
     public record Shot(Vec3 offset,Vec3 focus,float fov) {}
     public static float phase(double age,double start,double end) {
         float t=(float)net.minecraft.util.Mth.clamp((age-start)/(end-start),0,1);

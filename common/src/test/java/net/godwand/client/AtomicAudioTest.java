@@ -51,8 +51,14 @@ class AtomicAudioTest {
             assertNull(AtomicRenderer.localFrame(0),"Audio tails must not prolong the cinematic");
             verify(sounds,never()).stop(charge);
             AtomicRenderer.receive(payload(AtomicFxPayload.CANCEL,500));
+            verify(sounds,never()).stop(charge);
+            AtomicRenderer.reset();
             verify(sounds).stop(charge);
             verify(sounds).stop(argThat(s -> s.getLocation().toString().equals("godwand:atomic_blast")));
+            clearInvocations(sounds);
+            AtomicRenderer.receive(payload(AtomicFxPayload.CHARGE,-1));
+            AtomicRenderer.receive(payload(AtomicFxPayload.CANCEL,-1));
+            verify(sounds).stop(argThat(s -> s.getLocation().toString().equals("godwand:atomic_charge")));
             clearInvocations(sounds);
             AtomicRenderer.receive(payload(AtomicFxPayload.CHARGE,-1));
             AtomicRenderer.reset();
