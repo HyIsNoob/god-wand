@@ -16,12 +16,12 @@ This repository is the consolidated God Wand 1.3.0 development source as of 2026
 
 | Folder | Role |
 | --- | --- |
-| `god-wand` | Frozen pre-integration multiloader/Antigravity input. |
-| `god-wand-atomic` | Frozen standalone Atomic input. |
-| `god-wand-1.2.0` | Historical release checkout; the folder name alone does not prove its internal version. |
-| `godwand-130-integration/god-wand` | Previous integration working tree, used as the source of this consolidation. |
+| `god-wand` | Retained only because an older protected chat checkout still uses its shared Git directory; not the current development source. |
+| `god-wand-atomic` | Retired worktree; source, worlds and selected QA evidence are archived locally. |
+| `god-wand-1.2.0` | Retired historical release worktree; source is archived locally. |
+| `godwand-130-integration/god-wand` | Previous protected chat checkout; generated data has been archived and its guidance points to this repository. |
 
-The original multiloader and Atomic inputs matched their integration snapshots byte-for-byte when checked. Their files were not overwritten or moved. The old integration working tree was backed up before copying its tracked and untracked source into this independent repository. Existing Git history is retained.
+The original multiloader and Atomic inputs matched their integration snapshots byte-for-byte when checked. All old sources, five local worlds, configuration, older jars and selected QA screenshots were archived before retiring worktrees. A complete Git history bundle was verified. Existing history is also retained in this independent repository.
 
 The obsolete root `src/`, debug screenshots, anime/reference images and historical chat/handoff plans are absent from the new working tree. They remain in the original folders and backup/history. Current production source is only in the five directories listed in DEVELOPMENT.md. No personal worlds, launcher installations, caches or development QA jars were copied.
 

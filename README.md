@@ -2,6 +2,8 @@
 
 Six magic skills for exploration, terrain control and combat, including the interactive **I am Atomic** cutscene.
 
+[Hướng dẫn nhanh bằng tiếng Việt](BAT_DAU_O_DAY.md)
+
 | Minecraft | Loader | Java | Installable file |
 | --- | --- | --- | --- |
 | 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.0.jar` |
