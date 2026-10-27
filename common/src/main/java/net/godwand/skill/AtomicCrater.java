@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.material.Fluids;
 
 /** Resumes inside a column; even a tall column cannot consume a whole tick. */
 final class AtomicCrater {
@@ -45,7 +46,8 @@ final class AtomicCrater {
                 pos.set(x, y, z);
                 var state = world.getBlockState(pos);
                 // Containers and ongoing spatial spells retain their state and inventories.
-                if (!state.hasBlockEntity() && state.getFluidState().isEmpty() && SpatialDisplacementManager.canDisplace(world, pos, state))
+                if (!state.hasBlockEntity() && (state.getFluidState().isEmpty() || Fluids.WATER.isSame(state.getFluidState().getType()))
+                        && SpatialDisplacementManager.canDisplace(world, pos, state))
                     world.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS);
                 if (--y < bottom) {
                     inColumn=false; columns.advance();

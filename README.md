@@ -1,17 +1,17 @@
-# God Wand 1.3.0
+# God Wand 1.3.1
 
 One wand with six skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile or hold **I am Atomic** until you choose to release.
 
-[Full mod description](DESCRIPTION.md) · [1.3.0 changelog](CHANGELOG.md)
+[Full mod description](DESCRIPTION.md) · [Changelog](CHANGELOG.md)
 
 [Hướng dẫn nhanh bằng tiếng Việt](BAT_DAU_O_DAY.md)
 
 | Minecraft | Loader | Java | Installable file |
 | --- | --- | --- | --- |
-| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.0.jar` |
-| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.0.jar` |
-| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.0.jar` |
-| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.0.jar` |
+| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.1.jar` |
+| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.1.jar` |
+| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.1.jar` |
+| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.1.jar` |
 
 Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server.
 
@@ -55,7 +55,7 @@ See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [sou
 
 ## Release status
 
-1.3.0 is a release candidate. Atomic visuals have user approval; authored Atomic SFX is integrated and awaits in-game audio testing. Remaining audit findings are tracked in [the audit report](docs/AUDIT_2026-10-27.md).
+1.3.0 has been released. The 1.3.1 patch clears water inside Atomic craters when terrain destruction is enabled. Remaining audit findings are tracked in [the audit report](docs/AUDIT_2026-10-27.md).
 
 ## License
 

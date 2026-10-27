@@ -1,6 +1,6 @@
 # Tiếp tục God Wand ở đây
 
-Đây là repo làm việc chính của God Wand 1.3.0. Không cần mở lại các checkout God Wand cũ.
+Đây là repo làm việc chính của God Wand, hiện ở bản 1.3.1. Tên thư mục vẫn là god-wand-1.3.0. Không cần mở lại các checkout God Wand cũ.
 
 - GitHub: https://github.com/HyIsNoob/god-wand
 - JAR mới để test: `build/release/` (đủ 4 bản).

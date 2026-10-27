@@ -15,6 +15,40 @@ import static org.mockito.ArgumentMatchers.*;
 class AtomicCraterTest {
     @BeforeAll static void bootstrap() { SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); }
 
+    @Test void craterRemovesWaterAndWaterloggedBlocksButKeepsProtectedBlocksAndLava() {
+        var world=mock(ServerLevel.class);
+        var chunks=mock(ServerChunkCache.class);
+        when(world.getChunkSource()).thenReturn(chunks);
+        when(chunks.hasChunk(anyInt(),anyInt())).thenReturn(true);
+        when(world.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        when(world.getMinBuildHeight()).thenReturn(-64);
+        when(world.getMaxBuildHeight()).thenReturn(320);
+        when(world.getHeight(any(),anyInt(),anyInt())).thenReturn(72);
+        var wet=net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED;
+        var states=new net.minecraft.world.level.block.state.BlockState[]{
+                Blocks.WATER.defaultBlockState(),
+                Blocks.WATER.defaultBlockState().setValue(net.minecraft.world.level.block.LiquidBlock.LEVEL,4),
+                Blocks.OAK_STAIRS.defaultBlockState().setValue(wet,true),
+                Blocks.SEAGRASS.defaultBlockState(),
+                Blocks.LAVA.defaultBlockState(),
+                Blocks.CHEST.defaultBlockState().setValue(wet,true),
+                Blocks.BEDROCK.defaultBlockState()
+        };
+        when(world.getBlockState(any())).thenAnswer(call -> states[Math.floorMod(((BlockPos)call.getArgument(0)).getX(),7)]);
+        var removed=new HashSet<Integer>();
+        when(world.setBlock(any(),any(),anyInt())).thenAnswer(call -> {
+            BlockPos pos=call.getArgument(0);int kind=Math.floorMod(pos.getX(),7);
+            assertTrue(kind<4,"Lava, inventories and unbreakable blocks must stay protected");
+            assertTrue(pos.getX()*pos.getX()+pos.getZ()*pos.getZ()>9);
+            assertTrue(((net.minecraft.world.level.block.state.BlockState)call.getArgument(1)).isAir());
+            removed.add(kind);return true;
+        });
+        var crater=new AtomicCrater(new BlockPos(0,70,0),8);
+        for(int tick=0;tick<1000&&!crater.finished();tick++)assertTrue(crater.carve(world,73)<=73);
+        assertTrue(crater.finished());
+        assertEquals(java.util.Set.of(0,1,2,3),removed,"Source water, flowing water, waterlogged blocks and underwater plants must all be removed");
+    }
+
     @Test void craterResumesInsideColumnsWithABoundedBudgetAndSkipsUnloadedChunks() {
         var world=mock(ServerLevel.class);
         var chunks=mock(ServerChunkCache.class);

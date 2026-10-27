@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.3.1]
+
+### Fixed
+- Atomic now clears water inside its crater instead of leaving it floating after the ground is destroyed.
+
 ## [1.3.0]
 
 ### Added
