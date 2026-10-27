@@ -23,12 +23,16 @@ public abstract class GameRendererMixin {
         net.godwand.client.GodWandPostFxManager.renderAfterWorld();
     }
 
+    @Inject(method="renderItemInHand",at=@At("HEAD"),cancellable=true)
+    private void godwand$atomicHideHand(PoseStack matrices,Camera camera,float delta,CallbackInfo ci) { if(net.godwand.client.AtomicCinematic.active())ci.cancel(); }
+
     /**
      * Bơm Trauma Screen Shake trực tiếp vào ma trận góc nhìn Camera
      */
     @Inject(method = "bobHurt", at = @At("HEAD"))
     private void godwand$applyScreenShake(PoseStack matrices, float tickDelta, CallbackInfo ci) {
         GodWandCinematicEngine.applyScreenShake(matrices, tickDelta);
+        net.godwand.client.AtomicCinematic.applyShake(matrices,tickDelta);
     }
 
     /**
@@ -38,8 +42,6 @@ public abstract class GameRendererMixin {
     private void godwand$applyDynamicFov(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Double> cir) {
         double current = cir.getReturnValue();
         double multiplier = GodWandCinematicEngine.getFovMultiplier(tickDelta);
-        if (Math.abs(multiplier - 1.0) > 0.0001) {
-            cir.setReturnValue(current * multiplier);
-        }
+        cir.setReturnValue(net.godwand.client.AtomicCinematic.fov(current*multiplier,tickDelta));
     }
 }

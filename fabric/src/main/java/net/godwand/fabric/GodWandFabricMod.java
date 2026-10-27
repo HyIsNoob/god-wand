@@ -20,6 +20,8 @@ import net.godwand.entity.ArcaneOrbEntity;
 import net.godwand.entity.StoneCannonProjectileEntity;
 import net.godwand.item.GodWandItem;
 import net.godwand.network.CannonPressurePayload;
+import net.godwand.network.AtomicFxPayload;
+import net.godwand.skill.AtomicManager;
 import net.godwand.network.CinematicFxPayload;
 import net.godwand.network.DrillWindPayload;
 import net.godwand.network.ImpactFxPayload;
@@ -75,6 +77,7 @@ public class GodWandFabricMod implements ModInitializer {
         );
 
         PayloadTypeRegistry.playS2C().register(DrillWindPayload.ID, DrillWindPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(AtomicFxPayload.ID, AtomicFxPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(SpatialAuraPayload.ID, SpatialAuraPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(CannonPressurePayload.ID, CannonPressurePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(SingularityThreadsPayload.ID, SingularityThreadsPayload.CODEC);
@@ -146,6 +149,7 @@ public class GodWandFabricMod implements ModInitializer {
             ShockwaveSlicer.tick(level);
             RatioCollapseManager.tick(level);
             SupernovaManager.tick(level);
+            AtomicManager.tick(level);
             SpatialBridge.tickWorld(level);
             SpatialDisplacementManager.tick(level);
         });
@@ -168,6 +172,7 @@ public class GodWandFabricMod implements ModInitializer {
             ShockwaveSlicer.clearAllTasks();
             RatioCollapseManager.clearAllTasks();
             SupernovaManager.clearAllTasks();
+            AtomicManager.clearAllTasks();
             for (ServerLevel level : server.getAllLevels()) {
                 SpatialBridge.clearVisuals(level);
                 SpatialDisplacementManager.emergencyRestoreAll(level);

@@ -1,61 +1,57 @@
 plugins {
-    id 'fabric-loom' version '1.7-SNAPSHOT'
-    id 'maven-publish'
+    id 'base'
+    id 'fabric-loom' version '1.7-SNAPSHOT' apply false
 }
+
 version = project.mod_version
 group = project.maven_group
-base { archivesName = project.archives_base_name }
-repositories {
-    mavenCentral()
-}
-dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
-    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
-}
-loom {
-    accessWidenerPath = file("src/main/resources/godwand.accesswidener")
-}
-tasks.withType(JavaCompile).configureEach {
-    it.options.release = 21
-}
-processResources {
-    inputs.property "version", project.version
-
-    filesMatching("fabric.mod.json") {
-        expand "version": project.version
-    }
-}
-java {
-    toolchain { languageVersion = JavaLanguageVersion.of(21) }
-    withSourcesJar()
-}
-test {
-    useJUnitPlatform()
-}
-
-tasks.named('build') {
-    dependsOn ':fabric:build', ':neoforge:build'
-}
 
 subprojects {
     apply plugin: 'java'
-
     java {
         toolchain { languageVersion = JavaLanguageVersion.of(21) }
     }
-
     tasks.withType(JavaCompile).configureEach {
         options.encoding = 'UTF-8'
         options.release = 21
     }
-
+    tasks.withType(Jar).configureEach {
+        from(rootProject.file('LICENSE'))
+    }
     repositories {
         mavenCentral()
-        maven { url = "https://maven.fabricmc.net/" }
-        maven { url = "https://maven.neoforged.net/releases" }
+        maven { url = 'https://maven.fabricmc.net/' }
+        maven { url = 'https://maven.neoforged.net/releases' }
+    }
+}
+
+tasks.named('build') {
+    dependsOn ':common:build', ':fabric:build', ':neoforge:build'
+}
+
+['fabric-1.20.1': 'buildFabric1201', 'forge-1.20.1': 'buildForge1201'].each { directory, taskName ->
+    tasks.register(taskName, Exec) {
+        group = 'build'
+        description = "Build and check the standalone ${directory} port."
+        workingDir layout.projectDirectory.dir(directory)
+        def windows = System.getProperty('os.name').toLowerCase().contains('windows')
+        def wrapper = windows ? ['cmd', '/c', 'gradlew.bat'] : ['sh', './gradlew']
+        commandLine wrapper + ['build', '--console=plain'] + (gradle.startParameter.offline ? ['--offline'] : [])
+    }
+}
+
+tasks.register('buildAll') {
+    group = 'build'
+    description = 'Build and check all four supported loader/version combinations.'
+    dependsOn 'build', 'buildFabric1201', 'buildForge1201'
+}
+
+tasks.register('releaseJars', Copy) {
+    group = 'build'
+    description = 'Build all four versions and collect only installable jars in build/release.'
+    dependsOn 'buildAll'
+    into layout.buildDirectory.dir('release')
+    ['fabric', 'neoforge', 'fabric-1.20.1', 'forge-1.20.1'].each { loader ->
+        from("${loader}/build/libs") { include "godwand-${loader}-${project.mod_version}.jar" }
     }
 }

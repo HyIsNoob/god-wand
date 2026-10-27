@@ -8,6 +8,8 @@ import net.godwand.item.GodWandItem;
 import net.godwand.neoforge.client.GodWandNeoForgeClientMod;
 import net.godwand.network.CannonPressurePayload;
 import net.godwand.network.CinematicFxPayload;
+import net.godwand.network.AtomicFxPayload;
+import net.godwand.skill.AtomicManager;
 import net.godwand.network.DrillWindPayload;
 import net.godwand.network.ImpactFxPayload;
 import net.godwand.network.SelectSkillPayload;
@@ -132,7 +134,7 @@ public class GodWandNeoForgeMod {
     }
 
     private void registerPayloadHandlers(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar(GodWandMod.MOD_ID).versioned("1.1.0");
+        PayloadRegistrar registrar = event.registrar(GodWandMod.MOD_ID).versioned("1.3.0");
 
         registrar.playToServer(
                 SelectSkillPayload.ID,
@@ -158,6 +160,7 @@ public class GodWandNeoForgeMod {
             registrar.playToClient(SingularityThreadsPayload.ID, SingularityThreadsPayload.CODEC, (payload, context) -> {});
             registrar.playToClient(ImpactFxPayload.ID, ImpactFxPayload.CODEC, (payload, context) -> {});
             registrar.playToClient(CinematicFxPayload.ID, CinematicFxPayload.CODEC, (payload, context) -> {});
+            registrar.playToClient(AtomicFxPayload.ID, AtomicFxPayload.CODEC, (payload, context) -> {});
         }
     }
 
@@ -170,6 +173,7 @@ public class GodWandNeoForgeMod {
             ShockwaveSlicer.tick(level);
             RatioCollapseManager.tick(level);
             SupernovaManager.tick(level);
+            AtomicManager.tick(level);
             SpatialBridge.tickWorld(level);
             SpatialDisplacementManager.tick(level);
         }
@@ -241,6 +245,7 @@ public class GodWandNeoForgeMod {
         ShockwaveSlicer.clearAllTasks();
         RatioCollapseManager.clearAllTasks();
         SupernovaManager.clearAllTasks();
+        AtomicManager.clearAllTasks();
         for (ServerLevel level : event.getServer().getAllLevels()) {
             SpatialBridge.clearVisuals(level);
             SpatialDisplacementManager.emergencyRestoreAll(level);

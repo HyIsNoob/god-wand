@@ -1,0 +1,5 @@
+{
+  "schemaVersion":1,"id":"godwand_atomic_qa","version":"1.0.0","name":"Atomic Gameplay Probe (development only)",
+  "environment":"client","entrypoints":{"client":["net.godwand.qa.AtomicGameplayProbe"]},
+  "depends":{"fabricloader":">=0.16.0","fabric-api":"*","godwand":"*"}
+}

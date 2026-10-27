@@ -217,6 +217,164 @@ class GodWandModelTest {
         }
     }
 
+    @Test
+    void swordGripStaysCenteredAndOnlyAlignsToTheForearmDuringAtomicSpread() {
+        for(int hand:new int[]{-1,1}) for(float pitch:new float[]{-2.2f,-1.15f,-.12f}) {
+            PoseStack arm=new PoseStack();
+            arm.translate(hand*.3125f,.125f,0);
+            arm.mulPose(com.mojang.math.Axis.ZP.rotation(hand*1.15f));
+            arm.mulPose(com.mojang.math.Axis.YP.rotation(hand*.3f));
+            arm.mulPose(com.mojang.math.Axis.XP.rotation(pitch));
+            var expectedCenter=arm.last().pose().transformPosition(new org.joml.Vector3f(0,.625f,0));
+            var expectedAxis=arm.last().pose().transformDirection(new org.joml.Vector3f(0,1,0)).normalize();
+            arm.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-90));
+            arm.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180));
+            arm.translate(hand/16f,.125f,-.625f);
+            GodWandItemRenderer.applySwordDisplayTransform(arm,hand>0
+                    ?net.minecraft.world.item.ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
+                    :net.minecraft.world.item.ItemDisplayContext.THIRD_PERSON_LEFT_HAND);
+            var idle=arm.last().pose().transformDirection(new org.joml.Vector3f(0,1,0)).normalize();
+            assertTrue(Math.abs(idle.dot(expectedAxis))<.5,"Ordinary held sword must not hang down along the forearm");
+            GodWandItemRenderer.applyAtomicSwordHoldTransform(arm,402);
+            var center=arm.last().pose().transformPosition(new org.joml.Vector3f());
+            var axis=arm.last().pose().transformDirection(new org.joml.Vector3f(0,1,0)).normalize();
+            assertEquals(0,center.distance(expectedCenter),.00001,"Sword grip must remain inside the palm");
+            assertEquals(0,axis.distance(expectedAxis),.00001,"Sword must extend along the forearm");
+        }
+    }
+
+    @Test
+    void raisedSwordIsVerticalInFrontOfTheCasterAndItsRootOverlapsTheGuard() throws Exception {
+        PoseStack pose=new PoseStack();
+        pose.scale(-1,-1,1);
+        pose.mulPose(com.mojang.math.Axis.YP.rotation(-.64f));
+        pose.mulPose(com.mojang.math.Axis.XP.rotation(net.godwand.skill.AtomicSequence.armPitch(360)));
+        pose.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-90));
+        pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180));
+        GodWandItemRenderer.applySwordDisplayTransform(pose,net.minecraft.world.item.ItemDisplayContext.THIRD_PERSON_RIGHT_HAND);
+        GodWandItemRenderer.applyAtomicSwordHoldTransform(pose,360);
+        var direction=pose.last().pose().transformDirection(new org.joml.Vector3f(0,1,0)).normalize();
+        assertEquals(0,direction.x,.00001); assertEquals(1,direction.y,.00001); assertEquals(0,direction.z,.00001);
+        var method=net.godwand.client.model.ShadowBladeModel.class.getDeclaredMethod("createTsubaQuads");method.setAccessible(true);
+        var faces=(org.joml.Vector3f[][])method.invoke(null);
+        assertTrue(java.util.Arrays.stream(faces).flatMap(java.util.Arrays::stream)
+                .anyMatch(v -> v.y< -2.4f/16&&Math.abs(v.z)<1.4f/16),"Guard socket must overlap the blade root");
+    }
+
+    @Test
+    void referenceSwordHasDiamondGuardTipsAndAThreeProngedPommel() throws Exception {
+        for(String method:new String[]{"createTsubaQuads","createPommelQuads"}) {
+            var source=net.godwand.client.model.ShadowBladeModel.class.getDeclaredMethod(method);source.setAccessible(true);
+            var quads=(org.joml.Vector3f[][])source.invoke(null);
+            var vertices=java.util.Arrays.stream(quads).flatMap(java.util.Arrays::stream).toList();
+            assertFalse(vertices.isEmpty());
+            if(method.equals("createTsubaQuads")) {
+                assertTrue(vertices.stream().anyMatch(v -> v.z>7.9f/16));
+                assertTrue(vertices.stream().anyMatch(v -> v.z< -7.9f/16));
+            } else {
+                assertEquals(-21f/16,vertices.stream().mapToDouble(v -> v.y).min().orElseThrow(),.00001);
+                assertTrue(vertices.stream().anyMatch(v -> v.z>3f/16));
+                assertTrue(vertices.stream().anyMatch(v -> v.z< -3f/16));
+            }
+        }
+    }
+
+    @Test void referenceSwordHasSmoothMaterialsVisibleBevelsAndOutwardFacingGuardCaps() throws Exception {
+        for(String name:new String[]{"createTsubaQuads","createPommelQuads"}) {
+            var method=net.godwand.client.model.ShadowBladeModel.class.getDeclaredMethod(name);method.setAccessible(true);
+            var quads=(org.joml.Vector3f[][])method.invoke(null);
+            for(var q:quads) {
+                if(Math.abs(q[0].x)<.001||java.util.Arrays.stream(q).anyMatch(v -> Math.abs(v.x-q[0].x)>.001))continue;
+                var normal=new org.joml.Vector3f(q[1]).sub(q[0]).cross(new org.joml.Vector3f(q[2]).sub(q[0]));
+                if(normal.lengthSquared()>.00000001)assertTrue(normal.x*q[0].x>0,"Mirrored fittings must have outward-facing normals");
+            }
+        }
+        var sword=new net.godwand.client.model.ShadowBladeModel(net.godwand.client.model.ShadowBladeModel.getTexturedModelData().bakeRoot());
+        Mesh mesh=new Mesh();sword.renderBlade(new PoseStack(),() -> mesh,() -> mesh,0,0,-1);
+        assertTrue(mesh.vertices.stream().anyMatch(v -> v[1]>1&&v[3]>60&&v[5]>60),"Blade bevels need readable graphite highlights");
+        assertTrue(mesh.vertices.stream().allMatch(v -> v[7]>=.8&&v[7]<=.841&&v[8]>=.8&&v[8]<=.841),"Use the smooth satin patch rather than the engraved staff tile");
+    }
+
+    @Test
+    void swordHasTwoSymmetricEdgesAndAFlatFaceWithoutACenterStrip() throws Exception {
+        var method=net.godwand.client.model.ShadowBladeModel.class.getDeclaredMethod("createBladeQuads");
+        method.setAccessible(true);
+        var quads=(org.joml.Vector3f[][])method.invoke(null);
+        var base=java.util.Arrays.stream(quads).flatMap(java.util.Arrays::stream)
+                .filter(v -> Math.abs(v.y+2.4f/16)<.001).toList();
+        assertFalse(base.isEmpty());
+        assertEquals(47f/16,java.util.Arrays.stream(quads).flatMap(java.util.Arrays::stream).mapToDouble(v -> v.y).max().orElseThrow(),.001);
+        assertEquals(1.615f/16,base.stream().mapToDouble(v -> Math.abs(v.z)).max().orElseThrow(),.001);
+        for(var vertex:base) {
+            assertTrue(base.stream().anyMatch(v -> Math.abs(v.z+vertex.z)<.001&&Math.abs(v.x-vertex.x)<.001),
+                    "The two cutting edges must mirror each other");
+            if(Math.abs(vertex.z)>1.60f/16) assertEquals(0,vertex.x,.001);
+        }
+        assertTrue(base.stream().filter(v -> v.x>.01).allMatch(v -> Math.abs(v.x-.26f/16)<.001),
+                "Broad face must be flat without a raised central ridge");
+    }
+
+    @Test
+    void aquaReacquiresBuffersAfterSwitchingBetweenSolidAndEmissiveLayers() {
+        var model = new net.godwand.client.model.AquaHeartiaModel(net.godwand.client.model.AquaHeartiaModel.getTexturedModelData().bakeRoot());
+        var solid = new Mesh(); var emissive = new Mesh();
+        Mesh[] active = {null};
+        solid.validate = () -> assertSame(solid, active[0], "Solid buffer invalidated by another render layer");
+        emissive.validate = () -> assertSame(emissive, active[0], "Emissive buffer invalidated by another render layer");
+        model.renderWand(new PoseStack(), () -> { active[0]=solid; return solid; },
+                () -> { active[0]=emissive; return emissive; }, 0, 0, -1);
+        assertFalse(solid.vertices.isEmpty()); assertFalse(emissive.vertices.isEmpty());
+    }
+
+    @Test
+    void alternateModelsUseSingleMaterialTilesAndSwordGripContainsTheHoldingOrigin() throws Exception {
+        var aqua = new net.godwand.client.model.AquaHeartiaModel(net.godwand.client.model.AquaHeartiaModel.getTexturedModelData().bakeRoot());
+        var sword = new net.godwand.client.model.ShadowBladeModel(net.godwand.client.model.ShadowBladeModel.getTexturedModelData().bakeRoot());
+        var aquaMesh = new Mesh(); var swordMesh = new Mesh();
+        aqua.setupProceduralAnimations(0, 0, 2);
+        aqua.renderWand(new PoseStack(), () -> aquaMesh, () -> aquaMesh, 0, 0, -1);
+        sword.renderBlade(new PoseStack(), () -> swordMesh, () -> swordMesh, 0, 0, -1);
+        for (var mesh : List.of(aquaMesh, swordMesh)) {
+            assertFalse(mesh.vertices.isEmpty());
+            for (int i = 0; i < mesh.vertices.size(); i += 4) {
+                var first = mesh.vertices.get(i);
+                for (int j = 0; j < 4; j++) {
+                    var vertex = mesh.vertices.get(i+j);
+                    assertEquals((int)(first[7]*2), (int)(vertex[7]*2), "Each face must stay inside one material column");
+                    assertEquals((int)(first[8]*2), (int)(vertex[8]*2), "Each face must stay inside one material row");
+                }
+            }
+        }
+        var grip = swordMesh.vertices.stream().filter(v -> v[3] == 23 && v[4] == 23).toList();
+        assertTrue(grip.stream().anyMatch(v -> v[1] < 0));
+        assertTrue(grip.stream().anyMatch(v -> v[1] > 0));
+        assertTrue(aquaMesh.vertices.stream().mapToDouble(v -> v[1]).max().orElseThrow() > 2.2,
+                "The enlarged staff head must extend above the original small hood");
+        var body = swordMesh.vertices.stream().filter(v -> v[3] == 41 && v[4] == 42).toList();
+        double tipY = body.stream().mapToDouble(v -> v[1]).max().orElseThrow();
+        assertEquals(3.4375, tipY, .001);
+        assertTrue(body.stream().filter(v -> Math.abs(v[1]-tipY)<.001).allMatch(v -> Math.abs(v[0])+Math.abs(v[2])<.001),
+                "All blade bevels must meet at the same tip");
+        Path previews = Path.of("build/previews"); Files.createDirectories(previews);
+        Files.writeString(previews.resolve("aqua-heartia-mesh.json"), new Gson().toJson(aquaMesh.vertices));
+        Files.writeString(previews.resolve("shadow-blade-mesh.json"), new Gson().toJson(swordMesh.vertices));
+    }
+
+    @Test void atomicChargesOnlyTheBladeAndReleasesTheEmissiveBufferAfterSolidGeometry() {
+        var sword=new net.godwand.client.model.ShadowBladeModel(net.godwand.client.model.ShadowBladeModel.getTexturedModelData().bakeRoot());
+        Mesh solid=new Mesh(),glow=new Mesh();Mesh[] active={null};
+        solid.validate=() -> assertSame(solid,active[0]);glow.validate=() -> assertSame(glow,active[0]);
+        sword.setupProceduralAnimations(350,1,5);
+        sword.renderBlade(new PoseStack(),() -> {active[0]=solid;return solid;},() -> {active[0]=glow;return glow;},0,0,-1);
+        assertFalse(glow.vertices.isEmpty());
+        assertTrue(glow.vertices.stream().allMatch(v -> v[1]>=.35f-.001&&v[5]>v[3]));
+        assertTrue(solid.vertices.stream().anyMatch(v -> v[3]==23&&v[4]==23&&v[5]==27));
+        Mesh idleGlow=new Mesh();
+        sword.setupProceduralAnimations(0,0,5);
+        sword.renderBlade(new PoseStack(),Mesh::new,() -> idleGlow,0,0,-1);
+        assertTrue(idleGlow.vertices.isEmpty());
+    }
+
     private static class Mesh implements VertexConsumer {
         final List<float[]> vertices = new ArrayList<>();
         float[] current;

@@ -1,0 +1,14 @@
+allprojects {
+    tasks.register('writeAtomicQaClasspath') {
+        doLast { def output = rootProject.file('build/atomic-qa-classpath.txt'); output.parentFile.mkdirs(); output.text = sourceSets.main.runtimeClasspath.asPath }
+    }
+}
+gradle.projectsEvaluated {
+    gradle.rootProject.tasks.named('runClient') {
+        jvmArgs '-Dgodwand.qa.world=Atomic Regression'
+        jvmArgs '-Dgodwand.qa.singleCast=true'
+        jvmArgs '-Dgodwand.qa.integration=true'
+        jvmArgs '-Dfabric.addMods=' + rootProject.file('build/atomic-gameplay-probe.jar').absolutePath
+        args '--width', '1280', '--height', '720'
+    }
+}

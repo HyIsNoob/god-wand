@@ -1,0 +1,29 @@
+gradle.beforeProject { p ->
+    p.plugins.withId('net.neoforged.moddev') {
+        p.neoForge.runs.create('qaServer') {
+            server()
+            gameDirectory.set(p.rootProject.file('build/dedicated-qa/neoforge-121'))
+            programArgument '--nogui'
+            jvmArgument '-Xmx1G'
+        }
+    }
+}
+gradle.projectsEvaluated {
+    def p = gradle.rootProject
+    if(p.findProperty('qaServerFlavor')!=null) {
+        def flavor=p.property('qaServerFlavor')
+        def target=p.findProject(':fabric') ?: p
+        if(flavor=='forge-1201') target.minecraft.runs.getByName('server').workingDirectory(target.file('../build/dedicated-qa/forge-1201'))
+        if(flavor.startsWith('fabric')) target.loom.runs.named('server') {
+            runDir '../build/dedicated-qa/'+flavor
+        }
+        target.tasks.configureEach { task ->
+          if(task.name=='runServer') {
+            workingDir p.file(p.findProject(':fabric')!=null ? 'build/dedicated-qa/'+flavor : '../build/dedicated-qa/'+flavor)
+            maxHeapSize='1G'
+            standardInput=System.in
+            if(flavor!='forge-1201') args '--nogui'
+          }
+        }
+    }
+}

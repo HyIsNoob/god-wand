@@ -9,6 +9,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Entity.class)
 public abstract class EntityMixin {
+    @Inject(method="isInvulnerableTo",at=@At("HEAD"),cancellable=true)
+    private void godwand$atomicProtection(net.minecraft.world.damagesource.DamageSource source,CallbackInfoReturnable<Boolean> cir) {
+        if((Object)this instanceof net.minecraft.server.level.ServerPlayer player && net.godwand.skill.AtomicManager.invulnerable(player)) cir.setReturnValue(true);
+    }
 
     /**
      * Vô hiệu hóa hiệu ứng phát sáng outline cho toàn bộ khối BlockDisplay
@@ -16,7 +20,7 @@ public abstract class EntityMixin {
     @Inject(method = "isCurrentlyGlowing", at = @At("HEAD"), cancellable = true)
     private void godwand$preventDisplacedIsGlowing(CallbackInfoReturnable<Boolean> cir) {
         Entity self = (Entity) (Object) this;
-        if (self instanceof Display || self.getTags().contains("godwand_displaced")) {
+        if (self.getTags().contains("godwand_displaced")) {
             cir.setReturnValue(false);
         }
     }
@@ -24,7 +28,7 @@ public abstract class EntityMixin {
     @Inject(method = "hasGlowingTag", at = @At("HEAD"), cancellable = true)
     private void godwand$preventDisplacedHasGlowingTag(CallbackInfoReturnable<Boolean> cir) {
         Entity self = (Entity) (Object) this;
-        if (self instanceof Display || self.getTags().contains("godwand_displaced")) {
+        if (self.getTags().contains("godwand_displaced")) {
             cir.setReturnValue(false);
         }
     }

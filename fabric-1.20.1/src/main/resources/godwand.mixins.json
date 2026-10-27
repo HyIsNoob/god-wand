@@ -7,13 +7,22 @@
     "EntityMixin",
     "FlowableFluidMixin",
     "DisplayAccessor",
-    "BlockDisplayAccessor"
+    "BlockDisplayAccessor",
+    "AtomicMovementMixin"
   ],
   "client": [
     "GameRendererMixin",
     "MinecraftClientMixin",
     "SoundSystemMixin",
-    "PostEffectProcessorAccessor"
+    "PostEffectProcessorAccessor",
+    "AtomicCameraMixin",
+    "AtomicFacingMixin",
+    "AtomicGuiMixin",
+    "AtomicInputMixin",
+    "AtomicKeyboardMixin",
+    "AtomicLocalMovementMixin",
+    "AtomicPoseMixin",
+    "AtomicToastMixin"
   ],
   "injectors": {
     "defaultRequire": 1

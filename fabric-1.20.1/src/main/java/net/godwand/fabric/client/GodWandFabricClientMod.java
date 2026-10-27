@@ -64,10 +64,12 @@ public class GodWandFabricClientMod implements ClientModInitializer {
                     @Override
                     public void onResourceManagerReload(ResourceManager resourceManager) {
                         GodWandPostFxManager.reloadShaders();
+                        net.godwand.client.AtomicPostFx.reload();
                     }
                 });
 
         KeyBindingHelper.registerKeyBinding(SkillWheelScreen.OPEN);
+        KeyBindingHelper.registerKeyBinding(SkillWheelScreen.OPEN_CONFIG);
         GodWandItemRenderer itemRenderer = new GodWandItemRenderer();
         BuiltinItemRendererRegistry.INSTANCE.register(GodWandMod.GOD_WAND_ITEM, itemRenderer::render);
         EntityRendererRegistry.register(GodWandMod.ARCANE_ORB_ENTITY_TYPE, ArcaneOrbEntityRenderer::new);
@@ -119,10 +121,16 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             client.execute(() -> GodWandCinematicEngine.onCinematicEvent(payload));
         });
 
+        ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.AtomicFxPayload.ID, (client, handler, buf, responseSender) -> {
+            var payload = net.godwand.network.AtomicFxPayload.read(buf);
+            client.execute(() -> net.godwand.client.AtomicRenderer.receive(payload));
+        });
+
         WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> {
             PoseStack matrices = context.matrixStack();
             Camera camera = context.camera();
             float tickDelta = context.tickDelta();
+            net.godwand.client.AtomicRenderer.render(matrices,camera,tickDelta);
             CannonPressureRenderer.render(matrices, camera, tickDelta);
             DrillWindRenderer.render(matrices, camera, tickDelta);
             ImpactDebrisRenderer.render(matrices, camera, tickDelta);
@@ -148,13 +156,16 @@ public class GodWandFabricClientMod implements ClientModInitializer {
 
         WorldRenderEvents.LAST.register(context -> {
             float tickDelta = context.tickDelta();
+            net.godwand.client.AtomicPostFx.capture(context.matrixStack().last().pose(), context.projectionMatrix(), tickDelta);
             GodWandPostFxManager.onWorldRender(context.matrixStack().last().pose(), context.projectionMatrix(), tickDelta);
             GodWandPostFxManager.renderAfterWorld();
         });
 
         HudRenderCallback.EVENT.register(CustomImpactFrameOverlay::render);
+        HudRenderCallback.EVENT.register(net.godwand.client.AtomicCinematic::render);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            net.godwand.client.AtomicRenderer.tick(client);
             SkillWheelScreen.handleKeyInput(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
@@ -166,6 +177,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            net.godwand.client.AtomicRenderer.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();
@@ -180,6 +192,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         });
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            net.godwand.client.AtomicRenderer.reset();
             StoneCannonWindSound.reset();
             EarthDrillSoundscape.reset();
             SupernovaAccretionRenderer.reset();

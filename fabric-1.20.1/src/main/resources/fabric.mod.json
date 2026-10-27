@@ -3,7 +3,7 @@
   "id": "godwand",
   "version": "${version}",
   "name": "God Wand",
-  "description": "A divine magic wand with 5 unique skills for exploration, terrain control, and combat.",
+  "description": "A divine magic wand with 6 unique skills for exploration, terrain control, and combat.",
   "authors": ["GodWand Team"],
   "license": "MIT",
   "environment": "*",
@@ -13,6 +13,9 @@
     ],
     "client": [
       "net.godwand.fabric.client.GodWandFabricClientMod"
+    ],
+    "modmenu": [
+      "net.godwand.fabric.client.GodWandModMenuApi"
     ]
   },
   "accessWidener": "godwand.accesswidener",

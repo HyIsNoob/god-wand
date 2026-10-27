@@ -1,9 +1,0 @@
-.gradle/
-build/
-bin/
-out/
-run/
-logs/
-
-.local-backups/
-others/

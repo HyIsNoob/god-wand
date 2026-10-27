@@ -3,7 +3,7 @@
   "id": "godwand",
   "version": "${version}",
   "name": "God Wand",
-  "description": "A magic wand with 5 unique skills for exploration, terrain control, and combat. Supports Fabric and NeoForge 1.21.1.",
+  "description": "Six unique spells, including the I am Atomic cinematic. Supports Fabric and NeoForge 1.21.1.",
   "authors": ["GodWand Team"],
   "license": "MIT",
   "environment": "*",
@@ -13,6 +13,9 @@
     ],
     "client": [
       "net.godwand.fabric.client.GodWandFabricClientMod"
+    ],
+    "modmenu": [
+      "net.godwand.fabric.client.GodWandModMenuApi"
     ]
   },
   "accessWidener": "godwand.accesswidener",

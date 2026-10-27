@@ -35,8 +35,20 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
+tasks.withType(Jar).configureEach {
+    from('../LICENSE')
+    exclude 'com/terraformersmc/**'
+}
+
 java {
     withSourcesJar()
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
 }
+
+ tasks.register('verifyAtomic', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.godwand.AtomicPortCheck'
+ }
+ check.dependsOn verifyAtomic

@@ -133,10 +133,6 @@ public class GodWandPostFxManager {
         pendingFrame = new Frame(new Matrix4f(positionMatrix), new Matrix4f(projectionMatrix), tickDelta);
     }
 
-    public static boolean hasPendingFrame() {
-        return pendingFrame != null;
-    }
-
     public static void renderAfterWorld() {
         Frame frame = pendingFrame;
         pendingFrame = null;
@@ -356,21 +352,16 @@ public class GodWandPostFxManager {
 
         Camera camera = client.gameRenderer.getMainCamera();
         Vec3 camPos = camera != null ? camera.getPosition() : Vec3.ZERO;
-        Matrix4f posMat = new Matrix4f(context.positionMatrix());
-        if (camera != null && Math.abs(posMat.m00() - 1.0f) < 1e-4 && Math.abs(posMat.m11() - 1.0f) < 1e-4
-                && Math.abs(posMat.m22() - 1.0f) < 1e-4 && Math.abs(posMat.m01()) < 1e-4 && Math.abs(posMat.m10()) < 1e-4) {
-            posMat.rotation(camera.rotation());
-        }
         Vector4f clip = new Vector4f((float) (renderCenter.x - camPos.x),
                 (float) (renderCenter.y - camPos.y), (float) (renderCenter.z - camPos.z), 1);
-        clip.mul(posMat).mul(context.projectionMatrix());
+        clip.mul(context.positionMatrix()).mul(context.projectionMatrix());
         float centerX = clip.w > 0.001f ? clip.x / clip.w * 0.5f + 0.5f : 0.5f;
         float centerY = clip.w > 0.001f ? clip.y / clip.w * 0.5f + 0.5f : 0.5f;
 
         float aspect = (float) fbWidth / (float) fbHeight;
 
         Matrix4f invProj = new Matrix4f(context.projectionMatrix()).invert();
-        Matrix4f invView = new Matrix4f(posMat).invert();
+        Matrix4f invView = new Matrix4f(context.positionMatrix()).invert();
 
         int passIndex = 0;
         for (PostPass pass : ((PostEffectProcessorAccessor) processor).getPasses()) {

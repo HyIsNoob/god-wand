@@ -1,7 +1,5 @@
 package net.godwand.spatial;
 
-import net.godwand.GodWandMod;
-
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import com.mojang.math.Transformation;
@@ -197,6 +195,33 @@ public class SpatialDisplacementManager {
                 spawnDisplay, mode, boundPlayerUuid, blastCenter, blastRadius, true, false);
     }
 
+    public static void displaceBlock(ServerLevel world, BlockPos pos, Vector3f targetDisplacement,
+            Quaternionf rotation, Vector3f scale, int lifetime, int glowColor, boolean spawnDisplay,
+            DisplacedBlockRecord.DisplacementMode mode, UUID boundPlayerUuid, Vec3 blastCenter, double blastRadius,
+            boolean permanent) {
+        displaceBlockInternal(world, pos, targetDisplacement, rotation, scale, lifetime, glowColor,
+                spawnDisplay, mode, boundPlayerUuid, blastCenter, blastRadius, true, permanent);
+    }
+
+    public static void restorePositions(ServerLevel world, java.util.Collection<BlockPos> positions) {
+        Set<DisplacedBlockRecord> records=new LinkedHashSet<>();
+        for(BlockPos pos:positions) {
+            var record=getActiveRecord(world.dimension(),pos);
+            if(record==null||record.permanentDestruction)continue;
+            records.add(record);
+            BlockState state=record.originalState;
+            BlockPos other=null;
+            if(state.getBlock() instanceof DoorBlock||state.getBlock() instanceof DoublePlantBlock)
+                other=state.getValue(DoorBlock.HALF)==DoubleBlockHalf.UPPER?pos.below():pos.above();
+            else if(state.getBlock() instanceof BedBlock)
+                other=pos.relative(state.getValue(BedBlock.PART)==BedPart.FOOT?state.getValue(BedBlock.FACING):state.getValue(BedBlock.FACING).getOpposite());
+            var pair=other==null?null:getActiveRecord(world.dimension(),other);
+            if(pair!=null&&!pair.permanentDestruction&&pair.originalState.is(state.getBlock())
+                    &&Objects.equals(pair.boundPlayerUuid,record.boundPlayerUuid))records.add(pair);
+        }
+        if(!records.isEmpty())executeTwoPassRestoration(world,new ArrayList<>(records));
+    }
+
     public static void displaceBlockPermanently(ServerLevel world, BlockPos pos, Vector3f targetDisplacement,
             Quaternionf rotation, Vector3f scale, int lifetime, int glowColor, boolean spawnDisplay,
             DisplacedBlockRecord.DisplacementMode mode, UUID boundPlayerUuid, Vec3 blastCenter, double blastRadius) {
@@ -223,21 +248,8 @@ public class SpatialDisplacementManager {
         BlockEntity be = world.getBlockEntity(immutablePos);
         CompoundTag nbt = null;
         if (be != null) {
-            try {
-                nbt = be.saveWithFullMetadata(world.registryAccess());
-            } catch (Throwable t) {
-                GodWandMod.LOGGER.warn("Failed to serialize NBT of block entity at {}: {}", immutablePos, t.getMessage());
-            }
-            try {
-                Clearable.tryClear(be);
-            } catch (Throwable t) {
-                GodWandMod.LOGGER.warn("Failed to clear content of block entity at {}: {}", immutablePos, t.getMessage());
-            }
-            try {
-                world.removeBlockEntity(immutablePos);
-            } catch (Throwable t) {
-                GodWandMod.LOGGER.warn("Failed to remove block entity at {}: {}", immutablePos, t.getMessage());
-            }
+            nbt = be.saveWithFullMetadata(world.registryAccess());
+            world.removeBlockEntity(immutablePos);
         }
 
         boolean isFull = state.isCollisionShapeFullBlock(world, immutablePos);
@@ -251,22 +263,15 @@ public class SpatialDisplacementManager {
         // Replace with AIR using atomic notification flags
         if (!world.setBlock(immutablePos, Blocks.AIR.defaultBlockState(), Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS)) {
             if (be != null) {
-                try {
-                    be.clearRemoved();
-                    world.setBlockEntity(be);
-                } catch (Throwable ignored) {
-                }
+                be.clearRemoved();
+                world.setBlockEntity(be);
             }
             return;
         }
         if (be != null) {
-            try {
-                for (ServerPlayer player : world.players()) {
-                    if (player.containerMenu != null && !player.containerMenu.stillValid(player)) {
-                        player.closeContainer();
-                    }
-                }
-            } catch (Throwable ignored) {
+            Clearable.tryClear(be);
+            for (ServerPlayer player : world.players()) {
+                if (!player.containerMenu.stillValid(player)) player.closeContainer();
             }
         }
         ACTIVE_RECORDS.put(new DimensionPos(world.dimension(), immutablePos), record);
@@ -606,6 +611,9 @@ public class SpatialDisplacementManager {
     }
 
     private static boolean restoreRecordDirectly(ServerLevel world, DisplacedBlockRecord r, BlockDisplay display) {
+        // Keep the original journal until a newly placed block/container has been moved out of the way.
+        BlockState current=world.getBlockState(r.pos);
+        if(!r.permanentDestruction&&!current.isAir()&&(!current.equals(r.originalState)||r.blockEntityNbt!=null))return false;
         if (r.bridgeDestination != null) {
             // Keep the journal until both ends can be reconciled without loading chunks.
             if (!world.getChunkSource().hasChunk(r.bridgeDestination.getX() >> 4, r.bridgeDestination.getZ() >> 4)
@@ -626,14 +634,10 @@ public class SpatialDisplacementManager {
         if (!world.setBlock(r.pos, r.originalState, Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_CLIENTS)
                 && !world.getBlockState(r.pos).equals(r.originalState)) return false;
         if (r.blockEntityNbt != null) {
-            try {
-                BlockEntity be = world.getBlockEntity(r.pos);
-                if (be != null) {
-                    be.loadWithComponents(r.blockEntityNbt, world.registryAccess());
-                    be.setChanged();
-                }
-            } catch (Throwable t) {
-                GodWandMod.LOGGER.warn("Failed to restore block entity at {}: {}", r.pos, t.getMessage());
+            BlockEntity be = world.getBlockEntity(r.pos);
+            if (be != null) {
+                be.loadWithComponents(r.blockEntityNbt, world.registryAccess());
+                be.setChanged();
             }
         }
         BlockDisplay toDiscard = display;

@@ -24,7 +24,9 @@ import org.lwjgl.glfw.GLFW;
 public final class SkillWheelScreen extends Screen {
     public static final KeyMapping OPEN = new KeyMapping("key.godwand.skill_wheel",
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.godwand");
-    private static final int[] COLORS = {0x80E5FF, 0xC493FF, 0xFFB66E, 0xFF768F, 0xFFE4A3};
+    public static final KeyMapping OPEN_CONFIG = new KeyMapping("key.godwand.config",
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, "key.categories.godwand");
+    private static final int[] COLORS = {0x80E5FF, 0xC493FF, 0xFFB66E, 0xFF768F, 0xFFE4A3, 0xBD67FF};
     private static final double SECTOR = Math.PI * 2 / GodWandItem.TOTAL_MODES;
     private final InteractionHand hand;
     private final int slot;
@@ -39,6 +41,11 @@ public final class SkillWheelScreen extends Screen {
     }
 
     public static void handleKeyInput(Minecraft client) {
+        while (OPEN_CONFIG.consumeClick()) {
+            if (client.player != null && !client.player.isUsingItem() && !AtomicCinematic.movementLocked() && (client.screen == null || !(client.screen instanceof net.godwand.client.gui.GodWandConfigScreen))) {
+                client.setScreen(new net.godwand.client.gui.GodWandConfigScreen(client.screen));
+            }
+        }
         while (OPEN.consumeClick()) {
             if (client.screen != null || client.player == null || client.level == null
                     || !client.isWindowActive() || !client.player.isAlive()
@@ -135,16 +142,7 @@ public final class SkillWheelScreen extends Screen {
         context.flush();
         drawWheel(context.pose().last().pose(), current, hovered, cooldown);
         context.drawCenteredString(font, Component.translatable("skill.godwand." + shown),
-                0, -5, 0xFF000000 | COLORS[shown]);
-        context.pose().pushPose();
-        context.pose().scale(0.75f, 0.75f, 1);
-        context.drawCenteredString(font,
-                hovered < 0 ? Component.translatable("gui.godwand.keep")
-                        : Component.translatable("gui.godwand.release", OPEN.getTranslatedKeyMessage()),
-                0, 16, 0xFFBEC8D9);
-        context.drawCenteredString(font, Component.translatable("gui.godwand.cancel"),
-                0, 170, 0xFF9AA8BD);
-        context.pose().popPose();
+                0, -4, 0xFF000000 | COLORS[shown]);
         context.pose().popPose();
     }
 
@@ -154,24 +152,36 @@ public final class SkillWheelScreen extends Screen {
         RenderSystem.defaultBlendFunc();
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         BufferBuilder mesh = RenderHelper.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-        arc(mesh, matrix, 0, 0, 0, 47, 0, Math.PI * 2, 0xA609101E);
-        arc(mesh, matrix, 0, 0, 46.5, 47.5, 0, Math.PI * 2, 0x70495D7D);
+        arc(mesh, matrix, 0, 0, 0, 47, 0, Math.PI * 2, 0xD00A0F1D);
+        arc(mesh, matrix, 0, 0, 46, 47.5, 0, Math.PI * 2, 0x604A628A);
+        if (hovered >= 0) {
+            double hAngle = -Math.PI / 2 + hovered * SECTOR;
+            arc(mesh, matrix, 0, 0, 43.5, 47.5, hAngle - 0.22, hAngle + 0.22, 0xFF000000 | COLORS[hovered]);
+            arc(mesh, matrix, 0, 0, 39, 43.5, hAngle - 0.12, hAngle + 0.12, 0x88000000 | COLORS[hovered]);
+        }
         for (int mode = 0; mode < GodWandItem.TOTAL_MODES; mode++) {
             double angle = -Math.PI / 2 + mode * SECTOR;
-            double start = angle - SECTOR / 2 + 0.025;
-            double end = angle + SECTOR / 2 - 0.025;
+            double start = angle - SECTOR / 2 + 0.03;
+            double end = angle + SECTOR / 2 - 0.03;
             int tint = COLORS[mode];
             boolean over = mode == hovered;
-            arc(mesh, matrix, 0, 0, 53, 111, start, end, (over ? 0xD0202B40 : 0xAC0A111F));
-            if (over) arc(mesh, matrix, 0, 0, 108, 117, start, end, 0x18000000 | tint);
-            arc(mesh, matrix, 0, 0, 110, over ? 112 : 111, start, end,
-                    (over ? 0xFF000000 : 0x60000000) | tint);
-            if (mode == current) arc(mesh, matrix, 0, 0, 52, 54, angle - 0.21, angle + 0.21, 0xFF000000 | tint);
-            if (mode == current && cooldown > 0) {
-                arc(mesh, matrix, 0, 0, 114, 116, start, start + (end - start) * cooldown, 0xD9FFFFFF);
+            boolean isCurrent = mode == current;
+            arc(mesh, matrix, 0, 0, 52, 111, start, end, over ? 0xD81E2B42 : 0x900B1220);
+            if (over) {
+                arc(mesh, matrix, 0, 0, 52, 111, start, end, 0x22000000 | tint);
+                arc(mesh, matrix, 0, 0, 109, 113, start, end, 0xFF000000 | tint);
+                arc(mesh, matrix, 0, 0, 52, 54.5, start, end, 0xCC000000 | tint);
+            } else {
+                arc(mesh, matrix, 0, 0, 110, 111, start, end, (isCurrent ? 0x80000000 : 0x38000000) | tint);
             }
-            icon(mesh, matrix, mode, (float) Math.cos(angle) * 82, (float) Math.sin(angle) * 82,
-                    (over || mode == current ? 0xFF000000 : 0xBB000000) | tint);
+            if (isCurrent) {
+                arc(mesh, matrix, 0, 0, 52, 55, start + 0.04, end - 0.04, (over ? 0xFF000000 : 0xBB000000) | tint);
+            }
+            if (mode == current && cooldown > 0) {
+                arc(mesh, matrix, 0, 0, 114, 116.5, start, start + (end - start) * cooldown, 0xD9FFFFFF);
+            }
+            int iconColor = over ? (0xFF000000 | tint) : (isCurrent ? (0xDD000000 | tint) : (0x77000000 | tint));
+            icon(mesh, matrix, mode, (float) Math.cos(angle) * 82, (float) Math.sin(angle) * 82, iconColor);
         }
         RenderHelper.draw(mesh);
         RenderSystem.disableBlend();
@@ -205,6 +215,12 @@ public final class SkillWheelScreen extends Screen {
                     line(mesh, matrix, x + (float) Math.cos(a) * 11, y + (float) Math.sin(a) * 11,
                             x + (float) Math.cos(a) * 16, y + (float) Math.sin(a) * 16, color);
                 }
+            }
+            case 5 -> {
+                arc(mesh,matrix,x,y,8,9,0,Math.PI*2,color);
+                line(mesh,matrix,x-14,y,x+14,y,color);
+                line(mesh,matrix,x,y-16,x,y+16,color);
+                arc(mesh,matrix,x,y,0,3,0,Math.PI*2,color);
             }
             case 4 -> {
                 line(mesh, matrix, x - 5, y - 8, x + 14, y, color);

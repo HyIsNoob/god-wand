@@ -6,6 +6,10 @@ import net.godwand.client.ArcaneOrbChargeRenderer;
 import net.godwand.client.ArcaneOrbEntityRenderer;
 import net.godwand.client.CannonPressureRenderer;
 import net.godwand.client.CustomImpactFrameOverlay;
+import net.godwand.client.AtomicRenderer;
+import net.godwand.client.AtomicCinematic;
+import net.godwand.client.AtomicPostFx;
+import net.godwand.network.AtomicFxPayload;
 import net.godwand.client.DrillWindRenderer;
 import net.godwand.client.EarthDrillSoundscape;
 import net.godwand.client.GodWandCinematicEngine;
@@ -56,9 +60,15 @@ public class GodWandNeoForgeClientMod {
 
     static {
         GodWandConfig.loadClient(FMLPaths.CONFIGDIR.get());
+        net.neoforged.fml.ModLoadingContext.get().registerExtensionPoint(
+                net.neoforged.neoforge.client.gui.IConfigScreenFactory.class,
+                () -> (container, parent) -> new net.godwand.client.gui.GodWandConfigScreen(parent)
+        );
     }
 
     public static void registerClientPayloads(PayloadRegistrar registrar) {
+        registrar.playToClient(AtomicFxPayload.ID, AtomicFxPayload.CODEC,
+                (payload, context) -> context.enqueueWork(() -> AtomicRenderer.receive(payload)));
         registrar.playToClient(
                 DrillWindPayload.ID,
                 DrillWindPayload.CODEC,
@@ -112,6 +122,7 @@ public class GodWandNeoForgeClientMod {
         @SubscribeEvent
         public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
             event.register(SkillWheelScreen.OPEN);
+            event.register(SkillWheelScreen.OPEN_CONFIG);
         }
 
         @SubscribeEvent
@@ -122,7 +133,9 @@ public class GodWandNeoForgeClientMod {
 
         @SubscribeEvent
         public static void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
-            event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> GodWandPostFxManager.reloadShaders());
+            event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> {
+                GodWandPostFxManager.reloadShaders(); AtomicPostFx.reload();
+            });
         }
 
         @SubscribeEvent
@@ -167,9 +180,11 @@ public class GodWandNeoForgeClientMod {
                 StoneCannonChargeRenderer.render(matrices, camera, tickDelta);
                 ArcaneOrbChargeRenderer.render(matrices, camera, tickDelta);
                 SupernovaAccretionRenderer.render(matrices, camera, tickDelta);
+                AtomicRenderer.render(matrices, camera, tickDelta);
             } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
                 float tickDelta = event.getPartialTick().getGameTimeDeltaPartialTick(false);
                 GodWandPostFxManager.onWorldRender(event.getModelViewMatrix(), event.getProjectionMatrix(), tickDelta);
+                AtomicPostFx.capture(event.getModelViewMatrix(), event.getProjectionMatrix(), tickDelta);
             }
         }
 
@@ -177,6 +192,7 @@ public class GodWandNeoForgeClientMod {
         public static void onRenderGuiLayer(RenderGuiLayerEvent.Post event) {
             if (VanillaGuiLayers.CAMERA_OVERLAYS.equals(event.getName())) {
                 CustomImpactFrameOverlay.render(event.getGuiGraphics(), event.getPartialTick());
+                AtomicCinematic.render(event.getGuiGraphics(), event.getPartialTick());
             }
         }
 
@@ -184,6 +200,7 @@ public class GodWandNeoForgeClientMod {
         public static void onClientTick(ClientTickEvent.Post event) {
             Minecraft client = Minecraft.getInstance();
             SkillWheelScreen.handleKeyInput(client);
+            AtomicRenderer.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
             EarthDrillSoundscape.tick(client);
@@ -195,6 +212,7 @@ public class GodWandNeoForgeClientMod {
 
         @SubscribeEvent
         public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+            AtomicRenderer.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();

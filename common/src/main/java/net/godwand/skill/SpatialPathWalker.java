@@ -256,7 +256,7 @@ public class SpatialPathWalker {
     public static void tickPlayer(ServerPlayer player) {
         if (!isActive(player)) return;
 
-        if (!player.isAlive() || player.isSpectator() || !hasGodWand(player)) {
+        if (!player.isAlive() || player.isSpectator() || !net.godwand.config.GodWandConfig.SERVER.isDimensionAllowed(player.serverLevel().dimension().location().toString()) || !hasGodWand(player)) {
             deactivate(player);
             return;
         }

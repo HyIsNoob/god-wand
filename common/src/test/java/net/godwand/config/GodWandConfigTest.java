@@ -9,6 +9,16 @@ import static org.junit.jupiter.api.Assertions.*;
 class GodWandConfigTest {
     @TempDir Path directory;
 
+    @Test void atomicDamageDefaultsMigrateFromPartialConfigsAndRejectInvalidValues() throws Exception {
+        Path file=directory.resolve("server.json"); Files.writeString(file,"{\"atomicTerrainRadius\":32}");
+        var server=GodWandConfig.read(file,GodWandConfig.Server.class,new GodWandConfig.Server());
+        assertEquals(9999,server.atomicDamage); assertEquals(15,server.atomicShockwaveDamage);
+        server.atomicDamage=Float.NaN; server.atomicShockwaveDamage=Float.POSITIVE_INFINITY; server.validate();
+        assertEquals(9999,server.atomicDamage); assertEquals(15,server.atomicShockwaveDamage);
+        server.atomicDamage=-1; server.atomicShockwaveDamage=2_000_000; server.validate();
+        assertEquals(0,server.atomicDamage); assertEquals(1_000_000,server.atomicShockwaveDamage);
+    }
+
     @Test
     void partialFilesKeepDefaultsAndInvalidNumbersAreBounded() throws Exception {
         Path file = directory.resolve("client.json");
@@ -30,6 +40,14 @@ class GodWandConfigTest {
         assertEquals(180, server.supernovaTerrainRadius);
         assertEquals(0, server.supernovaMaxDisplays);
         assertEquals(1, server.cooldownMultiplier);
+    }
+
+    @Test
+    void brokenServerConfigMustNotEnableDefaultTerrainDestruction() throws Exception {
+        Path file=directory.resolve("server.json");
+        Files.writeString(file,"{\"atomicTerrainDamage\":false,broken}");
+        assertThrows(IllegalStateException.class,() -> GodWandConfig.read(file,GodWandConfig.Server.class,new GodWandConfig.Server()));
+        assertTrue(Files.readString(file).contains("false"));
     }
 
     @Test
@@ -61,5 +79,33 @@ class GodWandConfigTest {
         } finally {
             GodWandConfig.SERVER = previous;
         }
+    }
+
+    @Test
+    void wandSkinAutoSelectsThematicModelOrRespectsManualOverride() {
+        var client = new GodWandConfig.Client();
+        client.wandSkin = WandSkin.AUTO;
+        assertEquals(WandSkin.DEFAULT, client.getActiveSkin(0));
+        assertEquals(WandSkin.DEFAULT, client.getActiveSkin(1));
+        assertEquals(WandSkin.AQUA_HEARTIA, client.getActiveSkin(2));
+        assertEquals(WandSkin.DEFAULT, client.getActiveSkin(3));
+        assertEquals(WandSkin.AQUA_HEARTIA, client.getActiveSkin(4));
+        assertEquals(WandSkin.SHADOW_BLADE, client.getActiveSkin(5));
+
+        client.wandSkin = WandSkin.AQUA_HEARTIA;
+        assertEquals(WandSkin.AQUA_HEARTIA, client.getActiveSkin(0));
+        assertEquals(WandSkin.AQUA_HEARTIA, client.getActiveSkin(3));
+
+        client.wandSkin = WandSkin.SHADOW_BLADE;
+        assertEquals(WandSkin.SHADOW_BLADE, client.getActiveSkin(1));
+    }
+
+    @Test
+    void dimensionBlacklistChecksCorrectly() {
+        var server = new GodWandConfig.Server();
+        assertTrue(server.isDimensionAllowed("minecraft:overworld"));
+        server.dimensionBlacklist.add("minecraft:the_end");
+        assertTrue(server.isDimensionAllowed("minecraft:overworld"));
+        assertFalse(server.isDimensionAllowed("minecraft:the_end"));
     }
 }

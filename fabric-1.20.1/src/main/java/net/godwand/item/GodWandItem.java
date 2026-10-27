@@ -8,6 +8,8 @@ import net.godwand.skill.SpatialBridge;
 import net.godwand.skill.SpatialPathWalker;
 import net.godwand.skill.StoneCannonManager;
 import net.godwand.skill.SupernovaManager;
+import net.godwand.skill.AtomicManager;
+import net.godwand.skill.AtomicSequence;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -38,7 +40,8 @@ public class GodWandItem extends Item {
     public static final int MODE_RATIO_COLLAPSE = 2;
     public static final int MODE_SUPERNOVA = 3;
     public static final int MODE_STONE_CANNON = 4;
-    public static final int TOTAL_MODES = 5;
+    public static final int MODE_ATOMIC = 5;
+    public static final int TOTAL_MODES = 6;
 
     public static String chargeMeter(int level, int maximum) {
         int filled = Mth.clamp(level, 0, maximum);
@@ -65,7 +68,7 @@ public class GodWandItem extends Item {
         ItemStack stack = user.getItemInHand(hand);
         if (!(stack.getItem() instanceof GodWandItem)) return;
         if (user.isUsingItem() && user.getUseItem() == stack) {
-            if (user instanceof ServerPlayer player) SupernovaManager.cancelCharge(player);
+            if (user instanceof ServerPlayer player) { SupernovaManager.cancelCharge(player); AtomicManager.cancelCharge(player); }
             user.stopUsingItem();
         }
         setSkillMode(stack, mode);
@@ -84,6 +87,7 @@ public class GodWandItem extends Item {
                 case MODE_SUPERNOVA -> {
                     user.displayClientMessage(Component.literal("§cSupernova"), true);
                 }
+                case MODE_ATOMIC -> user.displayClientMessage(Component.literal("§dI am Atomic"), true);
                 case MODE_STONE_CANNON -> {
                     user.displayClientMessage(Component.literal("§6Stone Cannon"), true);
                 }
@@ -97,6 +101,14 @@ public class GodWandItem extends Item {
         int currentMode = getSkillMode(stack);
 
         if (user.getCooldowns().isOnCooldown(this)) return InteractionResultHolder.fail(stack);
+
+        String dimId = world.dimension().location().toString();
+        if (net.godwand.config.GodWandConfig.SERVER.isDimensionBlacklisted(dimId)) {
+            if (!world.isClientSide()) {
+                user.displayClientMessage(Component.translatable("message.godwand.dimension_blocked"), true);
+            }
+            return InteractionResultHolder.fail(stack);
+        }
 
         // NORMAL RIGHT CLICK: Execute Current Selected Skill
         if (!world.isClientSide() && user instanceof ServerPlayer serverPlayer) {
@@ -122,6 +134,11 @@ public class GodWandItem extends Item {
                 }
                 return InteractionResultHolder.success(stack);
             }
+            case MODE_ATOMIC -> {
+                if (user instanceof ServerPlayer player && !AtomicManager.beginCharge(player,hand)) return InteractionResultHolder.fail(stack);
+                user.startUsingItem(hand);
+                return InteractionResultHolder.consume(stack);
+            }
             case MODE_ARCANE_ORB, MODE_RATIO_COLLAPSE, MODE_SUPERNOVA, MODE_STONE_CANNON -> {
                 if (currentMode == MODE_SUPERNOVA && user instanceof ServerPlayer player) SupernovaManager.beginCharge(player);
                 user.startUsingItem(hand);
@@ -136,7 +153,7 @@ public class GodWandItem extends Item {
     @Override
     public int getUseDuration(ItemStack stack) {
         int mode = getSkillMode(stack);
-        if (mode == MODE_ARCANE_ORB || mode == MODE_SUPERNOVA || mode == MODE_RATIO_COLLAPSE || mode == MODE_STONE_CANNON) {
+        if (mode == MODE_ARCANE_ORB || mode == MODE_SUPERNOVA || mode == MODE_RATIO_COLLAPSE || mode == MODE_STONE_CANNON || mode == MODE_ATOMIC) {
             return 72000;
         }
         return 0;
@@ -154,6 +171,10 @@ public class GodWandItem extends Item {
     @Override
     public void onUseTick(Level world, LivingEntity user, ItemStack stack, int remainingUseTicks) {
         int currentMode = getSkillMode(stack);
+        if (currentMode == MODE_ATOMIC) {
+            if (user instanceof ServerPlayer player && getUseDuration(stack)-remainingUseTicks >= AtomicSequence.CHARGE_TICKS) AtomicManager.arm(player);
+            return;
+        }
 
         // SKILL: ARCANE SINGULARITY
         if (currentMode == MODE_ARCANE_ORB) {
@@ -321,6 +342,13 @@ public class GodWandItem extends Item {
 
     @Override
     public void releaseUsing(ItemStack stack, Level world, LivingEntity user, int remainingUseTicks) {
+        if (getSkillMode(stack) == MODE_ATOMIC) {
+            if (user instanceof ServerPlayer player) {
+                AtomicManager.releaseCharge(player);
+                if(getUseDuration(stack)-remainingUseTicks >= AtomicSequence.CHARGE_TICKS) player.getCooldowns().addCooldown(this,net.godwand.config.GodWandConfig.cooldownTicks(600));
+            }
+            return;
+        }
         if (getSkillMode(stack) == MODE_SUPERNOVA) {
             if (user instanceof ServerPlayer player) SupernovaManager.cancelCharge(player);
             int chargeTicks = this.getUseDuration(stack) - remainingUseTicks;
@@ -423,6 +451,7 @@ public class GodWandItem extends Item {
             case MODE_ARCANE_ORB -> tooltip.add(Component.literal("§a§dSingularity §7(Hold to charge)"));
             case MODE_RATIO_COLLAPSE -> tooltip.add(Component.literal("§a§6Earth Drill §7(Hold to charge)"));
             case MODE_SUPERNOVA -> tooltip.add(Component.literal("§a§cSupernova §7(Hold to charge)"));
+            case MODE_ATOMIC -> tooltip.add(Component.literal("§dI am Atomic §7(Hold through ATOMIC - Release to detonate)"));
             case MODE_STONE_CANNON -> tooltip.add(Component.literal("§a§6Stone Cannon §7(Hold to charge)"));
         }
         super.appendHoverText(stack, world, tooltip, type);

@@ -38,6 +38,8 @@ public class RatioCollapseManager {
 
     public static class RatioCollapseTask {
         public final ServerLevel world;
+        public final boolean terrainDamage=net.godwand.config.GodWandConfig.SERVER.earthDrillTerrainDamage;
+        public final boolean blockLift=net.godwand.config.GodWandConfig.SERVER.earthDrillBlockLift;
         public final ServerPlayer caster;
         public final BlockPos center;
         public final Vec3 meteorCore;
@@ -140,12 +142,12 @@ public class RatioCollapseManager {
             default -> 19;
         };
 
-        float damageMult = switch (chargeLevel) {
+        float damageMult = (switch (chargeLevel) {
             case 4 -> 3.8f;
             case 3 -> 2.8f;
             case 2 -> 1.8f;
             default -> 1.2f;
-        };
+        }) * (float) net.godwand.config.GodWandConfig.SERVER.damageMultiplier;
 
         launch(world, player, targetPos, radius, boulderRadius, maxBlocks, craterRadius, craterDepth, damageMult);
     }
@@ -195,7 +197,7 @@ public class RatioCollapseManager {
                 }
 
                 BlockState state = world.getBlockState(mutable);
-                if (!SpatialDisplacementManager.canDisplace(world, mutable, state)) continue;
+                if (!task.blockLift || !SpatialDisplacementManager.canDisplace(world, mutable, state)) continue;
                 validPositions.add(mutable.immutable());
             }
         }
@@ -211,7 +213,7 @@ public class RatioCollapseManager {
                     .rotateX((float) Math.toRadians(25.0 * Math.sin(hash * 6.28)))
                     .rotateY((float) Math.toRadians(45.0 * Math.cos(hash * 6.28)));
 
-            SpatialDisplacementManager.displaceBlockPermanently(
+            SpatialDisplacementManager.displaceBlock(
                     world,
                     pos,
                     new Vector3f(0, 0, 0),
@@ -223,7 +225,7 @@ public class RatioCollapseManager {
                     DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED,
                     player.getUUID(),
                     null,
-                    0.0
+                    0.0, task.terrainDamage
             );
 
             double dx = (pos.getX() + 0.5) - task.meteorCore.x;
@@ -641,11 +643,14 @@ public class RatioCollapseManager {
                     Services.NETWORK.sendToNearby(world, task.center.getCenter(), 96.0, slamCinematic);
 
                     // TẠO HỐ KHOAN HÌNH NÓN XOẮN SÂU (SPIRAL DRILL BOREHOLE CRATER)
-                    task.craterCursor = new SupernovaCraterCursor(task.craterRadius);
+                    task.craterCursor = task.terrainDamage ? new SupernovaCraterCursor(task.craterRadius) : null;
                 }
 
                 // Tại Tick 172: Xóa các BlockDisplay của mũi khoan (đã chui sâu vào lòng đất) và bắn đá nóng chảy văng lên miệng hố
-                if (task.ageTicks == 172) {
+                if (task.ageTicks == 172 && !task.terrainDamage) {
+                    SpatialDisplacementManager.restorePositions(world,task.displacedPositions);
+                }
+                if (task.ageTicks == 172 && task.terrainDamage) {
                     Random rng = new Random(task.center.asLong());
                     int flingCount = 0;
                     int maxFling = Math.min(65, task.maxBlocks / 3);
@@ -684,6 +689,7 @@ public class RatioCollapseManager {
     }
 
     private static void carveCrater(RatioCollapseTask task) {
+        if (!task.terrainDamage) return;
         ServerLevel world = task.world;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         boolean changedRecords = false;

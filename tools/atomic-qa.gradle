@@ -1,0 +1,21 @@
+allprojects {
+    plugins.withId('java') {
+    tasks.register('writeAtomicQaClasspath') {
+        doLast {
+            def output = rootProject.file('build/atomic-qa-classpath.txt')
+            output.parentFile.mkdirs()
+            output.text = sourceSets.main.runtimeClasspath.asPath
+        }
+    }
+    }
+}
+gradle.projectsEvaluated {
+    gradle.rootProject.project(':fabric').tasks.named('runClient') {
+        def qaWorld = rootProject.findProperty('atomicQaWorld') ?: 'Atomic QA'
+        jvmArgs '-Dgodwand.qa.world=' + qaWorld
+        jvmArgs '-Dgodwand.qa.integration=' + rootProject.hasProperty('atomicQaIntegration')
+        jvmArgs '-Dgodwand.qa.singleCast=' + rootProject.hasProperty('atomicQaSingleCast')
+        jvmArgs '-Dfabric.addMods=' + rootProject.file('build/atomic-gameplay-probe.jar').absolutePath
+        args '--quickPlaySingleplayer', qaWorld, '--width', '1280', '--height', '720'
+    }
+}

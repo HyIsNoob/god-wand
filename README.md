@@ -1,91 +1,58 @@
-# God Wand (Fabric & NeoForge 1.21.1)
+# God Wand 1.3.0
 
-A magic wand mod for Minecraft 1.21.1 supporting both Fabric and NeoForge. Features 5 distinct skills for exploration, terrain control, and combat, with survival crafting, custom visual effects, and a dedicated creative tab.
+Six magic skills for exploration, terrain control and combat, including the interactive **I am Atomic** cutscene.
 
----
+| Minecraft | Loader | Java | Installable file |
+| --- | --- | --- | --- |
+| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.0.jar` |
+| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.0.jar` |
+| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.0.jar` |
+| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.0.jar` |
 
-## Skills
+Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server.
 
-To switch skills: hold **V** while holding the wand to open the skill wheel, move your mouse, and release.
+## Skills and controls
 
-1. **Skill 1 - Spatial Path:**
-   - Walk through mountains: opens a 3x4 tunnel ahead of you and seals itself behind you without damaging the terrain.
-   - Tap **Shift** while active to turn on Bridge mode, creating temporary solid blocks under your feet over gaps.
-   - Creates a protective shield around you that deflects incoming arrows, tridents, and fireballs.
+Hold **V** with the wand to select a skill. Press **K** for client graphics and model settings.
 
-2. **Skill 2 - Singularity:**
-   - Hold and release Right-Click to launch a gravity orb that pulls nearby ground blocks and mobs into the air.
-   - Left-Click (punch) or Right-Click while active to collapse the orb early, crushing trapped mobs.
-   - Terrain is 100% restored after the spell ends.
+1. **Spatial Path:** toggle a temporary tunnel and shield. Tap Shift while active for a bridge made from nearby blocks.
+2. **Singularity:** hold and release right-click to launch a gravity orb. Right-click again to collapse it early. Displaced terrain returns afterward.
+3. **Earth Drill:** charge a drill of floating blocks and slam it into the ground.
+4. **Supernova:** hold right-click for seven seconds to release a black hole and explosion.
+5. **Stone Cannon:** charge and release a piercing stone projectile.
+6. **I am Atomic:** hold through the buildup, ATOMIC pose and compression. The dark pause waits for you to release right-click, triggering the blast. Movement is locked and incoming damage is blocked during the cast. Esc/F5 skips its camera.
 
-3. **Skill 3 - Earth Drill:**
-   - Hold and release Right-Click to pull boulders into a spinning drill and slam the ground.
-   - Deals heavy area damage and leaves a permanent crater.
+AUTO selects Aqua Heartia for skills 3/5, Shadow Blade for skill 6, and Eclipse for the others. K also supports a manual model choice.
 
-4. **Skill 4 - Supernova:**
-   - Hold Right-Click for 7 seconds to lock onto a target up to 180 blocks away.
-   - Summons a black hole that pulls in surrounding blocks, then detonates in a massive explosion.
-   - Regular mobs are eliminated, while bosses (like the Ender Dragon and Wither) take massive burst damage.
+## Terrain and modpacks
 
-5. **Skill 5 - Stone Cannon:**
-   - Charge up to 4 levels to form a spinning stone drill in front of you.
-   - Release to fire a high-speed piercing projectile that damages enemies and drills a hole into walls.
+Permanent terrain changes are configurable in `config/godwand-server.json`; defaults retain destructive spell behavior. Use the [terrain guide and presets](docs/TERRAIN_CONFIG.md) for damage-only spells or reversible block movement. An unreadable or malformed server config stops startup instead of enabling destructive defaults.
 
----
+Client graphics settings are in `config/godwand-client.json`. [Dedicated-server verification and limits](docs/DEDICATED_SERVER.md) describes what has actually been tested.
 
-## Controls
+## Build
 
-| Action | Skill Mode | Description |
-| :--- | :--- | :--- |
-| Hold V | Any | Open skill wheel to pick a skill |
-| Right-Click | Skill 1 | Turn tunnel and shield on / off |
-| Shift (Tap) | Skill 1 (Active) | Turn temporary bridge on / off |
-| Hold & Release Right-Click | Skill 2 | Charge and shoot gravity orb |
-| Left-Click / Right-Click | Skill 2 (Active) | Collapse gravity orb early |
-| Hold & Release Right-Click | Skill 3 | Charge and launch earth drill |
-| Hold Right-Click (7s) | Skill 4 | Cast black hole supernova |
-| Hold & Release Right-Click | Skill 5 | Charge and fire stone cannon |
+Run from this repository root:
 
----
+```powershell
+# Build and check all four variants, then collect their installable jars
+.\gradlew.bat releaseJars
 
-## Crafting & Creative Tab
+# Build only Fabric/NeoForge 1.21.1
+.\gradlew.bat build
 
-- **Creative Tab:** Found under its own tab named **God Wand**, and also in the **Combat** tab.
-- **Crafting Recipe (Crafting Table):**
-  - Row 1: Echo Shard | Nether Star | Echo Shard
-  - Row 2: Amethyst Shard | Netherite Ingot | Amethyst Shard
-  - Row 3: [Empty] | Blaze Rod | [Empty]
-
----
-
-## Installation
-
-### Fabric 1.21.1
-1. Install Fabric Loader (0.16.0 or newer).
-2. Install Fabric API into your `.minecraft/mods` folder.
-3. Put `godwand-fabric-1.1.0.jar` into your `.minecraft/mods` folder.
-
-### NeoForge 1.21.1
-1. Install NeoForge (21.1.72 or newer).
-2. Put `godwand-neoforge-1.1.0.jar` into your `.minecraft/mods` folder.
-
----
-
-## Building from Source
-
-```bash
-# Build both Fabric and NeoForge jars
-./gradlew build
-
-# Or build individually
-./gradlew :fabric:build
-./gradlew :neoforge:build
+# Start Fabric 1.21.1 for manual testing
+.\gradlew.bat :fabric:runClient
 ```
 
-Compiled jars are placed in `build/libs/`.
+On Linux/macOS use `./gradlew`. Outputs from `releaseJars` are in `build/release/`. Java 21 is needed for 1.21.1; the 1.20.1 ports need a Java 17 toolchain.
 
----
+See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [source of truth](docs/SOURCE_OF_TRUTH.md) for the consolidation history. This root is an aggregator; it has no separate legacy implementation or fifth release jar.
+
+## Release status
+
+1.3.0 is a release candidate. Recent sword/aura visuals still need in-game approval; custom Atomic SFX is pending. Remaining audit findings are tracked in [the audit report](docs/AUDIT_2026-10-27.md).
 
 ## License
 
-MIT License. You are free to include this mod in any modpack.
+Source code: [MIT](LICENSE). Modpack use is allowed. The bundled Bebas Neue font retains its included SIL Open Font License.

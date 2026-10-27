@@ -1,0 +1,6 @@
+allprojects {
+    tasks.register('writeAtomicQaClasspath') {
+        dependsOn testClasses
+        doLast { def output = rootProject.file('build/atomic-qa-classpath.txt'); output.parentFile.mkdirs(); output.text = sourceSets.test.runtimeClasspath.asPath }
+    }
+}

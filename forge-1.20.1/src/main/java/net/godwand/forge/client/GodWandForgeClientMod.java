@@ -39,6 +39,12 @@ import net.minecraftforge.fml.loading.FMLPaths;
 public class GodWandForgeClientMod {
     public static void init(IEventBus modBus) {
         GodWandConfig.loadClient(FMLPaths.CONFIGDIR.get());
+        net.minecraftforge.fml.ModLoadingContext.get().registerExtensionPoint(
+                net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
+                () -> new net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory(
+                        (mc, parent) -> new net.godwand.client.gui.GodWandConfigScreen(parent)
+                )
+        );
         modBus.register(ModBusEvents.class);
         MinecraftForge.EVENT_BUS.register(GameBusEvents.class);
     }
@@ -47,6 +53,7 @@ public class GodWandForgeClientMod {
         @SubscribeEvent
         public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
             event.register(SkillWheelScreen.OPEN);
+            event.register(SkillWheelScreen.OPEN_CONFIG);
         }
 
         @SubscribeEvent
@@ -59,11 +66,12 @@ public class GodWandForgeClientMod {
 
         @SubscribeEvent
         public static void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
-            event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> GodWandPostFxManager.reloadShaders());
+            event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> { GodWandPostFxManager.reloadShaders(); net.godwand.client.AtomicPostFx.reload(); });
         }
 
         @SubscribeEvent
         public static void onRegisterGuiOverlays(RegisterGuiOverlaysEvent event) {
+            event.registerAboveAll("atomic_cinematic", (gui, graphics, partialTick, width, height) -> net.godwand.client.AtomicCinematic.render(graphics, partialTick));
             event.registerAbove(VanillaGuiOverlay.VIGNETTE.id(), "impact_frame",
                     (gui, guiGraphics, partialTick, screenWidth, screenHeight) ->
                             CustomImpactFrameOverlay.render(guiGraphics, partialTick));
@@ -72,11 +80,18 @@ public class GodWandForgeClientMod {
 
     public static class GameBusEvents {
         @SubscribeEvent
+        public static void onGuiOverlay(net.minecraftforge.client.event.RenderGuiOverlayEvent.Pre event) {
+            if(net.godwand.client.AtomicCinematic.active() && event.getOverlay().id().getNamespace().equals("minecraft"))event.setCanceled(true);
+        }
+
+        @SubscribeEvent
         public static void onRenderLevelStage(RenderLevelStageEvent event) {
             if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
                 PoseStack matrices = event.getPoseStack();
                 Camera camera = event.getCamera();
                 float tickDelta = event.getPartialTick();
+                net.godwand.client.AtomicRenderer.render(matrices, camera, tickDelta);
+                net.godwand.client.AtomicPostFx.capture(matrices.last().pose(), event.getProjectionMatrix(), tickDelta);
                 CannonPressureRenderer.render(matrices, camera, tickDelta);
                 DrillWindRenderer.render(matrices, camera, tickDelta);
                 ImpactDebrisRenderer.render(matrices, camera, tickDelta);
@@ -88,6 +103,7 @@ public class GodWandForgeClientMod {
                 GodWandPostFxManager.onWorldRender(matrices.last().pose(), event.getProjectionMatrix(), tickDelta);
             } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
                 GodWandPostFxManager.renderAfterWorld();
+                net.godwand.client.AtomicPostFx.renderAfterWorld();
             }
         }
 
@@ -95,6 +111,7 @@ public class GodWandForgeClientMod {
         public static void onClientTick(TickEvent.ClientTickEvent event) {
             if (event.phase != TickEvent.Phase.END) return;
             Minecraft client = Minecraft.getInstance();
+            net.godwand.client.AtomicRenderer.tick(client);
             SkillWheelScreen.handleKeyInput(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
@@ -107,6 +124,7 @@ public class GodWandForgeClientMod {
 
         @SubscribeEvent
         public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+            net.godwand.client.AtomicRenderer.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();

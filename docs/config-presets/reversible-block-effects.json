@@ -1,0 +1,8 @@
+{
+  "earthDrillTerrainDamage": false,
+  "earthDrillBlockLift": true,
+  "supernovaTerrainDamage": false,
+  "supernovaBlockLift": true,
+  "stoneCannonTerrainDamage": false,
+  "atomicTerrainDamage": false
+}

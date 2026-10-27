@@ -135,6 +135,7 @@ public class GodWandForgeMod {
             ShockwaveSlicer.tick(level);
             RatioCollapseManager.tick(level);
             SupernovaManager.tick(level);
+            net.godwand.skill.AtomicManager.tick(level);
             SpatialBridge.tickWorld(level);
             SpatialDisplacementManager.tick(level);
         }
@@ -213,6 +214,7 @@ public class GodWandForgeMod {
         ShockwaveSlicer.clearAllTasks();
         RatioCollapseManager.clearAllTasks();
         SupernovaManager.clearAllTasks();
+        net.godwand.skill.AtomicManager.clearAllTasks();
         for (ServerLevel level : event.getServer().getAllLevels()) {
             SpatialBridge.clearVisuals(level);
             SpatialDisplacementManager.emergencyRestoreAll(level);

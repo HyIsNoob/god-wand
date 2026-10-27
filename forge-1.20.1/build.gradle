@@ -63,6 +63,7 @@ tasks.named('processResources', ProcessResources).configure {
 }
 
 tasks.named('jar', Jar).configure {
+    from('../LICENSE')
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from(layout.buildDirectory.file('tmp/compileJava/godwand.refmap.json'))
     manifest {
@@ -87,3 +88,12 @@ sourceSets.each {
     it.output.resourcesDir = dir
     it.java.destinationDirectory = dir
 }
+
+// Dependency-free regression checks run on the same mapped Minecraft classes as this port.
+tasks.register('atomicSelfCheck', JavaExec) {
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'net.godwand.skill.AtomicPortSelfCheck'
+}
+tasks.named('check') { dependsOn tasks.named('atomicSelfCheck') }

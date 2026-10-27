@@ -62,6 +62,8 @@ public class SupernovaManager {
 
     public static class SupernovaTask {
         public final ServerLevel world;
+        public final boolean terrainDamage=net.godwand.config.GodWandConfig.SERVER.supernovaTerrainDamage;
+        public final boolean blockLift=net.godwand.config.GodWandConfig.SERVER.supernovaBlockLift;
         public final ServerPlayer caster;
         public final BlockPos groundCenter;
         public final Vec3 corePos;
@@ -149,6 +151,7 @@ public class SupernovaManager {
     }
 
     private static void prepareTerrain(SupernovaTask task) {
+        if (!task.blockLift) return;
         ServerLevel world = task.world;
         int groundY = task.groundCenter.getY();
         int maxY = Math.min(world.getMaxBuildHeight() - 1, groundY + 54);
@@ -253,7 +256,7 @@ public class SupernovaManager {
                                         .rotateX((float) Math.toRadians(20.0 + hash * 25.0));
                                 float scale = 0.85f + hash * 0.55f;
 
-                                SpatialDisplacementManager.displaceBlockPermanently(
+                                SpatialDisplacementManager.displaceBlock(
                                         world,
                                         pos,
                                         new Vector3f(0, 0, 0),
@@ -265,8 +268,8 @@ public class SupernovaManager {
                                         DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED,
                                         task.caster.getUUID(),
                                         null,
-                                        0.0
-                                );
+                                        0.0, task.terrainDamage
+            );
 
                                 task.displayedPositions.add(pos);
                                 var lifted = SpatialDisplacementManager.getActiveRecord(world.dimension(), pos);
@@ -286,7 +289,7 @@ public class SupernovaManager {
                                 }
                             } else {
                                 // Các khối lòng đất sâu/phần dư: Bóc thành AIR không tốn Entity
-                                SpatialDisplacementManager.displaceBlockPermanently(
+                                SpatialDisplacementManager.displaceBlock(
                                         world,
                                         pos,
                                         new Vector3f(0, 0, 0),
@@ -298,8 +301,8 @@ public class SupernovaManager {
                                         DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED,
                                         null,
                                         null,
-                                        0.0
-                                );
+                                        0.0, task.terrainDamage
+            );
 
                                 task.interiorPositions.add(pos);
                             }
@@ -373,9 +376,9 @@ public class SupernovaManager {
                 AABB suctionBox = new AABB(task.groundCenter).inflate(currentPeelRadius * 1.4);
                 for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, suctionBox, ent -> ent != task.caster)) {
                     double distToCoreSq = e.distanceToSqr(task.corePos);
-                    if (distToCoreSq <= 12.25) { // Bán kính 3.5m quanh tâm hố đen
+                    if (distToCoreSq <= 12.25 && net.godwand.config.GodWandConfig.SERVER.damageMultiplier > 0) { // Bán kính 3.5m quanh tâm hố đen
                         var source = world.damageSources().fellOutOfWorld();
-                        if (e.getMaxHealth() <= 50.0f) {
+                        if (e.getMaxHealth() <= 50.0f && net.godwand.config.GodWandConfig.SERVER.damageMultiplier > 0) {
                             // Tiêu diệt ngay quái thường và động vật dưới 50 máu
                             e.hurt(source, Float.MAX_VALUE);
                             if (e.isAlive()) {
@@ -388,7 +391,7 @@ public class SupernovaManager {
                         } else {
                             // Quái máu trâu / Boss (> 50 máu như Rồng Ender, Wither): Sát thương nghiền nát liên tục, không one-shot
                             if (task.ageTicks % 4 == 0) {
-                                e.hurt(source, 15.0f);
+                                e.hurt(source, 15.0f * net.godwand.config.GodWandConfig.SERVER.damageMultiplier);
                             }
                             world.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, e.getX(), e.getY() + 0.5, e.getZ(), 2, 0.2, 0.2, 0.2, 0.05);
                             world.sendParticles(ParticleTypes.ELECTRIC_SPARK, e.getX(), e.getY() + 0.5, e.getZ(), 3, 0.2, 0.2, 0.2, 0.1);
@@ -436,9 +439,9 @@ public class SupernovaManager {
                 for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, blastBox, ent -> ent != task.caster)) {
                     double dist = e.position().distanceTo(task.corePos);
                     if (dist <= task.blastRadius + 8.0) {
-                        float dmg = (float) Math.max(80.0, (1.0 - (dist / task.blastRadius)) * 380.0 + 80.0);
+                        float dmg = (float) Math.max(80.0, (1.0 - (dist / task.blastRadius)) * 380.0 + 80.0) * (float) net.godwand.config.GodWandConfig.SERVER.damageMultiplier;
                         var source = world.damageSources().explosion(null, task.caster);
-                        if (e instanceof net.minecraft.world.entity.Mob && e.getMaxHealth() <= 50.0f) {
+                        if (e instanceof net.minecraft.world.entity.Mob && e.getMaxHealth() <= 50.0f && net.godwand.config.GodWandConfig.SERVER.damageMultiplier > 0) {
                             e.hurt(source, Float.MAX_VALUE);
                             if (e.isAlive()) {
                                 e.setHealth(0.0f);
@@ -456,6 +459,10 @@ public class SupernovaManager {
 
                 // 5. HIỆU ỨNG VỤ NỔ VẬT LÝ 3D:
                 // Giữ lại tối đa 650 BlockDisplayEntity và phóng văng siêu thanh ra bán kính 45m - 95m!
+                if(!task.terrainDamage) {
+                    SpatialDisplacementManager.restorePositions(world,task.displayedPositions);
+                    SpatialDisplacementManager.restorePositions(world,task.interiorPositions);
+                } else {
                 Random rng = new Random(task.groundCenter.asLong());
                 int flingDisplayCount = Math.min(650, task.displayedPositions.size());
                 for (int i = 0; i < task.displayedPositions.size(); i++) {
@@ -492,6 +499,7 @@ public class SupernovaManager {
                     SpatialDisplacementManager.removeActiveRecord(world.dimension(), pos);
                 }
 
+                }
                 // Terrain follows the visible burst; flying debris remains visual only.
 
 
@@ -545,6 +553,7 @@ public class SupernovaManager {
     }
 
     private static void carveSphericalCraterShell(SupernovaTask task, int step, int totalSteps) {
+        if (!task.terrainDamage) return;
         ServerLevel world = task.world;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         double maxR = task.terrainRadius;
@@ -585,17 +594,6 @@ public class SupernovaManager {
                     if (displaced != null) {
                         SpatialDisplacementManager.removeActiveRecord(world.dimension(), pos);
                         removedRestorable = true;
-                    }
-                    net.minecraft.world.level.block.entity.BlockEntity craterBe = world.getBlockEntity(pos);
-                    if (craterBe != null) {
-                        try {
-                            net.minecraft.world.Clearable.tryClear(craterBe);
-                        } catch (Throwable ignored) {
-                        }
-                        try {
-                            world.removeBlockEntity(pos);
-                        } catch (Throwable ignored) {
-                        }
                     }
                     world.setBlock(pos, Blocks.AIR.defaultBlockState(),
                             Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS);

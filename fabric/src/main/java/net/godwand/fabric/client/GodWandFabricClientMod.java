@@ -15,6 +15,10 @@ import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.loader.api.FabricLoader;
 import net.godwand.GodWandMod;
+import net.godwand.client.AtomicRenderer;
+import net.godwand.client.AtomicCinematic;
+import net.godwand.client.AtomicPostFx;
+import net.godwand.network.AtomicFxPayload;
 import net.godwand.client.ArcaneOrbChargeRenderer;
 import net.godwand.client.ArcaneOrbEntityRenderer;
 import net.godwand.client.CannonPressureRenderer;
@@ -64,10 +68,12 @@ public class GodWandFabricClientMod implements ClientModInitializer {
                     @Override
                     public void onResourceManagerReload(ResourceManager resourceManager) {
                         GodWandPostFxManager.reloadShaders();
+                        AtomicPostFx.reload();
                     }
                 });
 
         KeyBindingHelper.registerKeyBinding(SkillWheelScreen.OPEN);
+        KeyBindingHelper.registerKeyBinding(SkillWheelScreen.OPEN_CONFIG);
         GodWandItemRenderer itemRenderer = new GodWandItemRenderer();
         BuiltinItemRendererRegistry.INSTANCE.register(GodWandMod.GOD_WAND_ITEM, itemRenderer::render);
         EntityRendererRegistry.register(GodWandMod.ARCANE_ORB_ENTITY_TYPE, ArcaneOrbEntityRenderer::new);
@@ -75,6 +81,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
 
         ClientPlayNetworking.registerGlobalReceiver(DrillWindPayload.ID, (payload, context) ->
                 context.client().execute(() -> DrillWindRenderer.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(AtomicFxPayload.ID, (payload, context) ->
+                context.client().execute(() -> AtomicRenderer.receive(payload)));
 
         ClientPlayNetworking.registerGlobalReceiver(SpatialAuraPayload.ID, (payload, context) ->
                 context.client().execute(() -> SpatialAuraRenderer.receive(payload)));
@@ -119,6 +127,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             StoneCannonChargeRenderer.render(matrices, camera, tickDelta);
             ArcaneOrbChargeRenderer.render(matrices, camera, tickDelta);
             SupernovaAccretionRenderer.render(matrices, camera, tickDelta);
+            AtomicRenderer.render(matrices, camera, tickDelta);
         });
 
         WorldRenderEvents.BEFORE_BLOCK_OUTLINE.register((context, hitResult) -> {
@@ -137,12 +146,15 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         WorldRenderEvents.LAST.register(context -> {
             float tickDelta = context.tickCounter().getGameTimeDeltaPartialTick(false);
             GodWandPostFxManager.onWorldRender(context.positionMatrix(), context.projectionMatrix(), tickDelta);
+            AtomicPostFx.capture(context.positionMatrix(), context.projectionMatrix(), tickDelta);
         });
 
         HudRenderCallback.EVENT.register(CustomImpactFrameOverlay::render);
+        HudRenderCallback.EVENT.register(AtomicCinematic::render);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             SkillWheelScreen.handleKeyInput(client);
+            AtomicRenderer.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
             EarthDrillSoundscape.tick(client);
@@ -153,6 +165,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            AtomicRenderer.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();
@@ -167,6 +180,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         });
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            AtomicRenderer.reset();
             StoneCannonWindSound.reset();
             EarthDrillSoundscape.reset();
             SupernovaAccretionRenderer.reset();

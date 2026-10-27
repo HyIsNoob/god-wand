@@ -39,6 +39,10 @@ tasks.withType(JavaCompile).configureEach {
     source project(':common').sourceSets.main.allSource
 }
 
+tasks.withType(Jar).configureEach {
+    exclude 'com/terraformersmc/**'
+}
+
 test {
     useJUnitPlatform()
 }

@@ -198,6 +198,33 @@ public class SpatialDisplacementManager {
                 spawnDisplay, mode, boundPlayerUuid, blastCenter, blastRadius, true, false);
     }
 
+    public static void displaceBlock(ServerLevel world, BlockPos pos, Vector3f targetDisplacement,
+            Quaternionf rotation, Vector3f scale, int lifetime, int glowColor, boolean spawnDisplay,
+            DisplacedBlockRecord.DisplacementMode mode, UUID boundPlayerUuid, Vec3 blastCenter, double blastRadius,
+            boolean permanent) {
+        displaceBlockInternal(world, pos, targetDisplacement, rotation, scale, lifetime, glowColor,
+                spawnDisplay, mode, boundPlayerUuid, blastCenter, blastRadius, true, permanent);
+    }
+
+    public static void restorePositions(ServerLevel world, java.util.Collection<BlockPos> positions) {
+        Set<DisplacedBlockRecord> records=new LinkedHashSet<>();
+        for(BlockPos pos:positions) {
+            var record=getActiveRecord(world.dimension(),pos);
+            if(record==null||record.permanentDestruction)continue;
+            records.add(record);
+            BlockState state=record.originalState;
+            BlockPos other=null;
+            if(state.getBlock() instanceof DoorBlock||state.getBlock() instanceof DoublePlantBlock)
+                other=state.getValue(DoorBlock.HALF)==DoubleBlockHalf.UPPER?pos.below():pos.above();
+            else if(state.getBlock() instanceof BedBlock)
+                other=pos.relative(state.getValue(BedBlock.PART)==BedPart.FOOT?state.getValue(BedBlock.FACING):state.getValue(BedBlock.FACING).getOpposite());
+            var pair=other==null?null:getActiveRecord(world.dimension(),other);
+            if(pair!=null&&!pair.permanentDestruction&&pair.originalState.is(state.getBlock())
+                    &&Objects.equals(pair.boundPlayerUuid,record.boundPlayerUuid))records.add(pair);
+        }
+        if(!records.isEmpty())executeTwoPassRestoration(world,new ArrayList<>(records));
+    }
+
     public static void displaceBlockPermanently(ServerLevel world, BlockPos pos, Vector3f targetDisplacement,
             Quaternionf rotation, Vector3f scale, int lifetime, int glowColor, boolean spawnDisplay,
             DisplacedBlockRecord.DisplacementMode mode, UUID boundPlayerUuid, Vec3 blastCenter, double blastRadius) {
@@ -607,6 +634,9 @@ public class SpatialDisplacementManager {
     }
 
     private static boolean restoreRecordDirectly(ServerLevel world, DisplacedBlockRecord r, BlockDisplay display) {
+        // Keep the original journal until a newly placed block/container has been moved out of the way.
+        BlockState current=world.getBlockState(r.pos);
+        if(!r.permanentDestruction&&!current.isAir()&&(!current.equals(r.originalState)||r.blockEntityNbt!=null))return false;
         if (r.bridgeDestination != null) {
             // Keep the journal until both ends can be reconciled without loading chunks.
             if (!world.getChunkSource().hasChunk(r.bridgeDestination.getX() >> 4, r.bridgeDestination.getZ() >> 4)

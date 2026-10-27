@@ -19,7 +19,7 @@ public abstract class SoundSystemMixin {
      */
     @Inject(method = "calculateVolume(Lnet/minecraft/client/resources/sounds/SoundInstance;)F", at = @At("RETURN"), cancellable = true)
     private void godwand$applyVacuumSilence(SoundInstance sound, CallbackInfoReturnable<Float> cir) {
-        float gain = GodWandCinematicEngine.getEnvironmentGain();
+        float gain = GodWandCinematicEngine.getEnvironmentGain() * net.godwand.client.AtomicCinematic.environmentGain();
         if (gain < 0.999f) {
             SoundSource category = sound.getSource();
             if (category != SoundSource.PLAYERS && category != SoundSource.MASTER) {
