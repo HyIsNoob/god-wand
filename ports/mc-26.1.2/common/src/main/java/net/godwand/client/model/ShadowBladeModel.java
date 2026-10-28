@@ -50,7 +50,7 @@ public class ShadowBladeModel {
     public void renderBlade(PoseStack matrices, Supplier<VertexConsumer> solidBuffer,
                             Supplier<VertexConsumer> emissiveBuffer, int light, int overlay, int coreColor) {
         matrices.pushPose();
-        matrices.rotate(com.mojang.math.Axis.YP.rotationDegrees(90));
+        matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(90));
 
         VertexConsumer solid = solidBuffer.get();
 
@@ -201,3 +201,4 @@ public class ShadowBladeModel {
 
     private static Vector3f point(float x,float y,float z) { return new Vector3f(x/16,y/16,z/16); }
 }
+

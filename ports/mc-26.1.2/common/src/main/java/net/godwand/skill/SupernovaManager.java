@@ -397,18 +397,18 @@ public class SupernovaManager {
                             world.sendParticles(ParticleTypes.ELECTRIC_SPARK, e.getX(), e.getY() + 0.5, e.getZ(), 3, 0.2, 0.2, 0.2, 0.1);
                             Vec3 swirl = task.corePos.subtract(e.position()).scale(0.25);
                             e.setDeltaMovement(e.getDeltaMovement().scale(0.6).add(swirl));
-                            e.syncVelocity = true;
+                            e.hurtMarked = true;
                             continue;
                         }
                     }
 
                     if (e instanceof net.minecraft.world.entity.Mob) {
                         e.setDeltaMovement(mobPullVelocity(e.getDeltaMovement(), task.corePos.subtract(e.position()), totalProgress));
-                        e.syncVelocity = true;
+                        e.hurtMarked = true;
                     } else if (task.ageTicks % 2 == 0) {
                         Vec3 pull = task.corePos.subtract(e.position()).normalize().scale(0.40 + totalProgress * 0.70);
                         e.setDeltaMovement(e.getDeltaMovement().lerp(pull, 0.35));
-                        e.syncVelocity = true;
+                        e.hurtMarked = true;
                     }
                 }
 
@@ -453,7 +453,7 @@ public class SupernovaManager {
 
                         Vec3 push = e.position().subtract(task.corePos).normalize().scale(5.8).add(0, 2.2, 0);
                         e.push(push.x, push.y, push.z);
-                        e.syncVelocity = true;
+                        e.hurtMarked = true;
                     }
                 }
 
@@ -612,3 +612,4 @@ public class SupernovaManager {
         CHARGE_TARGETS.clear();
     }
 }
+

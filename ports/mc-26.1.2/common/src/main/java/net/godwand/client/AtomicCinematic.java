@@ -140,10 +140,10 @@ public final class AtomicCinematic {
         strength*=gain*GodWandConfig.CLIENT.cameraShake;
         double t=frame.age();
         if(active()&&t>=466&&t<614)
-            matrices.rotate(com.mojang.math.Axis.ZP.rotationDegrees((float)(5*Math.sin((t-466)/148*Math.PI))));
+            matrices.mulPose(com.mojang.math.Axis.ZP.rotationDegrees((float)(5*Math.sin((t-466)/148*Math.PI))));
         matrices.translate(Math.sin(t*1.71)*.055*strength,Math.cos(t*2.13)*.09*strength,0);
-        matrices.rotate(com.mojang.math.Axis.XP.rotationDegrees((float)(Math.sin(t*1.67)*1.7*strength)));
-        matrices.rotate(com.mojang.math.Axis.ZP.rotationDegrees((float)(Math.sin(t*2.23)*1.1*strength)));
+        matrices.mulPose(com.mojang.math.Axis.XP.rotationDegrees((float)(Math.sin(t*1.67)*1.7*strength)));
+        matrices.mulPose(com.mojang.math.Axis.ZP.rotationDegrees((float)(Math.sin(t*2.23)*1.1*strength)));
     }
     public static void render(GuiGraphicsExtractor graphics, DeltaTracker timer) {
         var frame = AtomicRenderer.localFrame(timer.getGameTimeDeltaPartialTick(false));
@@ -208,3 +208,4 @@ public final class AtomicCinematic {
     }
     private static Component lettering(String text) { return Component.literal(text).withStyle(style -> style.withFont(new net.minecraft.network.chat.FontDescription.Resource(TITLE_FONT))); }
 }
+

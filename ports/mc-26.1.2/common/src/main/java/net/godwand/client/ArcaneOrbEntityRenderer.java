@@ -44,12 +44,12 @@ public class ArcaneOrbEntityRenderer extends EntityRenderer<ArcaneOrbEntity, Arc
             double horizontalDist = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
             float velYaw = (float) (Mth.atan2(vel.x, vel.z) * (180.0 / Math.PI));
             float velPitch = (float) (Mth.atan2(vel.y, horizontalDist) * (180.0 / Math.PI));
-            matrices.rotate(Axis.YP.rotationDegrees(velYaw));
-            matrices.rotate(Axis.XN.rotationDegrees(velPitch));
+            matrices.mulPose(Axis.YP.rotationDegrees(velYaw));
+            matrices.mulPose(Axis.XN.rotationDegrees(velPitch));
         }
 
         // Xoáy nòng quanh trục tiến khi đang bay
-        matrices.rotate(Axis.ZP.rotationDegrees(time * 65.0f));
+        matrices.mulPose(Axis.ZP.rotationDegrees(time * 65.0f));
 
         ArcaneOrbModel.render(matrices.last().pose(), baseScale, time, chargeRatio);
 
@@ -58,3 +58,4 @@ public class ArcaneOrbEntityRenderer extends EntityRenderer<ArcaneOrbEntity, Arc
         super.submit(state, matrices, collector, camera);
     }
 }
+

@@ -116,7 +116,7 @@ public class GodWandItemRenderer {
             if (frame != null && frame.age() < 802) {
                 float weight=1-net.godwand.skill.AtomicSequence.phase(frame.age(),774,802);
                 applyAtomicHoldTransform(matrices,net.godwand.skill.AtomicSequence.armPitch(frame.age()),weight);
-                matrices.rotate(Axis.ZP.rotationDegrees(-16*net.godwand.skill.AtomicSequence.armSpread(frame.age())*weight));
+                matrices.mulPose(Axis.ZP.rotationDegrees(-16*net.godwand.skill.AtomicSequence.armSpread(frame.age())*weight));
             }
         }
 
@@ -159,12 +159,12 @@ public class GodWandItemRenderer {
         float draw = chargeRatio * chargeRatio;
         // Keep the long shaft away from the camera, including the first frames after cancellation.
         matrices.translate(0, -draw*.08f + recoil*.08f, draw*.14f + recoil*.24f);
-        matrices.rotate(Axis.XP.rotationDegrees(-draw*7 - recoil*16));
+        matrices.mulPose(Axis.XP.rotationDegrees(-draw*7 - recoil*16));
     }
 
     public static void applyAtomicHoldTransform(PoseStack matrices, float armPitch,float weight) {
         // Cancel the arm pitch, vanilla hand rotation and our existing 20-degree display tilt.
-        matrices.rotate(Axis.XP.rotationDegrees((70 + (float)Math.toDegrees(armPitch))*weight));
+        matrices.mulPose(Axis.XP.rotationDegrees((70 + (float)Math.toDegrees(armPitch))*weight));
     }
 
     public static void applySwordDisplayTransform(PoseStack matrices, ItemDisplayContext mode) {
@@ -172,11 +172,11 @@ public class GodWandItemRenderer {
             int hand=mode==ItemDisplayContext.THIRD_PERSON_RIGHT_HAND?1:-1;
             // Cancel vanilla's sideways/palm offsets; preserve its ten-pixel distance along the forearm.
             matrices.translate(-hand/16f,-.125f,0);
-            matrices.rotate(Axis.XP.rotationDegrees(20));
+            matrices.mulPose(Axis.XP.rotationDegrees(20));
             matrices.scale(.44f,.44f,.44f);
         } else if(mode==ItemDisplayContext.GUI||mode==ItemDisplayContext.FIXED) {
-            matrices.rotate(Axis.ZP.rotationDegrees(-45));
-            matrices.rotate(Axis.YP.rotationDegrees(35));
+            matrices.mulPose(Axis.ZP.rotationDegrees(-45));
+            matrices.mulPose(Axis.YP.rotationDegrees(35));
             matrices.scale(.24f,.24f,.24f);
             matrices.translate(0,-1.125f,0);
         }
@@ -188,7 +188,7 @@ public class GodWandItemRenderer {
                 *(1-net.godwand.skill.AtomicSequence.armWindup(age))*(1-spread);
         float weight=1-net.godwand.skill.AtomicSequence.phase(age,774,802);
         float angle=(70+(float)Math.toDegrees(net.godwand.skill.AtomicSequence.armPitch(age)))*vertical-110*spread;
-        matrices.rotate(Axis.XP.rotationDegrees(angle*weight));
+        matrices.mulPose(Axis.XP.rotationDegrees(angle*weight));
     }
 
     private void applyDisplayTransform(PoseStack matrices, ItemDisplayContext mode) {
@@ -196,34 +196,34 @@ public class GodWandItemRenderer {
             case FIRST_PERSON_RIGHT_HAND, FIRST_PERSON_LEFT_HAND -> {
                 int hand = mode == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND ? 1 : -1;
                 matrices.translate(hand * .020f, -.028f, -.040f);
-                matrices.rotate(Axis.XP.rotationDegrees(-35));
-                matrices.rotate(Axis.YP.rotationDegrees(hand * 130));
-                matrices.rotate(Axis.ZP.rotationDegrees(hand * 12));
+                matrices.mulPose(Axis.XP.rotationDegrees(-35));
+                matrices.mulPose(Axis.YP.rotationDegrees(hand * 130));
+                matrices.mulPose(Axis.ZP.rotationDegrees(hand * 12));
                 matrices.scale(.46f, .46f, .46f);
             }
             case THIRD_PERSON_RIGHT_HAND, THIRD_PERSON_LEFT_HAND -> {
-                matrices.rotate(Axis.XP.rotationDegrees(20));
+                matrices.mulPose(Axis.XP.rotationDegrees(20));
                 matrices.scale(.44f, .44f, .44f);
             }
             case GUI -> {
                 // Diagonally across hotbar slot, perfectly centered, showing the crescent profile
-                matrices.rotate(Axis.ZP.rotationDegrees(-45.0F));
-                matrices.rotate(Axis.YP.rotationDegrees(45.0F));
+                matrices.mulPose(Axis.ZP.rotationDegrees(-45.0F));
+                matrices.mulPose(Axis.YP.rotationDegrees(45.0F));
                 matrices.scale(0.24F, 0.24F, 0.24F);
                 matrices.translate(0.0F, 10F / 16.0F, 0.0F); // Center geometric height in slot
             }
             case FIXED -> {
                 // In item frame: tilted 45 degrees, centered
-                matrices.rotate(Axis.ZP.rotationDegrees(-45.0F));
-                matrices.rotate(Axis.YP.rotationDegrees(45.0F));
+                matrices.mulPose(Axis.ZP.rotationDegrees(-45.0F));
+                matrices.mulPose(Axis.YP.rotationDegrees(45.0F));
                 matrices.scale(0.25F, 0.25F, 0.25F);
                 matrices.translate(0.0F, 10F / 16.0F, 0.0F);
             }
             case GROUND -> {
                 // Lay the long staff along the ground instead of burying its lower half.
                 matrices.translate(0.0F, 0.08F, 0.0F);
-                matrices.rotate(Axis.XP.rotationDegrees(90));
-                matrices.rotate(Axis.ZP.rotationDegrees(-25));
+                matrices.mulPose(Axis.XP.rotationDegrees(90));
+                matrices.mulPose(Axis.ZP.rotationDegrees(-25));
                 matrices.scale(0.30F, 0.30F, 0.30F);
                 matrices.translate(0.0F, 10F / 16.0F, 0.0F);
             }
@@ -257,3 +257,4 @@ public class GodWandItemRenderer {
         return 0.0F;
     }
 }
+

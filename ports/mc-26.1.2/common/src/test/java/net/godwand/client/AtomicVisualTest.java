@@ -219,10 +219,10 @@ class AtomicVisualTest {
             float pitch=AtomicSequence.armPitch(age);
             var pose=new com.mojang.blaze3d.vertex.PoseStack();
             pose.scale(-1,-1,1);
-            pose.rotate(com.mojang.math.Axis.XP.rotation(pitch));
-            pose.rotate(com.mojang.math.Axis.XP.rotationDegrees(-90));
-            pose.rotate(com.mojang.math.Axis.YP.rotationDegrees(180));
-            pose.rotate(com.mojang.math.Axis.XP.rotationDegrees(20));
+            pose.mulPose(com.mojang.math.Axis.XP.rotation(pitch));
+            pose.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-90));
+            pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180));
+            pose.mulPose(com.mojang.math.Axis.XP.rotationDegrees(20));
             net.godwand.client.render.GodWandItemRenderer.applyAtomicHoldTransform(pose,pitch,1);
             var shaft=pose.last().pose().transformDirection(new org.joml.Vector3f(0,1,0));
             assertEquals(0,shaft.x,1e-5);
@@ -272,3 +272,4 @@ class AtomicVisualTest {
         public VertexConsumer setNormal(float x,float y,float z) { return this; }
     }
 }
+

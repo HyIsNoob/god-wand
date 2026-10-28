@@ -231,7 +231,7 @@ public class ShockwaveSlicer {
                 double force = (1.0 - (dist / (maxRadius * 1.25))) * 2.2;
                 Vec3 push = delta.normalize().scale(force).add(0, 0.55, 0);
                 e.push(push.x, push.y, push.z);
-                e.syncVelocity = true;
+                e.hurtMarked = true;
             }
         }
 
@@ -351,7 +351,7 @@ public class ShockwaveSlicer {
 
                 Vec3 pull = (dist > 0.01) ? diff.normalize().scale(1.9).add(0, -0.9, 0) : new Vec3(0, -1.0, 0);
                 e.setDeltaMovement(pull);
-                e.syncVelocity = true;
+                e.hurtMarked = true;
             }
         }
 
@@ -708,3 +708,4 @@ public class ShockwaveSlicer {
         ACTIVE_TASKS.clear();
     }
 }
+

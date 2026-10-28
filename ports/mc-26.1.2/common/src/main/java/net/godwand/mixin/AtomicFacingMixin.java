@@ -16,6 +16,7 @@ public abstract class AtomicFacingMixin {
   if(!(state instanceof HumanoidRenderState humanoid))return;
   var extracted=AtomicPoseFrames.get(humanoid);
   if(extracted==null||extracted.frame()==null)return;
-  var frame=extracted.frame();pose.rotate(Axis.YP.rotationDegrees(Mth.wrapDegrees(yaw-frame.yaw())*AtomicSequence.facing(frame.age())));
+  var frame=extracted.frame();pose.mulPose(Axis.YP.rotationDegrees(Mth.wrapDegrees(yaw-frame.yaw())*AtomicSequence.facing(frame.age())));
  }
 }
+

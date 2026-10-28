@@ -63,11 +63,11 @@ public class StoneCannonEntityRenderer extends EntityRenderer<StoneCannonProject
 
         matrices.pushPose();
         // Căn chỉnh trục mũi khoan theo vector vận tốc
-        matrices.rotate(Axis.YP.rotationDegrees(yaw));
-        matrices.rotate(Axis.XN.rotationDegrees(pitch));
+        matrices.mulPose(Axis.YP.rotationDegrees(yaw));
+        matrices.mulPose(Axis.XN.rotationDegrees(pitch));
 
         // Xoáy dọc theo trục tiến (Rifling spin around Z axis)
-        matrices.rotate(Axis.ZP.rotationDegrees(spin));
+        matrices.mulPose(Axis.ZP.rotationDegrees(spin));
 
         StoneCannonModel.render(matrices.last().pose(), baseScale, time, 0.45f);
 
@@ -125,4 +125,5 @@ public class StoneCannonEntityRenderer extends EntityRenderer<StoneCannonProject
         super.submit(state, matrices, collector, camera);
     }
 }
+
 

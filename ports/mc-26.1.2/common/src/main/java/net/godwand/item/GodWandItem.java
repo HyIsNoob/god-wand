@@ -443,7 +443,7 @@ public class GodWandItem extends Item {
                 default -> 1.35;
             };
             player.push(-look.x * recoilForce, -look.y * recoilForce * 0.4 + 0.18, -look.z * recoilForce);
-            player.syncVelocity = true;
+            player.hurtMarked = true;
 
             // Muzzle Blast VFX
             ServerLevel sw = (ServerLevel) world;
@@ -478,3 +478,4 @@ public class GodWandItem extends Item {
         super.appendHoverText(stack, context, display, tooltip, type);
     }
 }
+

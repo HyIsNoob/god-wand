@@ -46,8 +46,8 @@ public class StoneCannonChargeRenderer {
             // Căn chỉnh trục mũi khoan theo hướng nhìn của người chơi
             float yaw = player.getViewYRot(tickDelta);
             float pitch = player.getViewXRot(tickDelta);
-            matrices.rotate(Axis.YP.rotationDegrees(-yaw));
-            matrices.rotate(Axis.XP.rotationDegrees(pitch));
+            matrices.mulPose(Axis.YP.rotationDegrees(-yaw));
+            matrices.mulPose(Axis.XP.rotationDegrees(pitch));
 
             // Tốc độ xoáy nòng siêu thanh tăng dần theo từng cấp độ nạp
             float spinAngle = StoneCannonModel.chargeDrillRotation(animTime);
@@ -58,10 +58,11 @@ public class StoneCannonChargeRenderer {
             float baseScale = 0.22f + chargeRatio * 0.40f;
 
             StoneCannonModel.renderChargeWind(matrices.last().pose(), baseScale, animTime, chargeRatio);
-            matrices.rotate(Axis.ZP.rotationDegrees(spinAngle));
+            matrices.mulPose(Axis.ZP.rotationDegrees(spinAngle));
             StoneCannonModel.render(matrices.last().pose(), baseScale, animTime, 0.4f + chargeRatio * 0.6f);
 
             matrices.popPose();
         }
     }
 }
+

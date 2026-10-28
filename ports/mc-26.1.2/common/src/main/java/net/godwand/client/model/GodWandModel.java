@@ -108,7 +108,7 @@ public class GodWandModel {
         // 2. Beveled crescent head, 3-faceted gold rail, joint clamps, and talons
         matrices.pushPose();
         matrices.translate(CX / 16.0f, CY / 16.0f, 0.0f);
-        matrices.rotate(Axis.ZP.rotationDegrees(16.0f));
+        matrices.mulPose(Axis.ZP.rotationDegrees(16.0f));
         matrices.translate(-CX / 16.0f, -CY / 16.0f, 0.0f);
 
         renderCrescent(matrices, solid, light, overlay);
@@ -137,7 +137,7 @@ public class GodWandModel {
         // Red vents (rotated with crescent head)
         matrices.pushPose();
         matrices.translate(CX / 16.0f, CY / 16.0f, 0.0f);
-        matrices.rotate(Axis.ZP.rotationDegrees(16.0f));
+        matrices.mulPose(Axis.ZP.rotationDegrees(16.0f));
         matrices.translate(-CX / 16.0f, -CY / 16.0f, 0.0f);
         renderQuads(matrices, emissive, RED_VENTS, 0x00F000F0, overlay, 0xFFFF2548);
         matrices.popPose();
@@ -657,3 +657,4 @@ public class GodWandModel {
         root.render(matrices, vertices, light, overlay, color);
     }
 }
+

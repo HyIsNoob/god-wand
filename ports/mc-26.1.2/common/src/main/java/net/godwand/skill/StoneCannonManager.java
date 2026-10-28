@@ -235,7 +235,7 @@ public class StoneCannonManager {
         // Lực giật lùi vật lý lên người chơi (Physical Recoil)
         double recoil = calculateRecoil(level);
         player.push(-look.x * recoil, -look.y * recoil * 0.4 + 0.12, -look.z * recoil);
-        player.syncVelocity = true;
+        player.hurtMarked = true;
 
         // Vụ nổ nòng súng Sonic Boom & Sweep Flash
         sw.sendParticles(ParticleTypes.SONIC_BOOM, spawnPos.x, spawnPos.y, spawnPos.z, 1, 0, 0, 0, 0);
@@ -282,7 +282,7 @@ public class StoneCannonManager {
                 Vec3 blastDir = e.position().subtract(hitPos);
                 Vec3 push = (blastDir.length() > 0.01) ? blastDir.normalize().scale(1.8).add(0, 0.65, 0) : new Vec3(0, 1.2, 0);
                 e.setDeltaMovement(push);
-                e.syncVelocity = true;
+                e.hurtMarked = true;
             }
         }
 
@@ -318,3 +318,4 @@ public class StoneCannonManager {
                 SoundEvents.MACE_SMASH_GROUND_HEAVY, SoundSource.PLAYERS, 0.85f, 0.8f);
     }
 }
+

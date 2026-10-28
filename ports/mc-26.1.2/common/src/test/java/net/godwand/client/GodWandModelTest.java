@@ -247,10 +247,10 @@ class GodWandModelTest {
     void raisedSwordIsVerticalInFrontOfTheCasterAndItsRootOverlapsTheGuard() throws Exception {
         PoseStack pose=new PoseStack();
         pose.scale(-1,-1,1);
-        pose.rotate(com.mojang.math.Axis.YP.rotation(-.64f));
-        pose.rotate(com.mojang.math.Axis.XP.rotation(net.godwand.skill.AtomicSequence.armPitch(360)));
-        pose.rotate(com.mojang.math.Axis.XP.rotationDegrees(-90));
-        pose.rotate(com.mojang.math.Axis.YP.rotationDegrees(180));
+        pose.mulPose(com.mojang.math.Axis.YP.rotation(-.64f));
+        pose.mulPose(com.mojang.math.Axis.XP.rotation(net.godwand.skill.AtomicSequence.armPitch(360)));
+        pose.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-90));
+        pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180));
         GodWandItemRenderer.applySwordDisplayTransform(pose,net.minecraft.world.item.ItemDisplayContext.THIRD_PERSON_RIGHT_HAND);
         GodWandItemRenderer.applyAtomicSwordHoldTransform(pose,360);
         var direction=pose.last().pose().transformDirection(new org.joml.Vector3f(0,1,0)).normalize();
@@ -399,3 +399,4 @@ class GodWandModelTest {
         public VertexConsumer setNormal(float x, float y, float z) { return this; }
     }
 }
+

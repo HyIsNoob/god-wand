@@ -251,7 +251,7 @@ public class RatioCollapseManager {
         AABB vortexBox = new AABB(center).inflate(task.radius * 1.25);
         for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, vortexBox, ent -> ent != player)) {
             e.push(0, 0.48, 0);
-            e.syncVelocity = true;
+            e.hurtMarked = true;
             e.hurtServer(world, world.damageSources().magic(), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (4.0f * task.damageMult * net.godwand.config.GodWandConfig.skillDamageMultiplier(2,task.chargeLevel)));
         }
 
@@ -494,7 +494,7 @@ public class RatioCollapseManager {
                     for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, suctionBox, ent -> ent != task.caster)) {
                         Vec3 pull = task.meteorCore.subtract(e.position()).normalize().scale(0.24);
                         e.push(pull.x, pull.y, pull.z);
-                        e.syncVelocity = true;
+                        e.hurtMarked = true;
                     }
                 }
             }
@@ -600,7 +600,7 @@ public class RatioCollapseManager {
                     for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, drillPenetrateBox, ent -> ent != task.caster)) {
                         e.hurtServer(world, world.damageSources().fallingBlock(task.caster), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (10.0f * task.damageMult * net.godwand.config.GodWandConfig.skillDamageMultiplier(2,task.chargeLevel)));
                         e.push(0, -0.45, 0); // Ép chặt nạn nhân xuống đáy lỗ khoan
-                        e.syncVelocity = true;
+                        e.hurtMarked = true;
                     }
 
                     // Vệt lửa đỏ rực kéo dài theo đuôi mũi khoan khi lao xuống
@@ -631,7 +631,7 @@ public class RatioCollapseManager {
 
                         Vec3 diff = e.position().subtract(Vec3.atCenterOf(task.center)).normalize().scale(2.2 * task.damageMult).add(0, 0.85, 0);
                         e.push(diff.x, diff.y, diff.z);
-                        e.syncVelocity = true;
+                        e.hurtMarked = true;
                     }
 
                     // Shader Ground Seismic Shockwave & Camera Shake
@@ -674,7 +674,7 @@ public class RatioCollapseManager {
                                     BlockPos.containing(spawnX, spawnY, spawnZ),
                                     flungState);
                             falling.setDeltaMovement(Math.cos(fAngle) * fSpeed, 0.55 + rng.nextDouble() * 0.55, Math.sin(fAngle) * fSpeed);
-                            falling.syncVelocity = true;
+                            falling.hurtMarked = true;
                         }
                     }
                 }
@@ -765,3 +765,4 @@ public class RatioCollapseManager {
         ACTIVE_TASKS.clear();
     }
 }
+

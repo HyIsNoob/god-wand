@@ -47,7 +47,7 @@ public final class DrillWindRenderer {
             float elapsed = now - wind.tick() + tickDelta;
             matrices.pushPose();
             matrices.translate(p.x() - camera.x, p.y() - camera.y, p.z() - camera.z);
-            matrices.rotate(Axis.XP.rotationDegrees(90));
+            matrices.mulPose(Axis.XP.rotationDegrees(90));
             float reveal = net.godwand.skill.RatioCollapseManager.drillWindVisibility(p.speed());
             if (reveal <= 0) { matrices.popPose(); continue; }
             float heat = net.godwand.skill.RatioCollapseManager.drillHeat(p.speed()) * reveal;
@@ -171,4 +171,5 @@ public final class DrillWindRenderer {
         }
     }
 }
+
 

@@ -67,7 +67,7 @@ public class SpatialPathWalker {
             for (net.minecraft.world.entity.Entity e : world.getEntities(player, player.getBoundingBox().inflate(5.0))) {
                 Vec3 diff = e.position().subtract(player.position()).normalize().scale(0.95).add(0, 0.28, 0);
                 e.push(diff.x, diff.y, diff.z);
-                e.syncVelocity = true;
+                e.hurtMarked = true;
             }
 
             // Immediately begin 3-Phase Magnetic Snap Reassembly for all blocks in player's aura
@@ -178,7 +178,7 @@ public class SpatialPathWalker {
                 Vec3 offset = arrow.position().subtract(center);
                 if (offset.lengthSqr() < 25 && velocity.dot(offset) < 0) {
                     arrow.setDeltaMovement(velocity.scale(0.85));
-                    arrow.syncVelocity = true;
+                    arrow.hurtMarked = true;
                 }
                 continue;
             }
@@ -193,7 +193,7 @@ public class SpatialPathWalker {
             if (arrow instanceof net.minecraft.world.entity.projectile.hurtingprojectile.AbstractHurtingProjectile explosive) {
                 explosive.accelerationPower *= 0.35;
             }
-            arrow.syncVelocity = true;
+            arrow.hurtMarked = true;
             sendAuraHit(player, normal);
             if (shouldPlayShieldSound(player.getUUID(),player.tickCount)) world.playSound(null, hit.x, hit.y, hit.z, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.35f, 1.6f);
         }
@@ -219,7 +219,7 @@ public class SpatialPathWalker {
                 }
             }
             mob.setDeltaMovement(SpatialMath.auraMobVelocity(mob.getDeltaMovement(), normal, distance - mob.getBbWidth() * 0.5));
-            mob.syncVelocity = true;
+            mob.hurtMarked = true;
             if (distance <= reach && (player.tickCount + mob.getId()) % 12 == 0) sendAuraHit(player, normal);
         }
     }
@@ -304,7 +304,7 @@ public class SpatialPathWalker {
             if (falling.getY() < baseGroundY || SpatialMath.distanceToPathAura(
                     falling.position(), chestPos, lookDirHoriz, forwardLead) > 3.9) continue;
             falling.setDeltaMovement(SpatialMath.pathLooseBlockVelocity(falling.position(), chestPos, lookDirHoriz));
-            falling.syncVelocity = true;
+            falling.hurtMarked = true;
         }
 
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
@@ -344,7 +344,7 @@ public class SpatialPathWalker {
                                 && state.getDestroySpeed(world, mutablePos) >= 0) {
                             FallingBlockEntity loose = FallingBlockEntity.fall(world, mutablePos.immutable(), state);
                             loose.setDeltaMovement(SpatialMath.pathLooseBlockVelocity(blockCenter, chestPos, lookDirHoriz));
-                            loose.syncVelocity = true;
+                            loose.hurtMarked = true;
                         }
                         continue;
                     }
@@ -385,3 +385,4 @@ public class SpatialPathWalker {
 
     }
 }
+

@@ -201,9 +201,9 @@ public class GodWandCinematicEngine {
         float transZ = (float) (Math.sin(t * 1.1) * 0.045) * intensity;
 
         matrices.translate(transX, transY, transZ);
-        matrices.rotate(Axis.ZP.rotationDegrees(roll));
-        matrices.rotate(Axis.XP.rotationDegrees(pitch));
-        matrices.rotate(Axis.YP.rotationDegrees(yaw));
+        matrices.mulPose(Axis.ZP.rotationDegrees(roll));
+        matrices.mulPose(Axis.XP.rotationDegrees(pitch));
+        matrices.mulPose(Axis.YP.rotationDegrees(yaw));
     }
 
     /**
@@ -234,3 +234,4 @@ public class GodWandCinematicEngine {
         vacuumSilenceTicks = 0;
     }
 }
+
