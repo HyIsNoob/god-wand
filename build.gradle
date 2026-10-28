@@ -9,7 +9,7 @@ group = project.maven_group
 subprojects {
     apply plugin: 'java'
     java {
-        toolchain { languageVersion = JavaLanguageVersion.of(21) }
+        toolchain { languageVersion = JavaLanguageVersion.of(25) }
     }
     tasks.withType(JavaCompile).configureEach {
         options.encoding = 'UTF-8'

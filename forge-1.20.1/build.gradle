@@ -18,7 +18,7 @@ mixin {
     config 'godwand.mixins.json'
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 minecraft {
     mappings channel: mapping_channel, version: mapping_version
@@ -81,6 +81,7 @@ tasks.named('jar', Jar).configure {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+    options.release = 17
 }
 
 sourceSets.each {
