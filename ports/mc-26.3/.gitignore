@@ -1,0 +1,6 @@
+.gradle/
+build/
+**/build/
+run/
+**/run/
+compile-initial.log

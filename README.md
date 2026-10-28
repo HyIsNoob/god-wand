@@ -1,4 +1,4 @@
-# God Wand 1.4.0-dev
+# God Wand 1.3.2
 
 One wand with six skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile or hold **I am Atomic** until you choose to release.
 
@@ -8,10 +8,10 @@ One wand with six skills: walk through mountains, pull enemies into a gravity or
 
 | Minecraft | Loader | Java | Installable file |
 | --- | --- | --- | --- |
-| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.4.0-dev.jar` |
-| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.4.0-dev.jar` |
-| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.4.0-dev.jar` |
-| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.4.0-dev.jar` |
+| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.2.jar` |
+| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.2.jar` |
+| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.2.jar` |
+| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.2.jar` |
 
 Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server.
 
@@ -38,7 +38,7 @@ Client graphics settings are in `config/godwand-client.json`. [Dedicated-server 
 
 ## Build
 
-Preview jars are collected in `build/preview/1.4.0-dev/`; released 1.3.1 jars remain in `build/release/`.
+The four existing 1.3.2 test builds are collected in `build/release/`. Fabric 26.3 is built separately under [ports/mc-26.3](ports/mc-26.3/README.md); its local test JAR is in `build/release/26.3/`.
 
 Run from this repository root:
 
@@ -55,11 +55,11 @@ Run from this repository root:
 
 On Linux/macOS use `./gradlew`. Outputs from `releaseJars` are in `build/release/`. Java 21 is needed for 1.21.1; the 1.20.1 ports need a Java 17 toolchain.
 
-See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [source of truth](docs/SOURCE_OF_TRUTH.md) for the consolidation history. This root is an aggregator; it has no separate legacy implementation or fifth release jar.
+See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [source of truth](docs/SOURCE_OF_TRUTH.md) for the consolidation history. This root aggregates the existing four variants; Fabric 26.3 has a separate Java 25 build.
 
 ## Release status
 
-1.4.0-dev is a preview following the released 1.3.x builds. Only the four versions listed above are supported. Minecraft 1.21.11 and 26.3 port investigations are recorded under ports/; neither is playable yet. Remaining audit findings are tracked in [the audit report](docs/AUDIT_2026-10-27.md).
+1.3.2 is a preview following the released 1.3.x builds. The four versions listed above retain their builds. Fabric 26.3 now builds and passes automated checks; gameplay testing is pending. NeoForge 26.3 and Minecraft 1.21.11 are pending by owner request. Remaining audit findings are tracked in [the audit report](docs/AUDIT_2026-10-27.md).
 
 ## License
 

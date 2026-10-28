@@ -1,0 +1,47 @@
+plugins {
+    id 'net.fabricmc.fabric-loom'
+}
+
+version = project.mod_version
+group = project.maven_group
+base {
+    archivesName = "godwand-fabric-26.3"
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    implementation project(path: ':common', configuration: 'default')
+
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+loom {
+    accessWidenerPath = file("src/main/resources/godwand.accesswidener")
+}
+
+processResources {
+    from project(':common').sourceSets.main.resources
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    inputs.property "version", project.version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    source project(':common').sourceSets.main.allSource
+}
+
+tasks.withType(Jar).configureEach {
+    exclude 'com/terraformersmc/**'
+}
+
+test {
+    useJUnitPlatform()
+}

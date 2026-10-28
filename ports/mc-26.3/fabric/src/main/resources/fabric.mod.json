@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "godwand",
+  "version": "${version}",
+  "name": "God Wand",
+  "description": "Six spells in one wand. Shape terrain, control gravity and hold I am Atomic until you choose to release.",
+  "authors": [
+    "GodWand Team"
+  ],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "net.godwand.fabric.GodWandFabricMod"
+    ],
+    "client": [
+      "net.godwand.fabric.client.GodWandFabricClientMod"
+    ],
+    "modmenu": [
+      "net.godwand.fabric.client.GodWandModMenuApi"
+    ]
+  },
+  "accessWidener": "godwand.accesswidener",
+  "mixins": [
+    "godwand.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.20.1",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

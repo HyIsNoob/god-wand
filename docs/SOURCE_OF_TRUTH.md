@@ -1,6 +1,6 @@
 # Source of truth
 
-This repository is the consolidated God Wand 1.3.0 development source as of 2026-10-27. Continue feature work here. Current development version: 1.4.0-dev, following release 1.3.1; the repository folder name remains god-wand-1.3.0.
+This repository is the consolidated God Wand 1.3.0 development source as of 2026-10-27. Continue feature work here. Current development version: 1.3.2, following release 1.3.1; the repository folder name remains god-wand-1.3.0.
 
 ## Included
 
@@ -32,3 +32,7 @@ Build logs belong to this checkout's build directories. Latest gameplay visuals 
 Dedicated development-server boot checks from the older integration do not establish multiplayer behavior for every later change. Atomic visuals have user approval. Authored SFX is integrated; in-game audio testing and the remaining audit work are pending. Publishing source does not mark the mod as a tested final release.
 
 The consolidated releaseJars build passed for all four variants. The updated common JUnit suite passed 199 tests with zero failures/errors. Packaged jars contain the MIT license and no QA probe or ModMenu compile stubs. Build logs and checksums are kept locally under build/.
+
+## 1.3.2 / Fabric 26.3 follow-up (2026-10-28)
+
+The four existing variants build as 1.3.2 with per-charge balance settings and 5 normal attack damage. Fabric 26.3 is migrated under ports/mc-26.3 with its own Java 25 build, source/resources/tests and wrapper. Its automated checks and packaging pass; owner gameplay testing remains pending. Root releaseJars does not build that port. NeoForge 26.3 and Minecraft 1.21.11 are pending by owner request; see ports/README.md. This section supersedes older counts and the five-directory source-layout statement above.

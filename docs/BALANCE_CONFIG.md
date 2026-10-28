@@ -54,6 +54,6 @@ The wand deals **5 attack damage** at full attack charge before armor, enchantme
 
 ## Version status
 
-These settings are in the **1.4.0-dev** preview for the four existing Minecraft 1.20.1/1.21.1 builds. Minecraft 1.21.11 and 26.3 are investigated prototypes, not supported releases. Their rendering and save APIs require a separate migration; see the reports under ports/.
+These settings are in the **1.3.2** preview for the four existing Minecraft 1.20.1/1.21.1 builds. The Fabric 26.3 test build includes the same settings. NeoForge 26.3 and Minecraft 1.21.11 are pending; see ports/README.md.
 
-Verification (2026-10-28): all four supported loader/version builds passed and212 common tests passed. Checks cover config migration, missing/invalid tier arrays, global and tier scaling, zero damage/cooldown, minimum positive cooldown, the five-damage melee attribute and parity of damage/cooldown call sites in both1.20.1 ports. Packaged versions and original SFX bytes were checked; released1.3.1 checksums remain unchanged. No native gameplay or multiplayer testing was run.
+Verification (2026-10-28): all four supported loader/version builds passed and 212 common tests passed. Checks cover config migration, missing/invalid tier arrays, global and tier scaling, zero damage/cooldown, minimum positive cooldown, the five-damage melee attribute and parity of damage/cooldown call sites in both 1.20.1 ports. Packaged versions and original SFX bytes were checked; released 1.3.1 checksums remain unchanged. No native gameplay or multiplayer testing was run.

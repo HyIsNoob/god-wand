@@ -1,0 +1,12 @@
+pluginManagement {
+    repositories {
+        maven { url = "https://maven.fabricmc.net/" }
+        maven { url = "https://maven.neoforged.net/releases" }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+rootProject.name = "godwand"
+include("common")
+include("fabric")
+// NeoForge 26.3 is pending; only Fabric is being built.

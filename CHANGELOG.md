@@ -1,8 +1,9 @@
 # Changelog
 
-## [1.4.0-dev]
+## [1.3.2]
 
 ### Added
+- Fabric 26.3 test build.
 - Damage and cooldown settings for individual skills and charge levels.
 - A setting to disable Supernova's instant kills.
 - The wand now deals 5 damage with normal attacks. All appearances share this damage.

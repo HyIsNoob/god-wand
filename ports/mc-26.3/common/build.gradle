@@ -1,0 +1,26 @@
+plugins {
+    id 'net.fabricmc.fabric-loom'
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+
+    compileOnly "net.fabricmc:fabric-loader:${project.loader_version}"
+    compileOnly "org.spongepowered:mixin:0.8.7"
+    annotationProcessor "org.spongepowered:mixin:0.8.7:processor"
+
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+    testImplementation "org.ow2.asm:asm:9.7"
+    testImplementation "org.ow2.asm:asm-tree:9.7"
+    testImplementation "org.mockito:mockito-core:5.14.2"
+}
+
+loom {
+    accessWidenerPath = file("src/main/resources/godwand.accesswidener")
+}
+
+test {
+    useJUnitPlatform()
+    jvmArgs '-Dnet.bytebuddy.experimental=true'
+}

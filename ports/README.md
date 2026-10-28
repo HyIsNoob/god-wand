@@ -1,8 +1,7 @@
-# Port investigations
+# Minecraft ports
 
-Neither Minecraft1.21.11 nor26.3 is supported yet. These reports record real compile attempts against published Fabric/NeoForge toolchains. Preserving all six skills requires a rendering, camera, GUI and save-data migration. No installable jars are claimed.
+Only **Fabric 26.3** is being completed for God Wand **1.3.2**. Its source is tracked in [mc-26.3](mc-26.3/README.md); all six skills and the current balance settings are included. Build and automated checks pass; owner gameplay testing is pending.
 
-- [Minecraft1.21.11](mc-1.21.11/PORT_STATUS.md)
-- [Minecraft26.3](mc-26.3/PORT_STATUS.md)
+**Pending by owner request:** NeoForge 26.3 and Fabric/NeoForge 1.21.11. Do not resume either alongside Fabric testing. The old local prototypes are not release builds; their source is excluded from Git. See [1.21.11 notes](mc-1.21.11/PORT_STATUS.md).
 
-The local folders contain complete experimental source snapshots and compiler logs. They are excluded from Git except for these reports, and excluded from release builds. They predate the per-tier balance changes. The supported source remains common/,fabric/,neoforge/,fabric-1.20.1/ and forge-1.20.1/ in the repository root.
+The root build still owns the four existing 1.21.1/1.20.1 variants. The 26.3 project has its own Java 25 build; it is not included in root releaseJars.

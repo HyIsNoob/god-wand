@@ -1,10 +1,10 @@
 # Minecraft 1.21.11 port investigation
 
-Status: NOT SUPPORTED / NOT RELEASEABLE. This is an isolated full-source port prototype, not an installable port. No gameplay was launched.
+Status: PENDING BY OWNER REQUEST (2026-10-28). Finish Fabric 26.3 first. NOT SUPPORTED / NOT RELEASEABLE. This is an isolated full-source port prototype, not an installable port. No gameplay was launched.
 
 The complete 1.21.1 common, Fabric and NeoForge source/resources/tests were copied here before upstream per-tier balance changes on 2026-10-28. Do not treat this snapshot as the latest balance implementation.
 
-Dependencies verified against official Maven metadata: Minecraft 1.21.11, Fabric Loader 0.20.1, Fabric API 0.141.6+1.21.11, Loom 1.14.10, NeoForge 21.11.48; wrapper Gradle 9.2.1, Java 21. Candidate version 1.4.0-dev.
+Dependencies verified against official Maven metadata: Minecraft 1.21.11, Fabric Loader 0.20.1, Fabric API 0.141.6+1.21.11, Loom 1.14.10, NeoForge 21.11.48; wrapper Gradle 9.2.1, Java 21. Target mod version 1.3.2.
 
 ## Concrete preservation blockers
 
