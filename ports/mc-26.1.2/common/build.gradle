@@ -7,7 +7,6 @@ dependencies {
 
     compileOnly "net.fabricmc:fabric-loader:${project.loader_version}"
     compileOnly "org.spongepowered:mixin:0.8.7"
-    annotationProcessor "org.spongepowered:mixin:0.8.7:processor"
 
     testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"

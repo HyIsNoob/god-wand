@@ -10,7 +10,7 @@ import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import net.godwand.client.compat.PrimitiveTopology;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.godwand.item.GodWandItem;
@@ -314,3 +314,4 @@ public final class SupernovaAccretionRenderer {
     }
 
 }
+

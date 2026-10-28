@@ -10,7 +10,7 @@ import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import net.godwand.client.compat.PrimitiveTopology;
 import net.minecraft.client.Camera;
 import net.godwand.network.CannonPressurePayload;
 import net.godwand.network.ImpactFxPayload;
@@ -254,3 +254,4 @@ public final class ImpactDebrisRenderer {
         vertex(v,m,a,r,g,blue,alpha);vertex(v,m,b,r,g,blue,alpha);vertex(v,m,c,r,g,blue,alpha);vertex(v,m,d,r,g,blue,alpha);
     }
 }
+

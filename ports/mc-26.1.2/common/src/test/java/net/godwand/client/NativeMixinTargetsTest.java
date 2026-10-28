@@ -55,7 +55,7 @@ class NativeMixinTargetsTest {
             var fields=model(type).methods().stream().flatMap(m -> m.code().stream()).flatMap(code -> java.util.stream.StreamSupport.stream(code.spliterator(),false))
                 .filter(e -> e instanceof java.lang.classfile.instruction.FieldInstruction)
                 .map(e -> (java.lang.classfile.instruction.FieldInstruction)e)
-                .filter(f -> f.owner().asInternalName().equals("com/mojang/renderpearl/api/pipeline/CompareOp"))
+                .filter(f -> f.owner().asInternalName().equals("com/mojang/blaze3d/platform/CompareOp"))
                 .map(f -> f.name().stringValue()).toList();
             assertTrue(fields.contains("GREATER_THAN_OR_EQUAL"),type);
             assertFalse(fields.contains("LESS_THAN_OR_EQUAL"),type);
@@ -63,3 +63,4 @@ class NativeMixinTargetsTest {
     }
 
 }
+

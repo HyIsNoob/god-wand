@@ -1,5 +1,5 @@
 package net.godwand.client;
-import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import net.godwand.client.compat.PrimitiveTopology;
 
 import net.godwand.client.compat.GodWandGeometry;
 
@@ -721,9 +721,11 @@ public final class AtomicRenderer {
     }    private static final class EnergyTexture extends net.minecraft.client.renderer.texture.DynamicTexture {
         EnergyTexture(com.mojang.blaze3d.platform.NativeImage pixels) {
             super(() -> "God Wand Atomic energy", pixels);
-            sampler = RenderSystem.getSamplerCache().getClampToEdge(com.mojang.renderpearl.api.textures.FilterMode.LINEAR);
+            sampler = RenderSystem.getSamplerCache().getClampToEdge(com.mojang.blaze3d.textures.FilterMode.LINEAR);
         }
     }
 
 
 }
+
+

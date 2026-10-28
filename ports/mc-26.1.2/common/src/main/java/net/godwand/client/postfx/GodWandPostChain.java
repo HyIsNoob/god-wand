@@ -5,7 +5,7 @@ import com.google.gson.JsonParser;
 import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.resource.CrossFrameResourcePool;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.serialization.JsonOps;
 import net.godwand.client.GodWandPostFxManager;
 import net.godwand.mixin.PostEffectProcessorAccessor;
@@ -111,3 +111,4 @@ public final class GodWandPostChain implements AutoCloseable {
         projectionBuffer.close();
     }
 }
+

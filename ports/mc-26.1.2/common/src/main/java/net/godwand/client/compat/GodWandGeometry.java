@@ -1,15 +1,19 @@
 package net.godwand.client.compat;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.ColorTargetState;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.CompareOp;
+import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.renderpearl.api.pipeline.*;
-import com.mojang.renderpearl.api.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
+
 import java.util.*;
 
 /** Extracts authored meshes, then uploads and submits them on the world drawing stage. */
@@ -25,7 +29,7 @@ public final class GodWandGeometry {
     private static Vector4f color = new Vector4f(1);
 
     public static BufferBuilder begin(PrimitiveTopology topology, VertexFormat format) {
-        return new BufferBuilder(ARENA, topology, format);
+        return new BufferBuilder(ARENA, topology.mode, format);
     }
     public static void enableBlend() { blend = true; }
     public static void disableBlend() { blend = false; }
@@ -46,29 +50,27 @@ public final class GodWandGeometry {
 
     private static RenderPipeline pipeline(Key key) {
         return PIPELINES.computeIfAbsent(key, k -> {
-            var layout = BindGroupLayout.builder()
-                    .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
-                    .withUniform("Projection", UniformType.UNIFORM_BUFFER);
-            if (k.texture) layout.withUniform("Sampler0", UniformType.COMBINED_IMAGE_SAMPLER);
             String shader = k.texture ? "core/position_tex_color" : "core/position_color";
             var builder = RenderPipeline.builder()
                     .withLocation(Identifier.fromNamespaceAndPath("godwand", "geometry/" + PIPELINES.size()))
-                    .withVertexShader(shader).withFragmentShader(shader)
-                    .withBindGroupLayout(layout.build())
-                    .withVertexBinding(0, k.texture ? DefaultVertexFormat.POSITION_TEX_COLOR : DefaultVertexFormat.POSITION_COLOR)
-                    .withPrimitiveTopology(k.topology).withCull(k.cull)
-                    .withColorTargetState(k.blend ? new ColorTargetState(k.additive
-                            ? new BlendFunction(BlendFactor.SRC_ALPHA, BlendFactor.ONE)
-                            : BlendFunction.TRANSLUCENT) : ColorTargetState.DEFAULT)
+                    .withVertexShader(shader)
+                    .withFragmentShader(shader)
+                    .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
+                    .withUniform("Projection", UniformType.UNIFORM_BUFFER)
+                    .withVertexFormat(k.texture ? DefaultVertexFormat.POSITION_TEX_COLOR : DefaultVertexFormat.POSITION_COLOR, k.topology.mode)
+                    .withCull(k.cull)
+                    .withColorTargetState(k.blend ? new ColorTargetState(k.additive ? BlendFunction.ADDITIVE : BlendFunction.TRANSLUCENT) : ColorTargetState.DEFAULT)
                     .withDepthStencilState(new DepthStencilState(k.depth ? CompareOp.GREATER_THAN_OR_EQUAL : CompareOp.ALWAYS_PASS, k.writeDepth));
-            return RenderPipelines.register(builder.build());
+            if (k.texture) {
+                builder.withSampler("Sampler0");
+            }
+            return builder.build();
         });
     }
 
     /** Register all authored state combinations before resource shader compilation. */
     public static void initialize() {
-        for (var topology : new PrimitiveTopology[]{PrimitiveTopology.QUADS, PrimitiveTopology.TRIANGLES,
-                PrimitiveTopology.TRIANGLE_STRIP, PrimitiveTopology.TRIANGLE_FAN})
+        for (var topology : PrimitiveTopology.values())
             for (int style = 0; style < 3; style++)
                 for (boolean writing : new boolean[]{false,true})
                     pipeline(new Key(topology,false,style != 0,style == 2,true,writing,false));
@@ -77,7 +79,7 @@ public final class GodWandGeometry {
 
     public static void draw(MeshData mesh) {
         if (mesh == null) return;
-        var key = new Key(mesh.drawState().primitiveTopology(), texture, blend, additive, depth, writeDepth, cull);
+        var key = new Key(PrimitiveTopology.fromMode(mesh.drawState().mode()), texture, blend, additive, depth, writeDepth, cull);
         PENDING.add(new Draw(mesh,key,textureId,new Vector4f(color)));
     }
 
@@ -103,22 +105,23 @@ public final class GodWandGeometry {
             long offset = 0;
             for (Draw draw : PENDING) {
                 var state = draw.mesh.drawState();
-                int size = state.vertexCount() * state.format().getVertexSize();
-                var sequential = RenderSystem.getSequentialBuffer(state.primitiveTopology());
+                int vertexSize = state.format().getVertexSize();
+                int size = state.vertexCount() * vertexSize;
+                var sequential = RenderSystem.getSequentialBuffer(state.mode());
                 var indices = sequential.getBuffer(state.indexCount());
-                var transforms = RenderSystem.getDynamicUniforms().writeTransform(RenderSystem.getModelViewMatrixCopy(), draw.color, new org.joml.Vector3f(), new Matrix4f());
-                try (var pass = encoder.createRenderPass(() -> "God Wand procedural geometry", target.getColorTextureView(), Optional.empty(),
+                var transforms = RenderSystem.getDynamicUniforms().writeTransform(RenderSystem.getModelViewMatrix(), draw.color, new org.joml.Vector3f(), new Matrix4f());
+                try (var pass = encoder.createRenderPass(() -> "God Wand procedural geometry", target.getColorTextureView(), OptionalInt.empty(),
                         target.getDepthTextureView(), OptionalDouble.empty())) {
-                    pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline(draw.key)));
-                    pass.setUniform("Projection",RenderSystem.getProjectionMatrixBuffer());
-                    pass.setUniform("DynamicTransforms",transforms);
+                    pass.setPipeline(pipeline(draw.key));
+                    pass.setUniform("Projection", RenderSystem.getProjectionMatrixBuffer());
+                    pass.setUniform("DynamicTransforms", transforms);
                     if (draw.key.texture) {
                         var sampled = client.getTextureManager().getTexture(Objects.requireNonNull(draw.texture));
-                        pass.setUniform("Sampler0",sampled.getTextureView(),sampled.getSampler());
+                        pass.bindTexture("Sampler0", sampled.getTextureView(), sampled.getSampler());
                     }
-                    pass.setVertexBuffer(0,vertices.slice(offset,size));
-                    pass.setIndexBuffer(indices,sequential.type());
-                    pass.drawIndexed(0,0,state.indexCount(),1,0);
+                    pass.setVertexBuffer(0, vertices);
+                    pass.setIndexBuffer(indices, sequential.type());
+                    pass.drawIndexed((int) (offset / vertexSize), 0, state.indexCount(), 1);
                 }
                 offset += size;
             }

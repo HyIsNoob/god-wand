@@ -16,14 +16,14 @@ public abstract class GameRendererMixin {
     private org.joml.Matrix4f godwand$worldProjection;
 
     @org.spongepowered.asm.mixin.injection.ModifyArg(method = "renderLevel", at = @At(value = "INVOKE", target =
-            "Lnet/minecraft/client/renderer/ProjectionMatrixBuffer;getBuffer(Lorg/joml/Matrix4f;)Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;"), index = 0)
+            "Lnet/minecraft/client/renderer/ProjectionMatrixBuffer;getBuffer(Lorg/joml/Matrix4f;)Lcom/mojang/blaze3d/buffers/GpuBufferSlice;"), index = 0)
     private org.joml.Matrix4f godwand$captureProjection(org.joml.Matrix4f matrix) {
         godwand$worldProjection = new org.joml.Matrix4f(matrix);
         return matrix;
     }
 
     @Inject(method = "renderLevel", at = @At(value = "INVOKE", target =
-            "Lnet/minecraft/client/renderer/LevelRenderer;render(Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;ZLnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;Lorg/joml/Vector4f;ZZ)V",
+            "Lnet/minecraft/client/renderer/LevelRenderer;renderLevel(Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;Lnet/minecraft/client/DeltaTracker;ZLnet/minecraft/client/renderer/state/level/CameraRenderState;Lorg/joml/Matrix4fc;Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lorg/joml/Vector4f;ZLnet/minecraft/client/renderer/chunk/ChunkSectionsToRender;)V",
             shift = At.Shift.AFTER))
     private void godwand$afterWorldComposite(CallbackInfo ci) {
         var state = ((GameRenderer)(Object)this).gameRenderState().levelRenderState;
@@ -44,7 +44,7 @@ public abstract class GameRendererMixin {
     }
 
     @Inject(method = "renderItemInHand", at = @At("HEAD"), cancellable = true)
-    private void godwand$atomicHideHand(net.minecraft.client.renderer.state.level.CameraRenderState camera, net.minecraft.client.renderer.state.level.PlayerRenderState player, com.mojang.renderpearl.api.textures.GpuTextureView texture, CallbackInfo ci) {
+    private void godwand$atomicHideHand(net.minecraft.client.renderer.state.level.CameraRenderState camera, float partialTicks, org.joml.Matrix4fc matrix, CallbackInfo ci) {
         if (net.godwand.client.AtomicCinematic.active()) ci.cancel();
     }
 }

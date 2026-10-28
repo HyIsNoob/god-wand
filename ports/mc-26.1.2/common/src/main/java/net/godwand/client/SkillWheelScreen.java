@@ -8,7 +8,7 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 
-import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import net.godwand.client.compat.PrimitiveTopology;
 import net.godwand.platform.Services;
 import net.godwand.item.GodWandItem;
 import net.godwand.network.SelectSkillPayload;
@@ -184,7 +184,7 @@ public final class SkillWheelScreen extends Screen {
     private record WheelState(org.joml.Matrix3x2f pose, int current, int hovered, float cooldown,
             net.minecraft.client.gui.navigation.ScreenRectangle bounds)
             implements net.minecraft.client.renderer.state.gui.GuiElementRenderState {
-        public com.mojang.renderpearl.api.pipeline.RenderPipeline pipeline() { return net.minecraft.client.renderer.RenderPipelines.GUI; }
+        public com.mojang.blaze3d.pipeline.RenderPipeline pipeline() { return net.minecraft.client.renderer.RenderPipelines.GUI; }
         public net.minecraft.client.gui.render.TextureSetup textureSetup() { return net.minecraft.client.gui.render.TextureSetup.noTexture(); }
         public net.minecraft.client.gui.navigation.ScreenRectangle scissorArea() { return null; }
         public void buildVertices(com.mojang.blaze3d.vertex.VertexConsumer vertices) {
@@ -267,3 +267,5 @@ public final class SkillWheelScreen extends Screen {
         }
     }
 }
+
+

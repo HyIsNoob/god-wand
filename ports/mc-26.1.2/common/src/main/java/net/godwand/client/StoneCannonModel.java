@@ -8,7 +8,7 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 
-import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import net.godwand.client.compat.PrimitiveTopology;
 import net.minecraft.client.renderer.GameRenderer;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -134,3 +134,4 @@ public final class StoneCannonModel {
         }
     }
 }
+

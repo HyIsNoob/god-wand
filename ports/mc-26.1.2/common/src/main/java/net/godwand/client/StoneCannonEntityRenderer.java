@@ -9,7 +9,7 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 
-import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import net.godwand.client.compat.PrimitiveTopology;
 import com.mojang.math.Axis;
 import net.godwand.entity.StoneCannonProjectileEntity;
 import net.minecraft.client.renderer.GameRenderer;
@@ -125,3 +125,4 @@ public class StoneCannonEntityRenderer extends EntityRenderer<StoneCannonProject
         super.submit(state, matrices, collector, camera);
     }
 }
+

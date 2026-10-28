@@ -47,14 +47,14 @@ public class PostChainResourceTest {
             for (var element : render.code().orElseThrow()) {
                 if (element instanceof java.lang.classfile.instruction.InvokeInstruction call) {
                     String target = call.owner().asInternalName() + ";" + call.name().stringValue() + call.type().stringValue();
-                    if (target.equals("net/minecraft/client/renderer/ProjectionMatrixBuffer;getBuffer(Lorg/joml/Matrix4f;)Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;")) projection = index;
-                    if (target.equals("net/minecraft/client/renderer/LevelRenderer;render(Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;ZLnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;Lorg/joml/Vector4f;ZZ)V")) world = index;
-                    if (call.name().equalsString("render3dHud")) hud = index;
+                    if (target.equals("net/minecraft/client/renderer/ProjectionMatrixBuffer;getBuffer(Lorg/joml/Matrix4f;)Lcom/mojang/blaze3d/buffers/GpuBufferSlice;")) projection = index;
+                    if (target.equals("net/minecraft/client/renderer/LevelRenderer;render(Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;ZLnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lorg/joml/Vector4f;ZZ)V")) world = index;
+                    if (call.name().equalsString("renderItemInHand")) hud = index;
                 }
                 index++;
             }
             require(projection >= 0 && world > projection && hud > world, "projection/world/hand render order");
-            System.out.println("Actual 26.3 render hook descriptors and ordering verified");
+            System.out.println("Actual 26.1.2 render hook descriptors and ordering verified");
         }
     }
 
@@ -131,3 +131,4 @@ public class PostChainResourceTest {
         if (!condition) throw new AssertionError(message);
     }
 }
+

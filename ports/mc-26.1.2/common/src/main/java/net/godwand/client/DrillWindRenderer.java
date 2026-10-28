@@ -9,7 +9,7 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 
-import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import net.godwand.client.compat.PrimitiveTopology;
 import com.mojang.math.Axis;
 import net.minecraft.client.Camera;
 import net.godwand.network.DrillWindPayload;
@@ -171,3 +171,4 @@ public final class DrillWindRenderer {
         }
     }
 }
+
