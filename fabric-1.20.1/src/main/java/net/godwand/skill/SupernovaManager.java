@@ -377,9 +377,9 @@ public class SupernovaManager {
                 AABB suctionBox = new AABB(task.groundCenter).inflate(currentPeelRadius * 1.4);
                 for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, suctionBox, ent -> ent != task.caster)) {
                     double distToCoreSq = e.distanceToSqr(task.corePos);
-                    if (distToCoreSq <= 12.25 && net.godwand.config.GodWandConfig.SERVER.damageMultiplier > 0) { // Bán kính 3.5m quanh tâm hố đen
+                    if (distToCoreSq <= 12.25 && net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1) > 0) { // Bán kính 3.5m quanh tâm hố đen
                         var source = world.damageSources().fellOutOfWorld();
-                        if (e.getMaxHealth() <= 50.0f) {
+                        if (e.getMaxHealth() <= net.godwand.config.GodWandConfig.SERVER.supernovaInstantKillHealthThreshold) {
                             // Tiêu diệt ngay quái thường và động vật dưới 50 máu
                             e.hurt(source, Float.MAX_VALUE);
                             if (e.isAlive()) {
@@ -392,7 +392,7 @@ public class SupernovaManager {
                         } else {
                             // Quái máu trâu / Boss (> 50 máu như Rồng Ender, Wither): Sát thương nghiền nát liên tục, không one-shot
                             if (task.ageTicks % 4 == 0) {
-                                e.hurt(source, 15.0f * net.godwand.config.GodWandConfig.SERVER.damageMultiplier);
+                                e.hurt(source, 15.0f * net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1));
                             }
                             world.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, e.getX(), e.getY() + 0.5, e.getZ(), 2, 0.2, 0.2, 0.2, 0.05);
                             world.sendParticles(ParticleTypes.ELECTRIC_SPARK, e.getX(), e.getY() + 0.5, e.getZ(), 3, 0.2, 0.2, 0.2, 0.1);
@@ -440,9 +440,9 @@ public class SupernovaManager {
                 for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, blastBox, ent -> ent != task.caster)) {
                     double dist = e.position().distanceTo(task.corePos);
                     if (dist <= task.blastRadius + 8.0) {
-                        float dmg = (float) Math.max(80.0, (1.0 - (dist / task.blastRadius)) * 380.0 + 80.0) * (float) net.godwand.config.GodWandConfig.SERVER.damageMultiplier;
+                        float dmg = (float) Math.max(80.0, (1.0 - (dist / task.blastRadius)) * 380.0 + 80.0) * (float) net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1);
                         var source = world.damageSources().explosion(null, task.caster);
-                        if (e instanceof net.minecraft.world.entity.Mob && e.getMaxHealth() <= 50.0f && net.godwand.config.GodWandConfig.SERVER.damageMultiplier > 0) {
+                        if (e instanceof net.minecraft.world.entity.Mob && e.getMaxHealth() <= net.godwand.config.GodWandConfig.SERVER.supernovaInstantKillHealthThreshold && net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1) > 0) {
                             e.hurt(source, Float.MAX_VALUE);
                             if (e.isAlive()) {
                                 e.setHealth(0.0f);

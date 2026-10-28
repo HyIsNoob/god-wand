@@ -9,6 +9,53 @@ import static org.junit.jupiter.api.Assertions.*;
 class GodWandConfigTest {
     @TempDir Path directory;
 
+    @Test void skillSettingsKeepTierBoundariesZeroDamageAndGlobalScaling() {
+        var previous=GodWandConfig.SERVER;
+        try {
+            var server=new GodWandConfig.Server();GodWandConfig.SERVER=server;
+            server.damageMultiplier=.5f;server.cooldownMultiplier=2;
+            server.singularityDamageMultipliers=new float[]{0,2,Float.NaN,999};
+            server.singularityCooldownTicks=new int[]{0,40,-5,999};
+            server.earthDrillDamageMultipliers=null;
+            server.earthDrillCooldownTicks=new int[]{10};
+            server.stoneCannonDamageMultipliers=new float[]{-1,Float.POSITIVE_INFINITY,3,4};
+            server.supernovaDamageMultiplier=2;server.supernovaInstantKillHealthThreshold=0;
+            server.validate();
+            assertEquals(0,GodWandConfig.skillDamageMultiplier(1,1));
+            assertEquals(1,GodWandConfig.skillDamageMultiplier(1,2));
+            assertEquals(.5f,GodWandConfig.skillDamageMultiplier(1,3));
+            assertEquals(.5f,GodWandConfig.skillDamageMultiplier(1,999));
+            assertEquals(0,GodWandConfig.skillCooldownTicks(1,1));
+            assertEquals(80,GodWandConfig.skillCooldownTicks(1,2));
+            assertEquals(0,GodWandConfig.skillCooldownTicks(1,3));
+            assertEquals(20,GodWandConfig.skillCooldownTicks(2,1));
+            assertEquals(70,GodWandConfig.skillCooldownTicks(2,4));
+            assertEquals(0,GodWandConfig.skillDamageMultiplier(4,1));
+            assertEquals(.5f,GodWandConfig.skillDamageMultiplier(4,2));
+            assertEquals(1,GodWandConfig.skillDamageMultiplier(3,1));
+            assertEquals(0,server.supernovaInstantKillHealthThreshold);
+            server.cooldownMultiplier=.1f;server.singularityCooldownTicks[0]=1;
+            assertEquals(1,GodWandConfig.skillCooldownTicks(1,1));
+            server.damageMultiplier=0;
+            for(int skill=1;skill<=5;skill++)for(int tier=1;tier<=4;tier++)assertEquals(0,GodWandConfig.skillDamageMultiplier(skill,tier));
+        } finally { GodWandConfig.SERVER=previous; }
+    }
+
+    @Test void olderPacksGainPerSkillAndChargeTierSettingsWithoutLosingExistingValues() throws Exception {
+        Path file=directory.resolve("server.json");
+        Files.writeString(file,"{\"damageMultiplier\":0.5,\"atomicDamage\":123,\"earthDrillTerrainDamage\":false}");
+        GodWandConfig.read(file,GodWandConfig.Server.class,new GodWandConfig.Server());
+        var saved=com.google.gson.JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+        assertEquals(3,saved.getAsJsonArray("singularityDamageMultipliers").size());
+        assertEquals(4,saved.getAsJsonArray("earthDrillCooldownTicks").size());
+        assertEquals(4,saved.getAsJsonArray("stoneCannonDamageMultipliers").size());
+        assertEquals(520,saved.get("supernovaCooldownTicks").getAsInt());
+        assertEquals(600,saved.get("atomicCooldownTicks").getAsInt());
+        assertEquals(0.5,saved.get("damageMultiplier").getAsDouble());
+        assertEquals(123,saved.get("atomicDamage").getAsInt());
+        assertFalse(saved.get("earthDrillTerrainDamage").getAsBoolean());
+    }
+
     @Test void upgradesOldConfigOnDiskWithoutReplacingUserValuesOrUnknownKeys() throws Exception {
         Path file=directory.resolve("godwand-server.json");
         Files.writeString(file,"{\"damageMultiplier\":2.5,\"supernovaTerrainDamage\":false,\"packNote\":\"keep\"}");

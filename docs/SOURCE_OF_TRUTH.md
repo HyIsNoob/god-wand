@@ -1,6 +1,6 @@
 # Source of truth
 
-This repository is the consolidated God Wand 1.3.0 development source as of 2026-10-27. Continue feature work here. Current patch version: 1.3.1; the repository folder name remains god-wand-1.3.0.
+This repository is the consolidated God Wand 1.3.0 development source as of 2026-10-27. Continue feature work here. Current development version: 1.4.0-dev, following release 1.3.1; the repository folder name remains god-wand-1.3.0.
 
 ## Included
 

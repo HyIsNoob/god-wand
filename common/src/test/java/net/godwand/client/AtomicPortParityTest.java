@@ -28,6 +28,9 @@ class AtomicPortParityTest {
             for(String name:new String[]{"releaseMovement","movementLocked"})
                 assertEquals(normalized(method(Files.readString(common.resolve("skill/AtomicManager.java")),name)),
                         normalized(method(Files.readString(port.resolve("skill/AtomicManager.java")),name)),loader+": server "+name);
+            for(String name:new String[]{"skillCooldownTicks","skillDamageMultiplier","validatedCooldowns","validatedDamage"})
+                assertEquals(normalized(method(Files.readString(common.resolve("config/GodWandConfig.java")),name)),
+                        normalized(method(Files.readString(port.resolve("config/GodWandConfig.java")),name)),loader+": balance "+name);
             String source=Files.readString(common.resolve("client/AtomicRenderer.java")),copy=Files.readString(port.resolve("client/AtomicRenderer.java"));
             for(String name:new String[]{"emit","cylinder","charge","fortress","blast","pressureAura","captureSwordTip","sampleSwordTip","swordTrail","bladeConvergence","receive","stop","tick","reset"})
                 assertEquals(normalized(method(source,name)),normalized(method(copy,name)),loader+": "+name);

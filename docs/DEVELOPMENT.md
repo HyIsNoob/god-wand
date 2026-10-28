@@ -25,6 +25,8 @@ The 1.20.1 projects remain separate Gradle builds because their Java/Minecraft/l
 
 On Linux/macOS use `./gradlew`. Add `--offline` when dependencies/toolchains are cached. The port tasks pass that setting to their child wrappers. These tasks start console build processes only; they do not launch Minecraft.
 
+Development versions ending in -dev collect jars under build/preview/<version>/ instead of build/release/, so previews stay separate from released jars.
+
 Root `clean` clears root build output. Each loader/standalone build owns its own build directory. Use the four jars collected in build/release rather than old files left elsewhere.
 
 ## QA scope

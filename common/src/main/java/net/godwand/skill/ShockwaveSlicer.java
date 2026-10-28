@@ -35,6 +35,7 @@ public class ShockwaveSlicer {
         public final ServerLevel world;
         public final BlockPos center;
         public final double maxRadius;
+        public final int chargeLevel;
         public final Vec3 orbCenter;
         public final ServerPlayer caster;
 
@@ -64,6 +65,7 @@ public class ShockwaveSlicer {
             this.world = world;
             this.center = center.immutable();
             this.maxRadius = maxRadius;
+            this.chargeLevel = maxRadius<=5?1:maxRadius<=10?2:3;
             this.orbCenter = orbCenter;
             this.caster = caster;
         }
@@ -344,7 +346,7 @@ public class ShockwaveSlicer {
             Vec3 diff = task.center.getCenter().subtract(e.position());
             double dist = diff.length();
             if (dist <= task.maxRadius * 1.15) {
-                float dmg = (float) Math.max(45.0, (1.0 - (dist / (task.maxRadius * 1.15))) * 80.0 + 45.0) * (float) net.godwand.config.GodWandConfig.SERVER.damageMultiplier;
+                float dmg = (float) Math.max(45.0, (1.0 - (dist / (task.maxRadius * 1.15))) * 80.0 + 45.0) * (float) net.godwand.config.GodWandConfig.skillDamageMultiplier(1,task.chargeLevel);
                 e.hurt(world.damageSources().fallingBlock(task.caster), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (dmg));
 
                 Vec3 pull = (dist > 0.01) ? diff.normalize().scale(1.9).add(0, -0.9, 0) : new Vec3(0, -1.0, 0);
@@ -581,7 +583,7 @@ public class ShockwaveSlicer {
             BlockState eyeState = world.getBlockState(eyePos);
             boolean inSolid = feetState.isSolidRender(world, feetPos) || eyeState.isSolidRender(world, eyePos);
             if (inSolid) {
-                e.hurt(task.caster != null ? world.damageSources().fallingBlock(task.caster) : world.damageSources().inWall(), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (35.0f) * net.godwand.config.GodWandConfig.SERVER.damageMultiplier);
+                e.hurt(task.caster != null ? world.damageSources().fallingBlock(task.caster) : world.damageSources().inWall(), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (35.0f) * net.godwand.config.GodWandConfig.skillDamageMultiplier(1,task.chargeLevel));
                 BlockState blockToBreak = feetState.isSolidRender(world, feetPos) ? feetState : eyeState;
                 world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, blockToBreak),
                         e.getX(), e.getY() + 0.5, e.getZ(), 24, 0.3, 0.5, 0.3, 0.15);

@@ -269,7 +269,7 @@ public class StoneCannonManager {
         excavateImpact(projectile, hitPos, hitPos.add(direction.scale(3.0 + level * 1.5)));
         if (hit instanceof net.minecraft.world.phys.EntityHitResult entityHit && entityHit.getEntity() instanceof LivingEntity victim
                 && victim != projectile.getOwner() && projectile.markHit(victim)) {
-            victim.hurt(sw.damageSources().fallingBlock(projectile.getOwner()), calculateDirectDamage(level) * (float) net.godwand.config.GodWandConfig.SERVER.damageMultiplier
+            victim.hurt(sw.damageSources().fallingBlock(projectile.getOwner()), calculateDirectDamage(level) * (float) net.godwand.config.GodWandConfig.skillDamageMultiplier(4,level)
                     * (victim instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f));
         }
         double blastRadius = calculateCraterRadius(level) * 1.25;
@@ -280,7 +280,7 @@ public class StoneCannonManager {
             double dist = e.position().distanceTo(hitPos);
             if (dist <= blastRadius && projectile.markHit(e)) {
                 float splashDmg = (float) Math.max(30.0, (1.0 - (dist / blastRadius)) * (calculateDirectDamage(level) * 0.75) + 30.0);
-                e.hurt(sw.damageSources().fallingBlock(projectile.getOwner()), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (splashDmg * (float) net.godwand.config.GodWandConfig.SERVER.damageMultiplier));
+                e.hurt(sw.damageSources().fallingBlock(projectile.getOwner()), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (splashDmg * (float) net.godwand.config.GodWandConfig.skillDamageMultiplier(4,level)));
                 Vec3 blastDir = e.position().subtract(hitPos);
                 Vec3 push = (blastDir.length() > 0.01) ? blastDir.normalize().scale(1.8).add(0, 0.65, 0) : new Vec3(0, 1.2, 0);
                 e.setDeltaMovement(push);

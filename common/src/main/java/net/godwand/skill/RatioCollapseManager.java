@@ -48,6 +48,7 @@ public class RatioCollapseManager {
         public final int craterRadius;
         public final int craterDepth;
         public final float damageMult;
+        public int chargeLevel=1;
 
         public int ageTicks = 0;
         public float orbitAngle = 0.0f;
@@ -146,9 +147,9 @@ public class RatioCollapseManager {
             case 3 -> 2.8f;
             case 2 -> 1.8f;
             default -> 1.2f;
-        }) * (float) net.godwand.config.GodWandConfig.SERVER.damageMultiplier;
+        });
 
-        launch(world, player, targetPos, radius, boulderRadius, maxBlocks, craterRadius, craterDepth, damageMult);
+        launch(world, player, targetPos, radius, boulderRadius, maxBlocks, craterRadius, craterDepth, damageMult,chargeLevel);
     }
 
     public static void launch(ServerLevel world, ServerPlayer player, BlockPos center, double radius) {
@@ -158,7 +159,12 @@ public class RatioCollapseManager {
     public static void launch(ServerLevel world, ServerPlayer player, BlockPos center,
                               double radius, double boulderRadius, int maxBlocks,
                               int craterRadius, int craterDepth, float damageMult) {
+        launch(world,player,center,radius,boulderRadius,maxBlocks,craterRadius,craterDepth,damageMult,1);
+    }
+    private static void launch(ServerLevel world,ServerPlayer player,BlockPos center,double radius,double boulderRadius,
+                               int maxBlocks,int craterRadius,int craterDepth,float damageMult,int chargeLevel) {
         RatioCollapseTask task = new RatioCollapseTask(world, player, center, radius, boulderRadius, maxBlocks, craterRadius, craterDepth, damageMult);
+        task.chargeLevel=chargeLevel;
 
         // 1. Camera Shake rung chấn màn hình khi vừa xuất chiêu (Trauma Shake on Cast)
         CinematicFxPayload castShake = new CinematicFxPayload(
@@ -246,7 +252,7 @@ public class RatioCollapseManager {
         for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, vortexBox, ent -> ent != player)) {
             e.push(0, 0.48, 0);
             e.hurtMarked = true;
-            e.hurt(world.damageSources().magic(), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (4.0f * task.damageMult));
+            e.hurt(world.damageSources().magic(), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (4.0f * task.damageMult * net.godwand.config.GodWandConfig.skillDamageMultiplier(2,task.chargeLevel)));
         }
 
         ACTIVE_TASKS.add(task);
@@ -592,7 +598,7 @@ public class RatioCollapseManager {
                     // Sát thương nghiền nát xuyên thấu khi mũi khoan cắm sâu xuống đất (Ticks 159..169)
                     AABB drillPenetrateBox = AABB.ofSize(currentDrillCenter, task.boulderRadius * 2.2, task.boulderRadius * 3.6, task.boulderRadius * 2.2);
                     for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, drillPenetrateBox, ent -> ent != task.caster)) {
-                        e.hurt(world.damageSources().fallingBlock(task.caster), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (10.0f * task.damageMult));
+                        e.hurt(world.damageSources().fallingBlock(task.caster), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (10.0f * task.damageMult * net.godwand.config.GodWandConfig.skillDamageMultiplier(2,task.chargeLevel)));
                         e.push(0, -0.45, 0); // Ép chặt nạn nhân xuống đáy lỗ khoan
                         e.hurtMarked = true;
                     }
@@ -620,7 +626,7 @@ public class RatioCollapseManager {
                     );
                     for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, slamBox, ent -> ent != task.caster)) {
                         double dist = e.position().distanceTo(task.center.getCenter());
-                        float dmg = (float) Math.max(35.0, ((1.0 - (dist / (task.radius * 1.45))) * 75.0 + 25.0) * task.damageMult);
+                        float dmg = (float) Math.max(35.0, ((1.0 - (dist / (task.radius * 1.45))) * 75.0 + 25.0) * task.damageMult) * net.godwand.config.GodWandConfig.skillDamageMultiplier(2,task.chargeLevel);
                         e.hurt(world.damageSources().fallingBlock(task.caster), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (dmg));
 
                         Vec3 diff = e.position().subtract(task.center.getCenter()).normalize().scale(2.2 * task.damageMult).add(0, 0.85, 0);

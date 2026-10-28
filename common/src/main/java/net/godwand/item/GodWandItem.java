@@ -51,7 +51,15 @@ public class GodWandItem extends Item {
     }
 
     public GodWandItem(Properties settings) {
-        super(settings.stacksTo(1));
+        super(settings.stacksTo(1).attributes(createMeleeAttributes()));
+    }
+
+    static net.minecraft.world.item.component.ItemAttributeModifiers createMeleeAttributes() {
+        return net.minecraft.world.item.component.ItemAttributeModifiers.builder()
+                .add(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE,
+                        new net.minecraft.world.entity.ai.attributes.AttributeModifier(BASE_ATTACK_DAMAGE_ID,4,
+                                net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE),
+                        net.minecraft.world.entity.EquipmentSlotGroup.MAINHAND).build();
     }
 
     public static int getSkillMode(ItemStack stack) {
@@ -344,7 +352,7 @@ public class GodWandItem extends Item {
         if (!world.isClientSide() && user instanceof ServerPlayer player) {
             if (chargeTicks >= 140) {
                 SupernovaManager.cast(player);
-                player.getCooldowns().addCooldown(this, net.godwand.config.GodWandConfig.cooldownTicks(520));
+                player.getCooldowns().addCooldown(this, net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_SUPERNOVA,1));
                 player.stopUsingItem();
                 player.displayClientMessage(Component.literal("§4Released."), true);
             }
@@ -357,7 +365,7 @@ public class GodWandItem extends Item {
             if (user instanceof ServerPlayer player) {
                 boolean committed=getUseDuration(stack,user)-remainingUseTicks>=AtomicSequence.CHARGE_TICKS;
                 AtomicManager.releaseCharge(player);
-                if(committed)player.getCooldowns().addCooldown(this,net.godwand.config.GodWandConfig.cooldownTicks(600));
+                if(committed)player.getCooldowns().addCooldown(this,net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_ATOMIC,1));
             }
             return;
         }
@@ -389,7 +397,7 @@ public class GodWandItem extends Item {
                 }
 
                 RatioCollapseManager.cast(player, level);
-                player.getCooldowns().addCooldown(this, net.godwand.config.GodWandConfig.cooldownTicks(35));
+                player.getCooldowns().addCooldown(this, net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_RATIO_COLLAPSE,level));
             }
             return;
         }
@@ -398,7 +406,7 @@ public class GodWandItem extends Item {
             if (!world.isClientSide() && user instanceof ServerPlayer player) {
                 int chargeDuration = this.getUseDuration(stack, user) - remainingUseTicks;
                 StoneCannonManager.fire(player, chargeDuration);
-                player.getCooldowns().addCooldown(this, net.godwand.config.GodWandConfig.cooldownTicks(30));
+                player.getCooldowns().addCooldown(this, net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_STONE_CANNON,StoneCannonManager.calculateChargeLevel(chargeDuration)));
             }
             return;
         }
@@ -426,7 +434,7 @@ public class GodWandItem extends Item {
             double speed = 2.4 + level * 0.35;
             orb.setDeltaMovement(look.scale(speed));
             world.addFreshEntity(orb);
-            player.getCooldowns().addCooldown(this, net.godwand.config.GodWandConfig.cooldownTicks(20));
+            player.getCooldowns().addCooldown(this, net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_ARCANE_ORB,level));
 
             // Powerful Arcane Recoil
             double recoilForce = switch (level) {

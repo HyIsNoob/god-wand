@@ -48,6 +48,18 @@ public final class GodWandConfig {
     public static final class Server {
         public float cooldownMultiplier = 1;
         public float damageMultiplier = 1;
+        public int spatialPathCooldownTicks = 20;
+        public int[] singularityCooldownTicks = {20,20,20};
+        public int[] earthDrillCooldownTicks = {35,35,35,35};
+        public int[] stoneCannonCooldownTicks = {30,30,30,30};
+        public int supernovaCooldownTicks = 520;
+        public int atomicCooldownTicks = 600;
+        public float[] singularityDamageMultipliers = {1,1,1};
+        public float[] earthDrillDamageMultipliers = {1,1,1,1};
+        public float[] stoneCannonDamageMultipliers = {1,1,1,1};
+        public float supernovaDamageMultiplier = 1;
+        public float supernovaInstantKillHealthThreshold = 50;
+
         public boolean supernovaTerrainDamage = true;
         public boolean supernovaBlockLift = true;
         public boolean earthDrillTerrainDamage = true;
@@ -65,6 +77,17 @@ public final class GodWandConfig {
         public boolean isDimensionAllowed(String dimensionId) { return dimensionBlacklist==null||!dimensionBlacklist.contains(dimensionId); }
 
         public void validate() {
+            spatialPathCooldownTicks=Mth.clamp(spatialPathCooldownTicks,0,72000);
+            supernovaCooldownTicks=Mth.clamp(supernovaCooldownTicks,0,72000);
+            atomicCooldownTicks=Mth.clamp(atomicCooldownTicks,0,72000);
+            singularityCooldownTicks=validatedCooldowns(singularityCooldownTicks,new int[]{20,20,20});
+            earthDrillCooldownTicks=validatedCooldowns(earthDrillCooldownTicks,new int[]{35,35,35,35});
+            stoneCannonCooldownTicks=validatedCooldowns(stoneCannonCooldownTicks,new int[]{30,30,30,30});
+            singularityDamageMultipliers=validatedDamage(singularityDamageMultipliers,3);
+            earthDrillDamageMultipliers=validatedDamage(earthDrillDamageMultipliers,4);
+            stoneCannonDamageMultipliers=validatedDamage(stoneCannonDamageMultipliers,4);
+            supernovaDamageMultiplier=finiteClamp(supernovaDamageMultiplier,0,1000,1);
+            supernovaInstantKillHealthThreshold=finiteClamp(supernovaInstantKillHealthThreshold,0,1_000_000,50);
             cooldownMultiplier=finiteClamp(cooldownMultiplier,.1f,10,1);
             damageMultiplier=finiteClamp(damageMultiplier,0,100,1);
             supernovaTerrainRadius=Mth.clamp(supernovaTerrainRadius,16,180);
@@ -144,6 +167,40 @@ public final class GodWandConfig {
         } catch (IOException exception) {
             GodWandMod.LOGGER.error("Cannot save {}", file, exception);
         }
+    }
+
+    private static int[] validatedCooldowns(int[] values,int[] defaults) {
+        int[] result=defaults.clone();
+        if(values!=null)for(int i=0;i<Math.min(values.length,result.length);i++)result[i]=Mth.clamp(values[i],0,72000);
+        return result;
+    }
+    private static float[] validatedDamage(float[] values,int count) {
+        float[] result=new float[count];java.util.Arrays.fill(result,1);
+        if(values!=null)for(int i=0;i<Math.min(values.length,count);i++)result[i]=finiteClamp(values[i],0,1000,1);
+        return result;
+    }
+    private static int tierIndex(int level,int length) { return Mth.clamp(level-1,0,length-1); }
+    public static int skillCooldownTicks(int skill,int level) {
+        int ticks=switch(skill) {
+            case 0 -> SERVER.spatialPathCooldownTicks;
+            case 1 -> SERVER.singularityCooldownTicks[tierIndex(level,3)];
+            case 2 -> SERVER.earthDrillCooldownTicks[tierIndex(level,4)];
+            case 3 -> SERVER.supernovaCooldownTicks;
+            case 4 -> SERVER.stoneCannonCooldownTicks[tierIndex(level,4)];
+            case 5 -> SERVER.atomicCooldownTicks;
+            default -> 0;
+        };
+        return ticks==0?0:cooldownTicks(ticks);
+    }
+    public static float skillDamageMultiplier(int skill,int level) {
+        float multiplier=switch(skill) {
+            case 1 -> SERVER.singularityDamageMultipliers[tierIndex(level,3)];
+            case 2 -> SERVER.earthDrillDamageMultipliers[tierIndex(level,4)];
+            case 3 -> SERVER.supernovaDamageMultiplier;
+            case 4 -> SERVER.stoneCannonDamageMultipliers[tierIndex(level,4)];
+            default -> 1;
+        };
+        return multiplier*SERVER.damageMultiplier;
     }
 
     public static int cooldownTicks(int ticks) {

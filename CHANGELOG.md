@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.4.0-dev]
+
+### Added
+- Damage and cooldown settings for individual skills and charge levels.
+- A setting to disable Supernova's instant kills.
+- The wand now deals 5 damage with normal attacks. All appearances share this damage.
+
+### Fixed
+- Earth Drill now respects zero damage settings for its final slam.
+
 ## [1.3.1]
 
 ### Fixed

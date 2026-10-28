@@ -50,7 +50,7 @@ tasks.register('releaseJars', Copy) {
     group = 'build'
     description = 'Build all four versions and collect only installable jars in build/release.'
     dependsOn 'buildAll'
-    into layout.buildDirectory.dir('release')
+    into layout.buildDirectory.dir(project.version.toString().endsWith('-dev') ? "preview/${project.version}" : 'release')
     ['fabric', 'neoforge', 'fabric-1.20.1', 'forge-1.20.1'].each { loader ->
         from("${loader}/build/libs") { include "godwand-${loader}-${project.mod_version}.jar" }
     }
