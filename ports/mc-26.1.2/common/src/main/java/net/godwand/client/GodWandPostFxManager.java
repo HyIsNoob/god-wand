@@ -129,7 +129,7 @@ public class GodWandPostFxManager {
         Vec3 renderCenter = skyOnly ? sky.center() : blastCenter;
 
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.gameRenderer.mainRenderTarget() == null) return;
+        if (client == null || client.getMainRenderTarget() == null) return;
 
         int fbWidth = client.getWindow().getWidth();
         int fbHeight = client.getWindow().getHeight();
@@ -320,7 +320,7 @@ public class GodWandPostFxManager {
             }
         }
 
-        Vec3 camPos = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.pos;
+        Vec3 camPos = client.gameRenderer.getGameRenderState().levelRenderState.cameraRenderState.pos;
         Vector4f clip = new Vector4f((float) (renderCenter.x - camPos.x),
                 (float) (renderCenter.y - camPos.y), (float) (renderCenter.z - camPos.z), 1);
         clip.mul(context.positionMatrix()).mul(context.projectionMatrix());
@@ -378,3 +378,4 @@ public class GodWandPostFxManager {
         }
     }
 }
+

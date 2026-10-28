@@ -92,7 +92,7 @@ public final class GodWandGeometry {
     public static void flush() {
         if (PENDING.isEmpty()) return;
         var client = Minecraft.getInstance();
-        var target = client.gameRenderer.mainRenderTarget();
+        var target = client.getMainRenderTarget();
         var device = RenderSystem.getDevice();
         int byteCount = PENDING.stream().mapToInt(draw -> draw.mesh.vertexBuffer().remaining()).sum();
         var upload = org.lwjgl.system.MemoryUtil.memAlloc(byteCount);
@@ -125,7 +125,6 @@ public final class GodWandGeometry {
                 }
                 offset += size;
             }
-            encoder.submit();
         } finally {
             if (vertices != null) {
                 GpuBuffer submitted = vertices;
@@ -136,3 +135,4 @@ public final class GodWandGeometry {
         }
     }
 }
+

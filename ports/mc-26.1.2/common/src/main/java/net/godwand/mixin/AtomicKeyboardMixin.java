@@ -11,8 +11,9 @@ public abstract class AtomicKeyboardMixin {
  @Inject(method="keyPress",at=@At("HEAD"),cancellable=true)
  private void godwand$skipAtomic(long window,int action,KeyEvent event,CallbackInfo ci) {
   var client=Minecraft.getInstance();
-  if(window==client.getWindow().handle()&&event.key()==InputConstants.KEY_ESCAPE&&action==InputConstants.PRESS&&client.gui.screen()==null&&AtomicCinematic.active()) {
+  if(window==client.getWindow().handle()&&event.key()==InputConstants.KEY_ESCAPE&&action==InputConstants.PRESS&&client.screen==null&&AtomicCinematic.active()) {
    AtomicCinematic.skip();ci.cancel();
   }
  }
 }
+

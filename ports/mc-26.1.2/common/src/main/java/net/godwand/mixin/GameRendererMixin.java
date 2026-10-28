@@ -26,7 +26,7 @@ public abstract class GameRendererMixin {
             "Lnet/minecraft/client/renderer/LevelRenderer;renderLevel(Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;Lnet/minecraft/client/DeltaTracker;ZLnet/minecraft/client/renderer/state/level/CameraRenderState;Lorg/joml/Matrix4fc;Lcom/mojang/blaze3d/buffers/GpuBufferSlice;Lorg/joml/Vector4f;ZLnet/minecraft/client/renderer/chunk/ChunkSectionsToRender;)V",
             shift = At.Shift.AFTER))
     private void godwand$afterWorldComposite(CallbackInfo ci) {
-        var state = ((GameRenderer)(Object)this).gameRenderState().levelRenderState;
+        var state = ((GameRenderer)(Object)this).getGameRenderState().levelRenderState;
         var camera = state.cameraRenderState;
         net.godwand.client.GodWandPostFxManager.onWorldRender(camera.viewRotationMatrix, godwand$worldProjection, state.worldPartialTicks);
         net.godwand.client.AtomicPostFx.capture(camera.viewRotationMatrix, godwand$worldProjection, state.worldPartialTicks);
@@ -48,3 +48,4 @@ public abstract class GameRendererMixin {
         if (net.godwand.client.AtomicCinematic.active()) ci.cancel();
     }
 }
+

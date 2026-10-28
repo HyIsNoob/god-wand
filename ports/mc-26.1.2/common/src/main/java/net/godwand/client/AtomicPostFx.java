@@ -39,7 +39,7 @@ public final class AtomicPostFx {
                 chain.resize(w,h);
                 width=w; height=h; downsample=GodWandConfig.CLIENT.bloomDownsample;
             }
-            var camera=client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.pos;
+            var camera=client.gameRenderer.getGameRenderState().levelRenderState.cameraRenderState.pos;
             var clip=new Vector4f((float)(fx.center().x-camera.x),(float)(fx.center().y+2-camera.y),(float)(fx.center().z-camera.z),1)
                     .mul(context.view).mul(context.projection);
             float centerX=clip.w>.001?clip.x/clip.w*.5f+.5f:.5f, centerY=clip.w>.001?clip.y/clip.w*.5f+.5f:.5f;
@@ -79,3 +79,4 @@ public final class AtomicPostFx {
         }
     }
 }
+

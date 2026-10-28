@@ -99,9 +99,8 @@ public final class GodWandPostChain implements AutoCloseable {
                 }
                 encoder.writeToBuffer(buffer.slice(), builder.get());
             }
-            encoder.submit();
         }
-        chain.process(Minecraft.getInstance().gameRenderer.mainRenderTarget(), pool);
+        chain.process(Minecraft.getInstance().getMainRenderTarget(), pool);
         pool.endFrame();
     }
 
@@ -111,4 +110,5 @@ public final class GodWandPostChain implements AutoCloseable {
         projectionBuffer.close();
     }
 }
+
 

@@ -66,12 +66,14 @@ class AtomicFocusTest {
             when(client.isWindowActive()).thenReturn(false);
             AtomicCinematic.tick(client); assertFalse(AtomicCinematic.active());
             when(client.isWindowActive()).thenReturn(true);
-            when(client.gui.screen()).thenReturn(mock(Screen.class));
+            client.screen=mock(Screen.class);
             AtomicCinematic.tick(client); assertFalse(AtomicCinematic.active());
-            when(client.gui.screen()).thenReturn(null); assertTrue(AtomicCinematic.active(),"Closing the focus-loss pause screen must resume the camera");
+            client.screen=null; assertTrue(AtomicCinematic.active(),"Closing the focus-loss pause screen must resume the camera");
             AtomicCinematic.skip(); assertFalse(AtomicCinematic.active());
             renderer.when(() -> AtomicRenderer.localFrame(0)).thenReturn(new AtomicRenderer.Frame(1,1001,Vec3.ZERO,0,0,0,false));
             AtomicCinematic.onCastStart(); assertTrue(AtomicCinematic.active(),"Immediate next cast must not inherit the previous skip");
         } finally { AtomicCinematic.reset(); GodWandConfig.CLIENT=previous; }
     }
 }
+
+

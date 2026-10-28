@@ -26,9 +26,9 @@ import org.joml.Matrix4f;
 public final class SkillWheelScreen extends Screen {
     private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(net.minecraft.resources.Identifier.fromNamespaceAndPath("godwand", "controls"));
     public static final KeyMapping OPEN = new KeyMapping("key.godwand.skill_wheel",
-            InputConstants.Type.KEYBOARD, InputConstants.KEY_V, CATEGORY);
+            InputConstants.Type.KEYSYM, InputConstants.KEY_V, CATEGORY);
     public static final KeyMapping OPEN_CONFIG = new KeyMapping("key.godwand.config",
-            InputConstants.Type.KEYBOARD, InputConstants.KEY_K, CATEGORY);
+            InputConstants.Type.KEYSYM, InputConstants.KEY_K, CATEGORY);
     private static final int[] COLORS = {0x80E5FF, 0xC493FF, 0xFFB66E, 0xFF768F, 0xFFE4A3, 0xD779FF};
     private static final double SECTOR = Math.PI * 2 / GodWandItem.TOTAL_MODES;
     private final InteractionHand hand;
@@ -46,12 +46,12 @@ public final class SkillWheelScreen extends Screen {
     public static void handleKeyInput(Minecraft client) {
         while (OPEN_CONFIG.consumeClick()) {
             if (client.player != null && !client.player.isUsingItem() && !AtomicCinematic.movementLocked()
-                    && client.gui.screen() == null) {
-                client.setScreenAndShow(new net.godwand.client.gui.GodWandConfigScreen(client.gui.screen()));
+                    && client.screen == null) {
+                client.setScreenAndShow(new net.godwand.client.gui.GodWandConfigScreen(client.screen));
             }
         }
         while (OPEN.consumeClick()) {
-            if (client.gui.screen() != null || client.player == null || client.level == null
+            if (client.screen != null || client.player == null || client.level == null
                     || !client.isWindowActive() || !client.player.isAlive()
                     || client.player.isSpectator() || client.player.isUsingItem()) continue;
             InteractionHand hand = client.player.getMainHandItem().getItem() instanceof GodWandItem
@@ -267,5 +267,6 @@ public final class SkillWheelScreen extends Screen {
         }
     }
 }
+
 
 
