@@ -7,7 +7,8 @@
 - `neoforge/`: NeoForge 1.21.1 registrations and rendering/network hooks.
 - `fabric-1.20.1/`: standalone Java 17 Fabric port and its checks.
 - `forge-1.20.1/`: standalone Java 17 Forge port and its checks.
-- `ports/mc-26.3/`: separate Java 25 Fabric build; see its README/status. NeoForge 26.3 and 1.21.11 are pending.
+- `ports/mc-26.1.2/`: standalone Java 25 Fabric port for Minecraft 26.1.2.
+- `ports/mc-26.3/`: separate Java 25 Fabric build; see its README/status. NeoForge and 1.21.11 are pending.
 - `tools/`: optional development-only QA. It is not packaged into God Wand.
 
 The 1.20.1 projects remain separate Gradle builds because their Java/Minecraft/loader APIs differ. They belong to this same Git repository; changes to shared spell behavior must be reflected in both ports. AtomicPortParityTest checks matching choreography, geometry and shader source after normalizing the required clamp API difference.

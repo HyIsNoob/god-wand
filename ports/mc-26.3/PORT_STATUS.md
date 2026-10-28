@@ -11,7 +11,7 @@ God Wand version: **1.3.2**. Scope: **Fabric only**, as requested on 2026-10-28.
 - Native recipe ingredients, recipe-book unlock and item-model registration.
 - Inclusive world-height limits and full container data in save/restore records.
 
-Toolchain: Minecraft 26.3, Java 25, Gradle 9.8.2, Loom 1.17.21, Fabric Loader 0.20.1, Fabric API 0.165.0+26.3. NeoForge is deliberately absent from settings.gradle.
+Toolchain: Minecraft 26.3, Java 25, Gradle 9.8.2, Loom 1.19.3, Fabric Loader 0.20.1, Fabric API 0.165.0+26.3. NeoForge is deliberately absent from settings.gradle.
 
 From `D:/fileluu/Tools/god-wand-1.3.0/ports/mc-26.3`:
 
@@ -34,10 +34,11 @@ No Minecraft client, dedicated server or native computer automation was started.
 
 New 26.3 save-data records roundtrip in tests. Importing pending displacement journals from older Minecraft worlds is not implemented or verified: finish temporary terrain spells and allow their blocks to return before upgrading a world. Keep the old world backup.
 
-## Pending work — do not start concurrently
+## Pending work ï¿½ do not start concurrently
 
 1. Owner gameplay feedback and any Fabric 26.3 fixes.
 2. NeoForge 26.3: wire native loader events/registration and packaging, then run its own checks. Its old local prototype is excluded from Git.
 3. Fabric/NeoForge 1.21.11: optional, lower priority; old notes remain in ../mc-1.21.11/PORT_STATUS.md.
 
 Official references: [Fabric 26.3](https://www.fabricmc.net/2026/09/15/263.html), [26.3 migration primer](https://docs.neoforged.net/primer/docs/26.3/). Actual APIs were checked against the resolved Minecraft and Fabric JARs.
+

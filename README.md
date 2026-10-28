@@ -38,7 +38,7 @@ Client graphics settings are in `config/godwand-client.json`. [Dedicated-server 
 
 ## Build
 
-The four existing 1.3.2 test builds are collected in `build/release/`. Fabric 26.3 is built separately under [ports/mc-26.3](ports/mc-26.3/README.md); its local test JAR is in `build/release/26.3/`.
+The four existing 1.3.2 test builds are collected in `build/release/`. Fabric 26.3 and 26.1.2 are built separately under [ports/mc-26.3](ports/mc-26.3/README.md) and [ports/mc-26.1.2](ports/mc-26.1.2/README.md).
 
 Run from this repository root:
 
