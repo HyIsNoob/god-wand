@@ -33,6 +33,6 @@ Dedicated development-server boot checks from the older integration do not estab
 
 The consolidated releaseJars build passed for all four variants. The updated common JUnit suite passed 199 tests with zero failures/errors. Packaged jars contain the MIT license and no QA probe or ModMenu compile stubs. Build logs and checksums are kept locally under build/.
 
-## 1.3.2 / Fabric 26.3 and 26.1.2 ports (2026-10-28)
+## 1.3.2 / Fabric 26.3 follow-up (2026-10-28)
 
-The four existing variants build as 1.3.2 with per-charge balance settings and 5 normal attack damage. Fabric 26.3 and Fabric 26.1.2 are tracked under `ports/mc-26.3` and `ports/mc-26.1.2` with their own Java 25 builds, sources, resources, tests and wrappers. Root releaseJars does not build these ports. NeoForge (26.1.2, 26.3) and Minecraft 1.21.11 are pending by owner request; see ports/README.md. This section supersedes older counts and the five-directory source-layout statement above.
+The four existing variants build as 1.3.2 with per-charge balance settings and 5 normal attack damage. Fabric 26.3 is migrated under ports/mc-26.3 with its own Java 25 build, source/resources/tests and wrapper. Its automated checks and packaging pass; owner gameplay testing remains pending. Root releaseJars does not build that port. NeoForge 26.3 and Minecraft 1.21.11 are pending by owner request; see ports/README.md. This section supersedes older counts and the five-directory source-layout statement above.
