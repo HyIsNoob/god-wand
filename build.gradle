@@ -18,6 +18,11 @@ subprojects {
     tasks.withType(Jar).configureEach {
         from(rootProject.file('LICENSE'))
     }
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+        systemProperty 'net.bytebuddy.experimental', 'true'
+        jvmArgs '--sun-misc-unsafe-memory-access=allow', '-Dnet.bytebuddy.experimental=true'
+    }
     repositories {
         mavenCentral()
         maven { url = 'https://maven.fabricmc.net/' }

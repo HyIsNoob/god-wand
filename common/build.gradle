@@ -22,4 +22,6 @@ loom {
 
 test {
     useJUnitPlatform()
+    systemProperty 'net.bytebuddy.experimental', 'true'
+    jvmArgs '--sun-misc-unsafe-memory-access=allow', '-Dnet.bytebuddy.experimental=true'
 }
