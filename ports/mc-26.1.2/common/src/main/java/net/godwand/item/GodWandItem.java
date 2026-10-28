@@ -130,7 +130,7 @@ public class GodWandItem extends Item {
                 boolean snapped = ShockwaveSlicer.triggerEarlySnap(serverPlayer);
                 if (snapped) {
                     serverPlayer.stopUsingItem();
-                    user.swing(hand,net.minecraft.world.item.component.SwingAnimation.DEFAULT,true);
+                    user.swing(hand, true);
                     serverPlayer.sendOverlayMessage(Component.literal("§dCollapsed!"));
                     return InteractionResult.SUCCESS;
                 }

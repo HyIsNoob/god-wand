@@ -116,8 +116,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
 
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(context -> {
             PoseStack matrices = context.poseStack();
-            Camera camera = context.gameRenderer().mainCamera();
-            float tickDelta = context.levelState().worldPartialTicks;
+            Camera camera = context.gameRenderer().getMainCamera();
+            float tickDelta = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
             CannonPressureRenderer.render(matrices, camera, tickDelta);
             DrillWindRenderer.render(matrices, camera, tickDelta);
             ImpactDebrisRenderer.render(matrices, camera, tickDelta);

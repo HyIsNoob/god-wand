@@ -100,7 +100,7 @@ public final class SkillWheelScreen extends Screen {
         }
         // Opening a Screen clears KeyBinding state; poll the physical key while it is open.
         InputConstants.Key key = InputConstants.getKey(OPEN.saveString());
-        boolean held = key.getType() == InputConstants.Type.MOUSE || InputConstants.isKeyDown(key.getValue());
+        boolean held = key.getType() == InputConstants.Type.MOUSE || InputConstants.isKeyDown(this.minecraft.getWindow(), key.getValue());
         if (!held) confirm();
     }
 

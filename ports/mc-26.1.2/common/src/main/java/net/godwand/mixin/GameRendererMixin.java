@@ -28,8 +28,9 @@ public abstract class GameRendererMixin {
     private void godwand$afterWorldComposite(CallbackInfo ci) {
         var state = ((GameRenderer)(Object)this).getGameRenderState().levelRenderState;
         var camera = state.cameraRenderState;
-        net.godwand.client.GodWandPostFxManager.onWorldRender(camera.viewRotationMatrix, godwand$worldProjection, state.worldPartialTicks);
-        net.godwand.client.AtomicPostFx.capture(camera.viewRotationMatrix, godwand$worldProjection, state.worldPartialTicks);
+        float partialTicks = net.minecraft.client.Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        net.godwand.client.GodWandPostFxManager.onWorldRender(camera.viewRotationMatrix, godwand$worldProjection, partialTicks);
+        net.godwand.client.AtomicPostFx.capture(camera.viewRotationMatrix, godwand$worldProjection, partialTicks);
         net.godwand.client.GodWandPostFxManager.renderAfterWorld();
         net.godwand.client.AtomicPostFx.renderAfterWorld();
     }
@@ -39,8 +40,9 @@ public abstract class GameRendererMixin {
      */
     @Inject(method = "bobHurt", at = @At("HEAD"))
     private void godwand$applyScreenShake(net.minecraft.client.renderer.state.level.CameraRenderState camera, PoseStack matrices, CallbackInfo ci) {
-        GodWandCinematicEngine.applyScreenShake(matrices, camera.cameraEntityPartialTicks);
-        net.godwand.client.AtomicCinematic.applyShake(matrices, camera.cameraEntityPartialTicks);
+        float partialTicks = net.minecraft.client.Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        GodWandCinematicEngine.applyScreenShake(matrices, partialTicks);
+        net.godwand.client.AtomicCinematic.applyShake(matrices, partialTicks);
     }
 
     @Inject(method = "renderItemInHand", at = @At("HEAD"), cancellable = true)

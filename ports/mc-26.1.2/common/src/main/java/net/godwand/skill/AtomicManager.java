@@ -121,7 +121,7 @@ public final class AtomicManager {
                     if(distance>AtomicSequence.beamRadius(age) || hit<=0 || !task.struck.add(entity.getUUID()))continue;
                     entity.hurtServer(world, world.damageSources().indirectMagic(task.caster,task.caster),hit);
                     Vec3 push=entity.position().subtract(task.center).normalize().scale(1.8*(1-distance/AtomicSequence.MAX_RADIUS));
-                    entity.push(push.x,Math.min(.8,push.length()*.4),push.z); entity.syncVelocity=true;
+                    entity.push(push.x,Math.min(.8,push.length()*.4),push.z); entity.hurtMarked=true;
                 }
                 if(AtomicSequence.pressure(age)>.15f&&GodWandConfig.SERVER.atomicShockwaveDamage>0&&GodWandConfig.SERVER.damageMultiplier>0) {
                     double reach=AtomicSequence.MAX_RADIUS+32;
@@ -134,7 +134,7 @@ public final class AtomicManager {
                             task.pressureHits.put(entity.getUUID(),age);
                             if(entity.hurtServer(world, world.damageSources().indirectMagic(task.caster,task.caster),GodWandConfig.SERVER.atomicShockwaveDamage * GodWandConfig.SERVER.damageMultiplier)) {
                                 Vec3 outward=new Vec3(entity.getX()-task.center.x,0,entity.getZ()-task.center.z).normalize().scale(.45);
-                                entity.push(outward.x,.12,outward.z); entity.syncVelocity=true;
+                                entity.push(outward.x,.12,outward.z); entity.hurtMarked=true;
                             }
                             break;
                         }
