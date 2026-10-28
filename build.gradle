@@ -29,7 +29,12 @@ tasks.named('build') {
     dependsOn ':common:build', ':fabric:build', ':neoforge:build'
 }
 
-['fabric-1.20.1': 'buildFabric1201', 'forge-1.20.1': 'buildForge1201'].each { directory, taskName ->
+[
+    'fabric-1.20.1': 'buildFabric1201',
+    'forge-1.20.1': 'buildForge1201',
+    'ports/mc-26.1.2': 'buildPort2612',
+    'ports/mc-26.3': 'buildPort263'
+].each { directory, taskName ->
     tasks.register(taskName, Exec) {
         group = 'build'
         description = "Build and check the standalone ${directory} port."
@@ -42,16 +47,24 @@ tasks.named('build') {
 
 tasks.register('buildAll') {
     group = 'build'
-    description = 'Build and check all four supported loader/version combinations.'
-    dependsOn 'build', 'buildFabric1201', 'buildForge1201'
+    description = 'Build and check all supported loader/version combinations and ports.'
+    dependsOn 'build', 'buildFabric1201', 'buildForge1201', 'buildPort2612', 'buildPort263'
 }
 
 tasks.register('releaseJars', Copy) {
     group = 'build'
-    description = 'Build all four versions and collect only installable jars in build/release.'
+    description = 'Build all versions and collect installable jars in build/release.'
     dependsOn 'buildAll'
     into layout.buildDirectory.dir(project.version.toString().endsWith('-dev') ? "preview/${project.version}" : 'release')
     ['fabric', 'neoforge', 'fabric-1.20.1', 'forge-1.20.1'].each { loader ->
         from("${loader}/build/libs") { include "godwand-${loader}-${project.mod_version}.jar" }
+    }
+    from("ports/mc-26.1.2/fabric/build/libs") {
+        include "godwand-fabric-26.1.2-${project.mod_version}.jar"
+        into "26.1.2"
+    }
+    from("ports/mc-26.3/fabric/build/libs") {
+        include "godwand-fabric-26.3-${project.mod_version}.jar"
+        into "26.3"
     }
 }

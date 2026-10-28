@@ -20,8 +20,10 @@ The 1.20.1 projects remain separate Gradle builds because their Java/Minecraft/l
 .\gradlew.bat :common:test          # shared JUnit suite
 .\gradlew.bat buildFabric1201       # standalone Fabric 1.20.1
 .\gradlew.bat buildForge1201        # standalone Forge 1.20.1
-.\gradlew.bat buildAll              # all four builds and their checks
-.\gradlew.bat releaseJars           # all four builds plus build/release/*.jar
+.\gradlew.bat buildPort2612         # standalone Fabric 26.1.2 port
+.\gradlew.bat buildPort263          # standalone Fabric 26.3 port
+.\gradlew.bat buildAll              # all builds and their checks (including ports)
+.\gradlew.bat releaseJars           # all builds plus installable jars in build/release/
 .\gradlew.bat :fabric:runClient     # ordinary manual Fabric 1.21.1 game
 ```
 
