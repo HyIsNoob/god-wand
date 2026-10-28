@@ -325,10 +325,10 @@ public class RatioCollapseManager {
                     double fx = task.meteorCore.x + Math.cos(elev) * Math.cos(ang) * coreR;
                     double fy = task.meteorCore.y + Math.sin(elev) * coreR;
                     double fz = task.meteorCore.z + Math.cos(elev) * Math.sin(ang) * coreR;
-                    world.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(1.0f, 0.05f, 0.12f)), 1.6f),
+                    world.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(1.0f, 0.05f, 0.12f)), 1.6f),
                             fx, fy, fz, 1, 0, 0.02, 0, 0.04);
                     if (f % 2 == 0) {
-                        world.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(0.90f, 0.0f, 0.18f)), 1.3f),
+                        world.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(0.90f, 0.0f, 0.18f)), 1.3f),
                                 fx, fy, fz, 1, 0, 0.01, 0, 0.02);
                         world.sendParticles(ParticleTypes.ELECTRIC_SPARK, fx, fy, fz, 1, 0.01, 0.01, 0.01, 0.02);
                     }
@@ -344,7 +344,7 @@ public class RatioCollapseManager {
                     double sz = task.meteorCore.z + Math.cos(sPhi) * Math.sin(sTheta) * spawnDist;
 
                     Vec3 toCenter = task.meteorCore.subtract(sx, sy, sz).normalize().scale(0.40);
-                    world.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(1.0f, 0.10f, 0.22f)), 1.2f),
+                    world.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(1.0f, 0.10f, 0.22f)), 1.2f),
                             sx, sy, sz, 0, toCenter.x, toCenter.y, toCenter.z, 0.40);
                     if (s % 2 == 0) {
                         world.sendParticles(ParticleTypes.REVERSE_PORTAL,
@@ -401,7 +401,7 @@ public class RatioCollapseManager {
                                 int steps = Math.min(8, Math.max(3, (int) (dLen * 1.2)));
                                 for (int st = 1; st < steps; st++) {
                                     double fr = (double) st / steps;
-                                    world.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(1.0f, 0.22f, 0.38f)), 0.35f),
+                                    world.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(1.0f, 0.22f, 0.38f)), 0.35f),
                                             task.meteorCore.x + thread.x * fr,
                                             task.meteorCore.y + thread.y * fr,
                                             task.meteorCore.z + thread.z * fr,
@@ -475,7 +475,7 @@ public class RatioCollapseManager {
                                 int steps = Math.min(8, Math.max(3, (int) (dLen * 1.2)));
                                 for (int st = 1; st < steps; st++) {
                                     double fr = (double) st / steps;
-                                    world.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(1.0f, 0.22f, 0.38f)), 0.35f),
+                                    world.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(1.0f, 0.22f, 0.38f)), 0.35f),
                                             task.meteorCore.x + thread.x * fr,
                                             task.meteorCore.y + thread.y * fr,
                                             task.meteorCore.z + thread.z * fr,
@@ -546,12 +546,12 @@ public class RatioCollapseManager {
                     double pz = task.meteorCore.z + Math.sin(ang) * coneR;
 
                     // Hạt bụi năng lượng Đỏ Rực (Pure Crimson Ruby) xoáy quanh thân mũi khoan
-                    world.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(1.0f, 0.02f, 0.05f)), 2.2f),
+                    world.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(1.0f, 0.02f, 0.05f)), 2.2f),
                             px, py, pz, 1, 0.05, 0.05, 0.05, 0.0);
                     if (task.ageTicks >= 112 && k % 2 == 0) world.sendParticles(ParticleTypes.FLAME, px, py, pz,
                             0, -Math.sin(ang) * 0.3, 0.1, Math.cos(ang) * 0.3, 0.6);
                     if (k % 2 == 0) {
-                        world.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(0.85f, 0.0f, 0.12f)), 1.6f),
+                        world.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(0.85f, 0.0f, 0.12f)), 1.6f),
                                 px, py, pz, 1, -Math.sin(ang) * 0.25, 0.05, Math.cos(ang) * 0.25, 0.02);
                         world.sendParticles(ParticleTypes.ELECTRIC_SPARK, px, py, pz, 1, 0.04, 0.04, 0.04, 0.03);
                     }
@@ -604,7 +604,7 @@ public class RatioCollapseManager {
                     }
 
                     // Vệt lửa đỏ rực kéo dài theo đuôi mũi khoan khi lao xuống
-                    world.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(1.0f, 0.1f, 0.05f)), 2.5f),
+                    world.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(1.0f, 0.1f, 0.05f)), 2.5f),
                             currentDrillCenter.x, currentDrillCenter.y, currentDrillCenter.z,
                             25, task.boulderRadius * 0.6, 1.5, task.boulderRadius * 0.6, 0.1);
                 }
@@ -765,4 +765,5 @@ public class RatioCollapseManager {
         ACTIVE_TASKS.clear();
     }
 }
+
 

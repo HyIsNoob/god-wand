@@ -206,7 +206,7 @@ public final class AtomicRenderer {
         double distance = Double.MAX_VALUE;
         for (State state : ACTIVE.values()) {
             Frame candidate = frame(state, delta);
-            double d = candidate.center.distanceToSqr(client.gameRenderer.mainCamera().position());
+            double d = candidate.center.distanceToSqr(client.gameRenderer.getMainCamera().position());
             if (d < distance) { distance = d; nearest = candidate; }
         }
         return nearest;
@@ -727,5 +727,6 @@ public final class AtomicRenderer {
 
 
 }
+
 
 

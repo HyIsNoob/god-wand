@@ -213,7 +213,7 @@ public class ShockwaveSlicer {
         world.sendParticles(net.minecraft.core.particles.ColorParticleOption.create(ParticleTypes.FLASH, 0xFFFFFFFF), orbCenter.x, orbCenter.y, orbCenter.z, 4, 0.2, 0.2, 0.2, 0.0);
         world.sendParticles(ParticleTypes.SONIC_BOOM, orbCenter.x, orbCenter.y, orbCenter.z, 2, 0.1, 0.1, 0.1, 0.0);
         world.sendParticles(ParticleTypes.EXPLOSION_EMITTER, center.getX() + 0.5, center.getY() + 0.5, center.getZ() + 0.5, 3, 1.0, 1.0, 1.0, 0.0);
-        world.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(0.0f, 0.95f, 1.0f)), 1.8f),
+        world.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(0.0f, 0.95f, 1.0f)), 1.8f),
                 orbCenter.x, orbCenter.y, orbCenter.z, 60, 1.5, 1.5, 1.5, 0.45);
 
         world.playSound(null, center.getX(), center.getY(), center.getZ(),
@@ -287,7 +287,7 @@ public class ShockwaveSlicer {
                 double fy = y1 * Math.cos(rotX) - z1 * Math.sin(rotX);
                 double fz = y1 * Math.sin(rotX) + z1 * Math.cos(rotX);
 
-                world.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(ringColor), 1.35f),
+                world.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(ringColor), 1.35f),
                         center.x + fx, center.y + fy, center.z + fz,
                         1, 0.02, 0.02, 0.02, 0.0);
 
@@ -401,7 +401,7 @@ public class ShockwaveSlicer {
                 if (ticksSinceSnap < 4) animateReturn(task, ticksSinceSnap / 3f);
                 if (ticksSinceSnap < 4) {
                     world.sendParticles(ParticleTypes.REVERSE_PORTAL, task.center.getX() + 0.5, task.center.getY() + 1.0, task.center.getZ() + 0.5, 16, 1.5, 1.0, 1.5, 0.2);
-                    world.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(0.0f, 0.95f, 1.0f)), 1.5f), task.orbCenter.x, task.orbCenter.y, task.orbCenter.z, 12, 0.8, 0.8, 0.8, 0.3);
+                    world.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(0.0f, 0.95f, 1.0f)), 1.5f), task.orbCenter.x, task.orbCenter.y, task.orbCenter.z, 12, 0.8, 0.8, 0.8, 0.3);
                 } else if (!task.restored) {
                     executeRestoration(task);
                     it.remove();
@@ -436,7 +436,7 @@ public class ShockwaveSlicer {
                         double py = task.orbCenter.y;
                         double vx = Math.cos(ang) * 0.45;
                         double vz = Math.sin(ang) * 0.45;
-                        world.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(0.08f, 0.92f, 1.0f)), 1.6f),
+                        world.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(0.08f, 0.92f, 1.0f)), 1.6f),
                                 px, py, pz, 1, vx, 0.05, vz, 0.15);
                         if (pt % 4 == 0) {
                             world.sendParticles(ParticleTypes.ELECTRIC_SPARK, px, py, pz, 1, vx, 0.1, vz, 0.05);
@@ -468,7 +468,7 @@ public class ShockwaveSlicer {
                                 Vec3 bPos = Vec3.atCenterOf(rPos).add(curOff);
                                 world.sendParticles(ParticleTypes.ELECTRIC_SPARK,
                                         bPos.x, bPos.y, bPos.z, 2, 0.05, 0.05, 0.05, 0.04);
-                                world.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(0.0f, 0.96f, 1.0f)), 1.2f),
+                                world.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(0.0f, 0.96f, 1.0f)), 1.2f),
                                         bPos.x, bPos.y, bPos.z, 1, 0, 0.02, 0, 0.01);
                             }
                         }
@@ -622,7 +622,7 @@ public class ShockwaveSlicer {
             double pz = task.center.getZ() + 0.5 + Math.sin(ang) * dist;
             world.sendParticles(net.minecraft.core.particles.ColorParticleOption.create(ParticleTypes.FLASH, 0xFFFFFFFF), px, task.center.getY() + 1.05, pz, 1, 0, 0, 0, 0);
             world.sendParticles(ParticleTypes.ELECTRIC_SPARK, px, task.center.getY() + 1.1, pz, 2, 0.1, 0.1, 0.1, 0.05);
-            world.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(0.0f, 0.95f, 1.0f)), 1.5f),
+            world.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(0.0f, 0.95f, 1.0f)), 1.5f),
                     px, task.center.getY() + 1.1, pz, 1, 0, 0.05, 0, 0.02);
         }
 
@@ -656,7 +656,7 @@ public class ShockwaveSlicer {
             if (index % beamStride == 0) {
                 BlockDisplay beam = task.beams.get(pos);
                 if (beam == null) {
-                    beam = new BlockDisplay(net.minecraft.world.entity.EntityTypes.BLOCK_DISPLAY, task.world);
+                    beam = new BlockDisplay(net.minecraft.world.entity.EntityType.BLOCK_DISPLAY, task.world);
                     beam.addTag("godwand_displaced");
                     beam.setPos(task.orbCenter);
                     beam.setBlockState(net.minecraft.world.level.block.Blocks.AMETHYST_BLOCK.defaultBlockState());
@@ -708,4 +708,6 @@ public class ShockwaveSlicer {
         ACTIVE_TASKS.clear();
     }
 }
+
+
 

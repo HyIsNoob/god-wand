@@ -147,7 +147,7 @@ public final class SpatialBridge {
                 SpatialDisplacementManager.executeTwoPassRestoration(world, List.of(source));
                 continue;
             }
-            var visual = new net.minecraft.world.entity.Display.BlockDisplay(net.minecraft.world.entity.EntityTypes.BLOCK_DISPLAY, world);
+            var visual = new net.minecraft.world.entity.Display.BlockDisplay(net.minecraft.world.entity.EntityType.BLOCK_DISPLAY, world);
             visual.addTag("godwand_displaced");
             visual.setPos(Vec3.atLowerCornerOf(source.pos));
             visual.setBlockState(source.originalState);
@@ -205,3 +205,4 @@ public final class SpatialBridge {
         }
     }
 }
+

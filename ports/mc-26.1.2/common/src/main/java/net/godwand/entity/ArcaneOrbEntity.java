@@ -79,14 +79,14 @@ public class ArcaneOrbEntity extends Projectile {
         this.setPos(this.getX() + velocity.x, this.getY() + velocity.y, this.getZ() + velocity.z);
 
         if (this.level().isClientSide()) {
-            this.level().addParticle(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(0.0f, 0.94f, 1.0f)), 1.3f),
+            this.level().addParticle(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(0.0f, 0.94f, 1.0f)), 1.3f),
                     this.getX(), this.getY(), this.getZ(), 0.0, 0.0, 0.0);
             this.level().addParticle(ParticleTypes.REVERSE_PORTAL,
                     this.getX(), this.getY(), this.getZ(), 0.0, 0.0, 0.0);
         } else {
             ServerLevel sw = (ServerLevel) this.level();
             // Cyan & Amethyst dual particles
-            sw.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(0.0f, 0.94f, 1.0f)), 1.2f),
+            sw.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(0.0f, 0.94f, 1.0f)), 1.2f),
                     this.getX(), this.getY(), this.getZ(), 4, 0.1, 0.1, 0.1, 0.0);
             sw.sendParticles(ParticleTypes.REVERSE_PORTAL,
                     this.getX(), this.getY(), this.getZ(), 3, 0.1, 0.1, 0.1, 0.02);
@@ -121,3 +121,4 @@ public class ArcaneOrbEntity extends Projectile {
         }
     }
 }
+

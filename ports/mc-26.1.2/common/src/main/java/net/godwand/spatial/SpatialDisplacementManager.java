@@ -19,7 +19,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.Clearable;
 import net.minecraft.world.entity.Display.BlockDisplay;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BedBlock;
@@ -280,7 +280,7 @@ public class SpatialDisplacementManager {
 
         // Spawn at origin before applying the displacement animation.
         if (spawnDisplay) {
-            BlockDisplay display = new BlockDisplay(EntityTypes.BLOCK_DISPLAY, world);
+            BlockDisplay display = new BlockDisplay(EntityType.BLOCK_DISPLAY, world);
             display.addTag("godwand_displaced");
             display.setPos(immutablePos.getX(), immutablePos.getY(), immutablePos.getZ());
             display.setBlockState(state);
@@ -756,3 +756,4 @@ public class SpatialDisplacementManager {
         }
     }
 }
+

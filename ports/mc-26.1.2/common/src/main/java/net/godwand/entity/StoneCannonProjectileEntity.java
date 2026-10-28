@@ -94,7 +94,7 @@ public class StoneCannonProjectileEntity extends Projectile {
             ServerLevel sw = (ServerLevel) this.level();
 
             // Bụi đá mài mòn nén siêu âm
-            sw.sendParticles(new DustParticleOptions(net.minecraft.util.ARGB.colorFromVector3f(new Vector3f(0.82f, 0.78f, 0.65f)), 1.0f),
+            sw.sendParticles(new DustParticleOptions(net.godwand.GodWandMod.colorFromVector3f(new Vector3f(0.82f, 0.78f, 0.65f)), 1.0f),
                     this.getX(), this.getY(), this.getZ(), 1, 0.05, 0.05, 0.05, 0.0);
 
             // Tia lửa điện ma sát cực hạn ở cấp độ cao
@@ -107,3 +107,4 @@ public class StoneCannonProjectileEntity extends Projectile {
     }
 
 }
+

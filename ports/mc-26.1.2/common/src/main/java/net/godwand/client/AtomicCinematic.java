@@ -29,7 +29,7 @@ public final class AtomicCinematic {
         var client = Minecraft.getInstance();
         var frame = AtomicRenderer.localFrame(0);
         return frame != null && GodWandConfig.CLIENT.atomicCutscene && client.player.isAlive()
-                && !client.player.isSpectator() && !skipped && client.gui.screen()==null && client.isWindowActive();
+                && !client.player.isSpectator() && !skipped && client.screen==null && client.isWindowActive();
     }
     public static void tick(Minecraft client) {
         var nearest = AtomicRenderer.nearestFrame(0);
@@ -44,9 +44,9 @@ public final class AtomicCinematic {
             net.godwand.platform.Services.NETWORK.sendToServer(new net.godwand.network.AtomicSkipPayload(local.startedAt()));
             movementReleaseSent=true;
         }
-        if(!client.isWindowActive()||client.gui.screen()!=null)return;
-        if (InputConstants.isKeyDown(InputConstants.KEY_ESCAPE)
-                || InputConstants.isKeyDown(InputConstants.KEY_F5)) skip();
+        if(!client.isWindowActive()||client.screen!=null)return;
+        if (InputConstants.isKeyDown(client.getWindow(), InputConstants.KEY_ESCAPE)
+                || InputConstants.isKeyDown(client.getWindow(), InputConstants.KEY_F5)) skip();
     }
     public static void reset() { skipped=false; movementReleased=false; movementReleaseSent=false; wideStarted=Long.MIN_VALUE; environmentGain = 1; }
     public static void onCastStart() { skipped=false; movementReleased=false; movementReleaseSent=false; wideStarted=Long.MIN_VALUE; }
@@ -136,7 +136,7 @@ public final class AtomicCinematic {
         float gain=AtomicRenderer.distanceGain(client.player.position().distanceTo(frame.center()));
         float strength=AtomicSequence.shake(frame.age());
         if(active()&&frame.age()>=466&&frame.age()<614)
-            strength+=AtomicSequence.pressureShake(frame.age(),client.gameRenderer.mainCamera().position().subtract(frame.center()).horizontalDistance());
+            strength+=AtomicSequence.pressureShake(frame.age(),client.gameRenderer.getMainCamera().position().subtract(frame.center()).horizontalDistance());
         strength*=gain*GodWandConfig.CLIENT.cameraShake;
         double t=frame.age();
         if(active()&&t>=466&&t<614)
@@ -208,4 +208,5 @@ public final class AtomicCinematic {
     }
     private static Component lettering(String text) { return Component.literal(text).withStyle(style -> style.withFont(new net.minecraft.network.chat.FontDescription.Resource(TITLE_FONT))); }
 }
+
 

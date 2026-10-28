@@ -23,4 +23,8 @@ public class GodWandMod {
             Identifier.fromNamespaceAndPath(MOD_ID, "godwand_tab")
     );
     public static CreativeModeTab GODWAND_ITEM_GROUP;
+
+    public static int colorFromVector3f(org.joml.Vector3f v) {
+        return net.minecraft.util.ARGB.colorFromFloat(1.0f, v.x, v.y, v.z);
+    }
 }
