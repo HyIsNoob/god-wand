@@ -30,4 +30,4 @@ An unreadable or malformed godwand-server.json now stops startup instead of enab
 
 If a temporary spell's original position contains a newly placed conflicting block or container, the mod retains its saved original rather than overwriting that position. Clear the obstructing position to allow recovery. Existing bridge destinations are retained until the source can be reconciled.
 
-Terrain planning and bounded server slices are described in [the terrain architecture](TERRAIN_ARCHITECTURE.md). Large casts may keep clearing after the cutscene; visual density is unchanged.
+Terrain planning and bounded server slices are described in [the terrain architecture](TERRAIN_ARCHITECTURE.md). Atomic stops clearing when its column closes, even if some terrain remains. Large or expensive casts can leave a smaller crater so terrain removal never continues after the cutscene; visual density is unchanged.

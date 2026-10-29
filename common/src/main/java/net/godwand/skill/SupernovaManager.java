@@ -577,12 +577,12 @@ public class SupernovaManager {
                 if (d2Sq < rMinSq || d2Sq > rMaxSq) continue;
                 int wx = cx + x;
                 int wz = cz + z;
-                if (!world.getChunkSource().hasChunk(wx >> 4, wz >> 4)) continue;
+                var chunk = world.getChunkSource().getChunkNow(wx >> 4, wz >> 4);
+                if (chunk == null) continue;
 
                 double dist = Math.sqrt(d2Sq);
                 double normDist = dist / maxR;
                 double depth = maxDepth * Math.sqrt(Math.max(0.0, 1.0 - normDist * normDist));
-                var chunk = world.getChunk(wx >> 4, wz >> 4);
                 int topY = Math.min(world.getMaxBuildHeight() - 1, chunk.getHeight(Heightmap.Types.WORLD_SURFACE, wx & 15, wz & 15));
                 int surfaceY = topY;
                 int floorY = Math.max(world.getMinBuildHeight() + 2, (int) Math.round(Math.min(groundY, surfaceY) - depth));

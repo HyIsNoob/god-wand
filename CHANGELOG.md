@@ -11,12 +11,13 @@
 - Wider Atomic blast view and stronger explosion shake.
 - Atomic destroys terrain across a 50% larger radius.
 - Smoother, rounder Singularity charge orb with a brighter core and soft glow.
-- Simpler spell selection menu with warm colors and spell seals.
+- Skill wheel now uses colored magic seals with engraved details.
 - Reduced repeated terrain checks and temporary allocations in Atomic rendering.
 - Atomic plans terrain clearing in the background and spreads block removal across short server steps.
-- Atomic clears down to 30 blocks across its full terrain radius.
+- Atomic's crater can reach 30 blocks deep.
 
 ### Fixed
+- Atomic stops breaking blocks when its energy column closes.
 - Improved spell damage against modded bosses, including boss damage caps.
 - Added hit support for Desert Behemoths sandworm segments.
 - Atomic now clears lava as well as water inside its crater.

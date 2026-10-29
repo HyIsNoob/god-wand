@@ -57,7 +57,7 @@ class SupernovaTerrainTest {
             var chunk = mock(LevelChunk.class);
             when(world.getChunkSource()).thenReturn(chunks);
             when(chunks.hasChunk(anyInt(), anyInt())).thenReturn(true);
-            when(world.getChunk(anyInt(), anyInt())).thenReturn(chunk);
+            when(chunks.getChunkNow(anyInt(), anyInt())).thenReturn(chunk);
             when(world.getMinY()).thenReturn(64);
             when(world.getMaxY()).thenReturn(79);
             when(chunk.getHeight(any(), anyInt(), anyInt())).thenReturn(70);
@@ -75,6 +75,11 @@ class SupernovaTerrainTest {
             carve.setAccessible(true);
             carve.invoke(null, task, 59, 60);
             assertTrue(writes[0] > 0, "The outer shell must actually be carved");
+            verify(world,never()).getChunk(anyInt(),anyInt());
+            clearInvocations(world);
+            when(chunks.getChunkNow(anyInt(),anyInt())).thenReturn(null);
+            carve.invoke(null,task,59,60);
+            verify(world,never()).setBlock(any(),any(),anyInt());
         } finally { GodWandConfig.SERVER = previous; }
     }
 }

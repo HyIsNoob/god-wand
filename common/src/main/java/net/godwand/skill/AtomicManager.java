@@ -91,7 +91,7 @@ public final class AtomicManager {
             boolean invalidCaster = !task.caster.isAlive() || task.caster.hasDisconnected() || task.caster.serverLevel() != world || task.caster.isSpectator()
                     || task.caster.getItemInHand(task.hand)!=task.wand || GodWandItem.getSkillMode(task.wand)!=GodWandItem.MODE_ATOMIC
                     || task.armed&&task.releasedAt<0&&!task.caster.isUsingItem();
-            if ((!task.exploded && invalidCaster) || (age >= AtomicSequence.END && (!task.exploded || task.crater.finished()))) {
+            if ((!task.exploded && invalidCaster) || age >= AtomicSequence.END) {
                 broadcast(task, AtomicFxPayload.CANCEL); iterator.remove(); continue;
             }
             if(movementLocked(task.caster)) {
@@ -157,7 +157,8 @@ public final class AtomicManager {
                         }
                     }
                 }
-                if(terrainBudget>0 && terrainTime>0) {
+                // Leave unfinished terrain alone once the visible column has closed.
+                if(AtomicSequence.beamRadius(age)>0 && terrainBudget>0 && terrainTime>0) {
                     long began=System.nanoTime();
                     terrainBudget-=task.crater.carve(world,terrainBudget,radius * 1.5f,began+terrainTime);
                     terrainTime-=System.nanoTime()-began;

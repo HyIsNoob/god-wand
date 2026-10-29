@@ -23,7 +23,7 @@ class SharedBehaviorParityTest {
             {"client/render/GodWandItemRenderer.java","coreColor","applyUseTransform","applyAtomicHoldTransform"},
             {"client/model/AquaHeartiaModel.java","getBandCorners"},
             {"client/gui/GodWandConfigScreen.java","init"},
-            {"client/SkillWheelScreen.java","icon"}
+            {"client/SkillWheelScreen.java","icon","seal","tint"}
         };
         for(String profile:new String[]{"fabric-1.20.1","forge-1.20.1","mc-26.3"})
             for(String[] entry:methods) {
