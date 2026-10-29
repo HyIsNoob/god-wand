@@ -6,8 +6,8 @@ dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings loom.officialMojangMappings()
 
+    compileOnly "net.fabricmc:fabric-loader:${project.loader_version}"
     compileOnly "org.spongepowered:mixin:0.8.7"
-    annotationProcessor "org.spongepowered:mixin:0.8.7:processor"
 
     testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
@@ -23,4 +23,6 @@ loom {
 test {
     dependsOn rootProject.tasks.named('verifySharedSources')
     useJUnitPlatform()
+    systemProperty 'net.bytebuddy.experimental', 'true'
+    jvmArgs '--sun-misc-unsafe-memory-access=allow', '-Dnet.bytebuddy.experimental=true'
 }

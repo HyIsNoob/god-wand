@@ -18,7 +18,7 @@ ext.applySharedChanges = { String source, List changes, String label ->
 }
 ext.generateSharedProfile = { String profile ->
     File adapters = new File(repo, "compat/profiles/${profile}")
-    def manifest = new JsonSlurper().parse(new File(adapters, 'manifest.json'))
+    def manifest = new JsonSlurper().parse(new File(adapters, 'manifest.json'), 'UTF-8')
     File output = new File(repo, "build/shared/${profile}/src/main")
     def expected = [] as Set
     def safePath = { File base, String path ->
@@ -39,7 +39,7 @@ ext.generateSharedProfile = { String profile ->
             byte[] content = original.bytes
             if (patch.exists()) {
                 String text = new String(content, 'UTF-8').replace('\r\n', '\n')
-                content = project.applySharedChanges(text, new JsonSlurper().parse(patch).changes,
+                content = project.applySharedChanges(text, new JsonSlurper().parse(patch, 'UTF-8').changes,
                         profile + '/' + key).getBytes('UTF-8')
             }
             if (!target.exists() || !Arrays.equals(target.bytes, content)) {
