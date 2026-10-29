@@ -24,7 +24,7 @@ Installable test JARs: `fabric/build/libs/godwand-fabric-26.3-1.3.2.jar` and `ne
 
 ## Verification
 
-**221 common tests, 3 Fabric tests and 5 NeoForge tests pass, with no failures or skipped tests.** The common suite checks gameplay/config behavior, camera math and recovery, geometry, save-data roundtrips and the native recipe codec. Native bytecode checks cover configured mixin targets and world/projection/composite ordering. Three post-chain definitions decode with the actual Minecraft codec; eleven uniform layouts validate; all five fragment shaders compile for both depth conventions. Procedural geometry uses Minecraft 26.3's reversed depth comparison. Fabric access-widener validation, NeoForge access transforms and both packages pass. NeoForge tests additionally verify native item/mixin resources, AfterLevel event ordering before the shared composite/HUD, and explicit camera-view matrices after vanilla restores its view stack. Both loaders register their native pipelines before shader compilation; the shared post-effect hook runs before the 3D HUD.
+**234 common tests, 3 Fabric tests and 5 NeoForge tests pass, with no failures or skipped tests.** The common suite checks gameplay/config behavior, camera math and recovery, geometry, save-data roundtrips and the native recipe codec. Native bytecode checks cover configured mixin targets and world/projection/composite ordering. Three post-chain definitions decode with the actual Minecraft codec; eleven uniform layouts validate; all five fragment shaders compile for both depth conventions. Procedural geometry uses Minecraft 26.3's reversed depth comparison. Fabric access-widener validation, NeoForge access transforms and both packages pass. NeoForge tests additionally verify native item/mixin resources, AfterLevel event ordering before the shared composite/HUD, and explicit camera-view matrices after vanilla restores its view stack. Both loaders register their native pipelines before shader compilation; the shared post-effect hook runs before the 3D HUD.
 
 Local logs and JUnit reports are under build/ and common/build/; generated output is ignored by Git.
 
@@ -42,3 +42,8 @@ New 26.3 save-data records roundtrip in tests. Importing pending displacement jo
 Updated licensing: Java source is MIT; custom assets/SFX are ARR; Bebas Neue remains OFL-1.1. Both JARs contain the same complete LICENSE as the repository root.
 
 Official references: [Fabric 26.3](https://www.fabricmc.net/2026/09/15/263.html), [26.3 migration primer](https://docs.neoforged.net/primer/docs/26.3/). Actual APIs were checked against the resolved Minecraft and Fabric JARs.
+
+
+## Shared-source update (2026-10-29)
+
+The root releaseJars aggregate includes both 26.3 loaders. Production common sources/assets are generated from canonical root common source plus explicit API adapters. Boss damage, Atomic head/menu/Singularity changes, render allocation improvements, lava removal and bounded terrain scheduling are synchronized to 26.3. See ../../docs/SHARED_SOURCES.md and ../../docs/TERRAIN_ARCHITECTURE.md. Gameplay/performance validation remains owner QA.

@@ -59,6 +59,29 @@ tasks.register('releaseJars', Copy) {
     ['fabric', 'neoforge', 'fabric-1.20.1', 'forge-1.20.1'].each { loader ->
         from("${loader}/build/libs") { include "godwand-${loader}-${project.mod_version}.jar" }
     }
+    inputs.file('CHANGELOG.md')
+    doLast {
+        def names = ['fabric','neoforge','fabric-1.20.1','forge-1.20.1'].collect { "godwand-${it}-${project.mod_version}.jar" } +
+                ['fabric','neoforge'].collect { "godwand-${it}-26.3-${project.mod_version}.jar" }
+        File collected = destinationDir
+        File versioned = project.version.toString().endsWith('-dev') ? collected : new File(collected, project.version.toString())
+        names.each { name ->
+            if (!new File(collected,name).isFile()) throw new GradleException("Missing release target: ${name}")
+        }
+        copy { from names.collect { new File(collected,it) }; into versioned }
+        copy { from names.findAll { it.contains('-26.3-') }.collect { new File(collected,it) }; into new File(collected,'26.3') }
+        def checksum = { File directory -> names.collect { name ->
+            def digest = java.security.MessageDigest.getInstance('SHA-256').digest(new File(directory,name).bytes).encodeHex()
+            "${digest}  ${name}"
+        }.join('\n') + '\n' }
+        new File(versioned,'SHA256SUMS.txt').text = checksum(versioned)
+        new File(collected,"SHA256SUMS-${project.mod_version}.txt").text = checksum(collected)
+        new File(versioned,'README.txt').text = "God Wand ${project.mod_version} - install ONE JAR for your exact Minecraft version and loader.\n" +
+                "All six targets are synchronized from canonical common source plus explicit API adapters.\n" +
+                "Includes current boss damage, Atomic terrain/head/render and Singularity/menu updates.\n" +
+                "Build/unit checks are not live FPS, shaderpack or multiplayer validation.\n" + names.join('\n') + '\n'
+        copy { from rootProject.file('CHANGELOG.md'); into versioned }
+    }
 }
 
 

@@ -6,52 +6,67 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 
-/** Resumes inside a column; even a tall column cannot consume a whole tick. */
+/** Coordinates are planned off-thread; world changes remain resumable, budgeted server work. */
 final class AtomicCrater {
     private final BlockPos center;
     private final int radius;
-    private final SupernovaCraterCursor columns;
+    private java.util.concurrent.CompletableFuture<AtomicTerrainPlanner.Columns> pending;
+    private AtomicTerrainPlanner.Columns columns;
+    private int column;
     private int y, bottom;
     private boolean inColumn;
 
     AtomicCrater(BlockPos center, int radius) {
         this.center = center.immutable();
         this.radius = Math.clamp(radius, 0, AtomicSequence.MAX_RADIUS * 3 / 2);
-        columns = new SupernovaCraterCursor(this.radius);
+        if (this.radius>0) pending=AtomicTerrainPlanner.request(this.radius);
     }
     // Scale terrain only; the cinematic and entity damage retain their original reach.
     static int terrainRadius(int configuredRadius) { return Math.max(0, Math.min(configuredRadius, AtomicSequence.MAX_RADIUS)) * 3 / 2; }
-    boolean finished() { return radius == 0 || columns.finished(); }
+    boolean finished() { return radius == 0 || columns!=null && column>=columns.offsets().length; }
 
     int carve(ServerLevel world,int budget) { return carve(world,budget,radius); }
-    int carve(ServerLevel world, int budget, float expandedRadius) {
+    int carve(ServerLevel world, int budget, float expandedRadius) { return carve(world,budget,expandedRadius,Long.MAX_VALUE); }
+    int carve(ServerLevel world, int budget, float expandedRadius, long deadline) {
+        if (radius==0 || budget<=0) return 0;
+        if (columns==null) {
+            if (pending==null) pending=AtomicTerrainPlanner.request(radius);
+            if (pending==null || !pending.isDone()) return 0;
+            columns=pending.join(); pending=null;
+        }
         int inspected = 0;
         var pos = new BlockPos.MutableBlockPos();
+        net.minecraft.world.level.chunk.LevelChunk chunk = null;
         while (inspected < budget && !finished()) {
-            int x = center.getX() + columns.x(), z = center.getZ() + columns.z();
-            int distanceSquared = columns.x() * columns.x() + columns.z() * columns.z();
+            if ((inspected & 31)==0 && System.nanoTime()>=deadline) break;
+            int packed=columns.offsets()[column];
+            int x=center.getX()+(short)packed, z=center.getZ()+(short)(packed>>16);
+            int distanceSquared=columns.distances()[column];
             if (!inColumn) {
                 inspected++;
                 if (center.getY()<world.getMinBuildHeight() || center.getY()>=world.getMaxBuildHeight()
-                        || distanceSquared > radius * radius || distanceSquared <= 9
-                        || !world.getChunkSource().hasChunk(x >> 4, z >> 4)) { columns.advance(); continue; }
+                        || distanceSquared > radius * radius || distanceSquared <= 9) { column++; continue; }
                 if(distanceSquared>expandedRadius*expandedRadius)break;
+                chunk=world.getChunkSource().getChunkNow(x >> 4,z >> 4);
+                if(chunk==null) { column++; continue; }
                 y = Math.min(Math.min(world.getMaxBuildHeight()-1,center.getY()+AtomicSequence.BEAM_HEIGHT),
                         world.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE,x,z)-1);
-                bottom = Math.max(world.getMinBuildHeight(), center.getY() - (int) (AtomicSequence.CRATER_DEPTH * (1 - distanceSquared / (double)(radius * radius))));
-                if (y < bottom) { columns.advance(); continue; }
+                bottom = Math.max(world.getMinBuildHeight(), center.getY() - AtomicSequence.BEAM_DEPTH);
+                if (y < bottom) { column++; continue; }
                 inColumn = true;
             } else {
                 inspected++;
-                if (!world.getChunkSource().hasChunk(x >> 4, z >> 4)) { inColumn = false; columns.advance(); continue; }
+                // Reacquire on each resumed slice; never force-load or hold chunks between ticks.
+                if(chunk==null)chunk=world.getChunkSource().getChunkNow(x >> 4,z >> 4);
+                if(chunk==null) { inColumn=false; column++; continue; }
                 pos.set(x, y, z);
-                var state = world.getBlockState(pos);
+                var state = chunk.getBlockState(pos);
                 // Containers and ongoing spatial spells retain their state and inventories.
                 if (!state.hasBlockEntity()
                         && SpatialDisplacementManager.canDisplace(world, pos, state))
                     world.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS);
                 if (--y < bottom) {
-                    inColumn=false; columns.advance();
+                    inColumn=false; column++;
                 }
             }
         }

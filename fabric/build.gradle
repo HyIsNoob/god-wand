@@ -22,7 +22,7 @@ dependencies {
 }
 
 loom {
-    accessWidenerPath = file("src/main/resources/godwand.accesswidener")
+    accessWidenerPath = file("../common/src/main/resources/godwand.accesswidener")
 }
 
 processResources {

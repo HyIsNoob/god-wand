@@ -10,7 +10,7 @@
 - `ports/mc-26.3/`: separate Java 25 Fabric/NeoForge builds; see their README/status. 1.21.11 remains pending.
 - `tools/`: optional development-only QA. It is not packaged into God Wand.
 
-The 1.20.1 projects remain separate Gradle builds because their Java/Minecraft/loader APIs differ. They belong to this same Git repository; changes to shared spell behavior must be reflected in both ports. AtomicPortParityTest checks matching choreography, geometry and shader source after normalizing the required clamp API difference.
+The 1.20.1 projects remain separate Gradle builds because their Java/Minecraft/loader APIs differ. They consume canonical common sources through strict version adapters; do not edit copied implementations. See [shared-source ownership](SHARED_SOURCES.md). AtomicPortParityTest checks matching choreography, geometry and shader source after normalizing the required clamp API difference.
 
 ## Commands from the root
 
@@ -19,8 +19,8 @@ The 1.20.1 projects remain separate Gradle builds because their Java/Minecraft/l
 .\gradlew.bat :common:test          # shared JUnit suite
 .\gradlew.bat buildFabric1201       # standalone Fabric 1.20.1
 .\gradlew.bat buildForge1201        # standalone Forge 1.20.1
-.\gradlew.bat buildAll              # all four builds and their checks
-.\gradlew.bat releaseJars           # all four builds plus build/release/*.jar
+.\gradlew.bat buildAll              # all six builds and their checks
+.\gradlew.bat releaseJars           # all six builds plus build/release/*.jar
 .\gradlew.bat :fabric:runClient     # ordinary manual Fabric 1.21.1 game
 ```
 
@@ -28,7 +28,7 @@ On Linux/macOS use `./gradlew`. Add `--offline` when dependencies/toolchains are
 
 Development versions ending in -dev collect jars under build/preview/<version>/ instead of build/release/, so previews stay separate from released jars.
 
-Root `clean` clears root build output. Each loader/standalone build owns its own build directory. Use the four jars collected in build/release rather than old files left elsewhere.
+Root `clean` clears root build output. Each loader/standalone build owns its own build directory. Use the six jars collected in build/release rather than old files left elsewhere.
 
 ## QA scope
 

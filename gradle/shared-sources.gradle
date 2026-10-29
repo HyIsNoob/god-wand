@@ -8,8 +8,9 @@ ext.applySharedChanges = { String source, List changes, String label ->
     String result = source
     changes.each { change ->
         String before = change.before, after = change.after
+        if (!before || after == null) throw new GradleException("Invalid shared-source adapter: ${label}")
         int at = result.indexOf(before)
-        if (!before || at < 0 || result.indexOf(before, at + 1) >= 0)
+        if (at < 0 || result.indexOf(before, at + 1) >= 0)
             throw new GradleException("Shared-source adapter conflict: ${label}. Update this API adapter; stale version code will not be built.")
         result = result.substring(0, at) + after + result.substring(at + before.length())
     }
@@ -47,6 +48,18 @@ ext.generateSharedProfile = { String profile ->
             }
         }
     }
+    File platform = new File(repo, "${manifest.module}/src/main")
+    if (platform.exists()) fileTree(platform).files.each { original ->
+        String key = platform.toPath().relativize(original.toPath()).toString().replace('\\', '/')
+        if (!key.startsWith('java/') && !key.startsWith('resources/')) return
+        File target = safePath(output, key)
+        if (expected.contains(target.canonicalPath))
+            throw new GradleException("Platform source shadows shared source: ${profile}/${key}. Use an API adapter instead.")
+        expected.add(target.canonicalPath)
+        if (!target.exists() || !Arrays.equals(target.bytes, original.bytes)) {
+            target.parentFile.mkdirs(); Files.write(target.toPath(), original.bytes)
+        }
+    }
     // Only generated files beneath build/shared can be retired here.
     if (output.exists()) fileTree(output).files.each { generated ->
         if (!expected.contains(generated.canonicalPath)) Files.delete(generated.toPath())
@@ -57,16 +70,18 @@ ext.generateSharedProfile = { String profile ->
 def profiles = ['fabric-1.20.1', 'forge-1.20.1', 'mc-26.3']
 if (project.hasProperty('sharedProfile')) {
     ext.sharedSourcesDir = generateSharedProfile(project.sharedProfile)
-    sourceSets.main.java.setSrcDirs([new File(sharedSourcesDir, 'java'), file('src/main/java')])
-    sourceSets.main.resources.setSrcDirs([new File(sharedSourcesDir, 'resources'), file('src/main/resources')])
+    sourceSets.main.java.setSrcDirs([new File(sharedSourcesDir, 'java')])
+    sourceSets.main.resources.setSrcDirs([new File(sharedSourcesDir, 'resources')])
     def sharedTask = tasks.register('generateSharedSources') {
         inputs.dir(new File(repo, 'common/src/main'))
+        inputs.dir(file('src/main'))
         inputs.dir(new File(repo, "compat/profiles/${project.sharedProfile}"))
         outputs.dir(sharedSourcesDir)
         doLast { project.generateSharedProfile(project.sharedProfile) }
     }
     tasks.named('compileJava') { dependsOn sharedTask }
     tasks.named('processResources') { dependsOn sharedTask }
+    tasks.matching { it.name in ['validateAccessWidener', 'sourcesJar', 'javadoc'] }.configureEach { dependsOn sharedTask }
     def versions = new Properties()
     new File(repo, 'gradle.properties').withInputStream { versions.load(it) }
     ext.mod_version = versions.getProperty('mod_version')

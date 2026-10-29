@@ -1,10 +1,6 @@
 {
-  "reason": "Version/loader API adapter for forge-1.20.1",
+  "reason": "Explicit version/loader API adapter",
   "changes": [
-    {
-      "before": "\n    public static void handleKeyInput(Minecraft client) {\n        while (OPEN_CONFIG.consumeClick()) {\n            if (client.player != null && !client.player.isUsingItem() && !AtomicCinematic.movementLocked()\n                    && client.screen == null) {\n                client.setScreen(new net.godwand.client.gui.GodWandConfigScreen(client.screen));\n            }\n        }\n",
-      "after": "\n    public static void handleKeyInput(Minecraft client) {\n        while (OPEN_CONFIG.consumeClick()) {\n            if (client.player != null && !client.player.isUsingItem() && !AtomicCinematic.active() && (client.screen == null || !(client.screen instanceof net.godwand.client.gui.GodWandConfigScreen))) {\n                client.setScreen(new net.godwand.client.gui.GodWandConfigScreen(client.screen));\n            }\n        }\n"
-    },
     {
       "before": "    public boolean isPauseScreen() { return false; }\n\n    @Override\n    public void renderBackground(GuiGraphics context, int mouseX, int mouseY, float delta) { }\n\n    @Override\n    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {\n",
       "after": "    public boolean isPauseScreen() { return false; }\n\n    @Override\n    public void renderBackground(GuiGraphics context) { }\n\n    @Override\n    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {\n"

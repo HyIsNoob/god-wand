@@ -3,6 +3,10 @@ plugins {
     id 'net.fabricmc.fabric-loom' version '1.17.21' apply false
 }
 
+def sharedVersion = new Properties()
+file('../../gradle.properties').withInputStream { sharedVersion.load(it) }
+allprojects { ext.mod_version = sharedVersion.getProperty('mod_version') }
+
 version = project.mod_version
 group = project.maven_group
 
@@ -17,7 +21,7 @@ subprojects {
         options.compilerArgs += ['-Xmaxerrs','2000']
     }
     tasks.withType(Jar).configureEach {
-        from(rootProject.file('LICENSE'))
+        from(rootProject.file('../../LICENSE'))
     }
     repositories {
         mavenCentral()

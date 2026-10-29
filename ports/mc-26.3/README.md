@@ -1,4 +1,4 @@
-# God Wand 1.3.2 — Minecraft 26.3
+# God Wand 1.3.2 â€” Minecraft 26.3
 
 Fabric and NeoForge test builds include all six skills, models, custom SFX, interactive Atomic release and current balance/config settings. Both builds and automated tests pass. Gameplay, shaderpack compatibility and multiplayer still need owner testing.
 
@@ -17,4 +17,6 @@ Outputs:
 
 Install exactly the JAR matching your loader, on both client and server. Local test copies are collected in the canonical `build/release/26.3/`. JARs are not published to GitHub.
 
-The build does not launch Minecraft. Minecraft 1.21.11 remains pending. See [PORT_STATUS.md](PORT_STATUS.md) for scope and verification limits. [LICENSE](LICENSE) separates MIT Java code, reserved custom assets/SFX, and the OFL font.
+The build does not launch Minecraft. Minecraft 1.21.11 remains pending. See [PORT_STATUS.md](PORT_STATUS.md) for scope and verification limits. [LICENSE](../../LICENSE) separates MIT Java code, reserved custom assets/SFX, and the OFL font.
+
+Routine changes belong in canonical common source; this directory retains native-only bridges and loader hooks. Root releaseJars builds this port with the other four variants. See [shared sources](../../docs/SHARED_SOURCES.md).

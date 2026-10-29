@@ -14,7 +14,7 @@ Merge the selected keys below into config/godwand-server.json, then restart the 
 
 Defaults remain true to retain the existing destructive spell style. Set lift=false and terrainDamage=false for pure entity damage with no skill 3/4 terrain movement. Set lift=true and terrainDamage=false for reversible block effects. Set both true for the original destructive behavior. Lift=false with damage=true still allows the explosion/crater to destroy blocks.
 
-Atomic now excavates a bowl up to 28 blocks below its cast ground level, tapering toward its outer radius. Setting atomicTerrainDamage=false still prevents all of its block removal. Atomic 1.3.2 clears all removable fluids, including source/flowing water and lava, underwater plants and waterlogged blocks. Its effective terrain radius is now 1.5 times atomicTerrainRadius (default 98 becomes 147 blocks); existing config values are preserved. Visuals and entity damage reach are unchanged. Containers, the caster pedestal, unbreakable blocks and active spatial spell positions remain protected. Unloaded chunks are skipped. Fluids outside the crater can still flow back into it naturally.
+Atomic now clears down to 30 blocks across its full terrain radius. Setting atomicTerrainDamage=false still prevents all of its block removal. Atomic 1.3.2 clears all removable fluids, including source/flowing water and lava, underwater plants and waterlogged blocks. Its effective terrain radius is now 1.5 times atomicTerrainRadius (default 98 becomes 147 blocks); existing config values are preserved. Visuals and entity damage reach are unchanged. Containers, the caster pedestal, unbreakable blocks and active spatial spell positions remain protected. Unloaded chunks are skipped. Fluids outside the crater can still flow back into it naturally.
 
 Presets: config-presets/preserve-terrain.json disables terrain movement for 3/4 and permanent destruction for 3/4/5/6. config-presets/reversible-block-effects.json retains temporary lift for 3/4 while disabling permanent destruction for 3/4/5/6. Merge these keys rather than replacing custom damage/cooldown settings.
 
@@ -29,3 +29,5 @@ On startup, valid older client/server JSON files gain any missing options automa
 An unreadable or malformed godwand-server.json now stops startup instead of enabling destructive defaults. The existing file is preserved; correct it before restarting. Missing files are still created with the documented defaults.
 
 If a temporary spell's original position contains a newly placed conflicting block or container, the mod retains its saved original rather than overwriting that position. Clear the obstructing position to allow recovery. Existing bridge destinations are retained until the source can be reconciled.
+
+Terrain planning and bounded server slices are described in [the terrain architecture](TERRAIN_ARCHITECTURE.md). Large casts may keep clearing after the cutscene; visual density is unchanged.

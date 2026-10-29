@@ -12,6 +12,8 @@ One wand with six skills: walk through mountains, pull enemies into a gravity or
 | 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.2.jar` |
 | 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.2.jar` |
 | 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.2.jar` |
+| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.3.2.jar` |
+| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.3.2.jar` |
 
 Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server.
 
@@ -38,12 +40,12 @@ Client graphics settings are in `config/godwand-client.json`. [Dedicated-server 
 
 ## Build
 
-The four existing 1.3.2 test builds are collected in `build/release/`. Fabric and NeoForge 26.3 are built separately under [ports/mc-26.3](ports/mc-26.3/README.md); their local test JARs are in `build/release/26.3/`.
+All six supported builds come from canonical `common/` sources plus explicit API adapters. One root command checks and collects every target. See [shared source ownership](docs/SHARED_SOURCES.md) before making changes.
 
 Run from this repository root:
 
 ```powershell
-# Build and check all four variants, then collect their installable jars
+# Build and check all six variants, then collect their installable jars
 .\gradlew.bat releaseJars
 
 # Build only Fabric/NeoForge 1.21.1
@@ -53,19 +55,19 @@ Run from this repository root:
 .\gradlew.bat :fabric:runClient
 ```
 
-On Linux/macOS use `./gradlew`. Outputs from `releaseJars` are in `build/release/`. Java 21 is needed for 1.21.1; the 1.20.1 ports need a Java 17 toolchain.
+On Linux/macOS use `./gradlew`. Outputs from `releaseJars` are in `build/release/`. Install Java 17, 21 and 25 toolchains for the complete matrix.
 
-See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [source of truth](docs/SOURCE_OF_TRUTH.md) for the consolidation history. This root aggregates the existing four variants; Fabric/NeoForge 26.3 have a separate Java 25 build.
+See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [source of truth](docs/SOURCE_OF_TRUTH.md) for the consolidation history. The root aggregate also invokes the Java 25 build for Fabric/NeoForge 26.3.
 
 ## Release status
 
-The latest 1.3.2 boss-damage patch targets the four 1.20.1/1.21.1 variants first. The 26.3 previews do not yet include that patch; 1.21.11 work is paused for this release. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
+The 1.3.2 boss-damage, Atomic, Singularity and menu updates are synchronized across all six targets. 1.21.11 work remains paused. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
 
-1.3.2 is a preview following the released 1.3.x builds. The four versions listed above retain their builds. Fabric and NeoForge 26.3 now build and pass automated checks; gameplay testing is pending. Minecraft 1.21.11 remains pending by owner request. Remaining audit findings are tracked in [the audit report](docs/AUDIT_2026-10-27.md).
+1.3.2 is a preview following the released 1.3.x builds. All six targets listed above build from the shared source and pass automated checks; gameplay testing is pending. Minecraft 1.21.11 remains pending by owner request. Remaining audit findings are tracked in [the audit report](docs/AUDIT_2026-10-27.md).
 
 ## License
 
-* **Source Code (`**/src/main/java/`):** Licensed under the [MIT License](LICENSE).
+* **Java source and Java compatibility adapters:** Licensed under the [MIT License](LICENSE).
 * **Assets & Audio (`**/src/main/resources/assets/` and top-level `assets/`):** Custom sound effects (SFX), audio arrangements, visual assets, and mod branding are **All Rights Reserved**. Extracting or reusing these assets in standalone projects without explicit permission is prohibited.
 * **Font:** The bundled *Bebas Neue* font retains its original [SIL Open Font License (OFL)](https://openfontlicense.org/).
 * **Distribution & Modpacks:**

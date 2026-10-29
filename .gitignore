@@ -12,6 +12,6 @@ local.properties
 .env.*
 !.env.example
 
-Test/
+/Test/
 fuga-references/
 docs/

@@ -83,6 +83,7 @@ public final class AtomicManager {
     }
     public static void tick(ServerLevel world) {
         int terrainBudget = 8192;
+        long terrainTime = 2_000_000L;
         for (var iterator = TASKS.values().iterator(); iterator.hasNext();) {
             Task task = iterator.next();
             if (task.world != world) continue;
@@ -156,7 +157,11 @@ public final class AtomicManager {
                         }
                     }
                 }
-                if(terrainBudget>0)terrainBudget-=task.crater.carve(world,terrainBudget,radius * 1.5f);
+                if(terrainBudget>0 && terrainTime>0) {
+                    long began=System.nanoTime();
+                    terrainBudget-=task.crater.carve(world,terrainBudget,radius * 1.5f,began+terrainTime);
+                    terrainTime-=System.nanoTime()-began;
+                }
             }
         }
     }

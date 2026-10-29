@@ -4,10 +4,11 @@ GOD WAND LICENSING TERMS
 This project uses a multi-license model separating source code, custom assets,
 third-party fonts, and compiled binaries:
 
-1. SOURCE CODE (`**/src/main/java/`)
+1. SOURCE CODE (`**/src/main/java/` and `compat/profiles/**/java/`)
    All Java source code is licensed under the MIT License (full text below).
 
-2. ASSETS & AUDIO (`**/src/main/resources/assets/` and `assets/`)
+2. ASSETS & AUDIO (`**/src/main/resources/assets/`, `assets/`, and
+   corresponding asset adapters in `compat/profiles/**/resources/assets/`)
    Copyright (c) 2026 HyIsNoob (God Wand contributors). All Rights Reserved.
    All custom sound effects (.ogg), audio arrangements, visual assets, and mod
    branding are proprietary. Extracting, modifying, or reusing these assets in
@@ -35,7 +36,7 @@ under an earlier license. Preserve all applicable third-party license notices.
 
 ==============================================================================
 
-MIT License (Applies to Source Code in `**/src/main/java/` only)
+MIT License (Applies to Java source and its Java compatibility adapters)
 
 Copyright (c) 2026 HyIsNoob (God Wand contributors)
 

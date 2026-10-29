@@ -13,6 +13,8 @@
 - Smoother, rounder Singularity charge orb with a brighter core and soft glow.
 - Simpler spell selection menu with warm colors and spell seals.
 - Reduced repeated terrain checks and temporary allocations in Atomic rendering.
+- Atomic plans terrain clearing in the background and spreads block removal across short server steps.
+- Atomic clears down to 30 blocks across its full terrain radius.
 
 ### Fixed
 - Improved spell damage against modded bosses, including boss damage caps.

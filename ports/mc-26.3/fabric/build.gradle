@@ -21,7 +21,7 @@ dependencies {
 }
 
 loom {
-    accessWidenerPath = file("src/main/resources/godwand.accesswidener")
+    accessWidenerPath = new File(project(':common').sharedSourcesDir, 'resources/godwand.accesswidener')
 }
 
 processResources {
@@ -45,3 +45,9 @@ tasks.withType(Jar).configureEach {
 test {
     useJUnitPlatform()
 }
+
+// Shared generated inputs must precede every loader task that consumes them.
+tasks.withType(JavaCompile).configureEach { dependsOn ':common:generateSharedSources' }
+tasks.named('processResources') { dependsOn ':common:generateSharedSources' }
+
+tasks.matching { it.name in ['validateAccessWidener', 'sourcesJar', 'javadoc'] }.configureEach { dependsOn ':common:generateSharedSources' }

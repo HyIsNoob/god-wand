@@ -13,12 +13,32 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class AtomicCraterTest {
+    private static AtomicCrater readyCrater(BlockPos center,int radius) {
+        var crater=new AtomicCrater(center,radius);
+        try {
+            var field=AtomicCrater.class.getDeclaredField("pending"); field.setAccessible(true);
+            var future=(java.util.concurrent.CompletableFuture<?>)field.get(crater);
+            if(future!=null)future.get(5,java.util.concurrent.TimeUnit.SECONDS);
+            return crater;
+        } catch(Exception error) { throw new AssertionError("Coordinate planner did not finish",error); }
+    }
+    @Test void expiredTerrainSliceLeavesTheWorldUntouchedAndCanResumeNextTick() {
+        var world=mock(ServerLevel.class);
+        var crater=readyCrater(BlockPos.ZERO,16);
+        assertEquals(0,crater.carve(world,8192,16,Long.MIN_VALUE));
+        assertFalse(crater.finished());
+        verifyNoInteractions(world);
+    }
+
     @BeforeAll static void bootstrap() { SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); }
 
     @Test void craterRemovesWaterAndLavaButKeepsProtectedBlocks() {
         var world=mock(ServerLevel.class);
         var chunks=mock(ServerChunkCache.class);
         when(world.getChunkSource()).thenReturn(chunks);
+        var loaded=mock(net.minecraft.world.level.chunk.LevelChunk.class);
+        when(chunks.getChunkNow(anyInt(),anyInt())).thenAnswer(call -> chunks.hasChunk(call.getArgument(0),call.getArgument(1))?loaded:null);
+        when(loaded.getBlockState(any())).thenAnswer(call -> world.getBlockState(call.getArgument(0)));
         when(chunks.hasChunk(anyInt(),anyInt())).thenReturn(true);
         when(world.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
         when(world.getMinY()).thenReturn(-64);
@@ -44,7 +64,7 @@ class AtomicCraterTest {
             assertTrue(((net.minecraft.world.level.block.state.BlockState)call.getArgument(1)).isAir());
             removed.add(kind);return true;
         });
-        var crater=new AtomicCrater(new BlockPos(0,70,0),8);
+        var crater=readyCrater(new BlockPos(0,70,0),8);
         for(int tick=0;tick<1000&&!crater.finished();tick++)assertTrue(crater.carve(world,73)<=73);
         assertTrue(crater.finished());
         assertEquals(java.util.Set.of(0,1,2,3,4,5),removed,"Source and flowing water/lava, waterlogged blocks and underwater plants must all be removed");
@@ -54,6 +74,9 @@ class AtomicCraterTest {
         var world=mock(ServerLevel.class);
         var chunks=mock(ServerChunkCache.class);
         when(world.getChunkSource()).thenReturn(chunks);
+        var loaded=mock(net.minecraft.world.level.chunk.LevelChunk.class);
+        when(chunks.getChunkNow(anyInt(),anyInt())).thenAnswer(call -> chunks.hasChunk(call.getArgument(0),call.getArgument(1))?loaded:null);
+        when(loaded.getBlockState(any())).thenAnswer(call -> world.getBlockState(call.getArgument(0)));
         when(chunks.hasChunk(anyInt(),anyInt())).thenAnswer(call -> (int)call.getArgument(0)>=0);
         when(world.getMinY()).thenReturn(-64);
         when(world.getMaxY()).thenReturn(319);
@@ -72,7 +95,7 @@ class AtomicCraterTest {
             assertTrue(writes.add(p.immutable()),"A block was carved twice");
             return true;
         });
-        var crater=new AtomicCrater(new BlockPos(0,70,0),16);
+        var crater=readyCrater(new BlockPos(0,70,0),16);
         for(int tick=0;!crater.finished()&&tick<2000;tick++) {
             int before=writes.size();
             assertTrue(crater.carve(world,73)<=73);
@@ -80,6 +103,9 @@ class AtomicCraterTest {
         }
         assertTrue(crater.finished());
         assertTrue(writes.size()>1000,"The crater must reach the outer columns");
+        long lookups=mockingDetails(chunks).getInvocations().stream().filter(call -> call.getMethod().getName().equals("getChunkNow")).count();
+        assertTrue(lookups<writes.size()/5,"Chunk lookup must be shared across a column, not repeated per block");
+        verify(world,never()).getChunk(anyInt(),anyInt());
         assertTrue(writes.stream().mapToInt(BlockPos::getY).min().orElseThrow()<50,"The deeper crater should extend more than twenty blocks beneath its center");
     }
 
@@ -87,6 +113,9 @@ class AtomicCraterTest {
         var world=mock(ServerLevel.class);
         var chunks=mock(ServerChunkCache.class);
         when(world.getChunkSource()).thenReturn(chunks);
+        var loaded=mock(net.minecraft.world.level.chunk.LevelChunk.class);
+        when(chunks.getChunkNow(anyInt(),anyInt())).thenAnswer(call -> chunks.hasChunk(call.getArgument(0),call.getArgument(1))?loaded:null);
+        when(loaded.getBlockState(any())).thenAnswer(call -> world.getBlockState(call.getArgument(0)));
         when(chunks.hasChunk(anyInt(),anyInt())).thenReturn(true);
         when(world.getMinY()).thenReturn(-64);
         when(world.getMaxY()).thenReturn(319);
@@ -100,7 +129,7 @@ class AtomicCraterTest {
             assertTrue(state.isAir(),"Temporary scar visuals must not replace the foundation with permanent blocks");
             return true;
         });
-        var crater=new AtomicCrater(new BlockPos(0,70,0),16);
+        var crater=readyCrater(new BlockPos(0,70,0),16);
         for(int tick=0;tick<30;tick++)crater.carve(world,97,front[0]);
         assertFalse(crater.finished());
         front[0]=16;
@@ -117,7 +146,7 @@ class AtomicCraterTest {
 
     @Test void zeroRadiusLeavesTheWorldUntouchedAndDamageFallsOffOutsideTheBlast() {
         var world=mock(ServerLevel.class);
-        assertEquals(0,new AtomicCrater(BlockPos.ZERO,0).carve(world,2048));
+        assertEquals(0,readyCrater(BlockPos.ZERO,0).carve(world,2048));
         verifyNoInteractions(world);
         assertEquals(9999,AtomicManager.damage(0));
         assertEquals(4999.5f,AtomicManager.damage(49));
@@ -143,13 +172,16 @@ class AtomicCraterTest {
         var world=mock(ServerLevel.class);
         var chunks=mock(ServerChunkCache.class);
         when(world.getChunkSource()).thenReturn(chunks);
+        var loaded=mock(net.minecraft.world.level.chunk.LevelChunk.class);
+        when(chunks.getChunkNow(anyInt(),anyInt())).thenAnswer(call -> chunks.hasChunk(call.getArgument(0),call.getArgument(1))?loaded:null);
+        when(loaded.getBlockState(any())).thenAnswer(call -> world.getBlockState(call.getArgument(0)));
         when(chunks.hasChunk(anyInt(),anyInt())).thenReturn(true);
         when(world.getMinY()).thenReturn(-64);
         when(world.getMaxY()).thenReturn(319);
         when(world.getHeight(any(),anyInt(),anyInt())).thenReturn(81);
         when(world.getBlockState(any())).thenThrow(new AssertionError("Out-of-height blast read terrain"));
         for(int height:new int[]{400,-100}) {
-            var crater=new AtomicCrater(new BlockPos(0,height,0),16);
+            var crater=readyCrater(new BlockPos(0,height,0),16);
             while(!crater.finished())crater.carve(world,2048);
         }
     }

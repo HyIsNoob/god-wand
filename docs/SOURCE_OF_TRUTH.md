@@ -55,3 +55,12 @@ The owner paused 1.21.11 work and prioritized 1.3.2 for the existing four releas
 The four 1.20.1/1.21.1 release variants now include a 50% larger Atomic terrain radius (1.5 times the existing config value), removal of lava and other removable fluids, a round camera-facing Singularity charge glow, and the warm spell-seal selection menu. Atomic head yaw blends the shortest normalized arc; new CHARGE sequences discard old facing state. This guards accumulated-angle/state cases, but the owner's intermittent full-turn head issue has not been reproduced in live gameplay.
 
 Atomic rendering no longer allocates temporary vertex arrays per quad or axis arrays per stroke. Scar height queries are cached for one client tick and invalidated across ticks/world changes. Particle counts, geometry, textures and volumetric shader quality are unchanged. The releaseJars build and 225 common tests pass; no live FPS measurement or visual QA was performed. Local artifacts are in build/release/1.3.2. These updates have not been applied to 26.3 previews or the paused 1.21.11 prototype.
+
+
+## Current shared-source layout (2026-10-29)
+
+This section supersedes the earlier four-target-only release notes. All six supported targets now consume canonical common Java/assets through gradle/shared-sources.gradle and strict compat/profiles adapters. Copies formerly maintained in the two 1.20.1 source trees and 26.3 common tree have been removed. Java 17/21/25 build boundaries remain, but root releaseJars invokes all of them and collects matching binaries, changelog and checksums. The release version is read only from root gradle.properties.
+
+26.3 includes the boss damage route/tags, head-yaw/new-cast fixes, warm skill menu, Singularity charge glow, lava removal, larger terrain footprint and render allocation/height-cache changes. Atomic terrain coordinates are planned on a bounded data-only worker, and server writes are resumed within a soft time/inspection budget with loaded-chunk lookups shared per column. The footprint is excavated to a uniform 30-block depth. See SHARED_SOURCES.md and TERRAIN_ARCHITECTURE.md for exact boundaries and limits. 1.21.11 remains excluded; no native gameplay automation or live FPS/TPS measurement was run.
+
+Final aggregate verification: all six release builds succeeded; 474 JUnit tests passed with no failures/errors or skipped tests, alongside both legacy self-check tasks. All six packaged artifacts, checksums, common planner/damage resources, current license and exclusion of test fixtures were checked.
