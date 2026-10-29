@@ -121,7 +121,7 @@ public final class GodWandGeometry {
                     }
                     pass.setVertexBuffer(0,vertices.slice(offset,size));
                     pass.setIndexBuffer(indices,sequential.type());
-                    pass.drawIndexed(0,0,state.indexCount(),1,0);
+                    pass.drawIndexed(state.indexCount(),1,0,0,0);
                 }
                 offset += size;
             }

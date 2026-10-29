@@ -20,6 +20,7 @@
 
 ### Fixed
 - Fixed a Fabric 26.3 crash when drawing skill effects.
+- Fixed missing spell projectiles and Atomic effects in 26.3.
 - Fixed misplaced and undersized wand models in 26.3.
 - Atomic stops breaking blocks before its column starts shrinking.
 - Atomic now destroys campfires, banners, chests and machines inside its terrain range.

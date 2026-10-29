@@ -35,6 +35,8 @@ Minecraft 26.3 rendering has two native contracts: Fabric procedural GPU uploads
 
 ## Updating an API adapter
 
+The 26.3 GPU bridge uses RenderPearl's indexed draw order: index count, instance count, first index, vertex offset, first instance. Its command-submission test checks a real extracted quad through `flush`; geometry-only tests cannot detect an empty GPU draw.
+
 When a conflict is real, inspect the named `compat/profiles/<profile>/<java-or-resources>/<path>.json`. Update its small `before`/`after` hunks for the current canonical code. Preserve the shared algorithm and limit the difference to the API boundary.
 
 For a larger adapter edit, create an updated desired file at its generated path, then explicitly capture that one file (Python 3 is optional maintainer tooling, not needed for normal builds):
