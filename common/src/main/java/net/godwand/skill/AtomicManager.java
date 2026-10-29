@@ -118,21 +118,37 @@ public final class AtomicManager {
                         e -> AtomicSequence.beamRadius(age)>0 && e!=task.caster && e.isAlive() && !(e instanceof Player p && (p.isCreative()||p.isSpectator())))) {
                     double distance=Math.hypot(entity.getX()-task.center.x,entity.getZ()-task.center.z);
                     float hit=damage(distance);
-                    if(distance>AtomicSequence.beamRadius(age) || hit<=0 || !task.struck.add(entity.getUUID()))continue;
-                    entity.hurt(world.damageSources().indirectMagic(task.caster,task.caster),hit);
+                    if(distance>AtomicSequence.beamRadius(age) || hit<=0 || task.struck.contains(entity.getUUID()))continue;
+                    if(!SpellDamage.hurt(entity,world.damageSources().indirectMagic(task.caster,task.caster),hit))continue;
+                    task.struck.add(entity.getUUID());
                     Vec3 push=entity.position().subtract(task.center).normalize().scale(1.8*(1-distance/AtomicSequence.MAX_RADIUS));
                     entity.push(push.x,Math.min(.8,push.length()*.4),push.z); entity.hurtMarked=true;
+                }
+                for(var part:SpellDamage.extraTargets(world,area)) {
+                    double distance=Math.hypot(part.getX()-task.center.x,part.getZ()-task.center.z);
+                    var id=SpellDamage.identity(part);
+                    if(distance>AtomicSequence.beamRadius(age)||task.struck.contains(id))continue;
+                    if(SpellDamage.hurt(part,world.damageSources().indirectMagic(task.caster,task.caster),damage(distance)))task.struck.add(id);
                 }
                 if(AtomicSequence.pressure(age)>.15f&&GodWandConfig.SERVER.atomicShockwaveDamage>0&&GodWandConfig.SERVER.damageMultiplier>0) {
                     double reach=AtomicSequence.MAX_RADIUS+32;
                     var groundFront=new AABB(task.center.x-reach,task.center.y-2,task.center.z-reach,
                             task.center.x+reach,task.center.y+3,task.center.z+reach);
+                    for(var part:SpellDamage.extraTargets(world,groundFront)) {
+                        var id=SpellDamage.identity(part);
+                        if(age-task.pressureHits.getOrDefault(id,-100L)<10)continue;
+                        double distance=Math.hypot(part.getX()-task.center.x,part.getZ()-task.center.z);
+                        for(int wave=0;wave<4;wave++)if(AtomicSequence.pressureCrosses(age,wave,distance)) {
+                            if(SpellDamage.hurt(part,world.damageSources().indirectMagic(task.caster,task.caster),GodWandConfig.SERVER.atomicShockwaveDamage*GodWandConfig.SERVER.damageMultiplier))task.pressureHits.put(id,age);
+                            break;
+                        }
+                    }
                     for(LivingEntity entity:world.getEntitiesOfClass(Mob.class,groundFront,LivingEntity::isAlive)) {
                         if(age-task.pressureHits.getOrDefault(entity.getUUID(),-100L)<10)continue;
                         double distance=Math.hypot(entity.getX()-task.center.x,entity.getZ()-task.center.z);
                         for(int wave=0;wave<4;wave++)if(AtomicSequence.pressureCrosses(age,wave,distance)) {
                             task.pressureHits.put(entity.getUUID(),age);
-                            if(entity.hurt(world.damageSources().indirectMagic(task.caster,task.caster),GodWandConfig.SERVER.atomicShockwaveDamage * GodWandConfig.SERVER.damageMultiplier)) {
+                            if(SpellDamage.hurt(entity,world.damageSources().indirectMagic(task.caster,task.caster),GodWandConfig.SERVER.atomicShockwaveDamage * GodWandConfig.SERVER.damageMultiplier)) {
                                 Vec3 outward=new Vec3(entity.getX()-task.center.x,0,entity.getZ()-task.center.z).normalize().scale(.45);
                                 entity.push(outward.x,.12,outward.z); entity.hurtMarked=true;
                             }

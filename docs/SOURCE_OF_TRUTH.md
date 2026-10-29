@@ -44,3 +44,7 @@ The owner changed the terms to MIT for Java source, All Rights Reserved for cust
 ## NeoForge 26.3 and Atomic polish (2026-10-29)
 
 The distant Atomic blast camera has 16 extra blocks of allowance while retaining loaded-chunk fallback; initial blast, sustained pressure and passing-wave shake are stronger. The four existing variants and Fabric 26.3 were rebuilt first. NeoForge 26.3 is now migrated and build-tested alongside Fabric under ports/mc-26.3, sharing the same gameplay and native renderers. The port suite passes 221 common, 3 Fabric and 5 NeoForge tests. Both local 26.3 JARs include the updated split licensing. Gameplay, shaderpacks and actual multiplayer remain owner QA. 1.21.11 stays pending. PR #1 remains open and unmerged; its build-tool upgrades are separate work.
+
+## Boss compatibility release priority (2026-10-29)
+
+The owner paused 1.21.11 work and prioritized 1.3.2 for the existing four release variants. Singularity, Earth Drill, Supernova, Stone Cannon and Atomic now share the non-player spell damage route and optional non-living Sandworm hit integration. Atomic retries rejected hits; player damage retains its original source. See BOSS_COMPATIBILITY.md for exact behavior and unverified scripted-boss limits. The 26.3 previews and the unfinished 1.21.11 prototype do not contain this new boss patch yet; update them only after the four-release priority is complete.

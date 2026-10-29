@@ -1,3 +1,13 @@
+# Current status — paused for the 1.3.2 boss fix (2026-10-29)
+
+The owner requested this port, then explicitly prioritized the four existing 1.20.1/1.21.1 releases after reporting boss-damage failures. No 1.21.11 JAR is ready. Do not release or claim support.
+
+The local prototype was backed up under the canonical .local-backups/ before replacing its old source with the latest 1.3.2 / 26.3 source. Java 21 target metadata, the current license, shared native rendering and all skills are retained. Native 1.21.11 geometry/pipeline, post-chain, camera and GUI migration has started but common compilation still fails. It requires API fixes, native forward-depth shader conversion, both loader integrations and meaningful migrated tests. The source remains excluded from Git except for this report until buildable; no current release source was replaced.
+
+Before resuming: finish and owner-test the four release variants, then bring their new SpellDamage helper, damage-type/tag resources, all five damage managers and boss tests into both the 26.3 and 1.21.11 ports. The current port prototypes predate that boss patch. Keep one JAR per Minecraft version/loader for now; no universal packaging was implemented.
+
+---
+
 # Minecraft 1.21.11 port investigation
 
 Status: PENDING BY OWNER REQUEST (2026-10-28). Finish Fabric 26.3 first. NOT SUPPORTED / NOT RELEASEABLE. This is an isolated full-source port prototype, not an installable port. No gameplay was launched.

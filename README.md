@@ -59,6 +59,8 @@ See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [sou
 
 ## Release status
 
+The latest 1.3.2 boss-damage patch targets the four 1.20.1/1.21.1 variants first. The 26.3 previews do not yet include that patch; 1.21.11 work is paused for this release. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
+
 1.3.2 is a preview following the released 1.3.x builds. The four versions listed above retain their builds. Fabric and NeoForge 26.3 now build and pass automated checks; gameplay testing is pending. Minecraft 1.21.11 remains pending by owner request. Remaining audit findings are tracked in [the audit report](docs/AUDIT_2026-10-27.md).
 
 ## License

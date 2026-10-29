@@ -3,7 +3,6 @@
 ## [1.3.2]
 
 ### Added
-- Fabric and NeoForge 26.3 test builds.
 - Damage and cooldown settings for individual skills and charge levels.
 - A setting to disable Supernova's instant kills.
 - The wand now deals 5 damage with normal attacks. All appearances share this damage.
@@ -12,6 +11,9 @@
 - Wider Atomic blast view and stronger explosion shake.
 
 ### Fixed
+- Improved spell damage against modded bosses, including boss damage caps.
+- Added hit support for Desert Behemoths sandworm segments.
+- Atomic now retries rejected hits instead of permanently skipping the target.
 - Earth Drill now respects zero damage settings for its final slam.
 
 ## [1.3.1]

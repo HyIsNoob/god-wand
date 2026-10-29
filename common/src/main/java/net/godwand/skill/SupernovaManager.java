@@ -374,13 +374,14 @@ public class SupernovaManager {
 
                 // Lực hút kéo thực thể: Hút TOÀN BỘ sinh vật (trừ caster), và KILL ngay lập tức khi chạm vào tâm hố đen
                 AABB suctionBox = new AABB(task.groundCenter).inflate(currentPeelRadius * 1.4);
+                if(task.ageTicks%4==0)SpellDamage.hurtExtras(world,suctionBox,world.damageSources().explosion(null,task.caster),e -> e.position().distanceToSqr(task.corePos)<=12.25?15*net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1):0);
                 for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, suctionBox, ent -> ent != task.caster)) {
                     double distToCoreSq = e.distanceToSqr(task.corePos);
                     if (distToCoreSq <= 12.25 && net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1) > 0) { // Bán kính 3.5m quanh tâm hố đen
                         var source = world.damageSources().fellOutOfWorld();
                         if (e.getMaxHealth() <= net.godwand.config.GodWandConfig.SERVER.supernovaInstantKillHealthThreshold) {
                             // Tiêu diệt ngay quái thường và động vật dưới 50 máu
-                            e.hurt(source, Float.MAX_VALUE);
+                            SpellDamage.hurt(e,source, Float.MAX_VALUE);
                             if (e.isAlive()) {
                                 e.setHealth(0.0f);
                                 e.die(source);
@@ -391,7 +392,7 @@ public class SupernovaManager {
                         } else {
                             // Quái máu trâu / Boss (> 50 máu như Rồng Ender, Wither): Sát thương nghiền nát liên tục, không one-shot
                             if (task.ageTicks % 4 == 0) {
-                                e.hurt(source, 15.0f * net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1));
+                                SpellDamage.hurt(e,source, 15.0f * net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1));
                             }
                             world.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, e.getX(), e.getY() + 0.5, e.getZ(), 2, 0.2, 0.2, 0.2, 0.05);
                             world.sendParticles(ParticleTypes.ELECTRIC_SPARK, e.getX(), e.getY() + 0.5, e.getZ(), 3, 0.2, 0.2, 0.2, 0.1);
@@ -436,19 +437,20 @@ public class SupernovaManager {
                 world.sendParticles(ParticleTypes.LAVA, task.corePos.x, task.corePos.y, task.corePos.z, 16, 6.0, 6.0, 6.0, 0.55);
                 // Mob one-shot damage within the blast radius.
                 AABB blastBox = new AABB(task.groundCenter).inflate(task.blastRadius + 10.0);
+                SpellDamage.hurtExtras(world,blastBox,world.damageSources().explosion(null,task.caster),e -> e.position().distanceTo(task.corePos)<=task.blastRadius+8 ? Math.max(80.0,(1-e.position().distanceTo(task.corePos)/task.blastRadius)*380+80)*net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1):0);
                 for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, blastBox, ent -> ent != task.caster)) {
                     double dist = e.position().distanceTo(task.corePos);
                     if (dist <= task.blastRadius + 8.0) {
                         float dmg = (float) Math.max(80.0, (1.0 - (dist / task.blastRadius)) * 380.0 + 80.0) * (float) net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1);
                         var source = world.damageSources().explosion(null, task.caster);
                         if (e instanceof net.minecraft.world.entity.Mob && e.getMaxHealth() <= net.godwand.config.GodWandConfig.SERVER.supernovaInstantKillHealthThreshold && net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1) > 0) {
-                            e.hurt(source, Float.MAX_VALUE);
+                            SpellDamage.hurt(e,source, Float.MAX_VALUE);
                             if (e.isAlive()) {
                                 e.setHealth(0.0f);
                                 e.die(source);
                             }
                         } else {
-                            e.hurt(source, dmg);
+                            SpellDamage.hurt(e,source, dmg);
                         }
 
                         Vec3 push = e.position().subtract(task.corePos).normalize().scale(5.8).add(0, 2.2, 0);

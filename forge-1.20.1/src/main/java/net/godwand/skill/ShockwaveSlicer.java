@@ -343,12 +343,13 @@ public class ShockwaveSlicer {
 
         // 2. Sát thương nghiền nát (45 - 125) & Lực hút trọng trường kéo tụt mục tiêu xuống đáy hố
         AABB snapBox = new AABB(task.center).inflate(task.maxRadius * 1.15);
+        SpellDamage.hurtExtras(world,snapBox,task.caster!=null?world.damageSources().fallingBlock(task.caster):world.damageSources().inWall(),e -> e.position().distanceTo(Vec3.atCenterOf(task.center))<=task.maxRadius * 1.15 ? 2*Math.max(45.0,(1-e.position().distanceTo(Vec3.atCenterOf(task.center))/(task.maxRadius * 1.15))*80+45)*net.godwand.config.GodWandConfig.skillDamageMultiplier(1,task.chargeLevel):0);
         for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, snapBox, ent -> ent != task.caster && ent.isAlive())) {
-            Vec3 diff = task.center.getCenter().subtract(e.position());
+            Vec3 diff = Vec3.atCenterOf(task.center).subtract(e.position());
             double dist = diff.length();
             if (dist <= task.maxRadius * 1.15) {
                 float dmg = (float) Math.max(45.0, (1.0 - (dist / (task.maxRadius * 1.15))) * 80.0 + 45.0) * (float) net.godwand.config.GodWandConfig.skillDamageMultiplier(1,task.chargeLevel);
-                e.hurt(world.damageSources().fallingBlock(task.caster), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (dmg));
+                SpellDamage.hurt(e,world.damageSources().fallingBlock(task.caster), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (dmg));
 
                 Vec3 pull = (dist > 0.01) ? diff.normalize().scale(1.9).add(0, -0.9, 0) : new Vec3(0, -1.0, 0);
                 e.setDeltaMovement(pull);
@@ -577,6 +578,7 @@ public class ShockwaveSlicer {
 
         // Sát thương chôn vùi & ngạt thở (Entombment & Suffocation)
         AABB entombBox = new AABB(task.center).inflate(task.maxRadius * 1.05);
+        SpellDamage.hurtExtras(world,entombBox,task.caster!=null?world.damageSources().fallingBlock(task.caster):world.damageSources().inWall(),e -> e.position().distanceTo(Vec3.atCenterOf(task.center))<=task.maxRadius * 1.05 ? 70*net.godwand.config.GodWandConfig.skillDamageMultiplier(1,task.chargeLevel):0);
         for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, entombBox, ent -> ent != task.caster && ent.isAlive())) {
             BlockPos feetPos = BlockPos.containing(e.position());
             BlockPos eyePos = BlockPos.containing(e.getEyePosition());
@@ -584,7 +586,7 @@ public class ShockwaveSlicer {
             BlockState eyeState = world.getBlockState(eyePos);
             boolean inSolid = feetState.isSolidRender(world, feetPos) || eyeState.isSolidRender(world, eyePos);
             if (inSolid) {
-                e.hurt(task.caster != null ? world.damageSources().fallingBlock(task.caster) : world.damageSources().inWall(), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (35.0f * net.godwand.config.GodWandConfig.skillDamageMultiplier(1,task.chargeLevel)));
+                SpellDamage.hurt(e,task.caster != null ? world.damageSources().fallingBlock(task.caster) : world.damageSources().inWall(), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (35.0f * net.godwand.config.GodWandConfig.skillDamageMultiplier(1,task.chargeLevel)));
                 BlockState blockToBreak = feetState.isSolidRender(world, feetPos) ? feetState : eyeState;
                 world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, blockToBreak),
                         e.getX(), e.getY() + 0.5, e.getZ(), 24, 0.3, 0.5, 0.3, 0.15);
