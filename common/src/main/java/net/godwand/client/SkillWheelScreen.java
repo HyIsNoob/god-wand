@@ -19,6 +19,7 @@ public final class SkillWheelScreen extends Screen {
     public static final KeyMapping OPEN_CONFIG = new KeyMapping("key.godwand.config",
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, "key.categories.godwand");
     private static final net.minecraft.resources.ResourceLocation ART = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("godwand", "textures/gui/skill_wheel.png");
+    private static final net.minecraft.resources.ResourceLocation SECTORS = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("godwand", "textures/gui/skill_sectors.png");
     private static final double SECTOR = Math.PI * 2 / GodWandItem.TOTAL_MODES;
     private final InteractionHand hand;
     private final int slot;
@@ -141,6 +142,9 @@ public final class SkillWheelScreen extends Screen {
     }
 
     static void drawWheel(GuiGraphics context, int current, int hovered, float cooldown) {
+        context.blit(SECTORS, -112, -112, 1344f, 0f, 224, 224, 1568, 224);
+        if (hovered >= 0)
+            context.blit(SECTORS, -112, -112, hovered * 224f, 0f, 224, 224, 1568, 224);
         for (int mode = 0; mode < GodWandItem.TOTAL_MODES; mode++) {
             double angle = -Math.PI / 2 + mode * SECTOR;
             int x = (int)Math.round(Math.cos(angle) * 82) - 20;
@@ -148,7 +152,6 @@ public final class SkillWheelScreen extends Screen {
             int row = mode == hovered ? 2 : mode == current ? 1 : 0;
             context.blit(ART, x, y, mode * 40f, row * 40f, 40, 40, 240, 120);
             if (mode == current) {
-                context.fill(x + 14, y + 43, x + 26, y + 45, 0xFFE9BF70);
                 if (cooldown > 0) {
                     context.fill(x + 6, y + 32, x + 34, y + 34, 0xFF17131C);
                     int remaining = (int)Math.ceil(28 * Math.max(0, Math.min(1, cooldown)));

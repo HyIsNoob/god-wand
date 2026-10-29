@@ -11,7 +11,7 @@
 - Wider Atomic blast view and stronger explosion shake.
 - Atomic destroys terrain across a 50% larger radius.
 - Smoother, rounder Singularity charge orb with a brighter core and soft glow.
-- Skill wheel now uses pixel-art skill icons, textured frames and Minecraft text.
+- Pixel-art skill wheel with simple backgrounds and highlighted selection areas.
 - Reduced repeated terrain checks and temporary allocations in Atomic rendering.
 - Atomic plans terrain clearing in the background and spreads block removal across short server steps.
 - Atomic's crater can reach 30 blocks deep.
