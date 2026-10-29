@@ -63,4 +63,12 @@ See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [sou
 
 ## License
 
-Source code: [MIT](LICENSE). Modpack use is allowed. The bundled Bebas Neue font retains its included SIL Open Font License.
+* **Source Code (`**/src/main/java/`):** Licensed under the [MIT License](LICENSE).
+* **Assets & Audio (`**/src/main/resources/assets/` and top-level `assets/`):** Custom sound effects (SFX), audio arrangements, visual assets, and mod branding are **All Rights Reserved**. Extracting or reusing these assets in standalone projects without explicit permission is prohibited.
+* **Font:** The bundled *Bebas Neue* font retains its original [SIL Open Font License (OFL)](https://openfontlicense.org/).
+* **Distribution & Modpacks:**
+  * **Modpacks:** Permitted, provided the modpack references the official CurseForge/Modrinth release and does not monetize this mod directly.
+  * **Third-Party Re-uploads:** Standalone redistribution of compiled `.jar` files on third-party websites or mod platforms (CurseForge, Modrinth, 9Minecraft, etc.) without explicit permission is strictly prohibited.
+
+
+These paths cover every loader/version module. Restrictions on bundled assets do not restrict the MIT permissions for Java code. Earlier published copies retain their applicable license grants. See [LICENSE](LICENSE) for the complete terms.

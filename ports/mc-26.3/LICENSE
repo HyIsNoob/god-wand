@@ -1,6 +1,43 @@
-MIT License
+GOD WAND LICENSING TERMS
+==============================================================================
 
-Copyright (c) 2026 God Wand contributors
+This project uses a multi-license model separating source code, custom assets,
+third-party fonts, and compiled binaries:
+
+1. SOURCE CODE (`**/src/main/java/`)
+   All Java source code is licensed under the MIT License (full text below).
+
+2. ASSETS & AUDIO (`**/src/main/resources/assets/` and `assets/`)
+   Copyright (c) 2026 HyIsNoob (God Wand contributors). All Rights Reserved.
+   All custom sound effects (.ogg), audio arrangements, visual assets, and mod
+   branding are proprietary. Extracting, modifying, or reusing these assets in
+   standalone projects without explicit written permission is prohibited.
+
+3. THIRD-PARTY FONTS
+   The bundled "Bebas Neue" font retains its original SIL Open Font License
+   (OFL 1.1). Its font file and license notice are excluded from the ARR terms.
+
+4. DISTRIBUTION & MODPACKS
+   - Modpacks: Inclusion in modpacks is permitted, provided the modpack
+     references the official CurseForge/Modrinth release and does not
+     monetize this mod directly.
+   - Third-Party Re-uploads: Standalone redistribution of compiled `.jar`
+     files on third-party websites or mod platforms (CurseForge, Modrinth,
+     9Minecraft, etc.) without explicit permission is strictly prohibited.
+
+The source and asset paths above apply across all loader and Minecraft-version
+modules in this repository, including ports/.
+
+The distribution restrictions above apply to the bundled mod and its proprietary
+assets; they do not remove the permissions granted for MIT-licensed Java code.
+These updated terms do not revoke rights granted for copies previously published
+under an earlier license. Preserve all applicable third-party license notices.
+
+==============================================================================
+
+MIT License (Applies to Source Code in `**/src/main/java/` only)
+
+Copyright (c) 2026 HyIsNoob (God Wand contributors)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

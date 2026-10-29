@@ -4,8 +4,10 @@
   "version": "${version}",
   "name": "God Wand",
   "description": "Six spells in one wand. Shape terrain, control gravity and hold I am Atomic until you choose to release.",
-  "authors": ["GodWand Team"],
-  "license": "MIT",
+  "authors": [
+    "GodWand Team"
+  ],
+  "license": "Custom (MIT code, ARR assets, OFL-1.1 font); see LICENSE",
   "environment": "*",
   "entrypoints": {
     "main": [

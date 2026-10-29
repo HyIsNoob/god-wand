@@ -7,7 +7,7 @@
   "authors": [
     "GodWand Team"
   ],
-  "license": "MIT",
+  "license": "Custom (MIT code, ARR assets, OFL-1.1 font); see LICENSE",
   "environment": "*",
   "entrypoints": {
     "main": [

@@ -36,3 +36,7 @@ The consolidated releaseJars build passed for all four variants. The updated com
 ## 1.3.2 / Fabric 26.3 follow-up (2026-10-28)
 
 The four existing variants build as 1.3.2 with per-charge balance settings and 5 normal attack damage. Fabric 26.3 is migrated under ports/mc-26.3 with its own Java 25 build, source/resources/tests and wrapper. Its automated checks and packaging pass; owner gameplay testing remains pending. Root releaseJars does not build that port. NeoForge 26.3 and Minecraft 1.21.11 are pending by owner request; see ports/README.md. This section supersedes older counts and the five-directory source-layout statement above.
+
+## Licensing update (2026-10-29)
+
+The owner changed the terms to MIT for Java source, All Rights Reserved for custom assets/audio/branding, and the existing OFL-1.1 for Bebas Neue. The root LICENSE covers every loader/version module; the 26.3 build carries the same text. Loader metadata now points to these mixed terms. This supersedes the earlier blanket-MIT statements; already published copies retain their applicable grants. CurseForge's project license was changed to ARR by the owner.
