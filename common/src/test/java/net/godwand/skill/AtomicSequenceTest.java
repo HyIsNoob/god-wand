@@ -299,11 +299,11 @@ class AtomicSequenceTest {
   double turn=Math.abs(Math.atan2(a.x,a.z)-Math.atan2(b.x,b.z));
   assertTrue(turn<Math.toRadians(1.8),"The four-second castle sweep must actually move more slowly");
  }
- @Test void passingPressureRingsProduceSeparateMildCameraImpulses() {
+ @Test void passingPressureRingsProduceSeparateStrongerCameraImpulses() {
   for(int i=0;i<4;i++) {
    double crossing=545.125+i*7.5;
    float peak=AtomicSequence.pressureShake(crossing,112);
-   assertTrue(peak>.16&&peak<.3,"Missing pressure impulse when the rendered wave crosses the camera");
+   assertTrue(peak>.26&&peak<.45,"Missing pressure impulse when the rendered wave crosses the camera");
    assertTrue(AtomicSequence.pressureShake(crossing+3.75,112)<peak*.35,"Leave a quiet gap between fronts");
    assertEquals(0,AtomicSequence.pressureShake(crossing,160),.001,"Do not shake a camera the waves cannot reach");
    assertFalse(AtomicSequence.impact(crossing),"The pressure shakes must not add impact filters");
@@ -359,5 +359,13 @@ class AtomicSequenceTest {
   assertTrue(Math.cos(pitch)<-.5,"Raised hands must be above the shoulders");
   assertEquals(0,AtomicSequence.armSpread(360));
   assertEquals(1,AtomicSequence.armSpread(402));
+ }
+ @Test void distantBlastCameraGetsMoreRoomAndBlastShakeHasSustainedWeight() {
+  assertEquals(128,AtomicSequence.cameraBudget(8,500));
+  assertEquals(112,AtomicSequence.cameraBudget(8,300));
+  assertEquals(112,AtomicSequence.cameraBudget(8,650));
+  assertTrue(AtomicSequence.shake(414)>1.2);
+  assertTrue(AtomicSequence.shake(500)>.1);
+  assertEquals(0,AtomicSequence.shake(90));
  }
 }

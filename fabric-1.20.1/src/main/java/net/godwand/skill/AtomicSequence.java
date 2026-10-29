@@ -137,6 +137,7 @@ public final class AtomicSequence {
         return age<ATOMIC_WORD||age>=DETONATION?0:1+34*phase(age,ATOMIC_WORD,ATOMIC_WORD+8);
     }
     public static float cameraBudget(int chunks) { return (float)net.minecraft.util.Mth.clamp((Math.max(2,chunks)-1)*16,8,112); }
+    public static float cameraBudget(int chunks,double age) { return cameraBudget(chunks)+(age>=466&&age<614?16:0); }
     public static float pressure(double age) { return phase(age,DETONATION+8,DETONATION+28)*(1-phase(age,614,644)); }
     public static float pressureWaveRadius(double age,int wave) {
         if(pressure(age)<=0)return 0;
@@ -153,7 +154,7 @@ public final class AtomicSequence {
         // Lead the luminous front by two ticks so the jolt lands on its leading edge.
         for(int wave=0;wave<4;wave++) {
             float radius=pressureWaveRadius(age+2,wave);
-            if(radius>0)impulse+=(float)Math.exp(-Math.pow((radius-cameraRadius)/2.2,2))*.2f;
+            if(radius>0)impulse+=(float)Math.exp(-Math.pow((radius-cameraRadius)/2.2,2))*.32f;
         }
         return impulse*pressure(age);
     }
@@ -165,8 +166,8 @@ public final class AtomicSequence {
             return activation+release+gathering+.55f*phase(age,DETONATION-2,DETONATION);
         }
         double t=age-DETONATION;
-        return (float)(.94*Math.exp(-t/13)+.24*Math.exp(-Math.pow((t-26)/7,2))
-                +.14*Math.exp(-Math.pow((t-120)/12,2)))*(1-returnBlend(age));
+        return (float)(1.3*Math.exp(-t/18)+.34*Math.exp(-Math.pow((t-26)/7,2))
+                +.20*Math.exp(-Math.pow((t-120)/12,2))+.12*pressure(age))*(1-returnBlend(age));
     }
     public static Shot shot(double age,float yaw) {
         double radius,height,focus,angle; float fov;

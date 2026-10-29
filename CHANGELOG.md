@@ -8,6 +8,9 @@
 - A setting to disable Supernova's instant kills.
 - The wand now deals 5 damage with normal attacks. All appearances share this damage.
 
+### Improved
+- Wider Atomic blast view and stronger explosion shake.
+
 ### Fixed
 - Earth Drill now respects zero damage settings for its final slam.
 

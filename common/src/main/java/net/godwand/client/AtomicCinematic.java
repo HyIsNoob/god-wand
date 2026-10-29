@@ -67,7 +67,7 @@ public final class AtomicCinematic {
         Vec3 offset = shot.offset();
         float idle=AtomicSequence.holdIdle(frame.waitTicks())*(1-AtomicSequence.phase(frame.age(),AtomicSequence.WAIT_TICK,AtomicSequence.WAIT_TICK+4));
         offset=offset.add(idle*2,idle*.5,0);
-        double budget = AtomicSequence.cameraBudget(client.options.getEffectiveRenderDistance());
+        double budget = AtomicSequence.cameraBudget(client.options.getEffectiveRenderDistance(),frame.age());
         if (offset.horizontalDistance() > budget) {
             double scale=budget/offset.horizontalDistance();
             offset=new Vec3(offset.x*scale,offset.y,offset.z*scale);
