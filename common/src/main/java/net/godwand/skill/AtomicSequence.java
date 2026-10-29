@@ -4,6 +4,7 @@ import net.minecraft.world.phys.Vec3;
 
 /** One clock for the server blast, energy geometry, camera cuts and typography. */
 public final class AtomicSequence {
+    public static final int BEAM_RETRACTION=574;
     public static final int CHARGE_TICKS=380, WAIT_TICK=406, DETONATION=414, END=834;
     public static final int MAX_RADIUS=98, CAGE_RADIUS=26, ATOMIC_WORD=396, BEAM_HEIGHT=1024, BEAM_DEPTH=30, CRATER_DEPTH=28, SCAR_FADE_START=END+600, SCAR_END=END+660;
     public record Shot(Vec3 offset,Vec3 focus,float fov) {}
@@ -72,7 +73,7 @@ public final class AtomicSequence {
         return .25f+2.1f*phase(age,290,370);
     }
     public static float shockRadius(double age) { return age<DETONATION?0:MAX_RADIUS*phase(age,DETONATION,534); }
-    public static float beamRadius(double age) { return shockRadius(age)*(1-phase(age,574,734)); }
+    public static float beamRadius(double age) { return shockRadius(age)*(1-phase(age,BEAM_RETRACTION,734)); }
     public static float beamHeight(double age) { return age<DETONATION?0:BEAM_HEIGHT*phase(age,DETONATION,DETONATION+16); }
     public static float blastPulse(double age) { return 1; }
     public static float scarOpacity(double age) { return phase(age,644,734)*(.42f+.33f*(1-phase(age,814,END)))*(1-phase(age,SCAR_FADE_START,SCAR_END)); }

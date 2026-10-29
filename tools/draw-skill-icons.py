@@ -75,18 +75,21 @@ def icon(mode):
         d.line((0, 18, 5, 18), fill=(222, 185, 129))
         im.alpha_composite(drill((176, 135, 89), (239, 205, 151), (103, 72, 48)).transpose(Image.Transpose.ROTATE_90))
         d.point((1, 14), fill=(185, 142, 94))
-    else:  # Neutral black blade, diamond-ended guard and three-pronged pommel.
-        d.polygon([(12, 0), (14, 5), (14, 15), (10, 15), (10, 5)], fill=(18, 18, 18))
-        d.line([(12, 0), (10, 5), (10, 14)], fill=(98, 98, 98))
-        d.line([(12, 2), (13, 6), (13, 14)], fill=(43, 43, 43))
-        d.rectangle((11, 5, 12, 14), fill=(12, 12, 12))
-        d.line((5, 16, 19, 16), fill=(49, 49, 49))
-        d.polygon([(3, 15), (5, 14), (7, 16), (5, 17)], fill=(83, 83, 83))
-        d.polygon([(17, 16), (19, 14), (21, 15), (19, 17)], fill=(83, 83, 83))
-        d.rectangle((10, 15, 14, 17), fill=(32, 32, 32))
-        d.rectangle((11, 18, 12, 20), fill=(28, 28, 28))
-        d.line((11, 18, 11, 20), fill=(58, 58, 58))
-        d.polygon([(10, 21), (9, 20), (9, 22), (12, 23), (15, 22), (15, 20), (13, 21)], fill=(77, 77, 77))
+    else:  # Purple atom: three orbital paths, electrons and a bright nucleus.
+        d.ellipse((7, 7, 16, 16), fill=(50, 25, 76))
+        for tilt, paint in [(0, (145, 78, 199)), (math.pi / 3, (211, 153, 255)), (-math.pi / 3, (176, 103, 235))]:
+            points = []
+            for i in range(65):
+                angle = math.tau * i / 64
+                x, y = 10 * math.cos(angle), 4 * math.sin(angle)
+                points.append((round(11.5 + x * math.cos(tilt) - y * math.sin(tilt)),
+                               round(11.5 + x * math.sin(tilt) + y * math.cos(tilt))))
+            d.line(points, fill=paint)
+        d.ellipse((9, 9, 14, 14), fill=(171, 86, 226))
+        d.ellipse((10, 10, 13, 13), fill=(237, 199, 255))
+        d.rectangle((11, 10, 12, 11), fill=(255, 237, 255))
+        for x, y in [(21, 11), (7, 3), (6, 19)]:
+            d.rectangle((x, y, x + 1, y + 1), fill=(225, 182, 255))
     return im
 
 

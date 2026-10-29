@@ -57,11 +57,12 @@ public class SpatialDisplacementManager {
     }
 
     public static boolean canDisplace(ServerLevel world, BlockPos pos, BlockState state) {
+        if (state.isAir()) return false;
         BlockPos immutablePos = pos.immutable();
-        if (state.isAir() || state.getDestroySpeed(world, immutablePos) < 0) return false;
+        if (state.getDestroySpeed(world, immutablePos) < 0) return false;
         if (state.is(Blocks.BEDROCK) || state.is(Blocks.END_PORTAL) || state.is(Blocks.BARRIER)) return false;
-        if (BRIDGE_DESTINATIONS.containsKey(new DimensionPos(world.dimension(), immutablePos))) return false;
-        return !isPositionDisplaced(world.dimension(), immutablePos);
+        if (!BRIDGE_DESTINATIONS.isEmpty() && BRIDGE_DESTINATIONS.containsKey(new DimensionPos(world.dimension(), immutablePos))) return false;
+        return ACTIVE_RECORDS.isEmpty() || !isPositionDisplaced(world.dimension(), immutablePos);
     }
 
     public static void clearRuntimeState() {

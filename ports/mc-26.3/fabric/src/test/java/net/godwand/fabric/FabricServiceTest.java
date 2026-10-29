@@ -25,4 +25,19 @@ public class FabricServiceTest {
         }
     }
 
+    @org.junit.jupiter.api.Test void proceduralGpuCommandsRunAfterTheVanillaMainPassCloses() throws Exception {
+        try(var input=getClass().getResourceAsStream("/net/godwand/fabric/client/GodWandFabricClientMod.class")) {
+            assertNotNull(input);
+            var model=java.lang.classfile.ClassFile.of().parse(input.readAllBytes());
+            var events=model.methods().stream().filter(m -> m.methodName().equalsString("onInitializeClient"))
+                    .flatMap(m -> m.code().stream()).flatMap(code -> java.util.stream.StreamSupport.stream(code.spliterator(),false))
+                    .filter(e -> e instanceof java.lang.classfile.instruction.FieldInstruction)
+                    .map(e -> (java.lang.classfile.instruction.FieldInstruction)e)
+                    .filter(f -> f.owner().asInternalName().equals("net/fabricmc/fabric/api/client/rendering/v1/level/LevelRenderEvents"))
+                    .map(f -> f.name().stringValue()).toList();
+            assertTrue(events.contains("END_MAIN"),"Uploads and fences need the vanilla render pass to be closed");
+            assertFalse(events.contains("AFTER_TRANSLUCENT_TERRAIN"));
+        }
+    }
+
 }

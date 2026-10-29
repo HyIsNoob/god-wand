@@ -12,12 +12,17 @@
 - Atomic destroys terrain across a 50% larger radius.
 - Smoother, rounder Singularity charge orb with a brighter core and soft glow.
 - Pixel-art skill wheel with simple backgrounds and highlighted selection areas.
+- Removed loose particles while charging Singularity.
+- Increased Atomic terrain clearing speed.
 - Reduced repeated terrain checks and temporary allocations in Atomic rendering.
 - Atomic plans terrain clearing in the background and spreads block removal across short server steps.
 - Atomic's crater can reach 30 blocks deep.
 
 ### Fixed
-- Atomic stops breaking blocks when its energy column closes.
+- Fixed a Fabric 26.3 crash when drawing skill effects.
+- Fixed misplaced and undersized wand models in 26.3.
+- Atomic stops breaking blocks before its column starts shrinking.
+- Atomic now destroys campfires, banners, chests and machines inside its terrain range.
 - Improved spell damage against modded bosses, including boss damage caps.
 - Added hit support for Desert Behemoths sandworm segments.
 - Atomic now clears lava as well as water inside its crater.

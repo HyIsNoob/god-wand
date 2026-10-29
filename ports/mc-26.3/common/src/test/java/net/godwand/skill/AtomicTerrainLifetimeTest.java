@@ -18,7 +18,7 @@ class AtomicTerrainLifetimeTest {
         net.minecraft.SharedConstants.tryDetectVersion(); net.minecraft.server.Bootstrap.bootStrap();
     }
 
-    @Test void unfinishedTerrainStopsWithTheColumnAndCannotKeepTheCastAlive() throws Exception {
+    @Test void unfinishedTerrainStopsBeforeRetractionAndCannotKeepTheCastAlive() throws Exception {
         var world=mock(ServerLevel.class); var player=mock(ServerPlayer.class);
         var wand=mock(ItemStack.class); var crater=mock(AtomicCrater.class);
         when(player.getUUID()).thenReturn(UUID.randomUUID());
@@ -45,11 +45,11 @@ class AtomicTerrainLifetimeTest {
             loaders.when(() -> java.util.ServiceLoader.load(net.godwand.platform.IPlatformHelper.class)).thenReturn(platforms);
             loaders.when(() -> java.util.ServiceLoader.load(net.godwand.platform.INetworkHelper.class)).thenReturn(networks);
             modes.when(() -> GodWandItem.getSkillMode(wand)).thenReturn(GodWandItem.MODE_ATOMIC);
-            when(world.getGameTime()).thenReturn(700L-AtomicSequence.WAIT_TICK);
+            when(world.getGameTime()).thenReturn(573L-AtomicSequence.WAIT_TICK);
             AtomicManager.tick(world);
             verify(crater).carve(eq(world),anyInt(),anyFloat(),anyLong());
             clearInvocations(crater);
-            for(long age:new long[]{734,800,AtomicSequence.END,AtomicSequence.END+1200}) {
+            for(long age:new long[]{574,575,600,734,800,AtomicSequence.END,AtomicSequence.END+1200}) {
                 when(world.getGameTime()).thenReturn(age-AtomicSequence.WAIT_TICK);
                 AtomicManager.tick(world);
             }

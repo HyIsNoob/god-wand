@@ -50,7 +50,7 @@ final class AtomicCrater {
                 chunk=world.getChunkSource().getChunkNow(x >> 4,z >> 4);
                 if(chunk==null) { column++; continue; }
                 y = Math.min(Math.min(world.getMaxBuildHeight()-1,center.getY()+AtomicSequence.BEAM_HEIGHT),
-                        world.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE,x,z)-1);
+                        chunk.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE,x & 15,z & 15));
                 bottom = Math.max(world.getMinBuildHeight(), center.getY() - AtomicSequence.BEAM_DEPTH);
                 if (y < bottom) { column++; continue; }
                 inColumn = true;
@@ -61,9 +61,7 @@ final class AtomicCrater {
                 if(chunk==null) { inColumn=false; column++; continue; }
                 pos.set(x, y, z);
                 var state = chunk.getBlockState(pos);
-                // Containers and ongoing spatial spells retain their state and inventories.
-                if (!state.hasBlockEntity()
-                        && SpatialDisplacementManager.canDisplace(world, pos, state))
+                if (SpatialDisplacementManager.canDisplace(world, pos, state))
                     world.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS);
                 if (--y < bottom) {
                     inColumn=false; column++;

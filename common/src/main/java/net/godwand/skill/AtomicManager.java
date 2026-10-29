@@ -82,8 +82,8 @@ public final class AtomicManager {
         broadcast(task,AtomicFxPayload.RELEASE);
     }
     public static void tick(ServerLevel world) {
-        int terrainBudget = 8192;
-        long terrainTime = 2_000_000L;
+        int terrainBudget = 32768;
+        long terrainTime = 8_000_000L;
         for (var iterator = TASKS.values().iterator(); iterator.hasNext();) {
             Task task = iterator.next();
             if (task.world != world) continue;
@@ -157,8 +157,8 @@ public final class AtomicManager {
                         }
                     }
                 }
-                // Leave unfinished terrain alone once the visible column has closed.
-                if(AtomicSequence.beamRadius(age)>0 && terrainBudget>0 && terrainTime>0) {
+                // Leave unfinished terrain alone before the column starts retracting.
+                if(age<AtomicSequence.BEAM_RETRACTION && AtomicSequence.beamRadius(age)>0 && terrainBudget>0 && terrainTime>0) {
                     long began=System.nanoTime();
                     terrainBudget-=task.crater.carve(world,terrainBudget,radius * 1.5f,began+terrainTime);
                     terrainTime-=System.nanoTime()-began;

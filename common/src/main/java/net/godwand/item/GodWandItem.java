@@ -201,23 +201,6 @@ public class GodWandItem extends Item {
             if (chargeTicks < 0) return;
 
             if (!world.isClientSide() && user instanceof ServerPlayer player) {
-                ServerLevel sw = (ServerLevel) world;
-
-                Vec3 look = player.getViewVector(1.0f);
-                Vec3 muzzle = player.getEyePosition().add(look.scale(2.15)).add(0, -0.16, 0);
-                if (chargeTicks % 2 == 0) {
-                    for (int i = 0; i < 2; i++) {
-                        double angle = Math.random() * Math.PI * 2.0;
-                        double dist = 0.50 + Math.random() * 0.65;
-                        double px = muzzle.x + Math.cos(angle) * dist;
-                        double py = muzzle.y + (Math.random() - 0.5) * dist * 0.7;
-                        double pz = muzzle.z + Math.sin(angle) * dist;
-                        Vec3 vel = muzzle.subtract(new Vec3(px, py, pz)).normalize().scale(0.16 + (chargeTicks / 45.0) * 0.14);
-                        sw.sendParticles(new DustParticleOptions(new Vector3f(0.0f, 0.94f, 1.0f), 0.75f), px, py, pz, 0, vel.x, vel.y, vel.z, 1.0);
-                        sw.sendParticles(ParticleTypes.REVERSE_PORTAL, px, py, pz, 0, vel.x, vel.y, vel.z, 1.0);
-                    }
-                }
-
                 if (chargeTicks % 8 == 0) {
                     float pitch = 1.3f + Math.min(chargeTicks / 45.0f, 1.0f) * 0.6f;
                     world.playSound(null, player.getX(), player.getY(), player.getZ(),

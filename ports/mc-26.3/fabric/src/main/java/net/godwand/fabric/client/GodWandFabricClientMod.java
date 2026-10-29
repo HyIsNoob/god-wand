@@ -114,7 +114,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(CinematicFxPayload.ID, (payload, context) ->
                 context.client().execute(() -> GodWandCinematicEngine.onCinematicEvent(payload)));
 
-        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(context -> {
+        // Uploads and GPU fences require the terrain render pass to be closed.
+        LevelRenderEvents.END_MAIN.register(context -> {
             PoseStack matrices = context.poseStack();
             Camera camera = context.gameRenderer().mainCamera();
             float tickDelta = context.levelState().worldPartialTicks;

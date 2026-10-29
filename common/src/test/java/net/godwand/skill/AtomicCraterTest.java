@@ -37,6 +37,7 @@ class AtomicCraterTest {
         var chunks=mock(ServerChunkCache.class);
         when(world.getChunkSource()).thenReturn(chunks);
         var loaded=mock(net.minecraft.world.level.chunk.LevelChunk.class);
+        when(loaded.getHeight(any(),anyInt(),anyInt())).thenAnswer(call -> world.getHeight(call.getArgument(0),call.getArgument(1),call.getArgument(2))-1);
         when(chunks.getChunkNow(anyInt(),anyInt())).thenAnswer(call -> chunks.hasChunk(call.getArgument(0),call.getArgument(1))?loaded:null);
         when(loaded.getBlockState(any())).thenAnswer(call -> world.getBlockState(call.getArgument(0)));
         when(chunks.hasChunk(anyInt(),anyInt())).thenReturn(true);
@@ -52,14 +53,19 @@ class AtomicCraterTest {
                 Blocks.SEAGRASS.defaultBlockState(),
                 Blocks.LAVA.defaultBlockState(),
                 Blocks.LAVA.defaultBlockState().setValue(net.minecraft.world.level.block.LiquidBlock.LEVEL,4),
+                Blocks.CAMPFIRE.defaultBlockState(),
+                Blocks.SOUL_CAMPFIRE.defaultBlockState(),
+                Blocks.WHITE_BANNER.defaultBlockState(),
+                Blocks.WHITE_WALL_BANNER.defaultBlockState(),
                 Blocks.CHEST.defaultBlockState().setValue(wet,true),
+                Blocks.FURNACE.defaultBlockState(),
                 Blocks.BEDROCK.defaultBlockState()
         };
-        when(world.getBlockState(any())).thenAnswer(call -> states[Math.floorMod(((BlockPos)call.getArgument(0)).getX(),8)]);
+        when(world.getBlockState(any())).thenAnswer(call -> states[Math.floorMod(((BlockPos)call.getArgument(0)).getX(),states.length)]);
         var removed=new HashSet<Integer>();
         when(world.setBlock(any(),any(),anyInt())).thenAnswer(call -> {
-            BlockPos pos=call.getArgument(0);int kind=Math.floorMod(pos.getX(),8);
-            assertTrue(kind<6,"Inventories and unbreakable blocks must stay protected");
+            BlockPos pos=call.getArgument(0);int kind=Math.floorMod(pos.getX(),states.length);
+            assertTrue(kind<12,"Only the unbreakable fixture must stay protected");
             assertTrue(pos.getX()*pos.getX()+pos.getZ()*pos.getZ()>9);
             assertTrue(((net.minecraft.world.level.block.state.BlockState)call.getArgument(1)).isAir());
             removed.add(kind);return true;
@@ -67,7 +73,7 @@ class AtomicCraterTest {
         var crater=readyCrater(new BlockPos(0,70,0),8);
         for(int tick=0;tick<1000&&!crater.finished();tick++)assertTrue(crater.carve(world,73)<=73);
         assertTrue(crater.finished());
-        assertEquals(java.util.Set.of(0,1,2,3,4,5),removed,"Source and flowing water/lava, waterlogged blocks and underwater plants must all be removed");
+        assertEquals(java.util.Set.of(0,1,2,3,4,5,6,7,8,9,10,11),removed,"Fluids, decorations and storage blocks must all be removed");
     }
 
     @Test void craterResumesInsideColumnsWithABoundedBudgetAndSkipsUnloadedChunks() {
@@ -75,6 +81,7 @@ class AtomicCraterTest {
         var chunks=mock(ServerChunkCache.class);
         when(world.getChunkSource()).thenReturn(chunks);
         var loaded=mock(net.minecraft.world.level.chunk.LevelChunk.class);
+        when(loaded.getHeight(any(),anyInt(),anyInt())).thenAnswer(call -> world.getHeight(call.getArgument(0),call.getArgument(1),call.getArgument(2))-1);
         when(chunks.getChunkNow(anyInt(),anyInt())).thenAnswer(call -> chunks.hasChunk(call.getArgument(0),call.getArgument(1))?loaded:null);
         when(loaded.getBlockState(any())).thenAnswer(call -> world.getBlockState(call.getArgument(0)));
         when(chunks.hasChunk(anyInt(),anyInt())).thenAnswer(call -> (int)call.getArgument(0)>=0);
@@ -91,7 +98,6 @@ class AtomicCraterTest {
             BlockPos p=call.getArgument(0);
             assertTrue(p.getX()*p.getX()+p.getZ()*p.getZ()<=256);
             assertTrue(p.getX()*p.getX()+p.getZ()*p.getZ()>9,"Caster pedestal was carved");
-            assertNotEquals(0,p.getZ(),"A container was destroyed");
             assertTrue(writes.add(p.immutable()),"A block was carved twice");
             return true;
         });
@@ -103,6 +109,7 @@ class AtomicCraterTest {
         }
         assertTrue(crater.finished());
         assertTrue(writes.size()>1000,"The crater must reach the outer columns");
+        assertTrue(writes.stream().anyMatch(p -> p.getZ()==0),"Storage blocks in the blast must also be removed");
         long lookups=mockingDetails(chunks).getInvocations().stream().filter(call -> call.getMethod().getName().equals("getChunkNow")).count();
         assertTrue(lookups<writes.size()/5,"Chunk lookup must be shared across a column, not repeated per block");
         verify(world,never()).getChunk(anyInt(),anyInt());
@@ -114,6 +121,7 @@ class AtomicCraterTest {
         var chunks=mock(ServerChunkCache.class);
         when(world.getChunkSource()).thenReturn(chunks);
         var loaded=mock(net.minecraft.world.level.chunk.LevelChunk.class);
+        when(loaded.getHeight(any(),anyInt(),anyInt())).thenAnswer(call -> world.getHeight(call.getArgument(0),call.getArgument(1),call.getArgument(2))-1);
         when(chunks.getChunkNow(anyInt(),anyInt())).thenAnswer(call -> chunks.hasChunk(call.getArgument(0),call.getArgument(1))?loaded:null);
         when(loaded.getBlockState(any())).thenAnswer(call -> world.getBlockState(call.getArgument(0)));
         when(chunks.hasChunk(anyInt(),anyInt())).thenReturn(true);
@@ -173,6 +181,7 @@ class AtomicCraterTest {
         var chunks=mock(ServerChunkCache.class);
         when(world.getChunkSource()).thenReturn(chunks);
         var loaded=mock(net.minecraft.world.level.chunk.LevelChunk.class);
+        when(loaded.getHeight(any(),anyInt(),anyInt())).thenAnswer(call -> world.getHeight(call.getArgument(0),call.getArgument(1),call.getArgument(2))-1);
         when(chunks.getChunkNow(anyInt(),anyInt())).thenAnswer(call -> chunks.hasChunk(call.getArgument(0),call.getArgument(1))?loaded:null);
         when(loaded.getBlockState(any())).thenAnswer(call -> world.getBlockState(call.getArgument(0)));
         when(chunks.hasChunk(anyInt(),anyInt())).thenReturn(true);

@@ -31,6 +31,8 @@ Adapters are explicit JSON before/after hunks. Builds reject a missing/ambiguous
 
 Most routine changes need only the canonical file. A new Minecraft API call or render lifecycle change can require a small adapter edit. Adding a skill still requires registering any genuinely new payload/entity/render type in each loader's existing registration hook; do not implement the skill algorithm separately per version. A single download across Minecraft versions is a separate packaging choice and is not required for this shared-source build.
 
+Minecraft 26.3 rendering has two native contracts: Fabric procedural GPU uploads/fences run at `LevelRenderEvents.END_MAIN`, after vanilla closes its main render pass; NeoForge uses `AfterLevel`. Native item layers still apply vanilla's `-0.5` origin shift, so the canonical renderer's `+0.5` compensation must remain. The native model-origin regression test exercises the complete extracted vertex path for both hands and the inventory view.
+
 ## Updating an API adapter
 
 When a conflict is real, inspect the named `compat/profiles/<profile>/<java-or-resources>/<path>.json`. Update its small `before`/`after` hunks for the current canonical code. Preserve the shared algorithm and limit the difference to the API boundary.
