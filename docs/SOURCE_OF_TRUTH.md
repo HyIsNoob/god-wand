@@ -40,3 +40,7 @@ The four existing variants build as 1.3.2 with per-charge balance settings and 5
 ## Licensing update (2026-10-29)
 
 The owner changed the terms to MIT for Java source, All Rights Reserved for custom assets/audio/branding, and the existing OFL-1.1 for Bebas Neue. The root LICENSE covers every loader/version module; the 26.3 build carries the same text. Loader metadata now points to these mixed terms. This supersedes the earlier blanket-MIT statements; already published copies retain their applicable grants. CurseForge's project license was changed to ARR by the owner.
+
+## NeoForge 26.3 and Atomic polish (2026-10-29)
+
+The distant Atomic blast camera has 16 extra blocks of allowance while retaining loaded-chunk fallback; initial blast, sustained pressure and passing-wave shake are stronger. The four existing variants and Fabric 26.3 were rebuilt first. NeoForge 26.3 is now migrated and build-tested alongside Fabric under ports/mc-26.3, sharing the same gameplay and native renderers. The port suite passes 221 common, 3 Fabric and 5 NeoForge tests. Both local 26.3 JARs include the updated split licensing. Gameplay, shaderpacks and actual multiplayer remain owner QA. 1.21.11 stays pending. PR #1 remains open and unmerged; its build-tool upgrades are separate work.

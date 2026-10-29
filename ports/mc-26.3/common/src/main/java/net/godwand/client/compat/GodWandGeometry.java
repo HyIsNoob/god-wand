@@ -61,18 +61,20 @@ public final class GodWandGeometry {
                             ? new BlendFunction(BlendFactor.SRC_ALPHA, BlendFactor.ONE)
                             : BlendFunction.TRANSLUCENT) : ColorTargetState.DEFAULT)
                     .withDepthStencilState(new DepthStencilState(k.depth ? CompareOp.GREATER_THAN_OR_EQUAL : CompareOp.ALWAYS_PASS, k.writeDepth));
-            return RenderPipelines.register(builder.build());
+            return builder.build();
         });
     }
 
     /** Register all authored state combinations before resource shader compilation. */
-    public static void initialize() {
+    public static void initialize() { initialize(RenderPipelines::register); }
+    public static void initialize(java.util.function.Consumer<RenderPipeline> register) {
         for (var topology : new PrimitiveTopology[]{PrimitiveTopology.QUADS, PrimitiveTopology.TRIANGLES,
                 PrimitiveTopology.TRIANGLE_STRIP, PrimitiveTopology.TRIANGLE_FAN})
             for (int style = 0; style < 3; style++)
                 for (boolean writing : new boolean[]{false,true})
                     pipeline(new Key(topology,false,style != 0,style == 2,true,writing,false));
         pipeline(new Key(PrimitiveTopology.QUADS,true,true,true,true,false,false));
+        PIPELINES.values().forEach(register);
     }
 
     public static void draw(MeshData mesh) {
@@ -87,7 +89,8 @@ public final class GodWandGeometry {
         ARENA.clear();
     }
 
-    public static void flush() {
+    public static void flush() { flush(RenderSystem.getModelViewMatrixCopy()); }
+    public static void flush(org.joml.Matrix4fc view) {
         if (PENDING.isEmpty()) return;
         var client = Minecraft.getInstance();
         var target = client.gameRenderer.mainRenderTarget();
@@ -106,7 +109,7 @@ public final class GodWandGeometry {
                 int size = state.vertexCount() * state.format().getVertexSize();
                 var sequential = RenderSystem.getSequentialBuffer(state.primitiveTopology());
                 var indices = sequential.getBuffer(state.indexCount());
-                var transforms = RenderSystem.getDynamicUniforms().writeTransform(RenderSystem.getModelViewMatrixCopy(), draw.color, new org.joml.Vector3f(), new Matrix4f());
+                var transforms = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(view), draw.color, new org.joml.Vector3f(), new Matrix4f());
                 try (var pass = encoder.createRenderPass(() -> "God Wand procedural geometry", target.getColorTextureView(), Optional.empty(),
                         target.getDepthTextureView(), OptionalDouble.empty())) {
                     pass.setPipeline(RenderSystem.getCompiledPipeline(pipeline(draw.key)));

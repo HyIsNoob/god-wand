@@ -27,5 +27,5 @@ subprojects {
 }
 
 tasks.named('build') {
-    dependsOn ':common:build', ':fabric:build'
+    dependsOn ':common:build', ':fabric:build', ':neoforge:build'
 }

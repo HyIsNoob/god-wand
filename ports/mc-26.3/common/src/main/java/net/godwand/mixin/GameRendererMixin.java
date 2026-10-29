@@ -22,9 +22,9 @@ public abstract class GameRendererMixin {
         return matrix;
     }
 
+    // NeoForge's AfterLevel geometry must finish before the shared world composite.
     @Inject(method = "renderLevel", at = @At(value = "INVOKE", target =
-            "Lnet/minecraft/client/renderer/LevelRenderer;render(Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;ZLnet/minecraft/client/renderer/state/level/CameraRenderState;Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;Lorg/joml/Vector4f;ZZ)V",
-            shift = At.Shift.AFTER))
+            "Lnet/minecraft/client/renderer/GameRenderer;render3dHud(Lnet/minecraft/client/renderer/state/level/CameraRenderState;Lnet/minecraft/client/renderer/state/level/PlayerRenderState;Lnet/minecraft/client/renderer/state/OptionsRenderState;Z)V"))
     private void godwand$afterWorldComposite(CallbackInfo ci) {
         var state = ((GameRenderer)(Object)this).gameRenderState().levelRenderState;
         var camera = state.cameraRenderState;

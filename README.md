@@ -38,7 +38,7 @@ Client graphics settings are in `config/godwand-client.json`. [Dedicated-server 
 
 ## Build
 
-The four existing 1.3.2 test builds are collected in `build/release/`. Fabric 26.3 is built separately under [ports/mc-26.3](ports/mc-26.3/README.md); its local test JAR is in `build/release/26.3/`.
+The four existing 1.3.2 test builds are collected in `build/release/`. Fabric and NeoForge 26.3 are built separately under [ports/mc-26.3](ports/mc-26.3/README.md); their local test JARs are in `build/release/26.3/`.
 
 Run from this repository root:
 
@@ -55,11 +55,11 @@ Run from this repository root:
 
 On Linux/macOS use `./gradlew`. Outputs from `releaseJars` are in `build/release/`. Java 21 is needed for 1.21.1; the 1.20.1 ports need a Java 17 toolchain.
 
-See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [source of truth](docs/SOURCE_OF_TRUTH.md) for the consolidation history. This root aggregates the existing four variants; Fabric 26.3 has a separate Java 25 build.
+See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [source of truth](docs/SOURCE_OF_TRUTH.md) for the consolidation history. This root aggregates the existing four variants; Fabric/NeoForge 26.3 have a separate Java 25 build.
 
 ## Release status
 
-1.3.2 is a preview following the released 1.3.x builds. The four versions listed above retain their builds. Fabric 26.3 now builds and passes automated checks; gameplay testing is pending. NeoForge 26.3 and Minecraft 1.21.11 are pending by owner request. Remaining audit findings are tracked in [the audit report](docs/AUDIT_2026-10-27.md).
+1.3.2 is a preview following the released 1.3.x builds. The four versions listed above retain their builds. Fabric and NeoForge 26.3 now build and pass automated checks; gameplay testing is pending. Minecraft 1.21.11 remains pending by owner request. Remaining audit findings are tracked in [the audit report](docs/AUDIT_2026-10-27.md).
 
 ## License
 
