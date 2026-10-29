@@ -48,3 +48,10 @@ The distant Atomic blast camera has 16 extra blocks of allowance while retaining
 ## Boss compatibility release priority (2026-10-29)
 
 The owner paused 1.21.11 work and prioritized 1.3.2 for the existing four release variants. Singularity, Earth Drill, Supernova, Stone Cannon and Atomic now share the non-player spell damage route and optional non-living Sandworm hit integration. Atomic retries rejected hits; player damage retains its original source. See BOSS_COMPATIBILITY.md for exact behavior and unverified scripted-boss limits. The 26.3 previews and the unfinished 1.21.11 prototype do not contain this new boss patch yet; update them only after the four-release priority is complete.
+
+
+## Latest local 1.3.2 polish (2026-10-29)
+
+The four 1.20.1/1.21.1 release variants now include a 50% larger Atomic terrain radius (1.5 times the existing config value), removal of lava and other removable fluids, a round camera-facing Singularity charge glow, and the warm spell-seal selection menu. Atomic head yaw blends the shortest normalized arc; new CHARGE sequences discard old facing state. This guards accumulated-angle/state cases, but the owner's intermittent full-turn head issue has not been reproduced in live gameplay.
+
+Atomic rendering no longer allocates temporary vertex arrays per quad or axis arrays per stroke. Scar height queries are cached for one client tick and invalidated across ticks/world changes. Particle counts, geometry, textures and volumetric shader quality are unchanged. The releaseJars build and 225 common tests pass; no live FPS measurement or visual QA was performed. Local artifacts are in build/release/1.3.2. These updates have not been applied to 26.3 previews or the paused 1.21.11 prototype.

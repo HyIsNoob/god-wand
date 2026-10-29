@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "            }\n        }\n    }\n    static float damage(double distance) { return (float) Math.max(0, GodWandConfig.SERVER.atomicDamage * GodWandConfig.SERVER.damageMultiplier * (1 - Math.clamp(distance, 0, AtomicSequence.MAX_RADIUS) / AtomicSequence.MAX_RADIUS)); }\n    private static void broadcast(Task task, int phase) {\n        Services.NETWORK.sendToNearby(task.world, task.center, 256,\n                new AtomicFxPayload(task.caster.getId(), task.started, task.center.x, task.center.y, task.center.z, phase,task.releasedAt));\n",
+      "after": "            }\n        }\n    }\n    static float damage(double distance) { return (float) Math.max(0, GodWandConfig.SERVER.atomicDamage * GodWandConfig.SERVER.damageMultiplier * (1 - net.minecraft.util.Mth.clamp(distance, 0, AtomicSequence.MAX_RADIUS) / AtomicSequence.MAX_RADIUS)); }\n    private static void broadcast(Task task, int phase) {\n        Services.NETWORK.sendToNearby(task.world, task.center, 256,\n                new AtomicFxPayload(task.caster.getId(), task.started, task.center.x, task.center.y, task.center.z, phase,task.releasedAt));\n"
+    }
+  ]
+}

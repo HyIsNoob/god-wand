@@ -11,7 +11,7 @@ class AtomicPortParityTest {
     }
     @Test void portKeepsCanonicalAtomicTimingAndGeometry() throws Exception {
         Path canonical=Path.of("../../..").toAbsolutePath().normalize().resolve("common/src/main/java/net/godwand");
-        Path port=Path.of("src/main/java/net/godwand");
+        Path port=Path.of("../../../build/shared/mc-26.3/src/main/java/net/godwand");
         for(String name:new String[]{"skill/AtomicSequence.java","skill/AtomicCrater.java"})
             assertEquals(normalized(Files.readString(canonical.resolve(name))),
                     normalized(Files.readString(port.resolve(name))),name);

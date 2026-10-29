@@ -1,0 +1,29 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "\n    public static void handleKeyInput(Minecraft client) {\n        while (OPEN_CONFIG.consumeClick()) {\n            if (client.player != null && !client.player.isUsingItem() && !AtomicCinematic.movementLocked()\n                    && client.screen == null) {\n                client.setScreen(new net.godwand.client.gui.GodWandConfigScreen(client.screen));\n            }\n        }\n",
+      "after": "\n    public static void handleKeyInput(Minecraft client) {\n        while (OPEN_CONFIG.consumeClick()) {\n            if (client.player != null && !client.player.isUsingItem() && !AtomicCinematic.active() && (client.screen == null || !(client.screen instanceof net.godwand.client.gui.GodWandConfigScreen))) {\n                client.setScreen(new net.godwand.client.gui.GodWandConfigScreen(client.screen));\n            }\n        }\n"
+    },
+    {
+      "before": "    public boolean isPauseScreen() { return false; }\n\n    @Override\n    public void renderBackground(GuiGraphics context, int mouseX, int mouseY, float delta) { }\n\n    @Override\n    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {\n",
+      "after": "    public boolean isPauseScreen() { return false; }\n\n    @Override\n    public void renderBackground(GuiGraphics context) { }\n\n    @Override\n    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {\n"
+    },
+    {
+      "before": "        RenderSystem.enableBlend();\n        RenderSystem.defaultBlendFunc();\n        RenderSystem.setShader(GameRenderer::getPositionColorShader);\n        BufferBuilder mesh = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);\n        arc(mesh, matrix, 0, 0, 0, 116, 0, Math.PI * 2, 0xE51C1915);\n        arc(mesh, matrix, 0, 0, 115, 116, 0, Math.PI * 2, 0xFF74634B);\n        arc(mesh, matrix, 0, 0, 0, 43, 0, Math.PI * 2, 0xFF242019);\n",
+      "after": "        RenderSystem.enableBlend();\n        RenderSystem.defaultBlendFunc();\n        RenderSystem.setShader(GameRenderer::getPositionColorShader);\n        BufferBuilder mesh = RenderHelper.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);\n        arc(mesh, matrix, 0, 0, 0, 116, 0, Math.PI * 2, 0xE51C1915);\n        arc(mesh, matrix, 0, 0, 115, 116, 0, Math.PI * 2, 0xFF74634B);\n        arc(mesh, matrix, 0, 0, 0, 43, 0, Math.PI * 2, 0xFF242019);\n"
+    },
+    {
+      "before": "                            -Math.PI / 2 + Math.PI * 2 * cooldown, 0xFFDDD0BA);\n            }\n        }\n        BufferUploader.drawWithShader(mesh.buildOrThrow());\n        RenderSystem.disableBlend();\n        RenderSystem.enableDepthTest();\n    }\n",
+      "after": "                            -Math.PI / 2 + Math.PI * 2 * cooldown, 0xFFDDD0BA);\n            }\n        }\n        RenderHelper.draw(mesh);\n        RenderSystem.disableBlend();\n        RenderSystem.enableDepthTest();\n    }\n"
+    },
+    {
+      "before": "    private static void line(BufferBuilder mesh, Matrix4f matrix, float x1, float y1, float x2, float y2, int color) {\n        float length = (float) Math.hypot(x2 - x1, y2 - y1);\n        float nx = -(y2 - y1) * 0.7f / length, ny = (x2 - x1) * 0.7f / length;\n        mesh.addVertex(matrix, x1 - nx, y1 - ny, 0).setColor(color);\n        mesh.addVertex(matrix, x1 + nx, y1 + ny, 0).setColor(color);\n        mesh.addVertex(matrix, x2 + nx, y2 + ny, 0).setColor(color);\n        mesh.addVertex(matrix, x2 - nx, y2 - ny, 0).setColor(color);\n    }\n\n    private static void arc(BufferBuilder mesh, Matrix4f matrix, float x, float y,\n",
+      "after": "    private static void line(BufferBuilder mesh, Matrix4f matrix, float x1, float y1, float x2, float y2, int color) {\n        float length = (float) Math.hypot(x2 - x1, y2 - y1);\n        float nx = -(y2 - y1) * 0.7f / length, ny = (x2 - x1) * 0.7f / length;\n        RenderHelper.vertex(mesh, matrix, x1 - nx, y1 - ny, 0, color);\n        RenderHelper.vertex(mesh, matrix, x1 + nx, y1 + ny, 0, color);\n        RenderHelper.vertex(mesh, matrix, x2 + nx, y2 + ny, 0, color);\n        RenderHelper.vertex(mesh, matrix, x2 - nx, y2 - ny, 0, color);\n    }\n\n    private static void arc(BufferBuilder mesh, Matrix4f matrix, float x, float y,\n"
+    },
+    {
+      "before": "        for (int i = 0; i < steps; i++) {\n            double a = start + (end - start) * i / steps;\n            double b = start + (end - start) * (i + 1) / steps;\n            mesh.addVertex(matrix, x + (float) (Math.cos(a) * inner), y + (float) (Math.sin(a) * inner), 0).setColor(color);\n            mesh.addVertex(matrix, x + (float) (Math.cos(b) * inner), y + (float) (Math.sin(b) * inner), 0).setColor(color);\n            mesh.addVertex(matrix, x + (float) (Math.cos(b) * outer), y + (float) (Math.sin(b) * outer), 0).setColor(color);\n            mesh.addVertex(matrix, x + (float) (Math.cos(a) * outer), y + (float) (Math.sin(a) * outer), 0).setColor(color);\n        }\n    }\n}\n",
+      "after": "        for (int i = 0; i < steps; i++) {\n            double a = start + (end - start) * i / steps;\n            double b = start + (end - start) * (i + 1) / steps;\n            RenderHelper.vertex(mesh, matrix, x + (float) (Math.cos(a) * inner), y + (float) (Math.sin(a) * inner), 0, color);\n            RenderHelper.vertex(mesh, matrix, x + (float) (Math.cos(b) * inner), y + (float) (Math.sin(b) * inner), 0, color);\n            RenderHelper.vertex(mesh, matrix, x + (float) (Math.cos(b) * outer), y + (float) (Math.sin(b) * outer), 0, color);\n            RenderHelper.vertex(mesh, matrix, x + (float) (Math.cos(a) * outer), y + (float) (Math.sin(a) * outer), 0, color);\n        }\n    }\n}\n"
+    }
+  ]
+}

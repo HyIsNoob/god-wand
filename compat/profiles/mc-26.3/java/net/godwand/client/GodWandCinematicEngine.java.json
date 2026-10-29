@@ -1,0 +1,9 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "        float transZ = (float) (Math.sin(t * 1.1) * 0.045) * intensity;\n\n        matrices.translate(transX, transY, transZ);\n        matrices.mulPose(Axis.ZP.rotationDegrees(roll));\n        matrices.mulPose(Axis.XP.rotationDegrees(pitch));\n        matrices.mulPose(Axis.YP.rotationDegrees(yaw));\n    }\n\n    /**\n",
+      "after": "        float transZ = (float) (Math.sin(t * 1.1) * 0.045) * intensity;\n\n        matrices.translate(transX, transY, transZ);\n        matrices.rotate(Axis.ZP.rotationDegrees(roll));\n        matrices.rotate(Axis.XP.rotationDegrees(pitch));\n        matrices.rotate(Axis.YP.rotationDegrees(yaw));\n    }\n\n    /**\n"
+    }
+  ]
+}

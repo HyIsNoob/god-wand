@@ -1,0 +1,29 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "package net.godwand.client;\n\nimport net.godwand.skill.RatioCollapseManager;\nimport net.minecraft.client.Minecraft;\n",
+      "after": "package net.godwand.client;\n\nimport net.minecraft.util.Mth;\n\nimport net.godwand.skill.RatioCollapseManager;\nimport net.minecraft.client.Minecraft;\n"
+    },
+    {
+      "before": "/** One fixed timeline for all four levels; custom audio is permitted to play its full duration (including aftermath),\n *  with 3D world positioning enabled when using mono audio. */\npublic final class EarthDrillSoundscape {\n    private static final ResourceLocation AUDIO = ResourceLocation.fromNamespaceAndPath(\"godwand\", \"earth_drill_sequence\");\n    private static final String PLACEHOLDER_SHA = \"225b65ec21cc27259fd742d6e1488a69c28f4a0365301d533eeaf433e3c60443\";\n    private static final List<SoundInstance> voices = new ArrayList<>();\n    private static ClientLevel world;\n",
+      "after": "/** One fixed timeline for all four levels; custom audio is permitted to play its full duration (including aftermath),\n *  with 3D world positioning enabled when using mono audio. */\npublic final class EarthDrillSoundscape {\n    private static final ResourceLocation AUDIO = new ResourceLocation(\"godwand\", \"earth_drill_sequence\");\n    private static final String PLACEHOLDER_SHA = \"225b65ec21cc27259fd742d6e1488a69c28f4a0365301d533eeaf433e3c60443\";\n    private static final List<SoundInstance> voices = new ArrayList<>();\n    private static ClientLevel world;\n"
+    },
+    {
+      "before": "        try { return !HexFormat.of().formatHex(MessageDigest.getInstance(\"SHA-256\").digest(bytes)).equals(PLACEHOLDER_SHA); }\n        catch (NoSuchAlgorithmException e) { throw new IllegalStateException(e); }\n    }\n    static float distanceGain(double distance) { return (float)Math.clamp((160 - distance) / 112, 0, 1); }\n\n    public static void start(Vec3 center) {\n        reset();\n",
+      "after": "        try { return !HexFormat.of().formatHex(MessageDigest.getInstance(\"SHA-256\").digest(bytes)).equals(PLACEHOLDER_SHA); }\n        catch (NoSuchAlgorithmException e) { throw new IllegalStateException(e); }\n    }\n    static float distanceGain(double distance) { return (float)Mth.clamp((160 - distance) / 112, 0, 1); }\n\n    public static void start(Vec3 center) {\n        reset();\n"
+    },
+    {
+      "before": "        if (client == null || client.level == null || client.player == null) return;\n        world = client.level; start = world.getGameTime(); lastAge = -1;\n        gain = distanceGain(client.player.position().distanceTo(center));\n        var resource = client.getResourceManager().getResource(ResourceLocation.fromNamespaceAndPath(\"godwand\", \"sounds/earth_drill_sequence.ogg\"));\n        if (resource.isPresent()) {\n            try (var input = resource.get().open()) { custom = isCustomAudio(input.readAllBytes()); }\n            catch (java.io.IOException ignored) { custom = false; }\n",
+      "after": "        if (client == null || client.level == null || client.player == null) return;\n        world = client.level; start = world.getGameTime(); lastAge = -1;\n        gain = distanceGain(client.player.position().distanceTo(center));\n        var resource = client.getResourceManager().getResource(new ResourceLocation(\"godwand\", \"sounds/earth_drill_sequence.ogg\"));\n        if (resource.isPresent()) {\n            try (var input = resource.get().open()) { custom = isCustomAudio(input.readAllBytes()); }\n            catch (java.io.IOException ignored) { custom = false; }\n"
+    },
+    {
+      "before": "\n    private static void cue(int age) {\n        if (age == 0) {\n            play(SoundEvents.HEAVY_CORE_BREAK, .7f, .7f);\n            play(SoundEvents.BEACON_ACTIVATE, .35f, .85f);\n        }\n        if (age > 0 && age <= RatioCollapseManager.ASSEMBLY_END && age % 12 == 0)\n",
+      "after": "\n    private static void cue(int age) {\n        if (age == 0) {\n            play(SoundEvents.ANVIL_BREAK, .7f, .7f);\n            play(SoundEvents.BEACON_ACTIVATE, .35f, .85f);\n        }\n        if (age > 0 && age <= RatioCollapseManager.ASSEMBLY_END && age % 12 == 0)\n"
+    },
+    {
+      "before": "        if (age >= 38 && age <= RatioCollapseManager.SPIN_END && age % 20 == 0)\n            play(SoundEvents.GRINDSTONE_USE, .38f + age * .001f, .65f + age * .004f);\n        if (age >= 96 && age <= RatioCollapseManager.SPIN_END && age % 18 == 0)\n            play(SoundEvents.BREEZE_IDLE_AIR, .35f + (age - 96) * .003f, .8f + (age - 96) * .008f);\n        if (age == RatioCollapseManager.SPIN_END + 1) play(SoundEvents.BREEZE_WIND_CHARGE_BURST.value(), .8f, 1.15f);\n        if (age == RatioCollapseManager.IMPACT_TICK) {\n            play(SoundEvents.GENERIC_EXPLODE.value(), .9f, .55f);\n            play(SoundEvents.MACE_SMASH_GROUND_HEAVY, .7f, .6f);\n        }\n    }\n\n",
+      "after": "        if (age >= 38 && age <= RatioCollapseManager.SPIN_END && age % 20 == 0)\n            play(SoundEvents.GRINDSTONE_USE, .38f + age * .001f, .65f + age * .004f);\n        if (age >= 96 && age <= RatioCollapseManager.SPIN_END && age % 18 == 0)\n            play(SoundEvents.PHANTOM_FLAP, .35f + (age - 96) * .003f, .8f + (age - 96) * .008f);\n        if (age == RatioCollapseManager.SPIN_END + 1) play(SoundEvents.GENERIC_EXPLODE, .8f, 1.15f);\n        if (age == RatioCollapseManager.IMPACT_TICK) {\n            play(SoundEvents.GENERIC_EXPLODE, .9f, .55f);\n            play(SoundEvents.ANVIL_LAND, .7f, .6f);\n        }\n    }\n\n"
+    }
+  ]
+}

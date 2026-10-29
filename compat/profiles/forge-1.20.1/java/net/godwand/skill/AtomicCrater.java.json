@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "\n    AtomicCrater(BlockPos center, int radius) {\n        this.center = center.immutable();\n        this.radius = Math.clamp(radius, 0, AtomicSequence.MAX_RADIUS * 3 / 2);\n        columns = new SupernovaCraterCursor(this.radius);\n    }\n    // Scale terrain only; the cinematic and entity damage retain their original reach.\n",
+      "after": "\n    AtomicCrater(BlockPos center, int radius) {\n        this.center = center.immutable();\n        this.radius = net.minecraft.util.Mth.clamp(radius, 0, AtomicSequence.MAX_RADIUS * 3 / 2);\n        columns = new SupernovaCraterCursor(this.radius);\n    }\n    // Scale terrain only; the cinematic and entity damage retain their original reach.\n"
+    }
+  ]
+}

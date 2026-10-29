@@ -21,5 +21,6 @@ loom {
 }
 
 test {
+    dependsOn rootProject.tasks.named('verifySharedSources')
     useJUnitPlatform()
 }

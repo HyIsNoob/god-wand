@@ -20,6 +20,55 @@ class AtomicAudioTest {
         return new AtomicFxPayload(42, 0, 0, 0, 0, phase, release);
     }
 
+    @Test void nextCastCapturesFreshFacingEvenBeforeOldStateCleanup() {
+        var client=mock(Minecraft.class);
+        client.level=mock(ClientLevel.class); client.player=mock(LocalPlayer.class);
+        when(client.player.getId()).thenReturn(42);
+        when(client.player.position()).thenReturn(Vec3.ZERO);
+        when(client.player.getPosition(0)).thenReturn(Vec3.ZERO);
+        when(client.level.getEntity(42)).thenReturn(client.player);
+        when(client.getSoundManager()).thenReturn(mock(SoundManager.class));
+        try(var minecraft=mockStatic(Minecraft.class);var camera=mockStatic(AtomicCinematic.class)) {
+            minecraft.when(Minecraft::getInstance).thenReturn(client);
+            AtomicRenderer.reset();
+            try {
+                when(client.player.getYRot()).thenReturn(730f);
+                AtomicRenderer.receive(payload(AtomicFxPayload.CHARGE,-1));
+                assertEquals(10,AtomicRenderer.localFrame(0).yaw());
+                when(client.player.getYRot()).thenReturn(-770f);
+                AtomicRenderer.receive(new AtomicFxPayload(42,1000,0,0,0,AtomicFxPayload.CHARGE,-1));
+                assertEquals(-50,AtomicRenderer.localFrame(0).yaw());
+                assertEquals(1000,AtomicRenderer.localFrame(0).startedAt());
+            } finally { AtomicRenderer.reset(); }
+        }
+    }
+
+    @Test void scarHeightQueriesAreSharedWithinATickAndRefreshAfterTerrainUpdatesAndWorldChanges() {
+        var client=mock(Minecraft.class);
+        client.level=mock(ClientLevel.class); client.player=mock(LocalPlayer.class);
+        when(client.player.position()).thenReturn(Vec3.ZERO);
+        when(client.getSoundManager()).thenReturn(mock(SoundManager.class));
+        when(client.level.getGameTime()).thenReturn(10L);
+        when(client.level.getHeight(any(),eq(7),eq(9))).thenReturn(80);
+        try(var minecraft=mockStatic(Minecraft.class);var camera=mockStatic(AtomicCinematic.class)) {
+            minecraft.when(Minecraft::getInstance).thenReturn(client);
+            AtomicRenderer.reset();
+            try {
+                AtomicRenderer.receive(payload(AtomicFxPayload.CHARGE,-1));
+                for(int frame=0;frame<20;frame++)assertEquals(80,AtomicRenderer.scarHeight(7,9));
+                verify(client.level,times(1)).getHeight(any(),eq(7),eq(9));
+                when(client.level.getGameTime()).thenReturn(11L);
+                when(client.level.getHeight(any(),eq(7),eq(9))).thenReturn(52);
+                assertEquals(52,AtomicRenderer.scarHeight(7,9));
+                var nextWorld=mock(ClientLevel.class); client.level=nextWorld;
+                when(nextWorld.getGameTime()).thenReturn(11L);
+                when(nextWorld.getHeight(any(),eq(7),eq(9))).thenReturn(120);
+                AtomicRenderer.receive(payload(AtomicFxPayload.CHARGE,-1));
+                assertEquals(120,AtomicRenderer.scarHeight(7,9));
+            } finally { AtomicRenderer.reset(); }
+        }
+    }
+
     @Test void fullTracksSurviveHoldAndCutsceneEndButCancelAndResetStopThem() {
         var client=mock(Minecraft.class);
         var sounds=mock(SoundManager.class);

@@ -35,6 +35,12 @@ public final class AtomicSequence {
     public static float armSpread(double age) { return phase(age,ATOMIC_WORD,402); }
     public static float armWindup(double age) { return phase(age,382,394)*(1-armSpread(age)); }
     public static float facing(double age) { return phase(age,374,394)*(1-phase(age,774,802)); }
+    public static float blendHeadYaw(float current, float target, float amount) {
+        float from = net.minecraft.util.Mth.wrapDegrees(current * net.minecraft.util.Mth.RAD_TO_DEG);
+        float to = net.minecraft.util.Mth.wrapDegrees(target * net.minecraft.util.Mth.RAD_TO_DEG);
+        // Discard complete turns before fading the head pose toward the caster's front.
+        return net.minecraft.util.Mth.wrapDegrees(net.minecraft.util.Mth.rotLerp(amount, from, to)) * net.minecraft.util.Mth.DEG_TO_RAD;
+    }
     public static Vec3 headLook(double age,double seed) {
         double beat=Math.floor(age/58), t=phase(age,beat*58,(beat+1)*58);
         double[] look=new double[3];

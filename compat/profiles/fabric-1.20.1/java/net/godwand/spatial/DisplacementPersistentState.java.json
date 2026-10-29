@@ -1,0 +1,29 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "\nimport net.godwand.GodWandMod;\nimport net.minecraft.core.BlockPos;\nimport net.minecraft.core.HolderLookup;\nimport net.minecraft.core.registries.BuiltInRegistries;\nimport net.minecraft.core.registries.Registries;\nimport net.minecraft.nbt.CompoundTag;\n",
+      "after": "\nimport net.godwand.GodWandMod;\nimport net.minecraft.core.BlockPos;\nimport net.minecraft.core.registries.BuiltInRegistries;\nimport net.minecraft.core.registries.Registries;\nimport net.minecraft.nbt.CompoundTag;\n"
+    },
+    {
+      "before": "public class DisplacementPersistentState extends SavedData {\n    public static final String IDENTIFIER = \"godwand_displacements\";\n\n    public static final Factory<DisplacementPersistentState> TYPE = new Factory<>(\n            DisplacementPersistentState::new,\n            DisplacementPersistentState::createFromNbt,\n            null\n    );\n\n    private final List<DisplacedBlockRecord> unrestoredRecords = new ArrayList<>();\n    private ResourceKey<Level> worldKey;\n\n",
+      "after": "public class DisplacementPersistentState extends SavedData {\n    public static final String IDENTIFIER = \"godwand_displacements\";\n\n    \n    private final List<DisplacedBlockRecord> unrestoredRecords = new ArrayList<>();\n    private ResourceKey<Level> worldKey;\n\n"
+    },
+    {
+      "before": "        this.worldKey = worldKey;\n    }\n\n    public static DisplacementPersistentState createFromNbt(CompoundTag nbt, HolderLookup.Provider registryLookup) {\n        DisplacementPersistentState state = new DisplacementPersistentState();\n        if (nbt.contains(\"displaced_records\", Tag.TAG_LIST)) {\n            ListTag list = nbt.getList(\"displaced_records\", Tag.TAG_COMPOUND);\n",
+      "after": "        this.worldKey = worldKey;\n    }\n\n    public static DisplacementPersistentState createFromNbt(CompoundTag nbt) {\n        DisplacementPersistentState state = new DisplacementPersistentState();\n        if (nbt.contains(\"displaced_records\", Tag.TAG_LIST)) {\n            ListTag list = nbt.getList(\"displaced_records\", Tag.TAG_COMPOUND);\n"
+    },
+    {
+      "before": "\n                CompoundTag beNbt = recNbt.contains(\"blockEntity\", Tag.TAG_COMPOUND) ? recNbt.getCompound(\"blockEntity\") : null;\n                String worldKeyStr = recNbt.getString(\"worldKey\");\n                ResourceKey<Level> wKey = worldKeyStr.isEmpty() ? Level.OVERWORLD : ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(worldKeyStr));\n                boolean isFullCube = recNbt.getBoolean(\"isFullCube\");\n\n                DisplacedBlockRecord record = new DisplacedBlockRecord(\n",
+      "after": "\n                CompoundTag beNbt = recNbt.contains(\"blockEntity\", Tag.TAG_COMPOUND) ? recNbt.getCompound(\"blockEntity\") : null;\n                String worldKeyStr = recNbt.getString(\"worldKey\");\n                ResourceKey<Level> wKey = worldKeyStr.isEmpty() ? Level.OVERWORLD : ResourceKey.create(Registries.DIMENSION, new ResourceLocation(worldKeyStr));\n                boolean isFullCube = recNbt.getBoolean(\"isFullCube\");\n\n                DisplacedBlockRecord record = new DisplacedBlockRecord(\n"
+    },
+    {
+      "before": "    }\n\n    @Override\n    public CompoundTag save(CompoundTag nbt, HolderLookup.Provider registryLookup) {\n        ListTag list = new ListTag();\n\n        ResourceKey<Level> targetKey = this.worldKey != null ? this.worldKey : Level.OVERWORLD;\n",
+      "after": "    }\n\n    @Override\n    public CompoundTag save(CompoundTag nbt) {\n        ListTag list = new ListTag();\n\n        ResourceKey<Level> targetKey = this.worldKey != null ? this.worldKey : Level.OVERWORLD;\n"
+    },
+    {
+      "before": "    }\n\n    public static DisplacementPersistentState getServerState(ServerLevel world) {\n        DisplacementPersistentState state = world.getDataStorage().computeIfAbsent(TYPE, IDENTIFIER);\n        state.setWorldKey(world.dimension());\n        return state;\n    }\n",
+      "after": "    }\n\n    public static DisplacementPersistentState getServerState(ServerLevel world) {\n        DisplacementPersistentState state = world.getDataStorage().computeIfAbsent(DisplacementPersistentState::createFromNbt, DisplacementPersistentState::new, IDENTIFIER);\n        state.setWorldKey(world.dimension());\n        return state;\n    }\n"
+    }
+  ]
+}

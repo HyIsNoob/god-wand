@@ -1,0 +1,21 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "import net.godwand.config.GodWandConfig;\nimport net.godwand.skill.AtomicSequence;\nimport net.minecraft.client.Minecraft;\nimport net.minecraft.client.DeltaTracker;\nimport net.minecraft.client.gui.GuiGraphics;\nimport net.minecraft.network.chat.Component;\nimport net.minecraft.util.Mth;\n",
+      "after": "import net.godwand.config.GodWandConfig;\nimport net.godwand.skill.AtomicSequence;\nimport net.minecraft.client.Minecraft;\n\nimport net.minecraft.client.gui.GuiGraphics;\nimport net.minecraft.network.chat.Component;\nimport net.minecraft.util.Mth;\n"
+    },
+    {
+      "before": "\n/** Camera changes last one frame; player rotation and perspective settings are never rewritten. */\npublic final class AtomicCinematic {\n    private static final net.minecraft.resources.ResourceLocation TITLE_FONT = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(\"godwand\", \"atomic_title\");\n    public record Pose(Vec3 position, float yaw, float pitch) {}\n    private static boolean skipped, movementReleased, movementReleaseSent;\n    private static long wideStarted=Long.MIN_VALUE;\n",
+      "after": "\n/** Camera changes last one frame; player rotation and perspective settings are never rewritten. */\npublic final class AtomicCinematic {\n    private static final net.minecraft.resources.ResourceLocation TITLE_FONT = new net.minecraft.resources.ResourceLocation(\"godwand\", \"atomic_title\");\n    public record Pose(Vec3 position, float yaw, float pitch) {}\n    private static boolean skipped, movementReleased, movementReleaseSent;\n    private static long wideStarted=Long.MIN_VALUE;\n"
+    },
+    {
+      "before": "        matrices.mulPose(com.mojang.math.Axis.XP.rotationDegrees((float)(Math.sin(t*1.67)*1.7*strength)));\n        matrices.mulPose(com.mojang.math.Axis.ZP.rotationDegrees((float)(Math.sin(t*2.23)*1.1*strength)));\n    }\n    public static void render(GuiGraphics graphics, DeltaTracker timer) {\n        var frame = AtomicRenderer.localFrame(timer.getGameTimeDeltaPartialTick(false));\n        if(frame==null)return;\n        if(!active()) { releaseHint(graphics,frame); return; }\n        float age = frame.age(), envelope = AtomicSequence.letterbox(age);\n",
+      "after": "        matrices.mulPose(com.mojang.math.Axis.XP.rotationDegrees((float)(Math.sin(t*1.67)*1.7*strength)));\n        matrices.mulPose(com.mojang.math.Axis.ZP.rotationDegrees((float)(Math.sin(t*2.23)*1.1*strength)));\n    }\n    public static void render(GuiGraphics graphics, float delta) {\n        var frame = AtomicRenderer.localFrame(delta);\n        if(frame==null)return;\n        if(!active()) { releaseHint(graphics,frame); return; }\n        float age = frame.age(), envelope = AtomicSequence.letterbox(age);\n"
+    },
+    {
+      "before": "        if(alpha<.01)return;\n        var font=Minecraft.getInstance().font;\n        Component letters=lettering(text);\n        int a=Math.clamp(Math.round(alpha*255),0,255);\n        graphics.pose().pushPose();\n        graphics.pose().translate(x,y,0); graphics.pose().scale(scale,scale,1);\n        float left=-font.width(letters)/2f;\n",
+      "after": "        if(alpha<.01)return;\n        var font=Minecraft.getInstance().font;\n        Component letters=lettering(text);\n        int a=net.minecraft.util.Mth.clamp(Math.round(alpha*255),0,255);\n        graphics.pose().pushPose();\n        graphics.pose().translate(x,y,0); graphics.pose().scale(scale,scale,1);\n        float left=-font.width(letters)/2f;\n"
+    }
+  ]
+}

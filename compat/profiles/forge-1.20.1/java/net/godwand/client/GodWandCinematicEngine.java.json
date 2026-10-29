@@ -1,0 +1,13 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "            var stack = client.player.getUseItem();\n            if (stack.getItem() instanceof net.godwand.item.GodWandItem\n                    && net.godwand.item.GodWandItem.getSkillMode(stack) == net.godwand.item.GodWandItem.MODE_SUPERNOVA)\n                charge = Math.clamp(client.player.getTicksUsingItem() / 140f, 0, 1);\n        }\n        float distance = novaAge >= 0 && client != null && client.player != null\n                ? distanceFactor(CinematicFxPayload.EVENT_SUPERNOVA_COMPRESS, client.player.position().distanceTo(SupernovaAccretionRenderer.center())) : 1;\n",
+      "after": "            var stack = client.player.getUseItem();\n            if (stack.getItem() instanceof net.godwand.item.GodWandItem\n                    && net.godwand.item.GodWandItem.getSkillMode(stack) == net.godwand.item.GodWandItem.MODE_SUPERNOVA)\n                charge = Mth.clamp(client.player.getTicksUsingItem() / 140f, 0, 1);\n        }\n        float distance = novaAge >= 0 && client != null && client.player != null\n                ? distanceFactor(CinematicFxPayload.EVENT_SUPERNOVA_COMPRESS, client.player.position().distanceTo(SupernovaAccretionRenderer.center())) : 1;\n"
+    },
+    {
+      "before": "    /**\n     * Kiểm tra trạng thái câm lặng chân không (Gọi từ SoundEngineMixin.getVolume)\n     */\n    public static float getEnvironmentGain() { return Math.min(environmentGain, AtomicCinematic.environmentGain()); }\n\n    public static boolean isVacuumSilenceActive() {\n        return vacuumSilenceTicks > 0;\n",
+      "after": "    /**\n     * Kiểm tra trạng thái câm lặng chân không (Gọi từ SoundEngineMixin.getVolume)\n     */\n    public static float getEnvironmentGain() { return environmentGain; }\n\n    public static boolean isVacuumSilenceActive() {\n        return vacuumSilenceTicks > 0;\n"
+    }
+  ]
+}

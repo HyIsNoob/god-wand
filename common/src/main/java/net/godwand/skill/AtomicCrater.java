@@ -5,7 +5,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.material.Fluids;
 
 /** Resumes inside a column; even a tall column cannot consume a whole tick. */
 final class AtomicCrater {
@@ -17,9 +16,11 @@ final class AtomicCrater {
 
     AtomicCrater(BlockPos center, int radius) {
         this.center = center.immutable();
-        this.radius = Math.clamp(radius, 0, AtomicSequence.MAX_RADIUS);
+        this.radius = Math.clamp(radius, 0, AtomicSequence.MAX_RADIUS * 3 / 2);
         columns = new SupernovaCraterCursor(this.radius);
     }
+    // Scale terrain only; the cinematic and entity damage retain their original reach.
+    static int terrainRadius(int configuredRadius) { return Math.max(0, Math.min(configuredRadius, AtomicSequence.MAX_RADIUS)) * 3 / 2; }
     boolean finished() { return radius == 0 || columns.finished(); }
 
     int carve(ServerLevel world,int budget) { return carve(world,budget,radius); }
@@ -46,7 +47,7 @@ final class AtomicCrater {
                 pos.set(x, y, z);
                 var state = world.getBlockState(pos);
                 // Containers and ongoing spatial spells retain their state and inventories.
-                if (!state.hasBlockEntity() && (state.getFluidState().isEmpty() || Fluids.WATER.isSame(state.getFluidState().getType()))
+                if (!state.hasBlockEntity()
                         && SpatialDisplacementManager.canDisplace(world, pos, state))
                     world.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS);
                 if (--y < bottom) {

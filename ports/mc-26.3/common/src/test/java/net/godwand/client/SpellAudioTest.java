@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class SpellAudioTest {
     @Test
     void drillPlaceholderKeepsFallbackAndAllLevelsUseOneFixedTimeline() throws Exception {
-        byte[] custom = java.nio.file.Files.readAllBytes(java.nio.file.Path.of("src/main/resources/assets/godwand/sounds/earth_drill_sequence.ogg"));
+        byte[] custom = java.nio.file.Files.readAllBytes(java.nio.file.Path.of("../../../build/shared/mc-26.3/src/main/resources/assets/godwand/sounds/earth_drill_sequence.ogg"));
         assertTrue(EarthDrillSoundscape.isCustomAudio(custom));
         assertFalse(EarthDrillSoundscape.isCustomAudio(new byte[0]));
         assertFalse(EarthDrillSoundscape.isCustomAudio(new byte[]{1, 2, 3, 4}));
@@ -53,7 +53,7 @@ class SpellAudioTest {
 
     @Test
     void supernovaUsesVanillaChargeOnlyBeforeActivation() throws Exception {
-        byte[] custom = java.nio.file.Files.readAllBytes(java.nio.file.Path.of("src/main/resources/assets/godwand/sounds/supernova_sequence.ogg"));
+        byte[] custom = java.nio.file.Files.readAllBytes(java.nio.file.Path.of("../../../build/shared/mc-26.3/src/main/resources/assets/godwand/sounds/supernova_sequence.ogg"));
         assertTrue(SupernovaSoundscape.isCustomAudio(custom));
         assertFalse(SupernovaSoundscape.isCustomAudio(new byte[0]));
         assertFalse(SupernovaSoundscape.isCustomAudio(new byte[]{1, 2, 3, 4}));

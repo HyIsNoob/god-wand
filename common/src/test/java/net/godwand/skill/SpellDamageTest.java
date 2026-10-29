@@ -84,7 +84,7 @@ class SpellDamageTest {
         var root=java.nio.file.Path.of("..").toAbsolutePath().normalize();
         var common=root.resolve("common/src/main/resources/data");
         for(String port:new String[]{"fabric-1.20.1","forge-1.20.1"}) {
-            var resources=root.resolve(port+"/src/main/resources/data");
+            var resources=root.resolve("build/shared/"+port+"/src/main/resources/data");
             for(String path:new String[]{"godwand/damage_type/spell.json","minecraft/tags/damage_type/bypasses_invulnerability.json","cataclysm/tags/damage_type/block_self_regen.json"})
                 assertEquals(java.nio.file.Files.readString(common.resolve(path)),java.nio.file.Files.readString(resources.resolve(path)),port+path);
             assertFalse(java.nio.file.Files.exists(resources.resolve("minecraft/tags/damage_type/bypasses_cooldown.json")));

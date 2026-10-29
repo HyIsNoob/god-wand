@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "\n    @Override\n    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {\n        renderBackground(context, mouseX, mouseY, delta);\n        super.render(context, mouseX, mouseY, delta);\n        context.drawCenteredString(this.font, this.title, this.width / 2, 18, 0xFFFFFF);\n    }\n",
+      "after": "\n    @Override\n    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {\n        renderBackground(context);\n        super.render(context, mouseX, mouseY, delta);\n        context.drawCenteredString(this.font, this.title, this.width / 2, 18, 0xFFFFFF);\n    }\n"
+    }
+  ]
+}

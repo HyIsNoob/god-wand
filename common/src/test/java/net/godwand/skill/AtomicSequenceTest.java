@@ -2,6 +2,17 @@ package net.godwand.skill;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 class AtomicSequenceTest {
+ @Test void headBlendDiscardsAccumulatedTurnsAndTakesTheShortestArc() {
+  float base=(float)Math.toRadians(12), target=(float)Math.toRadians(-8);
+  for(int turns=-8;turns<=8;turns++)for(float blend:new float[]{0,.1f,.5f,1}) {
+   float actual=AtomicSequence.blendHeadYaw(base+turns*(float)(Math.PI*2),target,blend);
+   assertEquals(AtomicSequence.blendHeadYaw(base,target,blend),actual,.00001f);
+   assertTrue(Math.abs(actual)<=Math.PI);
+  }
+  float crossing=AtomicSequence.blendHeadYaw((float)Math.toRadians(179),(float)Math.toRadians(-179),.5f);
+  assertEquals(Math.PI,Math.abs(crossing),.00001);
+ }
+
  @Test void holdingFreezesOnlyTheSceneClockAndReleaseResumesItWithoutSkippingTheBlast() {
   long started=1000;
   assertEquals(200,AtomicSequence.castAge(1200,started,-1));

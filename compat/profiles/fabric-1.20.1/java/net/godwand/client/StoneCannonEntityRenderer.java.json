@@ -1,0 +1,17 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "\n    @Override\n    public ResourceLocation getTextureLocation(StoneCannonProjectileEntity entity) {\n        return ResourceLocation.withDefaultNamespace(\"textures/atlas/blocks.png\");\n    }\n\n    @Override\n",
+      "after": "\n    @Override\n    public ResourceLocation getTextureLocation(StoneCannonProjectileEntity entity) {\n        return new ResourceLocation(\"textures/atlas/blocks.png\");\n    }\n\n    @Override\n"
+    },
+    {
+      "before": "        int bCol = 255;\n\n        for (int arm = 0; arm < ribbonArms; arm++) {\n            Tesselator tessellator = Tesselator.getInstance();\n            BufferBuilder buffer = tessellator.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);\n\n            float armPhase = arm * ((float) Math.PI * 2.0f / (float) ribbonArms);\n\n",
+      "after": "        int bCol = 255;\n\n        for (int arm = 0; arm < ribbonArms; arm++) {\n            BufferBuilder buffer = RenderHelper.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);\n\n            float armPhase = arm * ((float) Math.PI * 2.0f / (float) ribbonArms);\n\n"
+    },
+    {
+      "before": "                float ny = (float) Math.cos(theta) * w * 0.5f;\n\n                float alpha = (1.0f - progress) * (0.75f + level * 0.08f);\n                int a = Math.clamp((int) (alpha * 255.0f), 0, 255);\n\n                buffer.addVertex(mat, cx - nx, cy - ny, z).setColor(rCol, gCol, bCol, a);\n                buffer.addVertex(mat, cx + nx, cy + ny, z).setColor(rCol, gCol, bCol, a);\n            }\n\n            BufferUploader.drawWithShader(buffer.buildOrThrow());\n        }\n\n        RenderSystem.depthMask(true);\n",
+      "after": "                float ny = (float) Math.cos(theta) * w * 0.5f;\n\n                float alpha = (1.0f - progress) * (0.75f + level * 0.08f);\n                int a = Mth.clamp((int) (alpha * 255.0f), 0, 255);\n\n                RenderHelper.vertex(buffer, mat, cx - nx, cy - ny, z, rCol, gCol, bCol, a);\n                RenderHelper.vertex(buffer, mat, cx + nx, cy + ny, z, rCol, gCol, bCol, a);\n            }\n\n            RenderHelper.draw(buffer);\n        }\n\n        RenderSystem.depthMask(true);\n"
+    }
+  ]
+}

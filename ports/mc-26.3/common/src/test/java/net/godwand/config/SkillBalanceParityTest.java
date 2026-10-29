@@ -12,7 +12,7 @@ class SkillBalanceParityTest {
                 .results().map(m -> m.group().replaceAll("\\s+","")).toList();
     }
     @Test void sharedLoaderGameplayUsesTierDamageAndCooldownSettingsAtEveryCallSite() throws Exception {
-        Path source=Path.of("src/main/java/net/godwand");
+        Path source=Path.of("../../../build/shared/mc-26.3/src/main/java/net/godwand");
         for(String name:new String[]{"ShockwaveSlicer","RatioCollapseManager","SupernovaManager","StoneCannonManager"}) {
             String shared=Files.readString(source.resolve("skill/"+name+".java"));
             assertFalse(calls(shared,"skillDamageMultiplier").isEmpty(),name);

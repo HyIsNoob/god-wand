@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "package net.godwand.platform;\n\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.server.level.ServerLevel;\nimport net.minecraft.server.level.ServerPlayer;\nimport net.minecraft.world.phys.Vec3;\n\npublic interface INetworkHelper {\n    void sendToPlayer(ServerPlayer player, CustomPacketPayload payload);\n\n    void sendToNearby(ServerLevel level, Vec3 pos, double radius, CustomPacketPayload payload);\n\n    void sendToServer(CustomPacketPayload payload);\n}\n",
+      "after": "package net.godwand.platform;\n\nimport net.godwand.network.GodWandPacket;\nimport net.minecraft.server.level.ServerLevel;\nimport net.minecraft.server.level.ServerPlayer;\nimport net.minecraft.world.phys.Vec3;\n\npublic interface INetworkHelper {\n    void sendToPlayer(ServerPlayer player, GodWandPacket packet);\n    void sendToNearby(ServerLevel level, Vec3 pos, double radius, GodWandPacket packet);\n    void sendToServer(GodWandPacket packet);\n}\n"
+    }
+  ]
+}

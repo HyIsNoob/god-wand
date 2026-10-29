@@ -1,0 +1,13 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "package net.godwand.client;\n\nimport net.godwand.item.GodWandItem;\nimport net.minecraft.client.Minecraft;\n",
+      "after": "package net.godwand.client;\n\nimport net.minecraft.util.Mth;\n\nimport net.godwand.item.GodWandItem;\nimport net.minecraft.client.Minecraft;\n"
+    },
+    {
+      "before": "        pitch = 0.8f;\n    }\n    public static float windVolume(int ticks) {\n        float ramp = Math.clamp((ticks - 50) / 30f, 0, 1);\n        return 0.18f * ramp * ramp;\n    }\n    public static void update(Minecraft client) {\n",
+      "after": "        pitch = 0.8f;\n    }\n    public static float windVolume(int ticks) {\n        float ramp = Mth.clamp((ticks - 50) / 30f, 0, 1);\n        return 0.18f * ramp * ramp;\n    }\n    public static void update(Minecraft client) {\n"
+    }
+  ]
+}

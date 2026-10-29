@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "@Mixin(LivingEntityRenderer.class)\npublic abstract class AtomicFacingMixin {\n    @Inject(method=\"setupRotations\",at=@At(\"TAIL\"))\n    private void godwand$atomicFaceCamera(LivingEntity entity,PoseStack matrices,float time,float yaw,float partial,float scale,CallbackInfo ci) {\n        var frame=AtomicRenderer.frameFor(entity.getId(),partial);\n        if(frame==null)return;\n        // Rotate only the rendered model; mouse view and server rotation stay under player control.\n",
+      "after": "@Mixin(LivingEntityRenderer.class)\npublic abstract class AtomicFacingMixin {\n    @Inject(method=\"setupRotations\",at=@At(\"TAIL\"))\n    private void godwand$atomicFaceCamera(LivingEntity entity,PoseStack matrices,float time,float yaw,float partial,CallbackInfo ci) {\n        var frame=AtomicRenderer.frameFor(entity.getId(),partial);\n        if(frame==null)return;\n        // Rotate only the rendered model; mouse view and server rotation stay under player control.\n"
+    }
+  ]
+}

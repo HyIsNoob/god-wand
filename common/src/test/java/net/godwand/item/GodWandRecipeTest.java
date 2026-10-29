@@ -17,7 +17,7 @@ class GodWandRecipeTest {
         recipe.getAsJsonObject("result").remove("id");
         recipe.getAsJsonObject("result").addProperty("item","godwand:god_wand");
         for(String port:new String[]{"fabric-1.20.1","forge-1.20.1"}) {
-            Path data=root.resolve(port+"/src/main/resources/data/godwand");
+            Path data=root.resolve("build/shared/"+port+"/src/main/resources/data/godwand");
             assertEquals(recipe,JsonParser.parseString(Files.readString(data.resolve("recipes/god_wand.json"))),port);
             assertEquals(unlock,JsonParser.parseString(Files.readString(data.resolve("advancements/recipes/combat/god_wand.json"))),port);
         }

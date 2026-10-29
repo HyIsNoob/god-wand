@@ -71,22 +71,13 @@ public class ArcaneOrbChargeRenderer {
             matrices.pushPose();
             matrices.translate(renderPos.x, renderPos.y, renderPos.z);
 
-            // Căn chỉnh trục theo hướng nhìn của người chơi
-            float yaw = player.getViewYRot(tickDelta);
-            float pitch = player.getViewXRot(tickDelta);
-            matrices.mulPose(Axis.YP.rotationDegrees(-yaw));
-            matrices.mulPose(Axis.XP.rotationDegrees(pitch));
-
-            // Toàn bộ quả cầu xoay vòng vòng quanh trục tiến, tăng tốc cực nhanh khi nạp nhiều
-            float spinRamp = chargeRatio * chargeRatio;
-            float spinAngle = animTime * (25.0f + spinRamp * 160.0f);
-            matrices.mulPose(Axis.ZP.rotationDegrees(spinAngle));
+            matrices.mulPose(cameraObj.rotation());
 
             // Kích thước nhỏ gọn tinh tế (0.11m -> 0.25m) vừa vặn như viên đạn năng lượng
-            float pulse = (float) Math.sin(animTime * 0.55f) * (0.008f + chargeRatio * 0.015f);
+            float pulse = (float) Math.sin(animTime * 0.18f) * (0.004f + chargeRatio * 0.006f);
             float baseScale = 0.11f + chargeRatio * 0.14f + pulse;
 
-            ArcaneOrbModel.render(matrices.last().pose(), baseScale, animTime, chargeRatio);
+            ArcaneOrbModel.renderCharge(matrices.last().pose(), baseScale, animTime, chargeRatio);
 
             matrices.popPose();
         }

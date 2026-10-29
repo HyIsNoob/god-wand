@@ -1,0 +1,25 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "import net.minecraft.client.model.geom.builders.LayerDefinition;\nimport net.minecraft.client.model.geom.builders.MeshDefinition;\nimport net.minecraft.client.model.geom.builders.PartDefinition;\nimport net.minecraft.client.renderer.LightTexture;\nimport net.minecraft.client.renderer.RenderType;\nimport org.joml.Vector3f;\nimport java.util.ArrayList;\nimport java.util.List;\nimport java.util.function.Supplier;\n\n/** Black symmetric double-edge sword with a thin diamond-ended crossguard and three-pronged pommel. */\npublic class ShadowBladeModel extends Model {\n    private final ModelPart root;\n    private float animationTime;\n    private float charge;\n",
+      "after": "import net.minecraft.client.model.geom.builders.LayerDefinition;\nimport net.minecraft.client.model.geom.builders.MeshDefinition;\nimport net.minecraft.client.model.geom.builders.PartDefinition;\n\nimport net.minecraft.client.renderer.rendertype.RenderType;\nimport org.joml.Vector3f;\nimport java.util.ArrayList;\nimport java.util.List;\nimport java.util.function.Supplier;\n\n/** Black symmetric double-edge sword with a thin diamond-ended crossguard and three-pronged pommel. */\npublic class ShadowBladeModel {\n    private final ModelPart root;\n    private float animationTime;\n    private float charge;\n"
+    },
+    {
+      "before": "    private static final Vector3f[][] BLADE_QUADS = createBladeQuads();\n\n    public ShadowBladeModel(ModelPart root) {\n        super(RenderType::entityCutoutNoCull);\n        this.root = root;\n    }\n\n",
+      "after": "    private static final Vector3f[][] BLADE_QUADS = createBladeQuads();\n\n    public ShadowBladeModel(ModelPart root) {\n        this.root = root;\n    }\n\n"
+    },
+    {
+      "before": "        this.charge = skillMode==5?chargeRatio:0;\n    }\n\n    @Override\n    public void renderToBuffer(PoseStack matrices, VertexConsumer vertexConsumer, int light, int overlay, int color) {\n        renderQuads(matrices, vertexConsumer, BLADE_QUADS, light, overlay, 0xFF292A30);\n    }\n",
+      "after": "        this.charge = skillMode==5?chargeRatio:0;\n    }\n\n    public void renderToBuffer(PoseStack matrices, VertexConsumer vertexConsumer, int light, int overlay, int color) {\n        renderQuads(matrices, vertexConsumer, BLADE_QUADS, light, overlay, 0xFF292A30);\n    }\n"
+    },
+    {
+      "before": "    public void renderBlade(PoseStack matrices, Supplier<VertexConsumer> solidBuffer,\n                            Supplier<VertexConsumer> emissiveBuffer, int light, int overlay, int coreColor) {\n        matrices.pushPose();\n        matrices.mulPose(com.mojang.math.Axis.YP.rotationDegrees(90));\n\n        VertexConsumer solid = solidBuffer.get();\n\n",
+      "after": "    public void renderBlade(PoseStack matrices, Supplier<VertexConsumer> solidBuffer,\n                            Supplier<VertexConsumer> emissiveBuffer, int light, int overlay, int coreColor) {\n        matrices.pushPose();\n        matrices.rotate(com.mojang.math.Axis.YP.rotationDegrees(90));\n\n        VertexConsumer solid = solidBuffer.get();\n\n"
+    },
+    {
+      "before": "        // 3. Sleek black obsidian blade body\n        int bladeColor=0xFF000000|((41+Math.round(charge*79))<<16)|((42-Math.round(charge*14))<<8)|(48+Math.round(charge*207));\n        renderQuads(matrices, solid, BLADE_QUADS, light, overlay, bladeColor);\n        if(charge>0)renderQuads(matrices,emissiveBuffer.get(),BLADE_QUADS,LightTexture.FULL_BRIGHT,overlay,\n                (Math.round(charge*170)<<24)|0xC77DFF);\n\n        matrices.popPose();\n",
+      "after": "        // 3. Sleek black obsidian blade body\n        int bladeColor=0xFF000000|((41+Math.round(charge*79))<<16)|((42-Math.round(charge*14))<<8)|(48+Math.round(charge*207));\n        renderQuads(matrices, solid, BLADE_QUADS, light, overlay, bladeColor);\n        if(charge>0)renderQuads(matrices,emissiveBuffer.get(),BLADE_QUADS,0x00F000F0,overlay,\n                (Math.round(charge*170)<<24)|0xC77DFF);\n\n        matrices.popPose();\n"
+    }
+  ]
+}

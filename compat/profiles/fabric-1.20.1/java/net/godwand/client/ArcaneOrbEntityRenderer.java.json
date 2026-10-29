@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "\n    @Override\n    public ResourceLocation getTextureLocation(ArcaneOrbEntity entity) {\n        return ResourceLocation.withDefaultNamespace(\"textures/atlas/blocks.png\");\n    }\n\n    @Override\n",
+      "after": "\n    @Override\n    public ResourceLocation getTextureLocation(ArcaneOrbEntity entity) {\n        return new ResourceLocation(\"textures/atlas/blocks.png\");\n    }\n\n    @Override\n"
+    }
+  ]
+}

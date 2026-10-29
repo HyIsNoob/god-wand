@@ -17,7 +17,7 @@ import java.util.Set;
 import static org.lwjgl.util.shaderc.Shaderc.*;
 
 public class PostChainResourceTest {
-    private static final Path RESOURCES = Path.of("src/main/resources/assets/minecraft");
+    private static final Path RESOURCES = Path.of("../../../build/shared/mc-26.3/src/main/resources/assets/minecraft");
 
     @Test
     void nativePostChainResources() throws Exception { verify(RESOURCES); }

@@ -1,0 +1,13 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "accessWidener v1 named\n\naccessible method net/minecraft/world/entity/projectile/Projectile <init> (Lnet/minecraft/world/entity/EntityType;Lnet/minecraft/world/level/Level;)V\naccessible method net/minecraft/world/entity/Display setTransformation (Lcom/mojang/math/Transformation;)V\n",
+      "after": "accessWidener v1 official\n\naccessible method net/minecraft/world/entity/projectile/Projectile <init> (Lnet/minecraft/world/entity/EntityType;Lnet/minecraft/world/level/Level;)V\naccessible method net/minecraft/world/entity/Display setTransformation (Lcom/mojang/math/Transformation;)V\n"
+    },
+    {
+      "before": "accessible method net/minecraft/world/entity/Display setGlowColorOverride (I)V\naccessible method net/minecraft/world/entity/Display$BlockDisplay setBlockState (Lnet/minecraft/world/level/block/state/BlockState;)V\naccessible field net/minecraft/client/renderer/PostChain passes Ljava/util/List;\n",
+      "after": "accessible method net/minecraft/world/entity/Display setGlowColorOverride (I)V\naccessible method net/minecraft/world/entity/Display$BlockDisplay setBlockState (Lnet/minecraft/world/level/block/state/BlockState;)V\naccessible field net/minecraft/client/renderer/PostChain passes Ljava/util/List;\n\naccessible method net/minecraft/client/renderer/RenderPipelines register (Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;)Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;\n\naccessible field net/minecraft/client/gui/GuiGraphicsExtractor guiRenderState Lnet/minecraft/client/renderer/state/gui/GuiRenderState;\n"
+    }
+  ]
+}

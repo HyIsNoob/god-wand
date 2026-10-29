@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "\naccessible method net/minecraft/world/entity/projectile/Projectile <init> (Lnet/minecraft/world/entity/EntityType;Lnet/minecraft/world/level/Level;)V\naccessible method net/minecraft/world/entity/Display setTransformation (Lcom/mojang/math/Transformation;)V\naccessible method net/minecraft/world/entity/Display setTransformationInterpolationDuration (I)V\naccessible method net/minecraft/world/entity/Display setTransformationInterpolationDelay (I)V\naccessible method net/minecraft/world/entity/Display setBrightnessOverride (Lnet/minecraft/util/Brightness;)V\naccessible method net/minecraft/world/entity/Display setGlowColorOverride (I)V\naccessible method net/minecraft/world/entity/Display$BlockDisplay setBlockState (Lnet/minecraft/world/level/block/state/BlockState;)V\n",
+      "after": "\naccessible method net/minecraft/world/entity/projectile/Projectile <init> (Lnet/minecraft/world/entity/EntityType;Lnet/minecraft/world/level/Level;)V\naccessible method net/minecraft/world/entity/Display setTransformation (Lcom/mojang/math/Transformation;)V\naccessible method net/minecraft/world/entity/Display setInterpolationDuration (I)V\naccessible method net/minecraft/world/entity/Display setInterpolationDelay (I)V\naccessible method net/minecraft/world/entity/Display setBrightnessOverride (Lnet/minecraft/util/Brightness;)V\naccessible method net/minecraft/world/entity/Display setGlowColorOverride (I)V\naccessible method net/minecraft/world/entity/Display$BlockDisplay setBlockState (Lnet/minecraft/world/level/block/state/BlockState;)V\n"
+    }
+  ]
+}

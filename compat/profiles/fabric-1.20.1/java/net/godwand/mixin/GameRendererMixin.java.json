@@ -1,0 +1,17 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "public abstract class GameRendererMixin {\n\n    @Inject(method = \"renderLevel\", at = @At(value = \"INVOKE\", target =\n            \"Lnet/minecraft/client/renderer/LevelRenderer;renderLevel(Lnet/minecraft/client/DeltaTracker;ZLnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/GameRenderer;Lnet/minecraft/client/renderer/LightTexture;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V\",\n            shift = At.Shift.AFTER))\n    private void godwand$afterWorldComposite(CallbackInfo ci) {\n        net.godwand.client.GodWandPostFxManager.renderAfterWorld();\n",
+      "after": "public abstract class GameRendererMixin {\n\n    @Inject(method = \"renderLevel\", at = @At(value = \"INVOKE\", target =\n            \"Lnet/minecraft/client/renderer/LevelRenderer;renderLevel(Lcom/mojang/blaze3d/vertex/PoseStack;FJZLnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/GameRenderer;Lnet/minecraft/client/renderer/LightTexture;Lorg/joml/Matrix4f;)V\",\n            shift = At.Shift.AFTER))\n    private void godwand$afterWorldComposite(CallbackInfo ci) {\n        net.godwand.client.GodWandPostFxManager.renderAfterWorld();\n"
+    },
+    {
+      "before": "    @Inject(method = \"bobHurt\", at = @At(\"HEAD\"))\n    private void godwand$applyScreenShake(PoseStack matrices, float tickDelta, CallbackInfo ci) {\n        GodWandCinematicEngine.applyScreenShake(matrices, tickDelta);\n        net.godwand.client.AtomicCinematic.applyShake(matrices, tickDelta);\n    }\n\n    /**\n",
+      "after": "    @Inject(method = \"bobHurt\", at = @At(\"HEAD\"))\n    private void godwand$applyScreenShake(PoseStack matrices, float tickDelta, CallbackInfo ci) {\n        GodWandCinematicEngine.applyScreenShake(matrices, tickDelta);\n        net.godwand.client.AtomicCinematic.applyShake(matrices,tickDelta);\n    }\n\n    /**\n"
+    },
+    {
+      "before": "    private void godwand$applyDynamicFov(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Double> cir) {\n        double current = cir.getReturnValue();\n        double multiplier = GodWandCinematicEngine.getFovMultiplier(tickDelta);\n        cir.setReturnValue(net.godwand.client.AtomicCinematic.fov(current * multiplier, tickDelta));\n    }\n\n    @Inject(method = \"renderItemInHand\", at = @At(\"HEAD\"), cancellable = true)\n    private void godwand$atomicHideHand(Camera camera, float delta, org.joml.Matrix4f matrix, CallbackInfo ci) {\n        if (net.godwand.client.AtomicCinematic.active()) ci.cancel();\n    }\n}\n",
+      "after": "    private void godwand$applyDynamicFov(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Double> cir) {\n        double current = cir.getReturnValue();\n        double multiplier = GodWandCinematicEngine.getFovMultiplier(tickDelta);\n        cir.setReturnValue(net.godwand.client.AtomicCinematic.fov(current * multiplier,tickDelta));\n    }\n    @Inject(method=\"renderItemInHand\",at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicHideHand(CallbackInfo ci) { if(net.godwand.client.AtomicCinematic.active())ci.cancel(); }\n}\n"
+    }
+  ]
+}

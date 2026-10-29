@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "    public static Item GOD_WAND_ITEM;\n    public static final ResourceKey<CreativeModeTab> GODWAND_ITEM_GROUP_KEY = ResourceKey.create(\n            Registries.CREATIVE_MODE_TAB,\n            ResourceLocation.fromNamespaceAndPath(MOD_ID, \"godwand_tab\")\n    );\n    public static CreativeModeTab GODWAND_ITEM_GROUP;\n}\n",
+      "after": "    public static Item GOD_WAND_ITEM;\n    public static final ResourceKey<CreativeModeTab> GODWAND_ITEM_GROUP_KEY = ResourceKey.create(\n            Registries.CREATIVE_MODE_TAB,\n            new ResourceLocation(MOD_ID, \"godwand_tab\")\n    );\n    public static CreativeModeTab GODWAND_ITEM_GROUP;\n}\n"
+    }
+  ]
+}

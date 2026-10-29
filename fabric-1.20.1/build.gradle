@@ -2,6 +2,10 @@ plugins {
     id 'fabric-loom' version "${loom_version}"
     id 'maven-publish'
 }
+ext.sharedRepoRoot = file('..')
+ext.sharedProfile = 'fabric-1.20.1'
+apply from: new File(sharedRepoRoot, 'gradle/shared-sources.gradle')
+
 
 version = project.mod_version
 group = project.maven_group
@@ -11,7 +15,7 @@ base {
 }
 
 loom {
-    accessWidenerPath = file("src/main/resources/godwand.accesswidener")
+    accessWidenerPath = new File(sharedSourcesDir, 'resources/godwand.accesswidener')
 }
 
 dependencies {

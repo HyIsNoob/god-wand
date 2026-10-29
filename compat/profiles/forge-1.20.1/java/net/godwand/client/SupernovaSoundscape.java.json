@@ -1,0 +1,21 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "package net.godwand.client;\n\nimport net.godwand.network.CinematicFxPayload;\nimport net.minecraft.client.Minecraft;\n",
+      "after": "package net.godwand.client;\n\nimport net.minecraft.util.Mth;\n\nimport net.godwand.network.CinematicFxPayload;\nimport net.minecraft.client.Minecraft;\n"
+    },
+    {
+      "before": " *  running full duration without premature cutoffs, while falling back to vanilla sound cues\n *  when using the default placeholder. */\npublic final class SupernovaSoundscape {\n    private static final ResourceLocation AUDIO = ResourceLocation.fromNamespaceAndPath(\"godwand\", \"supernova_sequence\");\n    private static final String PLACEHOLDER_SHA = \"225b65ec21cc27259fd742d6e1488a69c28f4a0365301d533eeaf433e3c60443\";\n    private static Charge chargeSound;\n    private static SimpleSoundInstance sequence;\n",
+      "after": " *  running full duration without premature cutoffs, while falling back to vanilla sound cues\n *  when using the default placeholder. */\npublic final class SupernovaSoundscape {\n    private static final ResourceLocation AUDIO = new ResourceLocation(\"godwand\", \"supernova_sequence\");\n    private static final String PLACEHOLDER_SHA = \"225b65ec21cc27259fd742d6e1488a69c28f4a0365301d533eeaf433e3c60443\";\n    private static Charge chargeSound;\n    private static SimpleSoundInstance sequence;\n"
+    },
+    {
+      "before": "\n    private static boolean checkCustom(Minecraft client) {\n        if (customChecked) return custom;\n        var resource = client.getResourceManager().getResource(ResourceLocation.fromNamespaceAndPath(\"godwand\", \"sounds/supernova_sequence.ogg\"));\n        if (resource.isPresent()) {\n            try (var input = resource.get().open()) {\n                custom = isCustomAudio(input.readAllBytes());\n",
+      "after": "\n    private static boolean checkCustom(Minecraft client) {\n        if (customChecked) return custom;\n        var resource = client.getResourceManager().getResource(new ResourceLocation(\"godwand\", \"sounds/supernova_sequence.ogg\"));\n        if (resource.isPresent()) {\n            try (var input = resource.get().open()) {\n                custom = isCustomAudio(input.readAllBytes());\n"
+    },
+    {
+      "before": "    }\n\n    static float volume(double age, float charge) {\n        return age < 0 && charge > 0 ? 0.08f + Math.clamp(charge, 0, 1) * 0.18f : 0;\n    }\n\n    public static void start(Vec3 center) {\n",
+      "after": "    }\n\n    static float volume(double age, float charge) {\n        return age < 0 && charge > 0 ? 0.08f + Mth.clamp(charge, 0, 1) * 0.18f : 0;\n    }\n\n    public static void start(Vec3 center) {\n"
+    }
+  ]
+}

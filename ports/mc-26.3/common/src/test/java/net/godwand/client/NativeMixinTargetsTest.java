@@ -18,7 +18,7 @@ class NativeMixinTargetsTest {
         var config=com.google.gson.JsonParser.parseString(Files.readString(Path.of("../fabric/src/main/resources/godwand.mixins.json"))).getAsJsonObject();
         assertEquals("JAVA_25",config.get("compatibilityLevel").getAsString());
         for(String side:new String[]{"mixins","client"}) for(var entry:config.getAsJsonArray(side)) {
-            String source=Files.readString(Path.of("src/main/java/net/godwand/mixin/"+entry.getAsString()+".java"));
+            String source=Files.readString(Path.of("../../../build/shared/mc-26.3/src/main/java/net/godwand/mixin/"+entry.getAsString()+".java"));
             var target=Pattern.compile("@Mixin\\(\\s*(?:value\\s*=\\s*)?(\\w+)\\.class").matcher(source);
             assertTrue(target.find(),entry.toString());
             var imp=Pattern.compile("import (net\\.minecraft\\.[\\w.]+\\."+target.group(1)+");").matcher(source);

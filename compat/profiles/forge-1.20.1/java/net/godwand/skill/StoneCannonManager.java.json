@@ -1,0 +1,29 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "package net.godwand.skill;\n\nimport net.godwand.platform.Services;\nimport net.godwand.entity.StoneCannonProjectileEntity;\n",
+      "after": "package net.godwand.skill;\n\nimport net.minecraft.util.Mth;\n\nimport net.godwand.platform.Services;\nimport net.godwand.entity.StoneCannonProjectileEntity;\n"
+    },
+    {
+      "before": "     * Vận chiêu Stone Cannon (Mũi khoan đá hình thành trước ngực + Gió cuộn xoáy khí động học)\n     */\n    public static float chargeStoneVolume(int ticks) {\n        return .28f + .14f * Math.clamp(ticks / 80f, 0, 1);\n    }\n\n    public static void tickCharge(ServerPlayer player, int chargeTicks, int level) {\n",
+      "after": "     * Vận chiêu Stone Cannon (Mũi khoan đá hình thành trước ngực + Gió cuộn xoáy khí động học)\n     */\n    public static float chargeStoneVolume(int ticks) {\n        return .28f + .14f * Mth.clamp(ticks / 80f, 0, 1);\n    }\n\n    public static void tickCharge(ServerPlayer player, int chargeTicks, int level) {\n"
+    },
+    {
+      "before": "\n        if (chargeTicks == 0) {\n            // Tiếng đá nén và va đập tạo khối cực mạnh, dứt khoát\n            sw.playSound(null, player.blockPosition(), SoundEvents.HEAVY_CORE_PLACE, SoundSource.PLAYERS, 1.1f, 0.75f);\n            sw.playSound(null, player.blockPosition(), SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.0f, 0.65f);\n            sw.playSound(null, player.blockPosition(), SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.55f, 1.6f);\n        }\n",
+      "after": "\n        if (chargeTicks == 0) {\n            // Tiếng đá nén và va đập tạo khối cực mạnh, dứt khoát\n            sw.playSound(null, player.blockPosition(), SoundEvents.ANVIL_PLACE, SoundSource.PLAYERS, 1.1f, 0.75f);\n            sw.playSound(null, player.blockPosition(), SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.0f, 0.65f);\n            sw.playSound(null, player.blockPosition(), SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.55f, 1.6f);\n        }\n"
+    },
+    {
+      "before": "            sw.playSound(null, player.blockPosition(), SoundEvents.STONE_PLACE, SoundSource.PLAYERS, 0.95f, 1.35f);\n            sw.playSound(null, player.blockPosition(), SoundEvents.ANVIL_PLACE, SoundSource.PLAYERS, 0.45f, 1.7f);\n        } else if (chargeTicks == 10) {\n            sw.playSound(null, player.blockPosition(), SoundEvents.HEAVY_CORE_STEP, SoundSource.PLAYERS, 1.0f, 1.3f);\n            sw.playSound(null, player.blockPosition(), SoundEvents.BASALT_BREAK, SoundSource.PLAYERS, 0.85f, 1.4f);\n        }\n        if (chargeTicks >= 0 && chargeTicks % 12 == 0) {\n",
+      "after": "            sw.playSound(null, player.blockPosition(), SoundEvents.STONE_PLACE, SoundSource.PLAYERS, 0.95f, 1.35f);\n            sw.playSound(null, player.blockPosition(), SoundEvents.ANVIL_PLACE, SoundSource.PLAYERS, 0.45f, 1.7f);\n        } else if (chargeTicks == 10) {\n            sw.playSound(null, player.blockPosition(), SoundEvents.STONE_STEP, SoundSource.PLAYERS, 1.0f, 1.3f);\n            sw.playSound(null, player.blockPosition(), SoundEvents.BASALT_BREAK, SoundSource.PLAYERS, 0.85f, 1.4f);\n        }\n        if (chargeTicks >= 0 && chargeTicks % 12 == 0) {\n"
+    },
+    {
+      "before": "        sw.playSound(null, player.getX(), player.getY(), player.getZ(),\n                SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.15f, 1.4f);\n        sw.playSound(null, player.getX(), player.getY(), player.getZ(),\n                SoundEvents.MACE_SMASH_GROUND_HEAVY, SoundSource.PLAYERS, 0.85f, 0.8f);\n        sw.playSound(null, player.getX(), player.getY(), player.getZ(),\n                SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.65f, 1.4f);\n\n        player.displayClientMessage(Component.literal(\"Fired.\"), true);\n    }\n",
+      "after": "        sw.playSound(null, player.getX(), player.getY(), player.getZ(),\n                SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.15f, 1.4f);\n        sw.playSound(null, player.getX(), player.getY(), player.getZ(),\n                SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.85f, 0.8f);\n        sw.playSound(null, player.getX(), player.getY(), player.getZ(),\n                SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 0.65f, 1.4f);\n\n        player.displayClientMessage(Component.literal(\"Fired.\"), true);\n    }\n"
+    },
+    {
+      "before": "        sw.sendParticles(ParticleTypes.SWEEP_ATTACK, hitPos.x, hitPos.y, hitPos.z, 8, 1.2, 0.8, 1.2, 0.1);\n\n        sw.playSound(null, hitPos.x, hitPos.y, hitPos.z,\n                SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.4f, 0.6f);\n        sw.playSound(null, hitPos.x, hitPos.y, hitPos.z,\n                SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 0.7f, 1.2f);\n        sw.playSound(null, hitPos.x, hitPos.y, hitPos.z,\n                SoundEvents.MACE_SMASH_GROUND_HEAVY, SoundSource.PLAYERS, 0.85f, 0.8f);\n    }\n}\n",
+      "after": "        sw.sendParticles(ParticleTypes.SWEEP_ATTACK, hitPos.x, hitPos.y, hitPos.z, 8, 1.2, 0.8, 1.2, 0.1);\n\n        sw.playSound(null, hitPos.x, hitPos.y, hitPos.z,\n                SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 1.4f, 0.6f);\n        sw.playSound(null, hitPos.x, hitPos.y, hitPos.z,\n                SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 0.7f, 1.2f);\n        sw.playSound(null, hitPos.x, hitPos.y, hitPos.z,\n                SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.85f, 0.8f);\n    }\n}\n"
+    }
+  ]
+}

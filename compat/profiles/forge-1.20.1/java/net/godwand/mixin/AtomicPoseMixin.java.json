@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "    @Inject(method=\"setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V\",at=@At(\"TAIL\"))\n    private void godwand$raiseWand(LivingEntity entity,float walk,float stride,float time,float yaw,float pitch,CallbackInfo ci) {\n        var stack=entity.getUseItem();\n        float partial=Math.clamp(time-entity.tickCount,0,1);\n        var frame=net.godwand.client.AtomicRenderer.frameFor(entity.getId(),partial);\n        boolean charging=stack.getItem() instanceof GodWandItem&&GodWandItem.getSkillMode(stack)==GodWandItem.MODE_ATOMIC;\n        if(!charging&&frame==null)return;\n",
+      "after": "    @Inject(method=\"setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V\",at=@At(\"TAIL\"))\n    private void godwand$raiseWand(LivingEntity entity,float walk,float stride,float time,float yaw,float pitch,CallbackInfo ci) {\n        var stack=entity.getUseItem();\n        float partial=net.minecraft.util.Mth.clamp(time-entity.tickCount,0,1);\n        var frame=net.godwand.client.AtomicRenderer.frameFor(entity.getId(),partial);\n        boolean charging=stack.getItem() instanceof GodWandItem&&GodWandItem.getSkillMode(stack)==GodWandItem.MODE_ATOMIC;\n        if(!charging&&frame==null)return;\n"
+    }
+  ]
+}

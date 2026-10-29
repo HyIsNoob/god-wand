@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class GodWandRecipeTest {
     @Test void recipeUsesNativeIngredientFormatAndUnlocksFromNetherStar() throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
-        Path data=Path.of("src/main/resources/data/godwand");
+        Path data=Path.of("../../../build/shared/mc-26.3/src/main/resources/data/godwand");
         var recipe=JsonParser.parseString(Files.readString(data.resolve("recipe/god_wand.json"))).getAsJsonObject();
         assertEquals("godwand:god_wand",recipe.getAsJsonObject("result").get("id").getAsString());
         recipe.getAsJsonObject("result").addProperty("id","minecraft:stick");

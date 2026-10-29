@@ -1,0 +1,13 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "    }\n\n    @Override\n    protected void defineSynchedData(SynchedEntityData.Builder builder) {\n        builder.define(CHARGE_LEVEL, 1);\n    }\n\n    @Override\n",
+      "after": "    }\n\n    @Override\n    protected void defineSynchedData() {\n        this.entityData.define(CHARGE_LEVEL, 1);\n    }\n\n    @Override\n"
+    },
+    {
+      "before": "        super.readAdditionalSaveData(nbt);\n        setChargeLevel(nbt.getInt(\"ChargeLevel\"));\n        this.tickCount = nbt.getInt(\"Age\");\n    }\n\n    @Override\n",
+      "after": "        super.readAdditionalSaveData(nbt);\n        setChargeLevel(nbt.getInt(\"ChargeLevel\"));\n        this.tickCount = nbt.getInt(\"Age\");\n    }\n\n    @Override\n    public net.minecraft.network.protocol.Packet<net.minecraft.network.protocol.game.ClientGamePacketListener> getAddEntityPacket() {\n        return net.minecraftforge.network.NetworkHooks.getEntitySpawningPacket(this);\n    }\n\n    @Override\n"
+    }
+  ]
+}

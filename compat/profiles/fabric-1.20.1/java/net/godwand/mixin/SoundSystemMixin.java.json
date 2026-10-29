@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "     */\n    @Inject(method = \"calculateVolume(Lnet/minecraft/client/resources/sounds/SoundInstance;)F\", at = @At(\"RETURN\"), cancellable = true)\n    private void godwand$applyVacuumSilence(SoundInstance sound, CallbackInfoReturnable<Float> cir) {\n        float gain = GodWandCinematicEngine.getEnvironmentGain();\n        if (gain < 0.999f) {\n            SoundSource category = sound.getSource();\n            if (category != SoundSource.PLAYERS && category != SoundSource.MASTER) {\n",
+      "after": "     */\n    @Inject(method = \"calculateVolume(Lnet/minecraft/client/resources/sounds/SoundInstance;)F\", at = @At(\"RETURN\"), cancellable = true)\n    private void godwand$applyVacuumSilence(SoundInstance sound, CallbackInfoReturnable<Float> cir) {\n        float gain = GodWandCinematicEngine.getEnvironmentGain() * net.godwand.client.AtomicCinematic.environmentGain();\n        if (gain < 0.999f) {\n            SoundSource category = sound.getSource();\n            if (category != SoundSource.PLAYERS && category != SoundSource.MASTER) {\n"
+    }
+  ]
+}

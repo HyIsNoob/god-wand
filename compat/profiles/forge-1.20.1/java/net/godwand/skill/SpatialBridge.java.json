@@ -1,0 +1,17 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "package net.godwand.skill;\n\nimport net.godwand.GodWandMod;\nimport net.godwand.item.GodWandItem;\n",
+      "after": "package net.godwand.skill;\nimport net.godwand.util.DisplayHelper;\n\nimport net.godwand.GodWandMod;\nimport net.godwand.item.GodWandItem;\n"
+    },
+    {
+      "before": "            var visual = new net.minecraft.world.entity.Display.BlockDisplay(net.minecraft.world.entity.EntityType.BLOCK_DISPLAY, world);\n            visual.addTag(\"godwand_displaced\");\n            visual.setPos(Vec3.atLowerCornerOf(source.pos));\n            visual.setBlockState(source.originalState);\n            world.addFreshEntity(visual);\n            FLIGHTS.add(new Flight(world, visual, target, world.getGameTime()));\n            DisplacementPersistentState.getServerState(world).setDirty();\n",
+      "after": "            var visual = new net.minecraft.world.entity.Display.BlockDisplay(net.minecraft.world.entity.EntityType.BLOCK_DISPLAY, world);\n            visual.addTag(\"godwand_displaced\");\n            visual.setPos(Vec3.atLowerCornerOf(source.pos));\n            DisplayHelper.setBlockState(visual, source.originalState);\n            world.addFreshEntity(visual);\n            FLIGHTS.add(new Flight(world, visual, target, world.getGameTime()));\n            DisplacementPersistentState.getServerState(world).setDirty();\n"
+    },
+    {
+      "before": "            if (f.world() != world) return false;\n            long age = world.getGameTime() - f.born();\n            if (age == 2) {\n                f.display().setTransformationInterpolationDelay(0);\n                f.display().setTransformationInterpolationDuration(4);\n                f.display().setTransformation(SpatialMath.createPivotTransform(Vec3.atLowerCornerOf(f.target()).subtract(f.display().position()), new Quaternionf(), 0.95f));\n            }\n            if (age < 8) return false;\n            f.display().discard();\n",
+      "after": "            if (f.world() != world) return false;\n            long age = world.getGameTime() - f.born();\n            if (age == 2) {\n                DisplayHelper.setInterpolationDelay(f.display(), 0);\n                DisplayHelper.setInterpolationDuration(f.display(), 4);\n                DisplayHelper.setTransformation(f.display(), SpatialMath.createPivotTransform(Vec3.atLowerCornerOf(f.target()).subtract(f.display().position()), new Quaternionf(), 0.95f));\n            }\n            if (age < 8) return false;\n            f.display().discard();\n"
+    }
+  ]
+}

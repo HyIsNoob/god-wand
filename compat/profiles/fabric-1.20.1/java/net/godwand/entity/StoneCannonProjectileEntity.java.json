@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "    }\n\n    @Override\n    protected void defineSynchedData(SynchedEntityData.Builder builder) {\n        builder.define(CHARGE_LEVEL, 1);\n    }\n\n    @Override\n",
+      "after": "    }\n\n    @Override\n    protected void defineSynchedData() {\n        this.entityData.define(CHARGE_LEVEL, 1);\n    }\n\n    @Override\n"
+    }
+  ]
+}

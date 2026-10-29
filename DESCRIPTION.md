@@ -60,14 +60,7 @@ Damage, cooldowns and selected terrain ranges can be adjusted. Atomic's main bla
 
 ## Crafting
 
-Craft the God Wand in a normal crafting table:
-
-| Echo Shard | Nether Star | Echo Shard |
-| --- | --- | --- |
-| Amethyst Shard | Netherite Ingot | Amethyst Shard |
-| Empty | Blaze Rod | Empty |
-
-Picking up a Nether Star unlocks the recipe in the recipe book.
+![image](https://media.forgecdn.net/attachments/description/1760928/description_90c1ec0b-10c4-4871-ac36-e3e7fcd3e830.png)
 
 ## Supported versions
 

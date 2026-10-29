@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "package net.godwand.mixin;\n\nimport net.godwand.client.AtomicCinematic;\nimport net.minecraft.client.gui.Gui;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.injection.At;\nimport org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n@Mixin(Gui.class)\npublic abstract class AtomicGuiMixin {\n    @Inject(method={\"renderCrosshair\",\"renderHotbarAndDecorations\",\"renderChat\",\"renderScoreboardSidebar\",\"renderTabList\",\"renderEffects\",\"renderOverlayMessage\",\"renderTitle\"},at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicHideCrosshair(CallbackInfo ci) { if(AtomicCinematic.active())ci.cancel(); }\n}\n",
+      "after": "package net.godwand.mixin;\nimport net.godwand.client.AtomicCinematic;\nimport net.minecraft.client.gui.Gui;\nimport net.minecraft.client.gui.GuiGraphics;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.injection.At;\nimport org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n@Mixin(Gui.class)\npublic abstract class AtomicGuiMixin {\n    @Inject(method=\"render\",at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicHud(GuiGraphics graphics,float delta,CallbackInfo ci) {\n        if(AtomicCinematic.active()) { AtomicCinematic.render(graphics,delta); ci.cancel(); }\n    }\n}\n"
+    }
+  ]
+}

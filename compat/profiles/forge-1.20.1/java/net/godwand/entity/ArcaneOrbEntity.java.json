@@ -1,0 +1,21 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "package net.godwand.entity;\n\nimport net.godwand.GodWandMod;\nimport net.godwand.skill.ShockwaveSlicer;\n",
+      "after": "package net.godwand.entity;\n\nimport net.minecraft.util.Mth;\n\nimport net.godwand.GodWandMod;\nimport net.godwand.skill.ShockwaveSlicer;\n"
+    },
+    {
+      "before": "    }\n\n    public void setChargeLevel(int level) {\n        this.entityData.set(CHARGE_LEVEL, Math.clamp(level, 1, 3));\n    }\n\n    public int getChargeLevel() {\n",
+      "after": "    }\n\n    public void setChargeLevel(int level) {\n        this.entityData.set(CHARGE_LEVEL, Mth.clamp(level, 1, 3));\n    }\n\n    public int getChargeLevel() {\n"
+    },
+    {
+      "before": "    }\n\n    @Override\n    protected void defineSynchedData(SynchedEntityData.Builder builder) {\n        builder.define(CHARGE_LEVEL, 1);\n    }\n\n    @Override\n",
+      "after": "    }\n\n    @Override\n    protected void defineSynchedData() {\n        this.entityData.define(CHARGE_LEVEL, 1);\n    }\n\n    @Override\n"
+    },
+    {
+      "before": "        super.readAdditionalSaveData(nbt);\n        setChargeLevel(nbt.getInt(\"ChargeLevel\"));\n        this.tickCount = nbt.getInt(\"Age\");\n    }\n\n    @Override\n",
+      "after": "        super.readAdditionalSaveData(nbt);\n        setChargeLevel(nbt.getInt(\"ChargeLevel\"));\n        this.tickCount = nbt.getInt(\"Age\");\n    }\n\n    @Override\n    public net.minecraft.network.protocol.Packet<net.minecraft.network.protocol.game.ClientGamePacketListener> getAddEntityPacket() {\n        return net.minecraftforge.network.NetworkHooks.getEntitySpawningPacket(this);\n    }\n\n    @Override\n"
+    }
+  ]
+}

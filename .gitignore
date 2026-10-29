@@ -3,7 +3,6 @@ build/
 run/
 logs/
 bin/
-.superpowers/
 .local-backups/
 .vscode/
 .idea/
@@ -12,3 +11,7 @@ local.properties
 .env
 .env.*
 !.env.example
+
+Test/
+fuga-references/
+docs/

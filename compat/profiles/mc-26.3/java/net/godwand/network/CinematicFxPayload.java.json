@@ -1,0 +1,13 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "import net.minecraft.network.codec.ByteBufCodecs;\nimport net.minecraft.network.codec.StreamCodec;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.resources.ResourceLocation;\n\n/**\n * Payload đồng bộ các sự kiện điện ảnh từ Server xuống Client:\n",
+      "after": "import net.minecraft.network.codec.ByteBufCodecs;\nimport net.minecraft.network.codec.StreamCodec;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.resources.Identifier;\n\n/**\n * Payload đồng bộ các sự kiện điện ảnh từ Server xuống Client:\n"
+    },
+    {
+      "before": "        int durationTicks\n) implements CustomPacketPayload {\n\n    public static final CustomPacketPayload.Type<CinematicFxPayload> ID = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(\"godwand\", \"cinematic_fx\"));\n\n    // Các sự kiện điện ảnh đồng bộ với kỹ năng\n    public static final int EVENT_TRAUMA_SHAKE        = 0; // Rung chấn thông thường\n",
+      "after": "        int durationTicks\n) implements CustomPacketPayload {\n\n    public static final CustomPacketPayload.Type<CinematicFxPayload> ID = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(\"godwand\", \"cinematic_fx\"));\n\n    // Các sự kiện điện ảnh đồng bộ với kỹ năng\n    public static final int EVENT_TRAUMA_SHAKE        = 0; // Rung chấn thông thường\n"
+    }
+  ]
+}

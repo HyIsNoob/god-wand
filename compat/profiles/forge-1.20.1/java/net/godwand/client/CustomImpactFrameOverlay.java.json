@@ -1,0 +1,17 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "\nimport com.mojang.blaze3d.systems.RenderSystem;\nimport net.godwand.network.ImpactFxPayload;\nimport net.minecraft.client.DeltaTracker;\nimport net.minecraft.client.Minecraft;\nimport net.minecraft.client.gui.GuiGraphics;\nimport net.minecraft.resources.ResourceLocation;\n",
+      "after": "\nimport com.mojang.blaze3d.systems.RenderSystem;\nimport net.godwand.network.ImpactFxPayload;\nimport net.minecraft.client.Minecraft;\nimport net.minecraft.client.gui.GuiGraphics;\nimport net.minecraft.resources.ResourceLocation;\n"
+    },
+    {
+      "before": "/** Four impact drawings, followed by a short light fade into the expanding explosion. */\npublic class CustomImpactFrameOverlay {\n    public static final ResourceLocation[] FRAMES = {\n            ResourceLocation.fromNamespaceAndPath(\"godwand\", \"textures/vfx/impact_frame_0.png\"),\n            ResourceLocation.fromNamespaceAndPath(\"godwand\", \"textures/vfx/impact_frame_1.png\"),\n            ResourceLocation.fromNamespaceAndPath(\"godwand\", \"textures/vfx/impact_frame_2.png\"),\n            ResourceLocation.fromNamespaceAndPath(\"godwand\", \"textures/vfx/impact_frame_3.png\")\n    };\n\n    public static final int IMPACT_FRAME_TICKS = ImpactFxPayload.SUPERNOVA_IMPACT_TICKS;\n",
+      "after": "/** Four impact drawings, followed by a short light fade into the expanding explosion. */\npublic class CustomImpactFrameOverlay {\n    public static final ResourceLocation[] FRAMES = {\n            new ResourceLocation(\"godwand\", \"textures/vfx/impact_frame_0.png\"),\n            new ResourceLocation(\"godwand\", \"textures/vfx/impact_frame_1.png\"),\n            new ResourceLocation(\"godwand\", \"textures/vfx/impact_frame_2.png\"),\n            new ResourceLocation(\"godwand\", \"textures/vfx/impact_frame_3.png\")\n    };\n\n    public static final int IMPACT_FRAME_TICKS = ImpactFxPayload.SUPERNOVA_IMPACT_TICKS;\n"
+    },
+    {
+      "before": "        }\n    }\n\n    public static void render(GuiGraphics context, DeltaTracker tickCounter) {\n        if (!active || !net.godwand.config.GodWandConfig.CLIENT.impactFrames) return;\n\n        Minecraft client = Minecraft.getInstance();\n",
+      "after": "        }\n    }\n\n    public static void render(GuiGraphics context, float tickDelta) {\n        if (!active || !net.godwand.config.GodWandConfig.CLIENT.impactFrames) return;\n\n        Minecraft client = Minecraft.getInstance();\n"
+    }
+  ]
+}

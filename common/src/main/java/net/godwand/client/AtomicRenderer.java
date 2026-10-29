@@ -27,6 +27,8 @@ public final class AtomicRenderer {
     private static final ResourceLocation ENERGY_TEXTURE=ResourceLocation.fromNamespaceAndPath("godwand","atomic_energy");
     private static boolean textureReady;
     private static ClientLevel world;
+    private static long scarHeightTick = Long.MIN_VALUE;
+    private static final Map<Long, Integer> SCAR_HEIGHTS = new HashMap<>();
     private static final class State {
         AtomicFxPayload payload;
         final List<TipSample> swordTrail=new ArrayList<>();
@@ -65,11 +67,14 @@ public final class AtomicRenderer {
             });
             return;
         }
+        if (state != null && payload.phase() == AtomicFxPayload.CHARGE && state.payload.startedAt() != payload.startedAt()) {
+            stop(state); ACTIVE.remove(payload.casterId()); state = null;
+        }
         boolean newBurst = payload.phase() == AtomicFxPayload.BURST && (state == null || state.payload.phase() != AtomicFxPayload.BURST);
         if (state == null) {
             if (ACTIVE.size() >= 8) { var first = ACTIVE.values().iterator(); stop(first.next()); first.remove(); }
             var entity = world.getEntity(payload.casterId());
-            state = new State(payload, entity == null ? 0 : entity.getYRot());
+            state = new State(payload, entity == null ? 0 : net.minecraft.util.Mth.wrapDegrees(entity.getYRot()));
             ACTIVE.put(payload.casterId(), state);
             if (payload.phase() == AtomicFxPayload.CHARGE) state.charge = sound("atomic_charge", payload, .8f);
         }
@@ -209,6 +214,7 @@ public final class AtomicRenderer {
         return nearest;
     }
     public static void reset() {
+        scarHeightTick = Long.MIN_VALUE; SCAR_HEIGHTS.clear();
         for (State state : ACTIVE.values()) stop(state);
         for (State state : AUDIO_TAILS) stop(state);
         AUDIO_TAILS.clear(); ACTIVE.clear(); SCARS.clear(); world = null;
@@ -591,6 +597,17 @@ public final class AtomicRenderer {
         }
     }
 
+    static int scarHeight(int x, int z) {
+        long tick = world.getGameTime();
+        if (tick != scarHeightTick) { SCAR_HEIGHTS.clear(); scarHeightTick = tick; }
+        long key = net.minecraft.world.level.ChunkPos.asLong(x, z);
+        Integer height = SCAR_HEIGHTS.get(key);
+        if (height == null) {
+            height = world.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
+            SCAR_HEIGHTS.put(key, height);
+        }
+        return height;
+    }
     private static void scars(VertexConsumer v,Matrix4f m,Scar scar) {
         float alpha=AtomicSequence.scarOpacity(world.getGameTime()-scar.started);
         for(int ray=0;ray<26;ray++) {
@@ -603,7 +620,7 @@ public final class AtomicRenderer {
                 Vec3 p=polar(r,0,angle);
                 int x=(int)Math.floor(scar.center.x+p.x),z=(int)Math.floor(scar.center.z+p.z);
                 if(!world.getChunkSource().hasChunk(x>>4,z>>4)) { previous=null; continue; }
-                double y=world.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING,x,z)+.06-scar.center.y;
+                double y=scarHeight(x,z)+.06-scar.center.y;
                 Vec3 next=new Vec3(p.x,y,p.z);
                 if(previous!=null&&Math.abs(next.y-previous.y)<4)stroke(v,m,previous,next,.055f,alpha);
                 previous=next;
@@ -636,8 +653,8 @@ public final class AtomicRenderer {
             double w=width*(layer==2?5:layer==1?2.4:1);
             float opacity=alpha*(layer==2?.055f:layer==1?.22f:.85f);
             int color=layer==0?0xA550FF:0x7C1AFF;
-            for(Vec3 axis:new Vec3[]{side,other}) {
-                Vec3 n=axis.scale(w);
+            for(int axis=0;axis<2;axis++) {
+                Vec3 n=(axis==0?side:other).scale(w);
                 quad(v,m,a.subtract(n),a.add(n),b.add(n),b.subtract(n),color,opacity);
             }
         }
@@ -688,12 +705,11 @@ public final class AtomicRenderer {
         return Math.clamp((int)Math.round(light),0,255);
     }
     private static void circuitPanel(VertexConsumer v,Matrix4f m,Vec3 a,Vec3 b,Vec3 c,Vec3 d,float alpha) {
-        int opacity=Math.clamp(Math.round(alpha*255),0,255),i=0;
-        for(Vec3 p:new Vec3[]{a,b,c,d}) {
-            v.addVertex(m,(float)p.x,(float)p.y,(float)p.z).setColor(165,80,255,opacity)
-                    .setUv(i==0||i==3?.513671875f:.736328125f,i<2?.98046875f:.01953125f);
-            i++;
-        }
+        int opacity=Math.clamp(Math.round(alpha*255),0,255);
+        energyVertex(v,m,a,0xA550FF,opacity,.513671875f,.98046875f);
+        energyVertex(v,m,b,0xA550FF,opacity,.736328125f,.98046875f);
+        energyVertex(v,m,c,0xA550FF,opacity,.736328125f,.01953125f);
+        energyVertex(v,m,d,0xA550FF,opacity,.513671875f,.01953125f);
     }
     private static void ensureEnergyTexture() {
         if(textureReady)return;
@@ -706,15 +722,20 @@ public final class AtomicRenderer {
         textureReady=true;
     }
     private static void disc(VertexConsumer v,Matrix4f m,Vec3 a,Vec3 b,Vec3 c,Vec3 d,int color,float alpha) {
-        int opacity=Math.clamp(Math.round(alpha*255),0,255), i=0;
-        for(Vec3 p:new Vec3[]{a,b,c,d}) {
-            v.addVertex(m,(float)p.x,(float)p.y,(float)p.z).setColor((color>>16)&255,(color>>8)&255,color&255,opacity)
-                    .setUv(i==0||i==3?.0078125f:.4921875f,i<2?.984375f:.015625f);
-            i++;
-        }
+        int opacity=Math.clamp(Math.round(alpha*255),0,255);
+        energyVertex(v,m,a,color,opacity,.0078125f,.984375f);
+        energyVertex(v,m,b,color,opacity,.4921875f,.984375f);
+        energyVertex(v,m,c,color,opacity,.4921875f,.015625f);
+        energyVertex(v,m,d,color,opacity,.0078125f,.015625f);
     }
     private static void quad(VertexConsumer v,Matrix4f m,Vec3 a,Vec3 b,Vec3 c,Vec3 d,int color,float alpha) {
         int opacity=Math.clamp(Math.round(alpha*255),0,255);
-        for(Vec3 p:new Vec3[]{a,b,c,d}) v.addVertex(m,(float)p.x,(float)p.y,(float)p.z).setColor((color>>16)&255,(color>>8)&255,color&255,opacity).setUv(.875f,.5f);
+        energyVertex(v,m,a,color,opacity,.875f,.5f);
+        energyVertex(v,m,b,color,opacity,.875f,.5f);
+        energyVertex(v,m,c,color,opacity,.875f,.5f);
+        energyVertex(v,m,d,color,opacity,.875f,.5f);
+    }
+    private static void energyVertex(VertexConsumer v,Matrix4f m,Vec3 p,int color,int opacity,float u,float texV) {
+        v.addVertex(m,(float)p.x,(float)p.y,(float)p.z).setColor((color>>16)&255,(color>>8)&255,color&255,opacity).setUv(u,texV);
     }
 }

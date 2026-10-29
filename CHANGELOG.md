@@ -9,10 +9,16 @@
 
 ### Improved
 - Wider Atomic blast view and stronger explosion shake.
+- Atomic destroys terrain across a 50% larger radius.
+- Smoother, rounder Singularity charge orb with a brighter core and soft glow.
+- Simpler spell selection menu with warm colors and spell seals.
+- Reduced repeated terrain checks and temporary allocations in Atomic rendering.
 
 ### Fixed
 - Improved spell damage against modded bosses, including boss damage caps.
 - Added hit support for Desert Behemoths sandworm segments.
+- Atomic now clears lava as well as water inside its crater.
+- Prevented full-turn head blending during Atomic.
 - Atomic now retries rejected hits instead of permanently skipping the target.
 - Earth Drill now respects zero damage settings for its final slam.
 

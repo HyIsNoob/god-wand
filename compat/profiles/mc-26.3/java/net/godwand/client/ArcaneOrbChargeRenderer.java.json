@@ -1,0 +1,17 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "        Minecraft client = Minecraft.getInstance();\n        if (client == null || client.level == null) return;\n\n        Vec3 camPos = cameraObj.getPosition();\n\n        for (Player player : client.level.players()) {\n            if (!player.isUsingItem()) continue;\n",
+      "after": "        Minecraft client = Minecraft.getInstance();\n        if (client == null || client.level == null) return;\n\n        Vec3 camPos = cameraObj.position();\n\n        for (Player player : client.level.players()) {\n            if (!player.isUsingItem()) continue;\n"
+    },
+    {
+      "before": "                    double speed = 0.10 + chargeRatio * 0.18;\n\n                    client.level.addParticle(\n                            new DustParticleOptions(new Vector3f(0.0f, 0.94f, 1.0f), 0.70f),\n                            px, py, pz,\n                            dir.x * speed, dir.y * speed, dir.z * speed\n                    );\n",
+      "after": "                    double speed = 0.10 + chargeRatio * 0.18;\n\n                    client.level.addParticle(\n                            new DustParticleOptions(0x00F0FF, 0.70f),\n                            px, py, pz,\n                            dir.x * speed, dir.y * speed, dir.z * speed\n                    );\n"
+    },
+    {
+      "before": "            matrices.pushPose();\n            matrices.translate(renderPos.x, renderPos.y, renderPos.z);\n\n            matrices.mulPose(cameraObj.rotation());\n\n            // Kích thước nhỏ gọn tinh tế (0.11m -> 0.25m) vừa vặn như viên đạn năng lượng\n            float pulse = (float) Math.sin(animTime * 0.18f) * (0.004f + chargeRatio * 0.006f);\n",
+      "after": "            matrices.pushPose();\n            matrices.translate(renderPos.x, renderPos.y, renderPos.z);\n\n            matrices.rotate(cameraObj.rotation());\n\n            // Kích thước nhỏ gọn tinh tế (0.11m -> 0.25m) vừa vặn như viên đạn năng lượng\n            float pulse = (float) Math.sin(animTime * 0.18f) * (0.004f + chargeRatio * 0.006f);\n"
+    }
+  ]
+}

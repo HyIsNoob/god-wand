@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "\n@Mixin(Gui.class)\npublic abstract class AtomicGuiMixin {\n    @Inject(method={\"renderCrosshair\",\"renderHotbarAndDecorations\",\"renderChat\",\"renderScoreboardSidebar\",\"renderTabList\",\"renderEffects\",\"renderOverlayMessage\",\"renderTitle\"},at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicHideCrosshair(CallbackInfo ci) { if(AtomicCinematic.active())ci.cancel(); }\n}\n",
+      "after": "\n@Mixin(Gui.class)\npublic abstract class AtomicGuiMixin {\n    @Inject(method={\"renderCrosshair\",\"renderHotbar\",\"displayScoreboardSidebar\",\"renderEffects\"},at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicHideCrosshair(CallbackInfo ci) { if(AtomicCinematic.active())ci.cancel(); }\n}\n"
+    }
+  ]
+}

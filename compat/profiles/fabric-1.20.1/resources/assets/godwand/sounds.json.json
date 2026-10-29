@@ -1,0 +1,13 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "{\n  \"atomic_charge\": {\n    \"subtitle\": \"subtitles.godwand.atomic_charge\",\n    \"sounds\": [{\"name\":\"godwand:atomic_charge\",\"stream\":true}]\n  },\n  \"atomic_blast\": {\n    \"subtitle\": \"subtitles.godwand.atomic_blast\",\n    \"sounds\": [{\"name\":\"godwand:atomic_blast\",\"stream\":true}]\n  },\n  \"supernova_sequence\": {\n    \"sounds\": [\n      {\n",
+      "after": "{\n  \"supernova_sequence\": {\n    \"sounds\": [\n      {\n"
+    },
+    {
+      "before": "        \"stream\": true\n      }\n    ]\n  }\n}\n",
+      "after": "        \"stream\": true\n      }\n    ]\n  },\n  \"atomic_charge\": {\n    \"subtitle\": \"subtitles.godwand.atomic_charge\",\n    \"sounds\": [\n      {\n        \"name\": \"godwand:atomic_charge\",\n        \"stream\": true\n      }\n    ]\n  },\n  \"atomic_blast\": {\n    \"subtitle\": \"subtitles.godwand.atomic_blast\",\n    \"sounds\": [\n      {\n        \"name\": \"godwand:atomic_blast\",\n        \"stream\": true\n      }\n    ]\n  }\n}\n"
+    }
+  ]
+}

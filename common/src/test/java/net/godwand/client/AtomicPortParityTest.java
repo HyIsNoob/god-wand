@@ -20,7 +20,7 @@ class AtomicPortParityTest {
         Path root=Path.of("..").toAbsolutePath().normalize();
         Path common=root.resolve("common/src/main/java/net/godwand");
         for(String loader:new String[]{"fabric-1.20.1","forge-1.20.1"}) {
-            Path port=root.resolve(loader+"/src/main/java/net/godwand");
+            Path port=root.resolve("build/shared/"+loader+"/src/main/java/net/godwand");
             for(String file:new String[]{"skill/AtomicSequence.java","mixin/AtomicPoseMixin.java"})
                 assertEquals(normalized(Files.readString(common.resolve(file))),normalized(Files.readString(port.resolve(file))),loader+": "+file);
             assertEquals(normalized(method(Files.readString(common.resolve("config/GodWandConfig.java")),"read")),
@@ -44,7 +44,7 @@ class AtomicPortParityTest {
                 assertEquals(normalized(method(held,name)),normalized(method(portHeld,name)),loader+": "+name);
             for(String file:new String[]{"shaders/program/godwand_atomic.fsh","shaders/program/godwand_atomic.json","shaders/post/godwand_atomic.json"})
                 assertEquals(Files.readString(root.resolve("common/src/main/resources/assets/minecraft/"+file)),
-                        Files.readString(root.resolve(loader+"/src/main/resources/assets/minecraft/"+file)),loader+": "+file);
+                        Files.readString(root.resolve("build/shared/"+loader+"/src/main/resources/assets/minecraft/"+file)),loader+": "+file);
         }
     }
 }

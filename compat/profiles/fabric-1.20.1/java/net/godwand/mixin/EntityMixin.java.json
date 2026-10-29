@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "\n@Mixin(Entity.class)\npublic abstract class EntityMixin {\n\n    @Inject(method=\"isInvulnerableTo\",at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicProtection(net.minecraft.world.damagesource.DamageSource source,CallbackInfoReturnable<Boolean> cir) {\n        if((Object)this instanceof net.minecraft.server.level.ServerPlayer player && net.godwand.skill.AtomicManager.invulnerable(player))\n            cir.setReturnValue(true);\n    }\n\n    /**\n",
+      "after": "\n@Mixin(Entity.class)\npublic abstract class EntityMixin {\n    @Inject(method=\"isInvulnerableTo\",at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicProtection(net.minecraft.world.damagesource.DamageSource source,CallbackInfoReturnable<Boolean> cir) {\n        if((Object)this instanceof net.minecraft.server.level.ServerPlayer player && net.godwand.skill.AtomicManager.invulnerable(player)) cir.setReturnValue(true);\n    }\n\n    /**\n"
+    }
+  ]
+}

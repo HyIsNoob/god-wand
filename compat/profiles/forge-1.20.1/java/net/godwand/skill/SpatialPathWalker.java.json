@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "            arrow.setPos(hit.add(normal.scale(0.05)));\n            arrow.setDeltaMovement(SpatialMath.deflectAuraArrow(velocity, normal));\n            if (arrow instanceof net.minecraft.world.entity.projectile.AbstractHurtingProjectile explosive) {\n                explosive.accelerationPower *= 0.35;\n            }\n            arrow.hurtMarked = true;\n            sendAuraHit(player, normal);\n",
+      "after": "            arrow.setPos(hit.add(normal.scale(0.05)));\n            arrow.setDeltaMovement(SpatialMath.deflectAuraArrow(velocity, normal));\n            if (arrow instanceof net.minecraft.world.entity.projectile.AbstractHurtingProjectile explosive) {\n                explosive.xPower *= 0.35; explosive.yPower *= 0.35; explosive.zPower *= 0.35;\n            }\n            arrow.hurtMarked = true;\n            sendAuraHit(player, normal);\n"
+    }
+  ]
+}

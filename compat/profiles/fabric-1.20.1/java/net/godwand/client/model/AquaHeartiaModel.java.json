@@ -1,0 +1,25 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "    }\n\n    @Override\n    public void renderToBuffer(PoseStack matrices, VertexConsumer vertexConsumer, int light, int overlay, int color) {\n        renderQuads(matrices, vertexConsumer, CHASSIS_QUADS, light, overlay, 0xFF262328);\n        renderQuads(matrices, vertexConsumer, SILVER_QUADS, light, overlay, 0xFFDCEDF8);\n        renderQuads(matrices, vertexConsumer, VENT_QUADS, LightTexture.FULL_BRIGHT, overlay, 0xFF00E5FF);\n",
+      "after": "    }\n\n    @Override\n    public void renderToBuffer(PoseStack matrices, VertexConsumer vertexConsumer, int light, int overlay,\n                               float red, float green, float blue, float alpha) {\n        renderQuads(matrices, vertexConsumer, CHASSIS_QUADS, light, overlay, 0xFF262328);\n        renderQuads(matrices, vertexConsumer, SILVER_QUADS, light, overlay, 0xFFDCEDF8);\n        renderQuads(matrices, vertexConsumer, VENT_QUADS, LightTexture.FULL_BRIGHT, overlay, 0xFF00E5FF);\n"
+    },
+    {
+      "before": "                             int light, int overlay, int color) {\n        PoseStack.Pose entry = matrices.last();\n        var pose = entry.pose();\n\n        float v1x = p1.x() - p0.x(), v1y = p1.y() - p0.y(), v1z = p1.z() - p0.z();\n        float v2x = p2.x() - p0.x(), v2y = p2.y() - p0.y(), v2z = p2.z() - p0.z();\n",
+      "after": "                             int light, int overlay, int color) {\n        PoseStack.Pose entry = matrices.last();\n        var pose = entry.pose();\n        var normal = entry.normal();\n\n        float v1x = p1.x() - p0.x(), v1y = p1.y() - p0.y(), v1z = p1.z() - p0.z();\n        float v2x = p2.x() - p0.x(), v2y = p2.y() - p0.y(), v2z = p2.z() - p0.z();\n"
+    },
+    {
+      "before": "        int g = (color >> 8) & 0xFF;\n        int b = color & 0xFF;\n\n        vertices.addVertex(pose, p0.x(), p0.y(), p0.z()).setColor(r, g, b, a).setUv(u0, v0)\n                .setOverlay(overlay).setLight(light).setNormal(entry, nx, ny, nz);\n        vertices.addVertex(pose, p1.x(), p1.y(), p1.z()).setColor(r, g, b, a).setUv(u0, v1)\n                .setOverlay(overlay).setLight(light).setNormal(entry, nx, ny, nz);\n        vertices.addVertex(pose, p2.x(), p2.y(), p2.z()).setColor(r, g, b, a).setUv(u1, v1)\n                .setOverlay(overlay).setLight(light).setNormal(entry, nx, ny, nz);\n        vertices.addVertex(pose, p3.x(), p3.y(), p3.z()).setColor(r, g, b, a).setUv(u1, v0)\n                .setOverlay(overlay).setLight(light).setNormal(entry, nx, ny, nz);\n    }\n\n    private static void enlargeHead(List<Vector3f[]> quads) {\n",
+      "after": "        int g = (color >> 8) & 0xFF;\n        int b = color & 0xFF;\n\n        vertices.vertex(pose, p0.x(), p0.y(), p0.z()).color(r, g, b, a).uv(u0, v0)\n                .overlayCoords(overlay).uv2(light).normal(normal, nx, ny, nz).endVertex();\n        vertices.vertex(pose, p1.x(), p1.y(), p1.z()).color(r, g, b, a).uv(u0, v1)\n                .overlayCoords(overlay).uv2(light).normal(normal, nx, ny, nz).endVertex();\n        vertices.vertex(pose, p2.x(), p2.y(), p2.z()).color(r, g, b, a).uv(u1, v1)\n                .overlayCoords(overlay).uv2(light).normal(normal, nx, ny, nz).endVertex();\n        vertices.vertex(pose, p3.x(), p3.y(), p3.z()).color(r, g, b, a).uv(u1, v0)\n                .overlayCoords(overlay).uv2(light).normal(normal, nx, ny, nz).endVertex();\n    }\n\n    private static void enlargeHead(List<Vector3f[]> quads) {\n"
+    },
+    {
+      "before": "        // Back faces\n        list.add(new Vector3f[]{b0, b1, b3, b4});\n        list.add(new Vector3f[]{b1, b2, b3, b1});\n        // Outer faces\n        Vector3f[] fp = {f0, f1, f2, f3, f4};\n        Vector3f[] bp = {b0, b1, b2, b3, b4};\n        for (int i = 0; i < 5; i++) {\n",
+      "after": "        // Back faces\n        list.add(new Vector3f[]{b0, b1, b3, b4});\n        list.add(new Vector3f[]{b1, b2, b3, b1});\n        // Perimeter faces\n        Vector3f[] fp = {f0, f1, f2, f3, f4};\n        Vector3f[] bp = {b0, b1, b2, b3, b4};\n        for (int i = 0; i < 5; i++) {\n"
+    },
+    {
+      "before": "            new Vector3f(px - nx * wn - bx * hb, py - ny * wn - by * hb, pz - nz * wn - bz * hb),\n            new Vector3f(px + nx * wn - bx * hb, py + ny * wn - by * hb, pz + nz * wn - bz * hb),\n            new Vector3f(px + nx * wn + bx * hb, py + ny * wn + by * hb, pz + nz * wn + bz * hb),\n            new Vector3f(px - nx * wn + bx * hb, py - ny * wn + by * hb, pz - nz * wn + bz * hb)\n        };\n    }\n\n",
+      "after": "            new Vector3f(px - nx * wn - bx * hb, py - ny * wn - by * hb, pz - nz * wn - bz * hb),\n            new Vector3f(px + nx * wn - bx * hb, py + ny * wn - by * hb, pz + nz * wn - bz * hb),\n            new Vector3f(px + nx * wn + bx * hb, py + ny * wn + by * hb, pz + nz * wn + bz * hb),\n            new Vector3f(px - nx * wn + bx * hb, py - ny * wn - by * hb, pz - nz * wn - bz * hb)\n        };\n    }\n\n"
+    }
+  ]
+}

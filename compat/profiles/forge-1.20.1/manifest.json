@@ -1,0 +1,10 @@
+{
+  "module": "forge-1.20.1",
+  "exclude": [
+    "resources/godwand.accesswidener"
+  ],
+  "rename": {
+    "resources/data/godwand/advancement/recipes/combat/god_wand.json": "resources/data/godwand/advancements/recipes/combat/god_wand.json",
+    "resources/data/godwand/recipe/god_wand.json": "resources/data/godwand/recipes/god_wand.json"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "package net.godwand.network;\n\nimport net.minecraft.network.RegistryFriendlyByteBuf;\nimport net.minecraft.network.codec.StreamCodec;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.resources.ResourceLocation;\n\npublic record AtomicSkipPayload(long startedAt) implements CustomPacketPayload {\n    public static final Type<AtomicSkipPayload> ID=new Type<>(ResourceLocation.fromNamespaceAndPath(\"godwand\",\"atomic_skip\"));\n    public static final StreamCodec<RegistryFriendlyByteBuf,AtomicSkipPayload> CODEC=new StreamCodec<>() {\n        public AtomicSkipPayload decode(RegistryFriendlyByteBuf buf) { return new AtomicSkipPayload(buf.readLong()); }\n        public void encode(RegistryFriendlyByteBuf buf,AtomicSkipPayload value) { buf.writeLong(value.startedAt()); }\n    };\n    public Type<? extends CustomPacketPayload> type() { return ID; }\n}\n",
+      "after": "package net.godwand.network;\n\nimport net.minecraft.network.FriendlyByteBuf;\nimport net.minecraft.resources.ResourceLocation;\n\npublic record AtomicSkipPayload(long startedAt) implements GodWandPacket {\n    public static final ResourceLocation ID=new ResourceLocation(\"godwand\",\"atomic_skip\");\n    public ResourceLocation getId() { return ID; }\n    public void write(FriendlyByteBuf buf) { buf.writeLong(startedAt); }\n    public static AtomicSkipPayload read(FriendlyByteBuf buf) { return new AtomicSkipPayload(buf.readLong()); }\n}\n"
+    }
+  ]
+}

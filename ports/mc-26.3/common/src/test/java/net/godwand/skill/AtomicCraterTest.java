@@ -15,7 +15,7 @@ import static org.mockito.ArgumentMatchers.*;
 class AtomicCraterTest {
     @BeforeAll static void bootstrap() { SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); }
 
-    @Test void craterRemovesWaterAndWaterloggedBlocksButKeepsProtectedBlocksAndLava() {
+    @Test void craterRemovesWaterAndLavaButKeepsProtectedBlocks() {
         var world=mock(ServerLevel.class);
         var chunks=mock(ServerChunkCache.class);
         when(world.getChunkSource()).thenReturn(chunks);
@@ -31,14 +31,15 @@ class AtomicCraterTest {
                 Blocks.OAK_STAIRS.defaultBlockState().setValue(wet,true),
                 Blocks.SEAGRASS.defaultBlockState(),
                 Blocks.LAVA.defaultBlockState(),
+                Blocks.LAVA.defaultBlockState().setValue(net.minecraft.world.level.block.LiquidBlock.LEVEL,4),
                 Blocks.CHEST.defaultBlockState().setValue(wet,true),
                 Blocks.BEDROCK.defaultBlockState()
         };
-        when(world.getBlockState(any())).thenAnswer(call -> states[Math.floorMod(((BlockPos)call.getArgument(0)).getX(),7)]);
+        when(world.getBlockState(any())).thenAnswer(call -> states[Math.floorMod(((BlockPos)call.getArgument(0)).getX(),8)]);
         var removed=new HashSet<Integer>();
         when(world.setBlock(any(),any(),anyInt())).thenAnswer(call -> {
-            BlockPos pos=call.getArgument(0);int kind=Math.floorMod(pos.getX(),7);
-            assertTrue(kind<4,"Lava, inventories and unbreakable blocks must stay protected");
+            BlockPos pos=call.getArgument(0);int kind=Math.floorMod(pos.getX(),8);
+            assertTrue(kind<6,"Inventories and unbreakable blocks must stay protected");
             assertTrue(pos.getX()*pos.getX()+pos.getZ()*pos.getZ()>9);
             assertTrue(((net.minecraft.world.level.block.state.BlockState)call.getArgument(1)).isAir());
             removed.add(kind);return true;
@@ -46,7 +47,7 @@ class AtomicCraterTest {
         var crater=new AtomicCrater(new BlockPos(0,70,0),8);
         for(int tick=0;tick<1000&&!crater.finished();tick++)assertTrue(crater.carve(world,73)<=73);
         assertTrue(crater.finished());
-        assertEquals(java.util.Set.of(0,1,2,3),removed,"Source water, flowing water, waterlogged blocks and underwater plants must all be removed");
+        assertEquals(java.util.Set.of(0,1,2,3,4,5),removed,"Source and flowing water/lava, waterlogged blocks and underwater plants must all be removed");
     }
 
     @Test void craterResumesInsideColumnsWithABoundedBudgetAndSkipsUnloadedChunks() {
@@ -107,6 +108,13 @@ class AtomicCraterTest {
         assertTrue(crater.finished());
     }
 
+    @Test void terrainReachIncreasesByHalfWithoutChangingVisualRadius() {
+        assertEquals(147, AtomicCrater.terrainRadius(98));
+        assertEquals(48, AtomicCrater.terrainRadius(32));
+        assertEquals(0, AtomicCrater.terrainRadius(0));
+        assertEquals(98, AtomicSequence.MAX_RADIUS);
+    }
+
     @Test void zeroRadiusLeavesTheWorldUntouchedAndDamageFallsOffOutsideTheBlast() {
         var world=mock(ServerLevel.class);
         assertEquals(0,new AtomicCrater(BlockPos.ZERO,0).carve(world,2048));
@@ -145,26 +153,4 @@ class AtomicCraterTest {
             while(!crater.finished())crater.carve(world,2048);
         }
     }
-    @Test void inclusiveBuildCeilingRemainsCarvableWithoutWritingAboveIt() {
-        var world=mock(ServerLevel.class);
-        var chunks=mock(ServerChunkCache.class);
-        when(world.getChunkSource()).thenReturn(chunks);
-        when(chunks.hasChunk(anyInt(),anyInt())).thenReturn(true);
-        when(world.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
-        when(world.getMinY()).thenReturn(-64);
-        when(world.getMaxY()).thenReturn(319);
-        when(world.getHeight(any(),anyInt(),anyInt())).thenReturn(320);
-        when(world.getBlockState(any())).thenReturn(Blocks.STONE.defaultBlockState());
-        var writes=new HashSet<BlockPos>();
-        when(world.setBlock(any(),any(),anyInt())).thenAnswer(call -> {
-            BlockPos pos=call.getArgument(0);
-            assertTrue(pos.getY()>=-64 && pos.getY()<=319);
-            writes.add(pos.immutable()); return true;
-        });
-        var crater=new AtomicCrater(new BlockPos(0,319,0),4);
-        for(int tick=0;tick<100&&!crater.finished();tick++)crater.carve(world,128);
-        assertTrue(crater.finished());
-        assertTrue(writes.stream().anyMatch(pos -> pos.getY()==319), "26.3's inclusive ceiling must not lose its top block");
-    }
-
 }

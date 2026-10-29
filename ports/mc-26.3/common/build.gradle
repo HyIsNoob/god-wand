@@ -1,6 +1,10 @@
 plugins {
     id 'net.fabricmc.fabric-loom'
 }
+ext.sharedRepoRoot = file('../../..')
+ext.sharedProfile = 'mc-26.3'
+apply from: new File(sharedRepoRoot, 'gradle/shared-sources.gradle')
+
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
@@ -17,7 +21,7 @@ dependencies {
 }
 
 loom {
-    accessWidenerPath = file("src/main/resources/godwand.accesswidener")
+    accessWidenerPath = new File(sharedSourcesDir, 'resources/godwand.accesswidener')
 }
 
 test {

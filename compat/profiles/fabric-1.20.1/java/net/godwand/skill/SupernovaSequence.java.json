@@ -1,0 +1,21 @@
+{
+  "reason": "Version/loader API adapter for fabric-1.20.1",
+  "changes": [
+    {
+      "before": "package net.godwand.skill;\n\n/** Shared choreography for server debris, client ribbons, camera and sound. */\npublic final class SupernovaSequence {\n",
+      "after": "package net.godwand.skill;\n\nimport net.minecraft.util.Mth;\n\n/** Shared choreography for server debris, client ribbons, camera and sound. */\npublic final class SupernovaSequence {\n"
+    },
+    {
+      "before": "    public static final int IMPACT = 340;\n\n    public static float phase(double age, double start, double end) {\n        float t = (float)Math.clamp((age - start) / (end - start), 0, 1);\n        return t * t * (3 - 2 * t);\n    }\n    public static float chargeRiftScale(double ticks) { return phase(ticks, 0, CHARGE_TICKS); }\n",
+      "after": "    public static final int IMPACT = 340;\n\n    public static float phase(double age, double start, double end) {\n        float t = (float)Mth.clamp((age - start) / (end - start), 0, 1);\n        return t * t * (3 - 2 * t);\n    }\n    public static float chargeRiftScale(double ticks) { return phase(ticks, 0, CHARGE_TICKS); }\n"
+    },
+    {
+      "before": "                : .65f * phase(age, SKY_CLOSE_START, SKY_CLOSE_START + 6) * (1 - phase(age, SKY_CLOSE_END - 6, SKY_CLOSE_END));\n    }\n    public static float swallow(double age, double seed) {\n        return phase(age, PEEL_END + Math.clamp(seed, 0, 1) * 14, SWALLOW_END);\n    }\n    public static float pressure(double age) {\n        return phase(age, 12, 220) * (0.35f + 0.65f * phase(age, 175, 320));\n",
+      "after": "                : .65f * phase(age, SKY_CLOSE_START, SKY_CLOSE_START + 6) * (1 - phase(age, SKY_CLOSE_END - 6, SKY_CLOSE_END));\n    }\n    public static float swallow(double age, double seed) {\n        return phase(age, PEEL_END + Mth.clamp(seed, 0, 1) * 14, SWALLOW_END);\n    }\n    public static float pressure(double age) {\n        return phase(age, 12, 220) * (0.35f + 0.65f * phase(age, 175, 320));\n"
+    },
+    {
+      "before": "        return phase(age, 0, 25) * (1 - phase(age, 322, CUT_START));\n    }\n    public static float coreRadius(double age) {\n        float grow = (float)Math.pow(Math.clamp(age / IMPACT, 0, (double)CUT_START / IMPACT), 0.95);\n        return (0.15f + grow * 8.35f) * (1 - phase(age, CUT_START, CUT_END));\n    }\n    public static float cameraFov(double age) {\n",
+      "after": "        return phase(age, 0, 25) * (1 - phase(age, 322, CUT_START));\n    }\n    public static float coreRadius(double age) {\n        float grow = (float)Math.pow(Mth.clamp(age / IMPACT, 0, (double)CUT_START / IMPACT), 0.95);\n        return (0.15f + grow * 8.35f) * (1 - phase(age, CUT_START, CUT_END));\n    }\n    public static float cameraFov(double age) {\n"
+    }
+  ]
+}

@@ -12,6 +12,43 @@ import org.joml.Matrix4f;
 
 public final class ArcaneOrbModel {
 
+    public static float chargeGlowAlpha(float radius) {
+        float edge = Math.max(0, 1 - radius * radius);
+        return edge * edge;
+    }
+
+    /** Camera-facing radial glow keeps the small charge orb round at every viewing angle. */
+    public static void renderCharge(Matrix4f matrix, float scale, float time, float charge) {
+        RenderSystem.enableBlend();
+        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+        RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
+        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        try {
+            BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+            for (int band = 0; band < 10; band++) {
+                for (int segment = 0; segment < 64; segment++) {
+                    for (int corner = 0; corner < 4; corner++) {
+                        float radius = (band + (corner == 1 || corner == 2 ? 1 : 0)) / 10f;
+                        float angle = (segment + (corner >= 2 ? 1 : 0)) * (float)(Math.PI * 2 / 64);
+                        float core = (float)Math.exp(-radius * radius * 14);
+                        buffer.addVertex(matrix, (float)Math.cos(angle) * radius * scale * 1.65f,
+                                (float)Math.sin(angle) * radius * scale * 1.65f, 0)
+                                .setColor((int)(190 * core), (int)(175 + 80 * core), 255,
+                                        (int)(chargeGlowAlpha(radius) * (190 + 65 * charge)));
+                    }
+                }
+            }
+            BufferUploader.drawWithShader(buffer.buildOrThrow());
+            renderEnergyRing(matrix, scale * 1.05f, scale * .025f, 72, 12,
+                    time * 3, 40, 230, 255, (int)(95 + 65 * charge));
+            renderEnergyRing(matrix, scale * 1.28f, scale * .016f, 48, -30,
+                    -time * 2, 110, 170, 255, (int)(65 + 45 * charge));
+        } finally {
+            RenderSystem.depthMask(true); RenderSystem.enableCull();
+            RenderSystem.defaultBlendFunc(); RenderSystem.disableBlend();
+        }
+    }
+
     public static void render(Matrix4f matrix, float scale, float time, float charge) {
         RenderSystem.enableBlend();
         RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);

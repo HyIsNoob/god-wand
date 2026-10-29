@@ -1,0 +1,13 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "@Mixin(Entity.class)\npublic abstract class EntityMixin {\n\n    @Inject(method=\"isInvulnerableTo\",at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicProtection(net.minecraft.world.damagesource.DamageSource source,CallbackInfoReturnable<Boolean> cir) {\n        if((Object)this instanceof net.minecraft.server.level.ServerPlayer player && net.godwand.skill.AtomicManager.invulnerable(player))\n            cir.setReturnValue(true);\n    }\n\n    /**\n     * Vô hiệu hóa hiệu ứng phát sáng outline cho toàn bộ khối BlockDisplay\n     */\n",
+      "after": "@Mixin(Entity.class)\npublic abstract class EntityMixin {\n\n    /**\n     * Vô hiệu hóa hiệu ứng phát sáng outline cho toàn bộ khối BlockDisplay\n     */\n"
+    },
+    {
+      "before": "        }\n    }\n\n    @Inject(method = \"hasGlowingTag\", at = @At(\"HEAD\"), cancellable = true)\n    private void godwand$preventDisplacedHasGlowingTag(CallbackInfoReturnable<Boolean> cir) {\n        Entity self = (Entity) (Object) this;\n",
+      "after": "        }\n    }\n\n    @Inject(method=\"isInvulnerableTo\",at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicProtected(net.minecraft.world.damagesource.DamageSource source,CallbackInfoReturnable<Boolean> cir) {\n        if((Object)this instanceof net.minecraft.server.level.ServerPlayer player && net.godwand.skill.AtomicManager.invulnerable(player))cir.setReturnValue(true);\n    }\n\n    @Inject(method = \"hasGlowingTag\", at = @At(\"HEAD\"), cancellable = true)\n    private void godwand$preventDisplacedHasGlowingTag(CallbackInfoReturnable<Boolean> cir) {\n        Entity self = (Entity) (Object) this;\n"
+    }
+  ]
+}

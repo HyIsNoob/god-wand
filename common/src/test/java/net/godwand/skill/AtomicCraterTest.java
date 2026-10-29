@@ -15,7 +15,7 @@ import static org.mockito.ArgumentMatchers.*;
 class AtomicCraterTest {
     @BeforeAll static void bootstrap() { SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); }
 
-    @Test void craterRemovesWaterAndWaterloggedBlocksButKeepsProtectedBlocksAndLava() {
+    @Test void craterRemovesWaterAndLavaButKeepsProtectedBlocks() {
         var world=mock(ServerLevel.class);
         var chunks=mock(ServerChunkCache.class);
         when(world.getChunkSource()).thenReturn(chunks);
@@ -31,14 +31,15 @@ class AtomicCraterTest {
                 Blocks.OAK_STAIRS.defaultBlockState().setValue(wet,true),
                 Blocks.SEAGRASS.defaultBlockState(),
                 Blocks.LAVA.defaultBlockState(),
+                Blocks.LAVA.defaultBlockState().setValue(net.minecraft.world.level.block.LiquidBlock.LEVEL,4),
                 Blocks.CHEST.defaultBlockState().setValue(wet,true),
                 Blocks.BEDROCK.defaultBlockState()
         };
-        when(world.getBlockState(any())).thenAnswer(call -> states[Math.floorMod(((BlockPos)call.getArgument(0)).getX(),7)]);
+        when(world.getBlockState(any())).thenAnswer(call -> states[Math.floorMod(((BlockPos)call.getArgument(0)).getX(),8)]);
         var removed=new HashSet<Integer>();
         when(world.setBlock(any(),any(),anyInt())).thenAnswer(call -> {
-            BlockPos pos=call.getArgument(0);int kind=Math.floorMod(pos.getX(),7);
-            assertTrue(kind<4,"Lava, inventories and unbreakable blocks must stay protected");
+            BlockPos pos=call.getArgument(0);int kind=Math.floorMod(pos.getX(),8);
+            assertTrue(kind<6,"Inventories and unbreakable blocks must stay protected");
             assertTrue(pos.getX()*pos.getX()+pos.getZ()*pos.getZ()>9);
             assertTrue(((net.minecraft.world.level.block.state.BlockState)call.getArgument(1)).isAir());
             removed.add(kind);return true;
@@ -46,7 +47,7 @@ class AtomicCraterTest {
         var crater=new AtomicCrater(new BlockPos(0,70,0),8);
         for(int tick=0;tick<1000&&!crater.finished();tick++)assertTrue(crater.carve(world,73)<=73);
         assertTrue(crater.finished());
-        assertEquals(java.util.Set.of(0,1,2,3),removed,"Source water, flowing water, waterlogged blocks and underwater plants must all be removed");
+        assertEquals(java.util.Set.of(0,1,2,3,4,5),removed,"Source and flowing water/lava, waterlogged blocks and underwater plants must all be removed");
     }
 
     @Test void craterResumesInsideColumnsWithABoundedBudgetAndSkipsUnloadedChunks() {
@@ -105,6 +106,13 @@ class AtomicCraterTest {
         front[0]=16;
         for(int tick=0;tick<2000&&!crater.finished();tick++)assertTrue(crater.carve(world,97,front[0])<=97);
         assertTrue(crater.finished());
+    }
+
+    @Test void terrainReachIncreasesByHalfWithoutChangingVisualRadius() {
+        assertEquals(147, AtomicCrater.terrainRadius(98));
+        assertEquals(48, AtomicCrater.terrainRadius(32));
+        assertEquals(0, AtomicCrater.terrainRadius(0));
+        assertEquals(98, AtomicSequence.MAX_RADIUS);
     }
 
     @Test void zeroRadiusLeavesTheWorldUntouchedAndDamageFallsOffOutsideTheBlast() {

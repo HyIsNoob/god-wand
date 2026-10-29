@@ -52,7 +52,7 @@ public abstract class AtomicPoseMixin {
         var look=AtomicSequence.headLook(age,entity.getId()+(frame==null?0:frame.startedAt()*.01));
         float glance=AtomicSequence.phase(age,0,14)*weight;
         head.xRot=net.minecraft.util.Mth.lerp(glance,head.xRot,(float)look.x)*(1-facing);
-        head.yRot=net.minecraft.util.Mth.lerp(glance,head.yRot,(float)look.y)*(1-facing);
+        head.yRot=AtomicSequence.blendHeadYaw(head.yRot,(float)look.y,glance)*(1-facing);
         head.zRot=net.minecraft.util.Mth.lerp(glance,head.zRot,(float)look.z)*(1-facing);
         hat.copyFrom(head);
 

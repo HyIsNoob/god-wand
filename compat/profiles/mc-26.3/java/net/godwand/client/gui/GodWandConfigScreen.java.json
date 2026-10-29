@@ -1,0 +1,21 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "\nimport net.godwand.config.GodWandConfig;\nimport net.godwand.config.WandSkin;\nimport net.minecraft.client.gui.GuiGraphics;\nimport net.minecraft.client.gui.components.AbstractSliderButton;\nimport net.minecraft.client.gui.components.Button;\nimport net.minecraft.client.gui.components.CycleButton;\n",
+      "after": "\nimport net.godwand.config.GodWandConfig;\nimport net.godwand.config.WandSkin;\nimport net.minecraft.client.gui.GuiGraphicsExtractor;\nimport net.minecraft.client.gui.components.AbstractSliderButton;\nimport net.minecraft.client.gui.components.Button;\nimport net.minecraft.client.gui.components.CycleButton;\n"
+    },
+    {
+      "before": "        int right = left + columnWidth + 10;\n        int gap = Math.max(2, Math.min(6, (this.height - 160) / 4));\n\n        addRenderableWidget(CycleButton.<WandSkin>builder(WandSkin::getDisplayName)\n                .withValues(WandSkin.values())\n                .withInitialValue(GodWandConfig.CLIENT.wandSkin)\n                .create(left, y, contentWidth, 20,\n                        Component.translatable(\"gui.godwand.config.wand_skin\"),\n                        (button, value) -> GodWandConfig.CLIENT.wandSkin = value));\n",
+      "after": "        int right = left + columnWidth + 10;\n        int gap = Math.max(2, Math.min(6, (this.height - 160) / 4));\n\n        addRenderableWidget(CycleButton.<WandSkin>builder(WandSkin::getDisplayName, GodWandConfig.CLIENT.wandSkin)\n                .withValues(WandSkin.values())\n                .create(left, y, contentWidth, 20,\n                        Component.translatable(\"gui.godwand.config.wand_skin\"),\n                        (button, value) -> GodWandConfig.CLIENT.wandSkin = value));\n"
+    },
+    {
+      "before": "    }\n\n    @Override\n    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {\n        renderBackground(context, mouseX, mouseY, delta);\n        super.render(context, mouseX, mouseY, delta);\n        context.drawCenteredString(this.font, this.title, this.width / 2, 18, 0xFFFFFF);\n    }\n\n    @Override\n",
+      "after": "    }\n\n    @Override\n    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {\n        extractBackground(context, mouseX, mouseY, delta);\n        super.extractRenderState(context, mouseX, mouseY, delta);\n        context.centeredText(this.font, this.title, this.width / 2, 18, 0xFFFFFF);\n    }\n\n    @Override\n"
+    },
+    {
+      "before": "        GodWandConfig.CLIENT.validate();\n        GodWandConfig.saveClient();\n        if (this.minecraft != null) {\n            this.minecraft.setScreen(this.parent);\n        }\n    }\n}\n",
+      "after": "        GodWandConfig.CLIENT.validate();\n        GodWandConfig.saveClient();\n        if (this.minecraft != null) {\n            this.minecraft.setScreenAndShow(this.parent);\n        }\n    }\n}\n"
+    }
+  ]
+}

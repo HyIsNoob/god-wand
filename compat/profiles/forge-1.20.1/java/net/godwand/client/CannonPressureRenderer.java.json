@@ -1,0 +1,17 @@
+{
+  "reason": "Version/loader API adapter for forge-1.20.1",
+  "changes": [
+    {
+      "before": "        var current = Minecraft.getInstance().level;\n        if (current != world) { reset(); world = current; }\n        if (world == null || payload.direction().lengthSqr() < 0.001) return;\n        if (BURSTS.size() >= 32) BURSTS.removeFirst();\n        BURSTS.add(new Burst(payload, world.getGameTime()));\n    }\n\n",
+      "after": "        var current = Minecraft.getInstance().level;\n        if (current != world) { reset(); world = current; }\n        if (world == null || payload.direction().lengthSqr() < 0.001) return;\n        if (BURSTS.size() >= 32) BURSTS.remove(0);\n        BURSTS.add(new Burst(payload, world.getGameTime()));\n    }\n\n"
+    },
+    {
+      "before": "                float age = (now - burst.tick + delta) / 8f;\n                float expansion = 0.15f + 0.85f * (1 - (1 - age) * (1 - age));\n                for (int band = 0; band < 3; band++) {\n                    var buffer = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);\n                    for (int step = 0; step <= 64; step++) {\n                        float angle = step * (float)Math.PI / 32;\n                        for (int edge = 0; edge < 2; edge++) {\n",
+      "after": "                float age = (now - burst.tick + delta) / 8f;\n                float expansion = 0.15f + 0.85f * (1 - (1 - age) * (1 - age));\n                for (int band = 0; band < 3; band++) {\n                    var buffer = RenderHelper.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);\n                    for (int step = 0; step <= 64; step++) {\n                        float angle = step * (float)Math.PI / 32;\n                        for (int edge = 0; edge < 2; edge++) {\n"
+    },
+    {
+      "before": "                            Vec3 local = conePoint(t, angle, expansion, p.level());\n                            Vec3 point = origin.add(side.scale(local.x)).add(up.scale(local.y)).add(forward.scale(local.z));\n                            int alpha = (int)(170 * (1 - age) * (1 - age) * (edge == 0 ? 1 : 0.15));\n                            buffer.addVertex(matrix, (float)point.x, (float)point.y, (float)point.z).setColor(220, 240, 255, alpha);\n                        }\n                    }\n                    BufferUploader.drawWithShader(buffer.buildOrThrow());\n                }\n            }\n        } finally {\n",
+      "after": "                            Vec3 local = conePoint(t, angle, expansion, p.level());\n                            Vec3 point = origin.add(side.scale(local.x)).add(up.scale(local.y)).add(forward.scale(local.z));\n                            int alpha = (int)(170 * (1 - age) * (1 - age) * (edge == 0 ? 1 : 0.15));\n                            RenderHelper.vertex(buffer, matrix, (float)point.x, (float)point.y, (float)point.z, 220, 240, 255, alpha);\n                        }\n                    }\n                    RenderHelper.draw(buffer);\n                }\n            }\n        } finally {\n"
+    }
+  ]
+}
