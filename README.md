@@ -4,8 +4,6 @@ One wand with six skills: walk through mountains, pull enemies into a gravity or
 
 [Full mod description](DESCRIPTION.md) · [Changelog](CHANGELOG.md)
 
-[Hướng dẫn nhanh bằng tiếng Việt](BAT_DAU_O_DAY.md)
-
 | Minecraft | Loader | Java | Installable file |
 | --- | --- | --- | --- |
 | 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.2.jar` |
@@ -57,13 +55,13 @@ Run from this repository root:
 
 On Linux/macOS use `./gradlew`. Outputs from `releaseJars` are in `build/release/`. Install Java 17, 21 and 25 toolchains for the complete matrix.
 
-See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [source of truth](docs/SOURCE_OF_TRUTH.md) for the consolidation history. The root aggregate also invokes the Java 25 build for Fabric/NeoForge 26.3.
+See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [shared-source ownership](docs/SHARED_SOURCES.md) for where to make changes. The root aggregate also invokes the Java 25 build for Fabric/NeoForge 26.3.
 
 ## Release status
 
 The 1.3.2 boss-damage, Atomic, Singularity and menu updates are synchronized across all six targets. 1.21.11 work remains paused. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
 
-1.3.2 is a preview following the released 1.3.x builds. All six targets listed above build from the shared source and pass automated checks; gameplay testing is pending. Minecraft 1.21.11 remains pending by owner request. Remaining audit findings are tracked in [the audit report](docs/AUDIT_2026-10-27.md).
+1.3.2 is a preview following the released 1.3.x builds. All six targets listed above build from the shared source and pass automated checks; gameplay testing is pending. Minecraft 1.21.11 remains pending by owner request.
 
 ## License
 

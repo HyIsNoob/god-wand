@@ -52,8 +52,8 @@ Merge those keys into your file; do not replace your other settings. Missing lis
 
 The wand deals **5 attack damage** at full attack charge before armor, enchantments and other modifiers. All three appearances have the same damage. The appearance menu stays cosmetic, so choosing a different look cannot change server combat rules.
 
-## Version status
+## Supported versions
 
-These settings are in the **1.3.2** preview for the four existing Minecraft 1.20.1/1.21.1 builds. The Fabric 26.3 test build includes the same settings. NeoForge 26.3 and Minecraft 1.21.11 are pending; see ports/README.md.
+These settings are shared by all six supported 1.3.2 builds: Fabric/NeoForge 1.21.1, Fabric/Forge 1.20.1, and Fabric/NeoForge 26.3. Minecraft 1.21.11 remains pending. See the root README for the release matrix and docs/SHARED_SOURCES.md for source ownership.
 
-Verification (2026-10-28): all four supported loader/version builds passed and 212 common tests passed. Checks cover config migration, missing/invalid tier arrays, global and tier scaling, zero damage/cooldown, minimum positive cooldown, the five-damage melee attribute and parity of damage/cooldown call sites in both 1.20.1 ports. Packaged versions and original SFX bytes were checked; released 1.3.1 checksums remain unchanged. No native gameplay or multiplayer testing was run.
+Automated checks cover config migration, missing/invalid tier arrays, global and tier scaling, zero damage/cooldown, minimum positive cooldown, the five-damage melee attribute and damage/cooldown call-site parity. Build checks do not replace in-game or multiplayer testing.

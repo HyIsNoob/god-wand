@@ -14,4 +14,21 @@ local.properties
 
 /Test/
 fuga-references/
-docs/
+
+# Maintained public guides are opt-in; plans, audits and working notes stay local.
+/docs/*
+!/docs/BALANCE_CONFIG.md
+!/docs/BOSS_COMPATIBILITY.md
+!/docs/DEDICATED_SERVER.md
+!/docs/DEVELOPMENT.md
+!/docs/SHARED_SOURCES.md
+!/docs/TERRAIN_ARCHITECTURE.md
+!/docs/TERRAIN_CONFIG.md
+!/docs/config-presets/
+/docs/config-presets/*
+!/docs/config-presets/*.json
+
+# Local agent instructions, quick-start notes and port progress reports.
+/AGENTS.md
+/BAT_DAU_O_DAY.md
+/ports/**/PORT_STATUS.md
