@@ -1,66 +1,57 @@
 package net.godwand.client;
 
-import org.joml.Matrix4f;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
-import java.awt.Color;
-import java.awt.RenderingHints;
-import java.awt.geom.Path2D;
-import java.awt.image.BufferedImage;
 import java.nio.file.*;
+import java.util.*;
 import javax.imageio.ImageIO;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class SkillWheelVisualTest {
-    @Test void sixColoredSealsLeaveTheWorldVisibleAndKeepAllStatesBounded() throws Exception {
-        var colors=new java.util.HashSet<Integer>();
-        for(int mode=0;mode<6;mode++) {
-            colors.add(SkillWheelScreen.skillColor(mode));
-            for(int hovered:new int[]{-1,mode,(mode+1)%6}) {
-                var mesh=new AtomicVisualTest.Mesh();
-                SkillWheelScreen.emitWheel(mesh,new Matrix4f(),mode,hovered,.5f);
-                assertEquals(0,mesh.vertices.size()%4);
-                assertTrue(mesh.vertices.size()<24000);
-                for(var p:mesh.vertices) {
-                    assertTrue(Float.isFinite(p[0])&&Float.isFinite(p[1]));
-                    assertTrue(Math.abs(p[0])<=115&&Math.abs(p[1])<=115);
-                }
-                // This space was covered by the old opaque wheel plate.
-                for(int i=0;i<mesh.vertices.size();i+=4) {
-                    var polygon=new Path2D.Float();
-                    for(int j=0;j<4;j++) {
-                        var p=mesh.vertices.get(i+j);
-                        if(j==0)polygon.moveTo(p[0],p[1]);else polygon.lineTo(p[0],p[1]);
-                    }
-                    polygon.closePath();assertFalse(polygon.contains(45,0));
-                }
+    @Test void spritesAreSmallPixelArtWithSixDistinctSkillsAndThreeStates() throws Exception {
+        try(var stream=getClass().getResourceAsStream("/assets/godwand/textures/gui/skill_wheel.png")) {
+            assertNotNull(stream);
+            var image=ImageIO.read(stream);
+            assertEquals(240,image.getWidth());assertEquals(120,image.getHeight());
+            Set<Integer> skills=new HashSet<>();
+            for(int mode=0;mode<6;mode++) {
+                skills.add(image.getRGB(mode*40+4,4));
+                assertEquals(0,image.getRGB(mode*40,0)>>>24,"Cut corners stay transparent");
+                assertNotEquals(image.getRGB(mode*40+2,10),image.getRGB(mode*40+2,50));
+                assertNotEquals(image.getRGB(mode*40+2,50),image.getRGB(mode*40+2,90));
+                int opaque=0;
+                for(int y=8;y<32;y++)for(int x=8;x<32;x++)if((image.getRGB(mode*40+x,y)>>>24)==255)opaque++;
+                assertEquals(24*24,opaque,"Icon backing must remain readable over bright terrain");
             }
+            assertEquals(6,skills.size());
         }
-        assertEquals(6,colors.size());
-        preview();
     }
 
-    private static void preview() throws Exception {
-        var image=new BufferedImage(1080,900,BufferedImage.TYPE_INT_RGB);
-        var g=image.createGraphics();
-        g.setColor(new Color(0x302C32));g.fillRect(0,0,1080,900);
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
-        var mesh=new AtomicVisualTest.Mesh();
-        SkillWheelScreen.emitWheel(mesh,new Matrix4f().translate(540,420,0).scale(3),5,5,.35f);
-        for(int i=0;i<mesh.vertices.size();i+=4) {
-            var path=new Path2D.Float();
-            for(int j=0;j<4;j++) {
-                var p=mesh.vertices.get(i+j);
-                if(j==0)path.moveTo(p[0],p[1]);else path.lineTo(p[0],p[1]);
-            }
-            path.closePath();var p=mesh.vertices.get(i);
-            g.setColor(new Color((int)p[3],(int)p[4],(int)p[5],(int)p[6]));g.fill(path);
+    @Test void wheelUsesSixUnscaledSpritesWithSeparateHoverSelectionAndBoundedCooldown() throws Exception {
+        var context=mock(GuiGraphics.class);
+        List<int[]> sprites=new ArrayList<>(),fills=new ArrayList<>();
+        doAnswer(call -> {
+            assertEquals("godwand:textures/gui/skill_wheel.png",call.getArgument(0).toString());
+            int[] args=new int[8];
+            for(int i=0;i<8;i++)args[i]=((Number)call.getArgument(i+1)).intValue();
+            sprites.add(args);return null;
+        }).when(context).blit(any(ResourceLocation.class),anyInt(),anyInt(),anyFloat(),anyFloat(),anyInt(),anyInt(),anyInt(),anyInt());
+        doAnswer(call -> {
+            int[] args=new int[5];for(int i=0;i<5;i++)args[i]=call.getArgument(i);
+            fills.add(args);return null;
+        }).when(context).fill(anyInt(),anyInt(),anyInt(),anyInt(),anyInt());
+        SkillWheelScreen.drawWheel(context,5,1,2);
+        int[][] positions={{-20,-102},{51,-61},{51,21},{-20,62},{-91,21},{-91,-61}};
+        assertEquals(6,sprites.size());
+        for(int mode=0;mode<6;mode++) {
+            int[] a=sprites.get(mode);
+            assertArrayEquals(new int[]{positions[mode][0],positions[mode][1],mode*40,mode==1?80:mode==5?40:0,40,40,240,120},a);
         }
-        g.setFont(new java.awt.Font("SansSerif",java.awt.Font.PLAIN,27));
-        g.setColor(new Color(SkillWheelScreen.skillColor(5)));
-        String name="I am Atomic";g.drawString(name,540-g.getFontMetrics().stringWidth(name)/2,430);
-        g.setColor(new Color(0xE0D5C8));
-        String hint="Release V to select";g.drawString(hint,540-g.getFontMetrics().stringWidth(hint)/2,825);
-        g.dispose();Path out=Path.of("build/previews/skill-wheel.png");Files.createDirectories(out.getParent());
-        ImageIO.write(image,"png",out.toFile());
+        assertTrue(fills.stream().allMatch(a -> a[2]-a[0]<=28&&a[3]-a[1]<=3),"No opaque wheel plate or overflowing cooldown");
+        sprites.clear();fills.clear();SkillWheelScreen.drawWheel(context,5,5,.35f);
+        Path path=Path.of("build/previews/skill-wheel-draws.json");Files.createDirectories(path.getParent());
+        Files.writeString(path,new com.google.gson.Gson().toJson(Map.of("sprites",sprites,"fills",fills)));
     }
 }
