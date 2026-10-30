@@ -2,6 +2,8 @@
 
 ## [1.3.4]
 
+Released for Minecraft 1.21.11. Other Minecraft versions have not received this release yet.
+
 ### Added
 
 - Spatial Path now pushes away other players as well as mobs.

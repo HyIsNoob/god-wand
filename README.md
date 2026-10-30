@@ -67,9 +67,9 @@ See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [sha
 
 ## Release status
 
-The 1.3.4 hotfix keeps Atomic block destruction inside its visible column and processes terrain in circular distance order across all eight targets. Fabric and NeoForge 1.21.11 are included. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
+1.3.4 is released for Minecraft 1.21.11. It adds player repulsion to Spatial Path, single-skill wand commands and fixes missing wand model surfaces. The owner has completed gameplay testing for this release.
 
-1.3.4 is a hotfix for the released 1.3.x builds. All eight targets listed above build from the shared source and pass automated checks; gameplay testing is pending.
+The table above lists build targets. All eight pass automated build and test checks; 1.3.4 has not been released for the other Minecraft versions yet. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
 
 ## License
 
