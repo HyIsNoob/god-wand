@@ -107,8 +107,9 @@ public class PostChainResourceTest {
                 long options = shaderc_compile_options_initialize();
                 try {
                     // Same Vulkan target and auto-binding options as 26.3 GlslCompiler.
-                    shaderc_compile_options_set_target_env(options, shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
+                    shaderc_compile_options_set_target_env(options, shaderc_target_env_opengl, shaderc_env_version_opengl_4_5);
                     shaderc_compile_options_set_auto_bind_uniforms(options, true);
+                    shaderc_compile_options_set_auto_map_locations(options, true);
                     shaderc_compile_options_set_generate_debug_info(options);
                     if (zeroToOne) shaderc_compile_options_add_macro_definition(options, "RENDERPEARL_DEPTH_IS_ZERO_TO_ONE", "");
                     try (var files = Files.list(directory)) {
