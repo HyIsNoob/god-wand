@@ -1,0 +1,19 @@
+allprojects {
+    plugins.withId('fabric-loom') {
+        if(project.name=='fabric') loom.runs.named('client') { runDir '../build/fuga-qa/run' }
+    }
+    plugins.withId('java') {
+        tasks.register('writeFugaQaClasspath') {
+            doLast { rootProject.file('build/fuga-qa/classpath.txt').text=sourceSets.main.runtimeClasspath.asPath }
+        }
+    }
+}
+gradle.projectsEvaluated {
+    def p=gradle.rootProject
+    p.project(':fabric').tasks.named('runClient') {
+        workingDir p.file('build/fuga-qa/run')
+        jvmArgs '-Dgodwand.fuga.qa=true', '-Dfabric.addMods='+p.file('build/fuga-qa/probe.jar').absolutePath
+        args '--quickPlaySingleplayer','Fuga QA','--width','1280','--height','720'
+        maxHeapSize='3G'
+    }
+}

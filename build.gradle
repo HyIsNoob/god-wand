@@ -17,6 +17,9 @@ subprojects {
         options.encoding = 'UTF-8'
         options.release = 21
     }
+    tasks.withType(JavaExec).configureEach {
+        javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+    }
     tasks.withType(Jar).configureEach {
         from(rootProject.file('LICENSE'))
     }

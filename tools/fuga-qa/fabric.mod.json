@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"godwand_fuga_qa","version":"1.0.0","name":"Fuga QA (development only)","environment":"client","entrypoints":{"client":["net.godwand.qa.FugaGameplayProbe"]},"mixins":["fuga-qa.mixins.json"],"depends":{"fabricloader":">=0.16.0","fabric-api":"*","godwand":"*"}}
