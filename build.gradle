@@ -1,6 +1,6 @@
 plugins {
     id 'base'
-    id 'fabric-loom' version '1.7-SNAPSHOT' apply false
+    id 'fabric-loom' version '1.19.3' apply false
 }
 
 apply from: 'gradle/shared-sources.gradle'
@@ -11,7 +11,7 @@ group = project.maven_group
 subprojects {
     apply plugin: 'java'
     java {
-        toolchain { languageVersion = JavaLanguageVersion.of(21) }
+        toolchain { languageVersion = JavaLanguageVersion.of(25) }
     }
     tasks.withType(JavaCompile).configureEach {
         options.encoding = 'UTF-8'
@@ -19,6 +19,11 @@ subprojects {
     }
     tasks.withType(Jar).configureEach {
         from(rootProject.file('LICENSE'))
+    }
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+        systemProperty 'net.bytebuddy.experimental', 'true'
+        jvmArgs '--sun-misc-unsafe-memory-access=allow', '-Dnet.bytebuddy.experimental=true'
     }
     repositories {
         mavenCentral()
@@ -39,6 +44,11 @@ tasks.named('build') {
         def windows = System.getProperty('os.name').toLowerCase().contains('windows')
         def wrapper = windows ? ['cmd', '/c', 'gradlew.bat'] : ['sh', './gradlew']
         commandLine wrapper + ['build', '--console=plain'] + (gradle.startParameter.offline ? ['--offline'] : [])
+        doFirst {
+            def targetJava = directory == 'forge-1.20.1' ? 17 : 25
+            def launcher = project(':common').javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(targetJava) }.get()
+            environment 'JAVA_HOME', launcher.metadata.installationPath.asFile.absolutePath
+        }
     }
 }
 

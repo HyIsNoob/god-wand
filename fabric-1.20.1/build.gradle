@@ -45,12 +45,17 @@ tasks.withType(Jar).configureEach {
 }
 
 java {
+    toolchain { languageVersion = JavaLanguageVersion.of(25) }
     withSourcesJar()
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
 }
 
- tasks.register('verifyAtomic', JavaExec) {
+tasks.withType(Test).configureEach {
+    failOnNoDiscoveredTests = false
+}
+
+tasks.register('verifyAtomic', JavaExec) {
     dependsOn testClasses
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'net.godwand.AtomicPortCheck'

@@ -53,7 +53,7 @@ Run from this repository root:
 .\gradlew.bat :fabric:runClient
 ```
 
-On Linux/macOS use `./gradlew`. Outputs from `releaseJars` are in `build/release/`. Install Java 17, 21 and 25 toolchains for the complete matrix.
+On Linux/macOS use `./gradlew`. Outputs from `releaseJars` are in `build/release/`. Install JDK 17, 21 and 25 for the complete matrix. The wrapper automatically selects the installed JDK 25 to run the build; this does not change the Java version needed to play each Minecraft version. See the development guide if Gradle cannot find an installed JDK.
 
 See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [shared-source ownership](docs/SHARED_SOURCES.md) for where to make changes. The root aggregate also invokes the Java 25 build for Fabric/NeoForge 26.3.
 
@@ -74,3 +74,7 @@ The 1.3.2 boss-damage, Atomic, Singularity and menu updates are synchronized acr
 
 
 These paths cover every loader/version module. Restrictions on bundled assets do not restrict the MIT permissions for Java code. Earlier published copies retain their applicable license grants. See [LICENSE](LICENSE) for the complete terms.
+
+## Contributors
+
+Thanks to [KingIronMan2011](https://github.com/KingIronMan2011) for modernizing the build tools and fixing cross-version toolchain and encoding issues ([PR #2](https://github.com/HyIsNoob/god-wand/pull/2)).

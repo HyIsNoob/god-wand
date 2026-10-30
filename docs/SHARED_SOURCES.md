@@ -10,7 +10,7 @@ Run from the root:
 .\gradlew.bat releaseJars
 ```
 
-This generates version adapters, runs tests and builds Fabric/NeoForge 1.21.1, Fabric/Forge 1.20.1 and Fabric/NeoForge 26.3. Run the root wrapper with Java 21; Java 17 and 25 toolchains must also be installed. Add `--offline` when dependencies are cached. No Minecraft instance is launched. No JAR is published to GitHub.
+This generates version adapters, runs tests and builds Fabric/NeoForge 1.21.1, Fabric/Forge 1.20.1 and Fabric/NeoForge 26.3. Install JDK 17, 21 and 25. The checked-in daemon criteria select Java 25 to run Gradle, even when the wrapper starts from Java 17 or 21. Compiled game targets remain Java 17 for 1.20.1, Java 21 for 1.21.1 and Java 25 for 26.3. Add `--offline` when dependencies are cached. No Minecraft instance is launched. No JAR is published to GitHub.
 
 The source of truth is not a generated copy. `build/shared/<profile>/src/main/` is disposable build output. Do not commit or maintain that output. The old duplicated common files have been removed from each port's `src/main/`.
 

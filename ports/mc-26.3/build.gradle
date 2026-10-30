@@ -1,6 +1,6 @@
 plugins {
     id 'base'
-    id 'net.fabricmc.fabric-loom' version '1.17.21' apply false
+    id 'net.fabricmc.fabric-loom' version '1.19.3' apply false
 }
 
 def sharedVersion = new Properties()

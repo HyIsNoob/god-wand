@@ -12,6 +12,18 @@
 
 The 1.20.1 projects remain separate Gradle builds because their Java/Minecraft/loader APIs differ. They consume canonical common sources through strict version adapters; do not edit copied implementations. See [shared-source ownership](SHARED_SOURCES.md). AtomicPortParityTest checks matching choreography, geometry and shader source after normalizing the required clamp API difference.
 
+## Build requirements
+
+Install JDK 17, 21 and 25. Gradle 9.8.2 and Loom 1.19.3 run on JDK 25; the checked-in `gradle/gradle-daemon-jvm.properties` files select it automatically. A shell using Java 17 or 21 can still launch the wrapper. The resulting mod jars continue to target Java 17 / 21 / 25 for Minecraft 1.20.1 / 1.21.1 / 26.3 respectively. Forge 1.20.1 retains its Gradle 8.8 build on JDK 17.
+
+Run `./gradlew -q javaToolchains` to inspect detected JDKs. If an installed JDK is missing, add its absolute path to your own `~/.gradle/gradle.properties` (Windows: `%USERPROFILE%\.gradle\gradle.properties`), for example:
+
+```properties
+org.gradle.java.installations.paths=C:/Java/jdk-17,C:/Java/jdk-21,C:/Java/jdk-25
+```
+
+Use your actual installation directories. Keep machine paths out of repository files. No JDK download service or paid build service is required; missing JDKs must be installed locally.
+
 ## Commands from the root
 
 ```powershell
@@ -19,6 +31,7 @@ The 1.20.1 projects remain separate Gradle builds because their Java/Minecraft/l
 .\gradlew.bat :common:test          # shared JUnit suite
 .\gradlew.bat buildFabric1201       # standalone Fabric 1.20.1
 .\gradlew.bat buildForge1201        # standalone Forge 1.20.1
+.\gradlew.bat build263              # standalone 26.3 Fabric and NeoForge
 .\gradlew.bat buildAll              # all six builds and their checks
 .\gradlew.bat releaseJars           # all six builds plus build/release/*.jar
 .\gradlew.bat :fabric:runClient     # ordinary manual Fabric 1.21.1 game
