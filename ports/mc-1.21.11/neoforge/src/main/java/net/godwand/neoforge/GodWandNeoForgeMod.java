@@ -95,6 +95,7 @@ public class GodWandNeoForgeMod {
 
     public GodWandNeoForgeMod(IEventBus modBus) {
         GodWandConfig.loadServer(FMLPaths.CONFIGDIR.get());
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.RegisterCommandsEvent event) -> net.godwand.command.GodWandCommands.register(event.getDispatcher()));
 
         ITEMS.register(modBus);
         ENTITY_TYPES.register(modBus);
@@ -134,7 +135,7 @@ public class GodWandNeoForgeMod {
     }
 
     private void registerPayloadHandlers(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar(GodWandMod.MOD_ID).versioned("1.3.3");
+        PayloadRegistrar registrar = event.registrar(GodWandMod.MOD_ID).versioned("1.3.4");
 
         registrar.playToServer(net.godwand.network.AtomicSkipPayload.ID, net.godwand.network.AtomicSkipPayload.CODEC,
                 (payload,context) -> context.enqueueWork(() -> {

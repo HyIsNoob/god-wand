@@ -48,6 +48,10 @@ public final class SkillWheelScreen extends Screen {
                     ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
             ItemStack stack = client.player.getItemInHand(hand);
             if (stack.getItem() instanceof GodWandItem) {
+                if (net.godwand.item.WandSkillLock.isLocked(stack)) {
+                    client.player.displayClientMessage(Component.translatable("message.godwand.skill_locked", Component.translatable("skill.godwand." + GodWandItem.getSkillMode(stack))), true);
+                    continue;
+                }
                 client.setScreen(new SkillWheelScreen(hand,
                         hand == InteractionHand.MAIN_HAND ? client.player.getInventory().selected : 40, stack));
             }

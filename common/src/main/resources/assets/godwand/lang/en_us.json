@@ -34,5 +34,9 @@
   "gui.godwand.config.camera_shake": "Camera Shake: %d%%",
   "message.godwand.dimension_blocked": "The God Wand's power is sealed in this realm.",
   "gui.godwand.config.atomic_cutscene": "Atomic cutscene",
-  "message.godwand.skill_cooldown": "%s: %ss"
+  "message.godwand.skill_cooldown": "%s: %ss",
+  "message.godwand.skill_locked": "Locked skill: %s",
+  "command.godwand.hold_wand": "Hold a God Wand in your main hand.",
+  "command.godwand.stop_casting": "Finish or cancel your current cast first.",
+  "command.godwand.unlocked": "Wand unlocked. Hold V to choose a skill."
 }

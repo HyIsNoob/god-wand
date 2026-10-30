@@ -202,10 +202,11 @@ public class SpatialPathWalker {
         }
     }
 
-    private static void repelMobs(ServerPlayer player) {
+    static void repelMobs(ServerPlayer player) {
         Vec3 center = player.position().add(0, 1.5, 0);
-        for (var mob : player.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.Mob.class,
-                player.getBoundingBox().inflate(5), e -> e.isAlive() && !e.isSpectator() && !e.isPassengerOfSameVehicle(player))) {
+        for (var mob : player.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                player.getBoundingBox().inflate(5), e -> e != player && (e instanceof net.minecraft.world.entity.Mob || e instanceof net.minecraft.world.entity.player.Player)
+                        && e.isAlive() && !e.isSpectator() && !e.isPassengerOfSameVehicle(player))) {
             Vec3 offset = mob.getBoundingBox().getCenter().subtract(center);
             double distance = offset.length();
             double reach = 3.3 + mob.getBbWidth() * 0.5;

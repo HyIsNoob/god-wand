@@ -33,7 +33,7 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class GodWandForgeNetwork {
-    private static final String PROTOCOL_VERSION = "1.3.3";
+    private static final String PROTOCOL_VERSION = "1.3.4";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(GodWandMod.MOD_ID, "main"),
             () -> PROTOCOL_VERSION,

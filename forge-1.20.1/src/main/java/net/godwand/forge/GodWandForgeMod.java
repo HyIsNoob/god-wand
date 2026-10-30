@@ -90,6 +90,7 @@ public class GodWandForgeMod {
 
     public GodWandForgeMod(IEventBus modBus) {
         GodWandConfig.loadServer(FMLPaths.CONFIGDIR.get());
+        MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.event.RegisterCommandsEvent event) -> net.godwand.command.GodWandCommands.register(event.getDispatcher()));
 
         ITEMS.register(modBus);
         ENTITY_TYPES.register(modBus);

@@ -18,6 +18,26 @@ class NativeItemOriginTest {
     @org.junit.jupiter.api.BeforeAll static void bootstrap() {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
     }
+    @Test void proceduralSkinsKeepTheCanonicalDoubleSidedMaterial() throws Exception {
+        var client=mock(Minecraft.class,RETURNS_DEEP_STUBS);
+        var previous=GodWandConfig.CLIENT;
+        GodWandConfig.CLIENT=new GodWandConfig.Client();
+        try(var clients=mockStatic(Minecraft.class);var types=mockStatic(RenderTypes.class)) {
+            clients.when(Minecraft::getInstance).thenReturn(client);
+            var buffers=Class.forName("net.godwand.client.render.GodWandItemRenderer$Buffers");
+            var render=GodWandItemRenderer.class.getDeclaredMethod("render",ItemStack.class,ItemDisplayContext.class,PoseStack.class,buffers,int.class,int.class);
+            render.setAccessible(true);
+            Object sink=java.lang.reflect.Proxy.newProxyInstance(buffers.getClassLoader(),new Class<?>[]{buffers},
+                    (proxy,method,args) -> new AtomicVisualTest.Mesh());
+            for(var skin:new WandSkin[]{WandSkin.DEFAULT,WandSkin.AQUA_HEARTIA,WandSkin.SHADOW_BLADE}) {
+                GodWandConfig.CLIENT.wandSkin=skin;
+                types.clearInvocations();
+                render.invoke(new GodWandItemRenderer(),mock(ItemStack.class),ItemDisplayContext.FIRST_PERSON_RIGHT_HAND,new PoseStack(),sink,0,0);
+                types.verify(() -> RenderTypes.entityCutoutNoCull(any()),atLeastOnce());
+                types.verify(() -> RenderTypes.entityCutout(any()),never());
+            }
+        } finally {GodWandConfig.CLIENT=previous;}
+    }
     @Test void nativeItemLayerKeepsTheCanonicalPositionAndSize() throws Exception {
         var client=mock(Minecraft.class,RETURNS_DEEP_STUBS);
         var stack=mock(ItemStack.class);

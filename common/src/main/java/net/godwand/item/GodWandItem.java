@@ -71,13 +71,14 @@ public class GodWandItem extends Item {
     }
 
     public static void setSkillMode(ItemStack stack, int mode) {
+        if (mode < 0 || mode >= TOTAL_MODES || net.godwand.item.WandSkillLock.isLocked(stack)) return;
         CustomData.update(DataComponents.CUSTOM_DATA, stack, nbt -> nbt.putInt("GodWandMode", mode));
     }
 
     public static void selectSkill(Player user, InteractionHand hand, int mode) {
         if (mode < 0 || mode >= TOTAL_MODES) return;
         ItemStack stack = user.getItemInHand(hand);
-        if (!(stack.getItem() instanceof GodWandItem)) return;
+        if (!(stack.getItem() instanceof GodWandItem) || net.godwand.item.WandSkillLock.isLocked(stack)) return;
         if (user.isUsingItem() && user.getUseItem() == stack) {
             if (user instanceof ServerPlayer player) {
                 SupernovaManager.cancelCharge(player);
@@ -449,7 +450,7 @@ public class GodWandItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag type) {
         int mode = getSkillMode(stack);
-        tooltip.add(Component.literal("§7[Hold V]: §eSelect skill"));
+        tooltip.add(net.godwand.item.WandSkillLock.isLocked(stack) ? Component.translatable("message.godwand.skill_locked", Component.translatable("skill.godwand." + mode)) : Component.literal("§7[Hold V]: §eSelect skill"));
         switch (mode) {
             case MODE_SPATIAL_PATH -> tooltip.add(Component.literal("§a§bSpatial Path §7(Toggle)"));
             case MODE_ARCANE_ORB -> tooltip.add(Component.literal("§a§dSingularity §7(Hold to charge)"));

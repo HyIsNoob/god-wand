@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.4]
+
+### Added
+
+- Spatial Path now pushes away other players as well as mobs.
+- Admin commands to lock each wand to one skill and unlock it again.
+
+### Fixed
+
+- Fixed missing surfaces on wand models in Minecraft 1.21.11.
+
 ## [1.3.3]
 
 ### Added

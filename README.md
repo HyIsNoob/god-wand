@@ -1,4 +1,4 @@
-# God Wand 1.3.3
+# God Wand 1.3.4
 
 One wand with six skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile or hold **I am Atomic** until you choose to release.
 
@@ -6,14 +6,14 @@ One wand with six skills: walk through mountains, pull enemies into a gravity or
 
 | Minecraft | Loader | Java | Installable file |
 | --- | --- | --- | --- |
-| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.3.jar` |
-| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.3.jar` |
-| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.3.jar` |
-| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.3.jar` |
-| 1.21.11 | Fabric + Fabric API | 21 | `godwand-fabric-1.21.11-1.3.3.jar` |
-| 1.21.11 | NeoForge | 21 | `godwand-neoforge-1.21.11-1.3.3.jar` |
-| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.3.3.jar` |
-| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.3.3.jar` |
+| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.4.jar` |
+| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.4.jar` |
+| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.4.jar` |
+| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.4.jar` |
+| 1.21.11 | Fabric + Fabric API | 21 | `godwand-fabric-1.21.11-1.3.4.jar` |
+| 1.21.11 | NeoForge | 21 | `godwand-neoforge-1.21.11-1.3.4.jar` |
+| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.3.4.jar` |
+| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.3.4.jar` |
 
 Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server. For multiplayer, update God Wand on both the server and every player’s client.
 
@@ -38,6 +38,12 @@ Permanent terrain changes are configurable in `config/godwand-server.json`; defa
 
 Client graphics settings are in `config/godwand-client.json`. [Dedicated-server verification and limits](docs/DEDICATED_SERVER.md) describes what has actually been tested.
 
+## Single-skill wands
+
+Admins can hold a God Wand in their main hand and use `/godwand lock atomic` to restrict that wand to one skill. Other names: `spatial_path`, `singularity`, `earth_drill`, `supernova`, `stone_cannon`. Use `/godwand unlock` to restore skill selection.
+
+The restriction stays on the item when saved, copied or traded. It does not change other wands. Commands require operator permission level 2; finish or cancel casting before using them. Locked wands show their skill in the tooltip and do not open the skill wheel.
+
 ## Build
 
 All eight supported builds come from canonical `common/` sources plus explicit API adapters. One root command checks and collects every target. See [shared source ownership](docs/SHARED_SOURCES.md) before making changes.
@@ -61,9 +67,9 @@ See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [sha
 
 ## Release status
 
-The 1.3.3 hotfix keeps Atomic block destruction inside its visible column and processes terrain in circular distance order across all eight targets. Fabric and NeoForge 1.21.11 are included. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
+The 1.3.4 hotfix keeps Atomic block destruction inside its visible column and processes terrain in circular distance order across all eight targets. Fabric and NeoForge 1.21.11 are included. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
 
-1.3.3 is a hotfix for the released 1.3.x builds. All eight targets listed above build from the shared source and pass automated checks; gameplay testing is pending.
+1.3.4 is a hotfix for the released 1.3.x builds. All eight targets listed above build from the shared source and pass automated checks; gameplay testing is pending.
 
 ## License
 

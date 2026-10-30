@@ -1,0 +1,25 @@
+{
+  "reason": "Legacy item NBT API",
+  "changes": [
+    {
+      "before": "import net.minecraft.core.component.DataComponents;\n",
+      "after": ""
+    },
+    {
+      "before": "import net.minecraft.world.item.component.CustomData;\n",
+      "after": ""
+    },
+    {
+      "before": "        var data = stack.get(DataComponents.CUSTOM_DATA);\n        return data != null && data.contains(\"GodWandLocked\");",
+      "after": "        var data = stack.getTag();\n        return data != null && data.contains(\"GodWandLocked\");"
+    },
+    {
+      "before": "        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putInt(\"GodWandLocked\", 1));",
+      "after": "        stack.getOrCreateTag().putInt(\"GodWandLocked\", 1);"
+    },
+    {
+      "before": "        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.remove(\"GodWandLocked\"));",
+      "after": "        if (stack.getTag() != null) stack.getTag().remove(\"GodWandLocked\");"
+    }
+  ]
+}
