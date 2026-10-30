@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3]
+
+### Fixed
+
+- Atomic now destroys blocks within its expanding light column.
+- Atomic terrain destruction expands in a circle instead of square layers.
+
 ## [1.3.2]
 
 ### Added

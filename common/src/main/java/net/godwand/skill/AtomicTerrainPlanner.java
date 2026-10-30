@@ -17,7 +17,7 @@ final class AtomicTerrainPlanner {
         catch (RejectedExecutionException busy) { return null; }
     }
     static Columns plan(int radius) {
-        if (radius < 0 || radius > AtomicSequence.MAX_RADIUS * 3 / 2)
+        if (radius < 0 || radius > AtomicSequence.MAX_RADIUS)
             throw new IllegalArgumentException("Atomic terrain radius out of bounds");
         var offsets = new IntArrayList(); var distances = new IntArrayList();
         var cursor = new SupernovaCraterCursor(radius);
@@ -28,6 +28,9 @@ final class AtomicTerrainPlanner {
             }
             cursor.advance();
         }
-        return new Columns(offsets.toIntArray(), distances.toIntArray());
+        int[] radialDistances=distances.toIntArray(), radialOffsets=offsets.toIntArray();
+        // A square spiral is not distance-ordered; every budgeted prefix must follow the circular front.
+        it.unimi.dsi.fastutil.ints.IntArrays.quickSort(radialDistances,radialOffsets);
+        return new Columns(radialOffsets,radialDistances);
     }
 }

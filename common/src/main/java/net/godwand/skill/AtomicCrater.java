@@ -18,11 +18,11 @@ final class AtomicCrater {
 
     AtomicCrater(BlockPos center, int radius) {
         this.center = center.immutable();
-        this.radius = Math.clamp(radius, 0, AtomicSequence.MAX_RADIUS * 3 / 2);
+        this.radius = Math.clamp(radius, 0, AtomicSequence.MAX_RADIUS);
         if (this.radius>0) pending=AtomicTerrainPlanner.request(this.radius);
     }
-    // Scale terrain only; the cinematic and entity damage retain their original reach.
-    static int terrainRadius(int configuredRadius) { return Math.max(0, Math.min(configuredRadius, AtomicSequence.MAX_RADIUS)) * 3 / 2; }
+    // The terrain limit and expanding front must stay inside the visible column.
+    static int terrainRadius(int configuredRadius) { return Math.max(0, Math.min(configuredRadius, AtomicSequence.MAX_RADIUS)); }
     boolean finished() { return radius == 0 || columns!=null && column>=columns.offsets().length; }
 
     int carve(ServerLevel world,int budget) { return carve(world,budget,radius); }

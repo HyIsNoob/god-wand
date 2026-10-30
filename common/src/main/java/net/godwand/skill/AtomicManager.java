@@ -160,7 +160,7 @@ public final class AtomicManager {
                 // Leave unfinished terrain alone before the column starts retracting.
                 if(age<AtomicSequence.BEAM_RETRACTION && AtomicSequence.beamRadius(age)>0 && terrainBudget>0 && terrainTime>0) {
                     long began=System.nanoTime();
-                    terrainBudget-=task.crater.carve(world,terrainBudget,radius * 1.5f,began+terrainTime);
+                    terrainBudget-=task.crater.carve(world,terrainBudget,AtomicSequence.beamRadius(age),began+terrainTime);
                     terrainTime-=System.nanoTime()-began;
                 }
             }

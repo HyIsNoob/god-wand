@@ -1,4 +1,4 @@
-# God Wand 1.3.2
+# God Wand 1.3.3
 
 One wand with six skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile or hold **I am Atomic** until you choose to release.
 
@@ -6,12 +6,12 @@ One wand with six skills: walk through mountains, pull enemies into a gravity or
 
 | Minecraft | Loader | Java | Installable file |
 | --- | --- | --- | --- |
-| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.2.jar` |
-| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.2.jar` |
-| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.2.jar` |
-| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.2.jar` |
-| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.3.2.jar` |
-| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.3.2.jar` |
+| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.3.jar` |
+| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.3.jar` |
+| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.3.jar` |
+| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.3.jar` |
+| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.3.3.jar` |
+| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.3.3.jar` |
 
 Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server.
 
@@ -59,9 +59,9 @@ See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [sha
 
 ## Release status
 
-The 1.3.2 boss-damage, Atomic, Singularity and menu updates are synchronized across all six targets. 1.21.11 work remains paused. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
+The 1.3.3 hotfix keeps Atomic block destruction inside its visible column and processes terrain in circular distance order across all six targets. 1.21.11 work remains paused. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
 
-1.3.2 is a preview following the released 1.3.x builds. All six targets listed above build from the shared source and pass automated checks; gameplay testing is pending. Minecraft 1.21.11 remains pending by owner request.
+1.3.3 is a hotfix for the released 1.3.x builds. All six targets listed above build from the shared source and pass automated checks; gameplay testing is pending. Minecraft 1.21.11 remains pending by owner request.
 
 ## License
 
