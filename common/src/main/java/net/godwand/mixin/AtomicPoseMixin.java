@@ -21,6 +21,7 @@ public abstract class AtomicPoseMixin {
     @Shadow @Final public ModelPart hat;
     @Inject(method="setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V",at=@At("TAIL"))
     private void godwand$raiseWand(LivingEntity entity,float walk,float stride,float time,float yaw,float pitch,CallbackInfo ci) {
+        if(net.godwand.client.FugaPose.apply(entity.getId(),net.minecraft.util.Mth.clamp(time-entity.tickCount,0,1),rightArm,leftArm,body,head)) {hat.copyFrom(head);return;}
         var stack=entity.getUseItem();
         float partial=Math.clamp(time-entity.tickCount,0,1);
         var frame=net.godwand.client.AtomicRenderer.frameFor(entity.getId(),partial);

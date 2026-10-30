@@ -33,7 +33,7 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class GodWandForgeNetwork {
-    private static final String PROTOCOL_VERSION = "1.3.0";
+    private static final String PROTOCOL_VERSION = "1.4.0";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(GodWandMod.MOD_ID, "main"),
             () -> PROTOCOL_VERSION,
@@ -107,6 +107,13 @@ public final class GodWandForgeNetwork {
                     handleAtomic(payload);
                     ctx.get().setPacketHandled(true);
                 }).add();
+        CHANNEL.messageBuilder(net.godwand.network.FugaFxPayload.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(net.godwand.network.FugaFxPayload::write)
+                .decoder(net.godwand.network.FugaFxPayload::read)
+                .consumerMainThread((payload, ctx) -> {
+                    handleFuga(payload);
+                    ctx.get().setPacketHandled(true);
+                }).add();
         CHANNEL.messageBuilder(SelectSkillPayload.class, id++, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(SelectSkillPayload::write)
                 .decoder(SelectSkillPayload::read)
@@ -146,6 +153,9 @@ public final class GodWandForgeNetwork {
     public static void sendToServer(GodWandPacket packet) {
         CHANNEL.sendToServer(packet);
     }
+
+    @OnlyIn(Dist.CLIENT)
+    private static void handleFuga(net.godwand.network.FugaFxPayload payload) { net.godwand.client.FugaRenderer.receive(payload); }
 
     @OnlyIn(Dist.CLIENT)
     private static void handleAtomic(net.godwand.network.AtomicFxPayload payload) { net.godwand.client.AtomicRenderer.receive(payload); }

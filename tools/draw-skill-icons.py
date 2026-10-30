@@ -4,7 +4,7 @@ import math
 from PIL import Image, ImageDraw
 
 COLORS = [(139, 216, 255), (72, 152, 255), (255, 100, 54),
-          (224, 62, 112), (176, 135, 89), (180, 99, 236)]
+          (224, 62, 112), (176, 135, 89), (180, 99, 236), (255, 156, 56)]
 
 
 
@@ -75,7 +75,7 @@ def icon(mode):
         d.line((0, 18, 5, 18), fill=(222, 185, 129))
         im.alpha_composite(drill((176, 135, 89), (239, 205, 151), (103, 72, 48)).transpose(Image.Transpose.ROTATE_90))
         d.point((1, 14), fill=(185, 142, 94))
-    else:  # Purple atom: three orbital paths, electrons and a bright nucleus.
+    elif mode == 5:  # Purple atom: three orbital paths, electrons and a bright nucleus.
         d.ellipse((7, 7, 16, 16), fill=(50, 25, 76))
         for tilt, paint in [(0, (145, 78, 199)), (math.pi / 3, (211, 153, 255)), (-math.pi / 3, (176, 103, 235))]:
             points = []
@@ -90,11 +90,19 @@ def icon(mode):
         d.rectangle((11, 10, 12, 11), fill=(255, 237, 255))
         for x, y in [(21, 11), (7, 3), (6, 19)]:
             d.rectangle((x, y, x + 1, y + 1), fill=(225, 182, 255))
+    else:  # Fire arrow and curved flame bow.
+        d.line([(5,20),(10,15),(15,10),(20,5)],fill=(255,232,157),width=2)
+        d.polygon([(13,4),(22,2),(20,11),(18,6)],fill=(255,106,28))
+        d.line([(14,5),(22,2),(20,10)],fill=(255,243,204),width=2)
+        d.line([(4,3),(10,4),(17,11),(20,18),(20,22)],fill=(235,66,15),width=3)
+        d.line([(4,3),(11,6),(17,12),(20,22)],fill=(255,167,43))
+        d.line([(4,3),(20,22)],fill=(164,83,34))
+        for x,y in [(2,16),(7,21),(22,14)]: d.point((x,y),fill=(255,223,108))
     return im
 
 
 def build():
-    atlas = Image.new('RGBA', (240, 120))
+    atlas = Image.new('RGBA', (280, 120))
     for mode in range(len(COLORS)):
         for state in range(3):
             tile = Image.new('RGBA', (40, 40))
@@ -109,6 +117,7 @@ def build():
                 [(139, 41, 99), (206, 63, 135), (248, 145, 207)],
                 [(113, 108, 117), (210, 164, 80), (236, 222, 179)],
                 [(132, 63, 185), (184, 90, 237), (211, 142, 255)],
+                [(179, 76, 28), (242, 137, 37), (255, 217, 144)],
             ]
             trim = trims[mode][state]
             d.rectangle((2, 2, 37, 37), outline=trim, width=2)
@@ -128,12 +137,12 @@ def build():
                 d.point((x, y), fill=tuple(min(255, c + 45) for c in color))
             tile.alpha_composite(icon(mode), (8, 8))
             atlas.alpha_composite(tile, (mode * 40, state * 40))
-    assert atlas.size == (240, 120)
+    assert atlas.size == (280, 120)
     out = Path(__file__).resolve().parents[1] / 'common/src/main/resources/assets/godwand/textures/gui/skill_wheel.png'
     out.parent.mkdir(parents=True, exist_ok=True)
     atlas.save(out)
     print(out)
-    sectors = Image.new('RGBA', (224 * 7, 224))
+    sectors = Image.new('RGBA', (224 * 8, 224))
     sector_pen = ImageDraw.Draw(sectors)
     for y in range(-112, 112, 2):
         for x in range(-112, 112, 2):
@@ -141,12 +150,12 @@ def build():
             if not 48 <= radius <= 112:
                 continue
             angle = math.atan2(y + 1, x + 1) + math.pi / 2
-            mode = math.floor(angle / (math.tau / 6) + .5) % 6
-            if abs(math.remainder(angle - mode * math.tau / 6, math.tau)) > math.pi / 6 - .025:
+            mode = math.floor(angle / (math.tau / 7) + .5) % 7
+            if abs(math.remainder(angle - mode * math.tau / 7, math.tau)) > math.pi / 7 - .025:
                 continue
             idle = (18, 17, 20, 64)
             hover = (96, 87, 76, 105)
-            for column, paint in [(6, idle), (mode, hover)]:
+            for column, paint in [(7, idle), (mode, hover)]:
                 sector_pen.rectangle((column * 224 + x + 112, y + 112,
                                                    column * 224 + x + 113, y + 113), fill=paint)
     sectors.save(out.with_name('skill_sectors.png'))

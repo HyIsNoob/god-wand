@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class AtomicInputMixin extends Input {
     @Inject(method="tick",at=@At("TAIL"))
     private void godwand$atomicInput(boolean slow,float multiplier,CallbackInfo ci) {
-        if(!AtomicCinematic.movementLocked())return;
+        if(!AtomicCinematic.movementLocked()&&!net.godwand.client.FugaCinematic.movementLocked())return;
         forwardImpulse=leftImpulse=0;
         up=down=left=right=jumping=shiftKeyDown=false;
     }

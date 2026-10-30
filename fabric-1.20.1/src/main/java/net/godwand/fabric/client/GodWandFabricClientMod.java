@@ -126,11 +126,17 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             client.execute(() -> net.godwand.client.AtomicRenderer.receive(payload));
         });
 
+        ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.FugaFxPayload.ID, (client, handler, buf, responseSender) -> {
+            var payload = net.godwand.network.FugaFxPayload.read(buf);
+            client.execute(() -> net.godwand.client.FugaRenderer.receive(payload));
+        });
+
         WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> {
             PoseStack matrices = context.matrixStack();
             Camera camera = context.camera();
             float tickDelta = context.tickDelta();
             net.godwand.client.AtomicRenderer.render(matrices,camera,tickDelta);
+            net.godwand.client.FugaRenderer.render(matrices,camera,tickDelta);
             CannonPressureRenderer.render(matrices, camera, tickDelta);
             DrillWindRenderer.render(matrices, camera, tickDelta);
             ImpactDebrisRenderer.render(matrices, camera, tickDelta);
@@ -163,9 +169,12 @@ public class GodWandFabricClientMod implements ClientModInitializer {
 
         HudRenderCallback.EVENT.register(CustomImpactFrameOverlay::render);
         HudRenderCallback.EVENT.register(net.godwand.client.AtomicCinematic::render);
+        HudRenderCallback.EVENT.register(net.godwand.client.FugaCinematic::render);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             net.godwand.client.AtomicRenderer.tick(client);
+            net.godwand.client.FugaRenderer.tick(client);
+            net.godwand.client.FugaCinematic.tick(client);
             SkillWheelScreen.handleKeyInput(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
@@ -178,6 +187,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             net.godwand.client.AtomicRenderer.reset();
+            net.godwand.client.FugaRenderer.reset();
+            net.godwand.client.FugaCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();
@@ -193,6 +204,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             net.godwand.client.AtomicRenderer.reset();
+            net.godwand.client.FugaRenderer.reset();
+            net.godwand.client.FugaCinematic.reset();
             StoneCannonWindSound.reset();
             EarthDrillSoundscape.reset();
             SupernovaAccretionRenderer.reset();

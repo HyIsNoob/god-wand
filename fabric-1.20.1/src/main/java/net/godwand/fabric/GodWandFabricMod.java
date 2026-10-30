@@ -145,6 +145,7 @@ public class GodWandFabricMod implements ModInitializer {
             RatioCollapseManager.tick(level);
             SupernovaManager.tick(level);
             net.godwand.skill.AtomicManager.tick(level);
+            net.godwand.skill.FugaManager.tick(level);
             SpatialBridge.tickWorld(level);
             SpatialDisplacementManager.tick(level);
         });
@@ -168,6 +169,7 @@ public class GodWandFabricMod implements ModInitializer {
             RatioCollapseManager.clearAllTasks();
             SupernovaManager.clearAllTasks();
             net.godwand.skill.AtomicManager.clearAllTasks();
+            net.godwand.skill.FugaManager.clearAllTasks();
             for (ServerLevel level : server.getAllLevels()) {
                 SpatialBridge.clearVisuals(level);
                 SpatialDisplacementManager.emergencyRestoreAll(level);

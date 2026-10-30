@@ -1,17 +1,19 @@
-# God Wand 1.3.2
+# God Wand 1.4.0 development
 
-One wand with six skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile or hold **I am Atomic** until you choose to release.
+Development branch for Fuga, the seventh skill. The stable 1.3.x maintenance checkout remains at `D:/fileluu/Tools/god-wand-1.3.0`; this worktree does not publish or merge into it.
+
+One wand with seven skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile hold **I am Atomic** until you choose to release, or fire Fuga’s blazing arrow.
 
 [Full mod description](DESCRIPTION.md) · [Changelog](CHANGELOG.md)
 
 | Minecraft | Loader | Java | Installable file |
 | --- | --- | --- | --- |
-| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.2.jar` |
-| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.2.jar` |
-| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.2.jar` |
-| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.2.jar` |
-| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.3.2.jar` |
-| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.3.2.jar` |
+| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.4.0.jar` |
+| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.4.0.jar` |
+| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.4.0.jar` |
+| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.4.0.jar` |
+| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.4.0.jar` |
+| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.4.0.jar` |
 
 Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server.
 
@@ -25,6 +27,8 @@ Hold **V** with the wand to select a skill. Press **K** for client graphics and 
 4. **Supernova:** hold right-click for seven seconds to release a black hole and explosion.
 5. **Stone Cannon:** charge and release a piercing stone projectile.
 6. **I am Atomic:** hold through the buildup, ATOMIC pose and compression. The dark pause waits for you to release right-click, triggering the blast. Movement is locked and incoming damage is blocked during the cast. Esc/F5 skips its camera; skipping after detonation also restores movement.
+
+7. **Fuga:** hold to form a fire bow, aim while standing still, then release to fire. Releasing before the bow is ready cancels. Toggle its camera in **K**.
 
 AUTO selects Aqua Heartia for skills 3/5, Shadow Blade for skill 6, and Eclipse for the others. K also supports a manual model choice.
 
@@ -59,9 +63,7 @@ See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [sha
 
 ## Release status
 
-The 1.3.2 boss-damage, Atomic, Singularity and menu updates are synchronized across all six targets. 1.21.11 work remains paused. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
-
-1.3.2 is a preview following the released 1.3.x builds. All six targets listed above build from the shared source and pass automated checks; gameplay testing is pending. Minecraft 1.21.11 remains pending by owner request.
+This isolated 1.4.0 branch adds Fuga. It is a gameplay preview, not a published release. Build checks do not establish visual quality, multiplayer behavior or FPS/TPS. The 1.3.x maintenance branch remains separate. Minecraft 1.21.11 remains pending.
 
 ## License
 

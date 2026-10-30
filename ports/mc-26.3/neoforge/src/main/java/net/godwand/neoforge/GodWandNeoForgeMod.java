@@ -134,7 +134,7 @@ public class GodWandNeoForgeMod {
     }
 
     private void registerPayloadHandlers(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar(GodWandMod.MOD_ID).versioned("1.3.0");
+        PayloadRegistrar registrar = event.registrar(GodWandMod.MOD_ID).versioned("1.4.0");
 
         registrar.playToServer(net.godwand.network.AtomicSkipPayload.ID, net.godwand.network.AtomicSkipPayload.CODEC,
                 (payload,context) -> context.enqueueWork(() -> {
@@ -166,6 +166,7 @@ public class GodWandNeoForgeMod {
             registrar.playToClient(ImpactFxPayload.ID, ImpactFxPayload.CODEC, (payload, context) -> {});
             registrar.playToClient(CinematicFxPayload.ID, CinematicFxPayload.CODEC, (payload, context) -> {});
             registrar.playToClient(AtomicFxPayload.ID, AtomicFxPayload.CODEC, (payload, context) -> {});
+            registrar.playToClient(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC, (payload, context) -> {});
         }
     }
 
@@ -179,6 +180,7 @@ public class GodWandNeoForgeMod {
             RatioCollapseManager.tick(level);
             SupernovaManager.tick(level);
             AtomicManager.tick(level);
+            net.godwand.skill.FugaManager.tick(level);
             SpatialBridge.tickWorld(level);
             SpatialDisplacementManager.tick(level);
         }
@@ -251,6 +253,7 @@ public class GodWandNeoForgeMod {
         RatioCollapseManager.clearAllTasks();
         SupernovaManager.clearAllTasks();
         AtomicManager.clearAllTasks();
+        net.godwand.skill.FugaManager.clearAllTasks();
         for (ServerLevel level : event.getServer().getAllLevels()) {
             SpatialBridge.clearVisuals(level);
             SpatialDisplacementManager.emergencyRestoreAll(level);

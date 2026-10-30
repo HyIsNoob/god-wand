@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class AtomicLocalMovementMixin {
     @Inject(method="move",at=@At("HEAD"),cancellable=true)
     private void godwand$atomicStill(MoverType type,Vec3 movement,CallbackInfo ci) {
-        if((Object)this instanceof LocalPlayer player && AtomicCinematic.movementLocked()) {
+        if((Object)this instanceof LocalPlayer player && (AtomicCinematic.movementLocked()||net.godwand.client.FugaCinematic.movementLocked())) {
             player.setDeltaMovement(Vec3.ZERO);
             player.fallDistance=0;
             ci.cancel();

@@ -28,6 +28,12 @@ public abstract class GameRendererMixin {
     private void godwand$applyScreenShake(PoseStack matrices, float tickDelta, CallbackInfo ci) {
         GodWandCinematicEngine.applyScreenShake(matrices, tickDelta);
         net.godwand.client.AtomicCinematic.applyShake(matrices, tickDelta);
+        float fugaShake=net.godwand.client.FugaCinematic.shake(tickDelta);
+        if(fugaShake>0) {
+            float time=(net.minecraft.client.Minecraft.getInstance().level==null?0:net.minecraft.client.Minecraft.getInstance().level.getGameTime())+tickDelta;
+            matrices.mulPose(com.mojang.math.Axis.ZP.rotationDegrees((float)Math.sin(time*2.7)*fugaShake));
+            matrices.mulPose(com.mojang.math.Axis.XP.rotationDegrees((float)Math.sin(time*3.9)*fugaShake*.6f));
+        }
     }
 
     /**
@@ -37,11 +43,13 @@ public abstract class GameRendererMixin {
     private void godwand$applyDynamicFov(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Double> cir) {
         double current = cir.getReturnValue();
         double multiplier = GodWandCinematicEngine.getFovMultiplier(tickDelta);
-        cir.setReturnValue(net.godwand.client.AtomicCinematic.fov(current * multiplier, tickDelta));
+        double result=net.godwand.client.FugaCinematic.fov(net.godwand.client.AtomicCinematic.fov(current * multiplier, tickDelta),tickDelta);
+        if(changingFov)net.godwand.client.FugaCinematic.recordFov(result);
+        cir.setReturnValue(result);
     }
 
     @Inject(method = "renderItemInHand", at = @At("HEAD"), cancellable = true)
     private void godwand$atomicHideHand(Camera camera, float delta, org.joml.Matrix4f matrix, CallbackInfo ci) {
-        if (net.godwand.client.AtomicCinematic.active()) ci.cancel();
+        if (net.godwand.client.AtomicCinematic.active()||net.godwand.client.FugaCinematic.active()) ci.cancel();
     }
 }

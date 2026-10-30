@@ -10,5 +10,5 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ToastComponent.class)
 public abstract class AtomicToastMixin {
     @Inject(method="render",at=@At("HEAD"),cancellable=true)
-    private void godwand$atomicDeferToasts(CallbackInfo ci) { if(AtomicCinematic.active())ci.cancel(); }
+    private void godwand$atomicDeferToasts(CallbackInfo ci) { if(AtomicCinematic.active()||net.godwand.client.FugaCinematic.active())ci.cancel(); }
 }

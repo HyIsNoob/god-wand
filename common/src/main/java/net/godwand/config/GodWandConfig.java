@@ -24,6 +24,7 @@ public final class GodWandConfig {
         public boolean skyBlackout = true;
         public boolean targetMarker = true;
         public boolean atomicCutscene = true;
+        public boolean fugaCutscene = true;
         public float cameraShake = 1;
         public float bloomStrength = .85f;
         public int bloomDownsample = 4;
@@ -54,6 +55,7 @@ public final class GodWandConfig {
         public int[] stoneCannonCooldownTicks = {30,30,30,30};
         public int supernovaCooldownTicks = 520;
         public int atomicCooldownTicks = 600;
+        public int fugaCooldownTicks = 600;
         public float[] singularityDamageMultipliers = {1,1,1};
         public float[] earthDrillDamageMultipliers = {1,1,1,1};
         public float[] stoneCannonDamageMultipliers = {1,1,1,1};
@@ -71,6 +73,9 @@ public final class GodWandConfig {
         public float atomicDamage = 9999;
         public float atomicShockwaveDamage = 15;
         public boolean atomicTerrainDamage = true;
+        public boolean fugaTerrainDamage = true;
+        public int fugaTerrainRadius = 24;
+        public float fugaDamage = 9999;
         public List<String> dimensionBlacklist = new ArrayList<>();
 
         public boolean isDimensionBlacklisted(String dimensionId) { return !isDimensionAllowed(dimensionId); }
@@ -80,6 +85,9 @@ public final class GodWandConfig {
             spatialPathCooldownTicks=Mth.clamp(spatialPathCooldownTicks,0,72000);
             supernovaCooldownTicks=Mth.clamp(supernovaCooldownTicks,0,72000);
             atomicCooldownTicks=Mth.clamp(atomicCooldownTicks,0,72000);
+            fugaCooldownTicks=Mth.clamp(fugaCooldownTicks,0,72000);
+            fugaTerrainRadius=Mth.clamp(fugaTerrainRadius,0,64);
+            fugaDamage=finiteClamp(fugaDamage,0,1_000_000,9999);
             singularityCooldownTicks=validatedCooldowns(singularityCooldownTicks,new int[]{20,20,20});
             earthDrillCooldownTicks=validatedCooldowns(earthDrillCooldownTicks,new int[]{35,35,35,35});
             stoneCannonCooldownTicks=validatedCooldowns(stoneCannonCooldownTicks,new int[]{30,30,30,30});
@@ -188,6 +196,7 @@ public final class GodWandConfig {
             case 3 -> SERVER.supernovaCooldownTicks;
             case 4 -> SERVER.stoneCannonCooldownTicks[tierIndex(level,4)];
             case 5 -> SERVER.atomicCooldownTicks;
+            case 6 -> SERVER.fugaCooldownTicks;
             default -> 0;
         };
         return ticks==0?0:cooldownTicks(ticks);

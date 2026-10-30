@@ -1,0 +1,45 @@
+{
+  "reason": "Minecraft 26.3 native GPU API adapter",
+  "changes": [
+    {
+      "before": "import com.mojang.blaze3d.platform.GlStateManager;",
+      "after": "import net.godwand.client.compat.GodWandGeometry;\nimport com.mojang.renderpearl.api.pipeline.PrimitiveTopology;"
+    },
+    {
+      "before": "        RenderSystem.enableBlend();\n        RenderSystem.defaultBlendFunc();\n        RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();\n        RenderSystem.setShader(GameRenderer::getPositionColorShader);",
+      "after": "        GodWandGeometry.enableBlend(); GodWandGeometry.defaultBlendFunc();\n        GodWandGeometry.enableDepthTest(); GodWandGeometry.depthMask(false); GodWandGeometry.disableCull();\n        GodWandGeometry.colored();"
+    },
+    {
+      "before": "RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);",
+      "after": "GodWandGeometry.additiveBlend();"
+    },
+    {
+      "before": "BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);",
+      "after": "BufferBuilder buffer = GodWandGeometry.begin(PrimitiveTopology.QUADS,DefaultVertexFormat.POSITION_COLOR);"
+    },
+    {
+      "before": "BufferBuilder backdrop = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);",
+      "after": "BufferBuilder backdrop = GodWandGeometry.begin(PrimitiveTopology.QUADS,DefaultVertexFormat.POSITION_COLOR);"
+    },
+    {
+      "before": "emit(buffer,pose.last().pose(),frame,camera.getPosition(),world.getMinBuildHeight()-frame.origin().y);",
+      "after": "emit(buffer,pose.last().pose(),frame,camera.position(),world.getMinY()-frame.origin().y);"
+    },
+    {
+      "before": "emitBackdrop(backdrop,pose.last().pose(),local,camera.getPosition(),darkness);",
+      "after": "emitBackdrop(backdrop,pose.last().pose(),local,camera.position(),darkness);"
+    },
+    {
+      "before": "if (mesh != null) BufferUploader.drawWithShader(mesh);",
+      "after": "if (mesh != null) GodWandGeometry.draw(mesh);"
+    },
+    {
+      "before": "if (backdropMesh != null) BufferUploader.drawWithShader(backdropMesh);",
+      "after": "if (backdropMesh != null) GodWandGeometry.draw(backdropMesh);"
+    },
+    {
+      "before": "            RenderSystem.depthMask(true); RenderSystem.enableCull();\n            RenderSystem.defaultBlendFunc(); RenderSystem.disableBlend();",
+      "after": "            GodWandGeometry.depthMask(true); GodWandGeometry.enableCull();\n            GodWandGeometry.defaultBlendFunc(); GodWandGeometry.disableBlend();"
+    }
+  ]
+}

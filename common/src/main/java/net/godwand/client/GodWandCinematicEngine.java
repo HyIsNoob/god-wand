@@ -217,7 +217,7 @@ public class GodWandCinematicEngine {
     /**
      * Kiểm tra trạng thái câm lặng chân không (Gọi từ SoundEngineMixin.getVolume)
      */
-    public static float getEnvironmentGain() { return Math.min(environmentGain, AtomicCinematic.environmentGain()); }
+    public static float getEnvironmentGain() { return Math.min(net.godwand.client.FugaCinematic.environmentGain(),Math.min(environmentGain, AtomicCinematic.environmentGain())); }
 
     public static boolean isVacuumSilenceActive() {
         return vacuumSilenceTicks > 0;

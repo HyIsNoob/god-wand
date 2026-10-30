@@ -83,6 +83,7 @@ public class GodWandItemRenderer {
         float time = (client.player != null ? client.player.tickCount : 0) + tickDelta;
 
         int currentMode = GodWandItem.getSkillMode(stack);
+        if(currentMode==GodWandItem.MODE_FUGA && mode!=ItemDisplayContext.GUI && mode!=ItemDisplayContext.GROUND && mode!=ItemDisplayContext.FIXED)return;
         float chargeRatio = getChargeRatio(client, stack);
 
         matrices.pushPose();

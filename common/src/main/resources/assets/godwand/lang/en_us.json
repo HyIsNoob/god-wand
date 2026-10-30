@@ -33,5 +33,7 @@
   "gui.godwand.config.bloom": "Bloom Strength: %d%%",
   "gui.godwand.config.camera_shake": "Camera Shake: %d%%",
   "message.godwand.dimension_blocked": "The God Wand's power is sealed in this realm.",
-  "gui.godwand.config.atomic_cutscene": "Atomic cutscene"
+  "gui.godwand.config.atomic_cutscene": "Atomic cutscene",
+  "skill.godwand.6": "Fuga",
+  "gui.godwand.config.fuga_cutscene": "Fuga Cutscene"
 }

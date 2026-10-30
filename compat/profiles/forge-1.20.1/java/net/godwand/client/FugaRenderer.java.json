@@ -1,0 +1,17 @@
+{
+  "reason": "Minecraft 1.20.1 vertex API adapter",
+  "changes": [
+    {
+      "before": "                BufferBuilder backdrop = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);\n                emitBackdrop(backdrop,pose.last().pose(),local,camera.getPosition(),darkness);\n                var backdropMesh = backdrop.build();\n                if (backdropMesh != null) BufferUploader.drawWithShader(backdropMesh);",
+      "after": "                BufferBuilder backdrop = RenderHelper.begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);\n                emitBackdrop(backdrop,pose.last().pose(),local,camera.getPosition(),darkness);\n                RenderHelper.draw(backdrop);"
+    },
+    {
+      "before": "                BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);\n                emit(buffer,pose.last().pose(),frame,camera.getPosition(),world.getMinBuildHeight()-frame.origin().y);\n                var mesh = buffer.build();\n                if (mesh != null) BufferUploader.drawWithShader(mesh);",
+      "after": "                BufferBuilder buffer = RenderHelper.begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);\n                emit(buffer,pose.last().pose(),frame,camera.getPosition(),world.getMinBuildHeight()-frame.origin().y);\n                RenderHelper.draw(buffer);"
+    },
+    {
+      "before": "v.addVertex(m,(float)p.x,(float)p.y,(float)p.z).setColor((color>>16)&255,(color>>8)&255,color&255,opacity);",
+      "after": "RenderHelper.vertex(v,m,(float)p.x,(float)p.y,(float)p.z,(color>>16)&255,(color>>8)&255,color&255,opacity);"
+    }
+  ]
+}

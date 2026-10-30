@@ -1,0 +1,9 @@
+{
+  "reason": "Legacy explosion sound API",
+  "changes": [
+    {
+      "before": "                    world.playSound(null,task.position.x,task.position.y,task.position.z,SoundEvents.GENERIC_EXPLODE.value(),SoundSource.PLAYERS,6,.55f);\n",
+      "after": "                    world.playSound(null,task.position.x,task.position.y,task.position.z,SoundEvents.GENERIC_EXPLODE,SoundSource.PLAYERS,6,.55f);\n"
+    }
+  ]
+}

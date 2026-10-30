@@ -43,7 +43,8 @@ public class GodWandItem extends Item {
     public static final int MODE_SUPERNOVA = 3;
     public static final int MODE_STONE_CANNON = 4;
     public static final int MODE_ATOMIC = 5;
-    public static final int TOTAL_MODES = 6;
+    public static final int MODE_FUGA = 6;
+    public static final int TOTAL_MODES = 7;
 
     public static String chargeMeter(int level, int maximum) {
         int filled = Mth.clamp(level, 0, maximum);
@@ -82,12 +83,14 @@ public class GodWandItem extends Item {
             if (user instanceof ServerPlayer player) {
                 SupernovaManager.cancelCharge(player);
                 AtomicManager.cancelCharge(player);
+                net.godwand.skill.FugaManager.cancelCharge(player);
             }
             user.stopUsingItem();
         }
         setSkillMode(stack, mode);
         Level world = user.level();
         if (!world.isClientSide()) {
+            if (mode == MODE_FUGA) user.displayClientMessage(Component.literal("§6Fuga"), true);
             if (mode == MODE_ATOMIC) user.displayClientMessage(Component.literal("§dI am Atomic"), true);
             switch (mode) {
                 case MODE_SPATIAL_PATH -> {
@@ -148,6 +151,12 @@ public class GodWandItem extends Item {
                 }
                 return InteractionResultHolder.success(stack);
             }
+            case MODE_FUGA -> {
+                if(user instanceof ServerPlayer player && !net.godwand.skill.FugaManager.beginCharge(player,hand))
+                    return InteractionResultHolder.fail(stack);
+                user.startUsingItem(hand);
+                return InteractionResultHolder.consume(stack);
+            }
             case MODE_ATOMIC -> {
                 if (user instanceof ServerPlayer player && !AtomicManager.beginCharge(player,hand))
                     return InteractionResultHolder.fail(stack);
@@ -168,7 +177,7 @@ public class GodWandItem extends Item {
     @Override
     public int getUseDuration(ItemStack stack, LivingEntity user) {
         int mode = getSkillMode(stack);
-        if (mode == MODE_ARCANE_ORB || mode == MODE_SUPERNOVA || mode == MODE_RATIO_COLLAPSE || mode == MODE_STONE_CANNON || mode == MODE_ATOMIC) {
+        if (mode == MODE_ARCANE_ORB || mode == MODE_SUPERNOVA || mode == MODE_RATIO_COLLAPSE || mode == MODE_STONE_CANNON || mode == MODE_ATOMIC || mode == MODE_FUGA) {
             return 72000;
         }
         return 0;
@@ -344,6 +353,14 @@ public class GodWandItem extends Item {
 
     @Override
     public void releaseUsing(ItemStack stack, Level world, LivingEntity user, int remainingUseTicks) {
+        if (getSkillMode(stack) == MODE_FUGA) {
+            if(user instanceof ServerPlayer player) {
+                boolean ready=getUseDuration(stack,user)-remainingUseTicks>=net.godwand.skill.FugaSequence.CHARGE_TICKS;
+                net.godwand.skill.FugaManager.releaseCharge(player);
+                if(ready) player.getCooldowns().addCooldown(this,net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_FUGA,1));
+            }
+            return;
+        }
         if (getSkillMode(stack) == MODE_ATOMIC) {
             if (user instanceof ServerPlayer player) {
                 boolean committed=getUseDuration(stack,user)-remainingUseTicks>=AtomicSequence.CHARGE_TICKS;
@@ -455,6 +472,7 @@ public class GodWandItem extends Item {
             case MODE_RATIO_COLLAPSE -> tooltip.add(Component.literal("§a§6Earth Drill §7(Hold to charge)"));
             case MODE_SUPERNOVA -> tooltip.add(Component.literal("§a§cSupernova §7(Hold to charge)"));
             case MODE_STONE_CANNON -> tooltip.add(Component.literal("§a§6Stone Cannon §7(Hold to charge)"));
+            case MODE_FUGA -> tooltip.add(Component.literal("§6Fuga §7(Hold to form a bow - Aim and release)"));
             case MODE_ATOMIC -> tooltip.add(Component.literal("§dI am Atomic §7(Hold through ATOMIC - Release to detonate)"));
         }
         super.appendHoverText(stack, context, tooltip, type);

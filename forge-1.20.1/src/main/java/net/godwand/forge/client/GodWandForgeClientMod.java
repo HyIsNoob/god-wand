@@ -72,6 +72,7 @@ public class GodWandForgeClientMod {
         @SubscribeEvent
         public static void onRegisterGuiOverlays(RegisterGuiOverlaysEvent event) {
             event.registerAboveAll("atomic_cinematic", (gui, graphics, partialTick, width, height) -> net.godwand.client.AtomicCinematic.render(graphics, partialTick));
+            event.registerAboveAll("fuga_cinematic", (gui, graphics, partialTick, width, height) -> net.godwand.client.FugaCinematic.render(graphics, partialTick));
             event.registerAbove(VanillaGuiOverlay.VIGNETTE.id(), "impact_frame",
                     (gui, guiGraphics, partialTick, screenWidth, screenHeight) ->
                             CustomImpactFrameOverlay.render(guiGraphics, partialTick));
@@ -91,6 +92,7 @@ public class GodWandForgeClientMod {
                 Camera camera = event.getCamera();
                 float tickDelta = event.getPartialTick();
                 net.godwand.client.AtomicRenderer.render(matrices, camera, tickDelta);
+                net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
                 net.godwand.client.AtomicPostFx.capture(matrices.last().pose(), event.getProjectionMatrix(), tickDelta);
                 CannonPressureRenderer.render(matrices, camera, tickDelta);
                 DrillWindRenderer.render(matrices, camera, tickDelta);
@@ -112,6 +114,8 @@ public class GodWandForgeClientMod {
             if (event.phase != TickEvent.Phase.END) return;
             Minecraft client = Minecraft.getInstance();
             net.godwand.client.AtomicRenderer.tick(client);
+            net.godwand.client.FugaRenderer.tick(client);
+            net.godwand.client.FugaCinematic.tick(client);
             SkillWheelScreen.handleKeyInput(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
@@ -125,6 +129,8 @@ public class GodWandForgeClientMod {
         @SubscribeEvent
         public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
             net.godwand.client.AtomicRenderer.reset();
+            net.godwand.client.FugaRenderer.reset();
+            net.godwand.client.FugaCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();

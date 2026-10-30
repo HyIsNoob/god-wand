@@ -10,13 +10,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class SkillWheelVisualTest {
-    @Test void spritesAreSmallPixelArtWithSixDistinctSkillsAndThreeStates() throws Exception {
+    @Test void spritesAreSmallPixelArtWithSevenDistinctSkillsAndThreeStates() throws Exception {
         try(var stream=getClass().getResourceAsStream("/assets/godwand/textures/gui/skill_wheel.png")) {
             assertNotNull(stream);
             var image=ImageIO.read(stream);
-            assertEquals(240,image.getWidth());assertEquals(120,image.getHeight());
+            assertEquals(280,image.getWidth());assertEquals(120,image.getHeight());
             Set<Integer> skills=new HashSet<>();
-            for(int mode=0;mode<6;mode++) {
+            for(int mode=0;mode<7;mode++) {
                 skills.add(Arrays.hashCode(image.getRGB(mode*40+8,8,24,24,null,0,24)));
                 assertEquals(0,image.getRGB(mode*40,0)>>>24,"Cut corners stay transparent");
                 assertNotEquals(image.getRGB(mode*40+2,10),image.getRGB(mode*40+2,50));
@@ -25,15 +25,15 @@ class SkillWheelVisualTest {
                 for(int y=8;y<32;y++)for(int x=8;x<32;x++)if((image.getRGB(mode*40+x,y)>>>24)==255)opaque++;
                 assertEquals(24*24,opaque,"Icon backing must remain readable over bright terrain");
             }
-            assertEquals(6,skills.size());
+            assertEquals(7,skills.size());
         }
     }
 
     @Test void highlightedPixelSectorsMatchTheActualMouseHitAreasAndLeaveTheCenterClear() throws Exception {
         try(var stream=getClass().getResourceAsStream("/assets/godwand/textures/gui/skill_sectors.png")) {
             assertNotNull(stream);var image=ImageIO.read(stream);
-            assertEquals(1568,image.getWidth());assertEquals(224,image.getHeight());
-            for(int mode=0;mode<6;mode++) {
+            assertEquals(1792,image.getWidth());assertEquals(224,image.getHeight());
+            for(int mode=0;mode<7;mode++) {
                 int cells=0;
                 assertEquals(0,image.getRGB(mode*224+112,112)>>>24);
                 for(int y=0;y<224;y+=2)for(int x=0;x<224;x+=2) {
@@ -42,12 +42,12 @@ class SkillWheelVisualTest {
                     double radius=Math.hypot(x-111,y-111);
                     assertTrue(radius>=48&&radius<=112);cells++;
                 }
-                assertTrue(cells>1000,"Each skill must have a generous drag target");
+                assertTrue(cells>800,"Each skill must have a generous drag target");
             }
         }
     }
 
-    @Test void wheelUsesSixUnscaledSpritesWithSeparateHoverSelectionAndBoundedCooldown() throws Exception {
+    @Test void wheelUsesSevenUnscaledSpritesWithSeparateHoverSelectionAndBoundedCooldown() throws Exception {
         var context=mock(GuiGraphicsExtractor.class);
         List<int[]> sprites=new ArrayList<>(),fills=new ArrayList<>(),layers=new ArrayList<>();
         doAnswer(call -> {
@@ -62,14 +62,15 @@ class SkillWheelVisualTest {
             fills.add(args);return null;
         }).when(context).fill(anyInt(),anyInt(),anyInt(),anyInt(),anyInt());
         SkillWheelScreen.drawWheel(context,5,1,2);
-        int[][] positions={{-20,-102},{51,-61},{51,21},{-20,62},{-91,21},{-91,-61}};
-        assertEquals(6,sprites.size());
+        int[][] positions=new int[7][2];
+        for(int i=0;i<7;i++){double angle=-Math.PI/2+i*Math.PI*2/7;positions[i][0]=(int)Math.round(Math.cos(angle)*82)-20;positions[i][1]=(int)Math.round(Math.sin(angle)*82)-20;}
+        assertEquals(7,sprites.size());
         assertEquals(2,layers.size());
-        assertArrayEquals(new int[]{-112,-112,1344,0,224,224,1568,224},layers.get(0));
-        assertArrayEquals(new int[]{-112,-112,224,0,224,224,1568,224},layers.get(1));
-        for(int mode=0;mode<6;mode++) {
+        assertArrayEquals(new int[]{-112,-112,1568,0,224,224,1792,224},layers.get(0));
+        assertArrayEquals(new int[]{-112,-112,224,0,224,224,1792,224},layers.get(1));
+        for(int mode=0;mode<7;mode++) {
             int[] a=sprites.get(mode);
-            assertArrayEquals(new int[]{positions[mode][0],positions[mode][1],mode*40,mode==1?80:mode==5?40:0,40,40,240,120},a);
+            assertArrayEquals(new int[]{positions[mode][0],positions[mode][1],mode*40,mode==1?80:mode==5?40:0,40,40,280,120},a);
         }
         assertTrue(fills.stream().allMatch(a -> a[2]-a[0]<=28&&a[3]-a[1]<=3),"No opaque wheel plate or overflowing cooldown");
         sprites.clear();fills.clear();layers.clear();SkillWheelScreen.drawWheel(context,5,5,.35f);

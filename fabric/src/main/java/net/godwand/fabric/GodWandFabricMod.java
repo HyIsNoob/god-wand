@@ -78,6 +78,7 @@ public class GodWandFabricMod implements ModInitializer {
 
         PayloadTypeRegistry.playS2C().register(DrillWindPayload.ID, DrillWindPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(AtomicFxPayload.ID, AtomicFxPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(SpatialAuraPayload.ID, SpatialAuraPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(CannonPressurePayload.ID, CannonPressurePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(SingularityThreadsPayload.ID, SingularityThreadsPayload.CODEC);
@@ -154,6 +155,7 @@ public class GodWandFabricMod implements ModInitializer {
             RatioCollapseManager.tick(level);
             SupernovaManager.tick(level);
             AtomicManager.tick(level);
+            net.godwand.skill.FugaManager.tick(level);
             SpatialBridge.tickWorld(level);
             SpatialDisplacementManager.tick(level);
         });
@@ -177,6 +179,7 @@ public class GodWandFabricMod implements ModInitializer {
             RatioCollapseManager.clearAllTasks();
             SupernovaManager.clearAllTasks();
             AtomicManager.clearAllTasks();
+            net.godwand.skill.FugaManager.clearAllTasks();
             for (ServerLevel level : server.getAllLevels()) {
                 SpatialBridge.clearVisuals(level);
                 SpatialDisplacementManager.emergencyRestoreAll(level);

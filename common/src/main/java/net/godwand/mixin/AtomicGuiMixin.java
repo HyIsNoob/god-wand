@@ -10,5 +10,5 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Gui.class)
 public abstract class AtomicGuiMixin {
     @Inject(method={"renderCrosshair","renderHotbarAndDecorations","renderChat","renderScoreboardSidebar","renderTabList","renderEffects","renderOverlayMessage","renderTitle"},at=@At("HEAD"),cancellable=true)
-    private void godwand$atomicHideCrosshair(CallbackInfo ci) { if(AtomicCinematic.active())ci.cancel(); }
+    private void godwand$atomicHideCrosshair(CallbackInfo ci) { if(AtomicCinematic.active()||net.godwand.client.FugaCinematic.active())ci.cancel(); }
 }
