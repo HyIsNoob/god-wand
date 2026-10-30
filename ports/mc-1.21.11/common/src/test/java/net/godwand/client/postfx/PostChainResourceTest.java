@@ -74,6 +74,35 @@ public class PostChainResourceTest {
                 var definitions = json.getAsJsonArray("passes").get(i).getAsJsonObject()
                         .getAsJsonObject("uniforms").getAsJsonArray("GodWandConfig");
                 if (definitions == null) continue;
+                // Minecraft pads vec3 writes to 16 bytes; GLSL otherwise packs the next float into byte 12.
+                String block = shader.substring(shader.indexOf("uniform GodWandConfig {"), shader.indexOf("};"));
+                var members = java.util.regex.Pattern.compile("(mat4|vec[234]|float)\\s+(\\w+);").matcher(block);
+                int offset = 0;
+                var offsets = new java.util.HashMap<String,Integer>();
+                while (members.find()) {
+                    String type = members.group(1);
+                    int align = type.equals("float") ? 4 : type.equals("vec2") ? 8 : 16;
+                    offset = (offset + align - 1) / align * align;
+                    offsets.put(members.group(2), offset);
+                    offset += type.equals("mat4") ? 64 : type.equals("vec3") ? 12 : align;
+                }
+                var bytes = ByteBuffer.allocate(4096);
+                var writer = Std140Builder.intoBuffer(bytes);
+                for (var element : definitions) {
+                    var uniform = element.getAsJsonObject();
+                    String type = uniform.get("type").getAsString();
+                    int align = type.equals("float") ? 4 : type.equals("vec2") ? 8 : 16;
+                    int actual = (bytes.position() + align - 1) / align * align;
+                    String field = uniform.get("name").getAsString();
+                    require(offsets.get(field) == actual, "GPU field offset " + name + ":" + field);
+                    switch (type) {
+                        case "float" -> writer.putFloat(0);
+                        case "vec2" -> writer.putVec2(0, 0);
+                        case "vec3" -> writer.putVec3(0, 0, 0);
+                        case "matrix4x4" -> writer.putMat4f(new org.joml.Matrix4f());
+                        default -> throw new AssertionError(type);
+                    }
+                }
                 int position = -1;
                 for (var element : definitions) {
                     var uniform = element.getAsJsonObject();

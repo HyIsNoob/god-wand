@@ -14,6 +14,7 @@
 
 ### Fixed
 
+- Fixed distorted screens during impact effects in Minecraft 1.21.11.
 - Atomic now destroys blocks within its expanding light column.
 - Atomic terrain destruction expands in a circle instead of square layers.
 
