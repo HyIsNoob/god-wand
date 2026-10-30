@@ -145,9 +145,9 @@ class AtomicCraterTest {
         assertTrue(crater.finished());
     }
 
-    @Test void terrainReachIncreasesByHalfWithoutChangingVisualRadius() {
-        assertEquals(147, AtomicCrater.terrainRadius(98));
-        assertEquals(48, AtomicCrater.terrainRadius(32));
+    @Test void terrainReachNeverExceedsVisibleColumnRadius() {
+        assertEquals(98, AtomicCrater.terrainRadius(98));
+        assertEquals(32, AtomicCrater.terrainRadius(32));
         assertEquals(0, AtomicCrater.terrainRadius(0));
         assertEquals(98, AtomicSequence.MAX_RADIUS);
     }

@@ -6,8 +6,13 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class AtomicTerrainPlannerTest {
+    @Test void everyPartialPlanIsRadialRatherThanSquareSpiral() {
+        var plan=AtomicTerrainPlanner.plan(24);
+        for(int i=1;i<plan.distances().length;i++)
+            assertTrue(plan.distances()[i]>=plan.distances()[i-1],"Destruction must advance by circular distance, not square spiral rows");
+    }
     @Test void backgroundPlanContainsEveryDestructibleColumnExactlyOnce() throws Exception {
-        int radius=147;
+        int radius=98;
         var future=AtomicTerrainPlanner.request(radius);
         assertNotNull(future);
         var plan=future.get(5,TimeUnit.SECONDS);
@@ -23,6 +28,6 @@ class AtomicTerrainPlannerTest {
             if(x*x+z*z>9 && x*x+z*z<=radius*radius)expected++;
         assertEquals(expected,seen.size());
         assertEquals(0,AtomicTerrainPlanner.plan(0).offsets().length);
-        assertThrows(IllegalArgumentException.class,()->AtomicTerrainPlanner.plan(148));
+        assertThrows(IllegalArgumentException.class,()->AtomicTerrainPlanner.plan(99));
     }
 }

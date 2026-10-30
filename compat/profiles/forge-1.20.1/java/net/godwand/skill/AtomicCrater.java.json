@@ -2,8 +2,8 @@
   "reason": "Explicit version/loader API adapter",
   "changes": [
     {
-      "before": "\n    AtomicCrater(BlockPos center, int radius) {\n        this.center = center.immutable();\n        this.radius = Math.clamp(radius, 0, AtomicSequence.MAX_RADIUS * 3 / 2);\n        if (this.radius>0) pending=AtomicTerrainPlanner.request(this.radius);\n    }\n    // Scale terrain only; the cinematic and entity damage retain their original reach.\n",
-      "after": "\n    AtomicCrater(BlockPos center, int radius) {\n        this.center = center.immutable();\n        this.radius = net.minecraft.util.Mth.clamp(radius, 0, AtomicSequence.MAX_RADIUS * 3 / 2);\n        if (this.radius>0) pending=AtomicTerrainPlanner.request(this.radius);\n    }\n    // Scale terrain only; the cinematic and entity damage retain their original reach.\n"
+      "before": "\n    AtomicCrater(BlockPos center, int radius) {\n        this.center = center.immutable();\n        this.radius = Math.clamp(radius, 0, AtomicSequence.MAX_RADIUS);\n        if (this.radius>0) pending=AtomicTerrainPlanner.request(this.radius);\n    }\n    // The terrain limit and expanding front must stay inside the visible column.\n",
+      "after": "\n    AtomicCrater(BlockPos center, int radius) {\n        this.center = center.immutable();\n        this.radius = net.minecraft.util.Mth.clamp(radius, 0, AtomicSequence.MAX_RADIUS);\n        if (this.radius>0) pending=AtomicTerrainPlanner.request(this.radius);\n    }\n    // The terrain limit and expanding front must stay inside the visible column.\n"
     }
   ]
 }
