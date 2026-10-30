@@ -2,22 +2,23 @@
 
 ## [1.3.4]
 
-Released for Minecraft 1.21.11. Other Minecraft versions have not received this release yet.
+This release includes all eight supported builds.
 
 ### Added
 
+- First public release for Minecraft 1.21.11 on Fabric and NeoForge.
 - Spatial Path now pushes away other players as well as mobs.
 - Admin commands to lock each wand to one skill and unlock it again.
 
 ### Fixed
 
+- Fixed distorted screens during impact effects in Minecraft 1.21.11.
 - Fixed missing surfaces on wand models in Minecraft 1.21.11.
 
 ## [1.3.3]
 
 ### Added
 
-- Fabric and NeoForge support for Minecraft 1.21.11.
 - Separate cooldowns for each skill.
 
 ### Changed
@@ -27,7 +28,6 @@ Released for Minecraft 1.21.11. Other Minecraft versions have not received this 
 
 ### Fixed
 
-- Fixed distorted screens during impact effects in Minecraft 1.21.11.
 - Atomic now destroys blocks within its expanding light column.
 - Atomic terrain destruction expands in a circle instead of square layers.
 

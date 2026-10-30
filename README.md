@@ -67,9 +67,9 @@ See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [sha
 
 ## Release status
 
-1.3.4 is released for Minecraft 1.21.11. It adds player repulsion to Spatial Path, single-skill wand commands and fixes missing wand model surfaces. The owner has completed gameplay testing for this release.
+1.3.4 includes all eight builds listed above. It adds player repulsion to Spatial Path, single-skill wand commands and fixes rendering issues in Minecraft 1.21.11. This is the first public release for Minecraft 1.21.11 on Fabric and NeoForge.
 
-The table above lists build targets. All eight pass automated build and test checks; 1.3.4 has not been released for the other Minecraft versions yet. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
+All eight targets pass automated build and test checks. The owner has completed gameplay testing for this release. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
 
 ## License
 
