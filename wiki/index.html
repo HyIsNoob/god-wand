@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,8 +8,18 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('godwand_wiki_theme');
+      if (savedTheme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+      const savedLang = localStorage.getItem('godwand_wiki_lang') || 'en';
+      document.documentElement.setAttribute('lang', savedLang);
+    })();
+  </script>
 </head>
-<body data-lang="vi">
+<body data-lang="en">
 
   <header class="top-header" id="top">
     <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -24,14 +34,20 @@
     </div>
 
     <div class="header-search">
-      <input type="text" class="search-input" placeholder="Tìm kiếm cấu hình, chiêu thức... (Ctrl + K)">
+      <input type="text" class="search-input" placeholder="Search config keys, skills... (Ctrl + K)">
       <span class="search-shortcut">Ctrl K</span>
     </div>
 
     <div class="header-actions">
+      <button id="theme-toggle" class="theme-btn" aria-label="Toggle light or dark theme" title="Toggle theme">
+        <svg class="theme-icon-sun" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        <svg class="theme-icon-moon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        <span class="theme-label">Light</span>
+      </button>
+
       <button id="lang-toggle" class="lang-btn" aria-label="Toggle language">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-        <span>VI / EN</span>
+        <span>EN / VI</span>
       </button>
 
       <a href="https://github.com/HyIsNoob/god-wand" target="_blank" rel="noopener noreferrer" class="nav-link-btn">
@@ -384,7 +400,7 @@
 
         <!-- Skins Summary Table -->
         <div id="skins" style="margin-top: 2rem;">
-          <h3 style="color: #ffffff; font-size: 1.15rem; margin-bottom: 0.75rem;">
+          <h3 class="subsection-title">
             <span class="lang-vi">Hệ Thống Skin & Sát Thương Cận Chiến</span>
             <span class="lang-en">Wand Skins & Melee Attack Profile</span>
           </h3>
@@ -505,7 +521,7 @@
 
         <!-- Shader Compatibility subsection -->
         <div id="shader-compat" style="margin-top: 2rem;">
-          <h3 style="color: #ffffff; font-size: 1.15rem; margin-bottom: 0.5rem;">
+          <h3 class="subsection-title">
             <span class="lang-vi">Tương Thích Iris Shaders & Sodium</span>
             <span class="lang-en">Iris Shaders & Sodium Integration</span>
           </h3>
@@ -530,7 +546,7 @@
         </div>
 
         <!-- Server Config Title -->
-        <h3 style="color: #ffffff; font-size: 1.15rem; margin: 1.5rem 0 0.5rem 0;">
+        <h3 class="subsection-title" style="margin: 1.5rem 0 0.5rem 0;">
           <span class="lang-vi">1. godwand-server.json (Cấu hình Gameplay máy chủ — 25 Keys)</span>
           <span class="lang-en">1. godwand-server.json (Server Gameplay Configuration — 25 Keys)</span>
         </h3>
@@ -820,7 +836,7 @@
 
         <!-- Client Config Title -->
         <div id="client-config" style="margin-top: 3rem;">
-          <h3 style="color: #ffffff; font-size: 1.15rem; margin-bottom: 0.5rem;">
+          <h3 class="subsection-title">
             <span class="lang-vi">2. godwand-client.json (Cấu hình Đồ họa Client — 9 Keys)</span>
             <span class="lang-en">2. godwand-client.json (Client Visual Preferences — 9 Keys)</span>
           </h3>
@@ -946,7 +962,7 @@
           <p class="section-lead lang-en">Ready-to-use snippets for anti-grief servers, low-end PCs, and reversible block mechanics.</p>
         </div>
 
-        <h3 style="color: #ffffff; font-size: 0.95rem; margin: 1rem 0 0.4rem 0;">
+        <h3 class="preset-title" style="margin: 1rem 0 0.4rem 0;">
           <span class="lang-vi">1. Chống Phá Hủy Địa Hình (Anti-Grief Server) &bull; Dán vào godwand-server.json</span>
           <span class="lang-en">1. Anti-Grief Preset &bull; Paste into godwand-server.json</span>
         </h3>
@@ -970,7 +986,7 @@
 }</code></pre>
         </div>
 
-        <h3 style="color: #ffffff; font-size: 0.95rem; margin: 1.5rem 0 0.4rem 0;">
+        <h3 class="preset-title">
           <span class="lang-vi">2. Hiệu Ứng Bốc Khối Tự Phục Hồi (Reversible Block Effects) &bull; Dán vào godwand-server.json</span>
           <span class="lang-en">2. Reversible Block Effects &bull; Paste into godwand-server.json</span>
         </h3>
@@ -994,7 +1010,7 @@
 }</code></pre>
         </div>
 
-        <h3 style="color: #ffffff; font-size: 0.95rem; margin: 1.5rem 0 0.4rem 0;">
+        <h3 class="preset-title">
           <span class="lang-vi">3. Tối Ưu Máy Yếu & Server Đông Người (FPS Boost) &bull; Dán vào godwand-client.json</span>
           <span class="lang-en">3. Low-End PC & High-TPS Preset &bull; Paste into godwand-client.json</span>
         </h3>
@@ -1017,7 +1033,7 @@
 }</code></pre>
         </div>
 
-        <h3 style="color: #ffffff; font-size: 0.95rem; margin: 1.5rem 0 0.4rem 0;">
+        <h3 class="preset-title">
           <span class="lang-vi">4. Toàn Bộ Cấu Hình Gốc Chuẩn Xác (Full Canonical Defaults) &bull; godwand-server.json</span>
           <span class="lang-en">4. Full Canonical Defaults &bull; godwand-server.json</span>
         </h3>

@@ -1,20 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Language Toggle (VI / EN)
+  // 1. Language Toggle (EN / VI) — Default: English
   const langToggleBtn = document.getElementById('lang-toggle');
   const searchInput = document.querySelector('.search-input');
   
-  let currentLang = localStorage.getItem('godwand_wiki_lang') || 'vi';
+  let currentLang = localStorage.getItem('godwand_wiki_lang') || 'en';
   setLanguage(currentLang);
 
   if (langToggleBtn) {
     langToggleBtn.addEventListener('click', () => {
-      currentLang = currentLang === 'vi' ? 'en' : 'vi';
+      currentLang = currentLang === 'en' ? 'vi' : 'en';
       setLanguage(currentLang);
     });
   }
 
   function setLanguage(lang) {
     document.body.setAttribute('data-lang', lang);
+    document.documentElement.setAttribute('lang', lang);
     localStorage.setItem('godwand_wiki_lang', lang);
     if (searchInput) {
       searchInput.placeholder = lang === 'vi' 
@@ -23,7 +24,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 2. Mobile Menu Toggle
+  // 2. Theme Toggle (Dark / Light)
+  const themeToggleBtn = document.getElementById('theme-toggle');
+  let currentTheme = localStorage.getItem('godwand_wiki_theme') || 'dark';
+  setTheme(currentTheme);
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+      setTheme(currentTheme);
+    });
+  }
+
+  function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('godwand_wiki_theme', theme);
+    const themeLabel = document.querySelector('.theme-label');
+    if (themeLabel) {
+      themeLabel.textContent = theme === 'light' ? 'Dark' : 'Light';
+    }
+  }
+
+  // 3. Mobile Menu Toggle
   const menuToggle = document.querySelector('.menu-toggle');
   const sidebar = document.querySelector('aside.sidebar');
   if (menuToggle && sidebar) {
@@ -40,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 3. In-Page Skill Quick Filter Tabs
+  // 4. In-Page Skill Quick Filter Tabs
   const skillTabBtns = document.querySelectorAll('.skill-tab-btn');
   const skillCards = document.querySelectorAll('.skill-card');
 
@@ -60,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 4. Toast Notification
+  // 5. Toast Notification
   const toast = document.getElementById('toast');
   function showToast(msg) {
     if (!toast) return;
@@ -71,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1800);
   }
 
-  // 5. Copy Code Buttons
+  // 6. Copy Code Buttons
   document.querySelectorAll('.copy-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const codeBox = btn.closest('.code-box');
@@ -98,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 6. ScrollSpy for Sidebar Navigation
+  // 7. ScrollSpy for Sidebar Navigation
   const navLinks = document.querySelectorAll('.sidebar-nav a');
   const sections = document.querySelectorAll('section.doc-section');
 
