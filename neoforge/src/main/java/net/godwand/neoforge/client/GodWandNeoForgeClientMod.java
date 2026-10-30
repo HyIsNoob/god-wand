@@ -67,6 +67,8 @@ public class GodWandNeoForgeClientMod {
     }
 
     public static void registerClientPayloads(PayloadRegistrar registrar) {
+        registrar.playToClient(net.godwand.network.SkillCooldownPayload.ID,net.godwand.network.SkillCooldownPayload.CODEC,
+                (payload,context)->context.enqueueWork(()->net.godwand.client.SkillCooldownClient.receive(payload)));
         registrar.playToClient(AtomicFxPayload.ID, AtomicFxPayload.CODEC,
                 (payload, context) -> context.enqueueWork(() -> AtomicRenderer.receive(payload)));
         registrar.playToClient(
@@ -193,6 +195,7 @@ public class GodWandNeoForgeClientMod {
             if (VanillaGuiLayers.CAMERA_OVERLAYS.equals(event.getName())) {
                 CustomImpactFrameOverlay.render(event.getGuiGraphics(), event.getPartialTick());
                 AtomicCinematic.render(event.getGuiGraphics(), event.getPartialTick());
+                net.godwand.client.SkillCooldownClient.render(event.getGuiGraphics());
             }
         }
 
@@ -201,6 +204,7 @@ public class GodWandNeoForgeClientMod {
             Minecraft client = Minecraft.getInstance();
             SkillWheelScreen.handleKeyInput(client);
             AtomicRenderer.tick(client);
+            net.godwand.client.SkillCooldownClient.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
             EarthDrillSoundscape.tick(client);

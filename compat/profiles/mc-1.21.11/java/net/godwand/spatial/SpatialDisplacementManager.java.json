@@ -1,0 +1,29 @@
+{
+  "reason": "Minecraft 1.21.11 API adapter",
+  "changes": [
+    {
+      "before": "import net.minecraft.world.Clearable;\nimport net.minecraft.world.entity.Display.BlockDisplay;\nimport net.minecraft.world.entity.EntityType;\nimport net.minecraft.world.entity.player.Player;\nimport net.minecraft.world.level.Level;\nimport net.minecraft.world.level.block.BedBlock;\n",
+      "after": "import net.minecraft.world.Clearable;\nimport net.minecraft.world.entity.Display.BlockDisplay;\nimport net.minecraft.world.entity.EntityType;\nimport net.minecraft.world.entity.EntityType;\nimport net.minecraft.world.entity.player.Player;\nimport net.minecraft.world.level.Level;\nimport net.minecraft.world.level.block.BedBlock;\n"
+    },
+    {
+      "before": "            return;\n        }\n        if (be != null) {\n            Clearable.tryClear(be);\n            for (ServerPlayer player : world.players()) {\n                if (!player.containerMenu.stillValid(player)) player.closeContainer();\n            }\n",
+      "after": "            return;\n        }\n        if (be != null) {\n            if (be instanceof Clearable clearable) clearable.clearContent();\n            for (ServerPlayer player : world.players()) {\n                if (!player.containerMenu.stillValid(player)) player.closeContainer();\n            }\n"
+    },
+    {
+      "before": "\n        // Spawn at origin before applying the displacement animation.\n        if (spawnDisplay) {\n            BlockDisplay display = new BlockDisplay(EntityType.BLOCK_DISPLAY, world);\n            display.addTag(\"godwand_displaced\");\n            display.setPos(immutablePos.getX(), immutablePos.getY(), immutablePos.getZ());\n            display.setBlockState(state);\n",
+      "after": "\n        // Spawn at origin before applying the displacement animation.\n        if (spawnDisplay) {\n            BlockDisplay display = new BlockDisplay(EntityType.BLOCK_DISPLAY, world);\n            display.addTag(\"godwand_displaced\");\n            display.setPos(immutablePos.getX(), immutablePos.getY(), immutablePos.getZ());\n            display.setBlockState(state);\n"
+    },
+    {
+      "before": "\n            display.setTransformationInterpolationDelay(0);\n            display.setTransformationInterpolationDuration(0);\n            display.setTransformation(Transformation.identity());\n\n            world.addFreshEntity(display);\n            record.displayEntityUuid = display.getUUID();\n",
+      "after": "\n            display.setTransformationInterpolationDelay(0);\n            display.setTransformationInterpolationDuration(0);\n            display.setTransformation(Transformation.identity());\n\n            world.addFreshEntity(display);\n            record.displayEntityUuid = display.getUUID();\n"
+    },
+    {
+      "before": "                            record.currentOffset.set(0, 0, 0);\n                            display.setTransformationInterpolationDelay(0);\n                            display.setTransformationInterpolationDuration(4);\n                            display.setTransformation(Transformation.identity());\n                            if (record.mode != DisplacedBlockRecord.DisplacementMode.PATH_WALKER && (record.pos.asLong() & 31) == 0) {\n                                world.playSound(null, record.pos, SoundEvents.VAULT_OPEN_SHUTTER, SoundSource.BLOCKS, 0.25f, 1.35f);\n                            }\n",
+      "after": "                            record.currentOffset.set(0, 0, 0);\n                            display.setTransformationInterpolationDelay(0);\n                            display.setTransformationInterpolationDuration(4);\n                            display.setTransformation(Transformation.identity());\n                            if (record.mode != DisplacedBlockRecord.DisplacementMode.PATH_WALKER && (record.pos.asLong() & 31) == 0) {\n                                world.playSound(null, record.pos, SoundEvents.VAULT_OPEN_SHUTTER, SoundSource.BLOCKS, 0.25f, 1.35f);\n                            }\n"
+    },
+    {
+      "before": "        if (r.blockEntityNbt != null) {\n            BlockEntity be = world.getBlockEntity(r.pos);\n            if (be != null) {\n                be.loadWithComponents(r.blockEntityNbt, world.registryAccess());\n                be.setChanged();\n            }\n        }\n",
+      "after": "        if (r.blockEntityNbt != null) {\n            BlockEntity be = world.getBlockEntity(r.pos);\n            if (be != null) {\n                be.loadWithComponents(net.minecraft.world.level.storage.TagValueInput.create(\n                        net.minecraft.util.ProblemReporter.DISCARDING, world.registryAccess(), r.blockEntityNbt));\n                be.setChanged();\n            }\n        }\n"
+    }
+  ]
+}

@@ -128,7 +128,8 @@ public final class SkillWheelScreen extends Screen {
                 (mouseY - height / 2.0) / wheelScale());
         int current = Math.max(0, Math.min(GodWandItem.TOTAL_MODES - 1, GodWandItem.getSkillMode(wand)));
         int shown = hovered >= 0 ? hovered : current;
-        float cooldown = minecraft.player.getCooldowns().getCooldownPercent(wand.getItem(), delta);
+        float[] cooldown=new float[GodWandItem.TOTAL_MODES];
+        for(int i=0;i<cooldown.length;i++)cooldown[i]=SkillCooldownClient.fraction(i);
         context.fill(0, 0, width, height, 0x38100D17);
         context.pose().pushPose();
         context.pose().translate(width / 2f, height / 2f, 0);
@@ -141,7 +142,7 @@ public final class SkillWheelScreen extends Screen {
         context.pose().popPose();
     }
 
-    static void drawWheel(GuiGraphics context, int current, int hovered, float cooldown) {
+    static void drawWheel(GuiGraphics context, int current, int hovered, float[] cooldown) {
         context.blit(SECTORS, -112, -112, 1344f, 0f, 224, 224, 1568, 224);
         if (hovered >= 0)
             context.blit(SECTORS, -112, -112, hovered * 224f, 0f, 224, 224, 1568, 224);
@@ -151,10 +152,11 @@ public final class SkillWheelScreen extends Screen {
             int y = (int)Math.round(Math.sin(angle) * 82) - 20;
             int row = mode == hovered ? 2 : mode == current ? 1 : 0;
             context.blit(ART, x, y, mode * 40f, row * 40f, 40, 40, 240, 120);
-            if (mode == current) {
-                if (cooldown > 0) {
+            {
+                float skillCooldown=cooldown[mode];
+                if (skillCooldown > 0) {
                     context.fill(x + 6, y + 32, x + 34, y + 34, 0xFF17131C);
-                    int remaining = (int)Math.ceil(28 * Math.max(0, Math.min(1, cooldown)));
+                    int remaining = (int)Math.ceil(28 * Math.max(0, Math.min(1, skillCooldown)));
                     context.fill(x + 6, y + 32, x + 6 + remaining, y + 34, 0xFFE9BF70);
                 }
             }

@@ -1,0 +1,9 @@
+{
+  "reason": "Minecraft 1.21.11 API adapter",
+  "changes": [
+    {
+      "before": "#version 150\nuniform sampler2D DiffuseSampler;\nuniform vec2 InSize;\nuniform vec2 BlurAxis;\nuniform float CenterX;\nuniform float CenterY;\nuniform float BloomBurst;\nin vec2 texCoord;\nout vec4 fragColor;\nvoid main() {\n    vec2 stepUV = BlurAxis * 2.4 / max(InSize, vec2(1.0));\n    vec3 color = texture(DiffuseSampler, texCoord).rgb * 0.227027;\n",
+      "after": "#version 330\n#extension GL_ARB_separate_shader_objects : require\nlayout(std140) uniform GodWandConfig {\n    vec2 BlurAxis;\n    float CenterX;\n    float CenterY;\n    float BloomBurst;\n};\n\nuniform sampler2D DiffuseSampler;\nlayout(std140) uniform SamplerInfo { vec2 OutSize; vec2 InSize; };\nlayout(location = 0) in vec2 texCoord;\nlayout(location = 0) out vec4 fragColor;\nvoid main() {\n    vec2 stepUV = BlurAxis * 2.4 / max(InSize, vec2(1.0));\n    vec3 color = texture(DiffuseSampler, texCoord).rgb * 0.227027;\n"
+    }
+  ]
+}

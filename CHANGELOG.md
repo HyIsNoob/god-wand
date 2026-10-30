@@ -2,6 +2,16 @@
 
 ## [1.3.3]
 
+### Added
+
+- Fabric and NeoForge support for Minecraft 1.21.11.
+- Separate cooldowns for each skill.
+
+### Changed
+
+- Longer cooldowns at higher charge levels. Damage is unchanged.
+- Existing stock cooldowns update automatically; custom settings are preserved.
+
 ### Fixed
 
 - Atomic now destroys blocks within its expanding light column.

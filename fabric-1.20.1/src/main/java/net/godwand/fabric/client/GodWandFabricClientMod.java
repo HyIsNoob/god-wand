@@ -121,6 +121,10 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             client.execute(() -> GodWandCinematicEngine.onCinematicEvent(payload));
         });
 
+        ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.SkillCooldownPayload.ID,(client,handler,buf,sender)->{
+            var payload=net.godwand.network.SkillCooldownPayload.read(buf);
+            client.execute(()->net.godwand.client.SkillCooldownClient.receive(payload));
+        });
         ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.AtomicFxPayload.ID, (client, handler, buf, responseSender) -> {
             var payload = net.godwand.network.AtomicFxPayload.read(buf);
             client.execute(() -> net.godwand.client.AtomicRenderer.receive(payload));
@@ -163,9 +167,11 @@ public class GodWandFabricClientMod implements ClientModInitializer {
 
         HudRenderCallback.EVENT.register(CustomImpactFrameOverlay::render);
         HudRenderCallback.EVENT.register(net.godwand.client.AtomicCinematic::render);
+        HudRenderCallback.EVENT.register((graphics,timer)->net.godwand.client.SkillCooldownClient.render(graphics));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             net.godwand.client.AtomicRenderer.tick(client);
+            net.godwand.client.SkillCooldownClient.tick(client);
             SkillWheelScreen.handleKeyInput(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);

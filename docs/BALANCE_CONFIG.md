@@ -9,13 +9,15 @@ Values are in ticks: **20 ticks = 1 second**. Lists run from charge level 1 to t
 | Setting | Default | Applies to |
 | --- | --- | --- |
 | spatialPathCooldownTicks | 20 | Path on/off |
-| singularityCooldownTicks | [20,20,20] | Singularity levels 1–3 |
-| earthDrillCooldownTicks | [35,35,35,35] | Earth Drill levels 1–4 |
-| stoneCannonCooldownTicks | [30,30,30,30] | Stone Cannon levels 1–4 |
-| supernovaCooldownTicks | 520 | Supernova |
-| atomicCooldownTicks | 600 | Atomic |
+| singularityCooldownTicks | [60,120,200] | Singularity levels 1–3 |
+| earthDrillCooldownTicks | [80,140,220,320] | Earth Drill levels 1–4 |
+| stoneCannonCooldownTicks | [40,80,140,220] | Stone Cannon levels 1–4 |
+| supernovaCooldownTicks | 900 | Supernova |
+| atomicCooldownTicks | 1200 | Atomic |
 
-The wand still shares its cooldown across skills. These options set how long each cast starts that cooldown; they do not create six independent timers. Charge durations and cinematic timing are unchanged.
+Each skill has its own cooldown per player. Changing skills lets you cast another ready skill; changing wands does not reset the timers. The skill wheel shows each cooldown separately. Singularity can still be collapsed while its cooldown is running. Charge durations and cinematic timing are unchanged.
+
+On upgrade, values that exactly match the old stock cooldowns receive the new defaults once. Custom cooldowns, all damage settings and unknown modpack options stay untouched.
 
 ## Damage
 
@@ -54,6 +56,6 @@ The wand deals **5 attack damage** at full attack charge before armor, enchantme
 
 ## Supported versions
 
-These settings are shared by all six supported 1.3.2 builds: Fabric/NeoForge 1.21.1, Fabric/Forge 1.20.1, and Fabric/NeoForge 26.3. Minecraft 1.21.11 remains pending. See the root README for the release matrix and docs/SHARED_SOURCES.md for source ownership.
+These settings are shared by all eight supported 1.3.3 builds: Fabric/NeoForge 1.21.1, Fabric/Forge 1.20.1, Fabric/NeoForge 26.3 and Fabric/NeoForge 1.21.11. See the root README for the release matrix and docs/SHARED_SOURCES.md for source ownership.
 
 Automated checks cover config migration, missing/invalid tier arrays, global and tier scaling, zero damage/cooldown, minimum positive cooldown, the five-damage melee attribute and damage/cooldown call-site parity. Build checks do not replace in-game or multiplayer testing.

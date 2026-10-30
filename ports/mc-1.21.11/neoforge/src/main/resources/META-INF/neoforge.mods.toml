@@ -1,0 +1,26 @@
+modLoader="javafml"
+loaderVersion="[3,)"
+license="Custom (MIT code, ARR assets, OFL-1.1 font); see LICENSE"
+
+[[mods]]
+modId="godwand"
+version="${version}"
+displayName="God Wand"
+description="Six spells in one wand. Shape terrain, control gravity and hold I am Atomic until you choose to release."
+
+[[dependencies.godwand]]
+    modId="neoforge"
+    type="required"
+    versionRange="[21.11.48,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.godwand]]
+    modId="minecraft"
+    type="required"
+    versionRange="[1.21.11,1.22)"
+    ordering="NONE"
+    side="BOTH"
+
+[[mixins]]
+config="godwand.neoforge.mixins.json"

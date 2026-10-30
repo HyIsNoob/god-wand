@@ -54,16 +54,17 @@ tasks.named('build') {
 
 tasks.register('buildAll') {
     group = 'build'
-    description = 'Build and check all six supported loader/version combinations.'
-    dependsOn 'verifySharedSources', 'build', 'buildFabric1201', 'buildForge1201', 'build263'
+    description = 'Build and check all eight supported loader/version combinations.'
+    dependsOn 'verifySharedSources', 'build', 'buildFabric1201', 'buildForge1201', 'build263', 'build12111'
 }
 
 tasks.register('releaseJars', Copy) {
     group = 'build'
-    description = 'Build all six versions and collect only installable jars in build/release.'
+    description = 'Build all eight versions and collect only installable jars in build/release.'
     dependsOn 'buildAll'
     into layout.buildDirectory.dir(project.version.toString().endsWith('-dev') ? "preview/${project.version}" : 'release')
     ['fabric', 'neoforge'].each { loader ->
+        from("ports/mc-1.21.11/${loader}/build/libs") { include "godwand-${loader}-1.21.11-${project.mod_version}.jar" }
         from("ports/mc-26.3/${loader}/build/libs") { include "godwand-${loader}-26.3-${project.mod_version}.jar" }
     }
     ['fabric', 'neoforge', 'fabric-1.20.1', 'forge-1.20.1'].each { loader ->
@@ -72,7 +73,8 @@ tasks.register('releaseJars', Copy) {
     inputs.file('CHANGELOG.md')
     doLast {
         def names = ['fabric','neoforge','fabric-1.20.1','forge-1.20.1'].collect { "godwand-${it}-${project.mod_version}.jar" } +
-                ['fabric','neoforge'].collect { "godwand-${it}-26.3-${project.mod_version}.jar" }
+                ['fabric','neoforge'].collect { "godwand-${it}-26.3-${project.mod_version}.jar" } +
+                ['fabric','neoforge'].collect { "godwand-${it}-1.21.11-${project.mod_version}.jar" }
         File collected = destinationDir
         File versioned = project.version.toString().endsWith('-dev') ? collected : new File(collected, project.version.toString())
         names.each { name ->
@@ -87,7 +89,7 @@ tasks.register('releaseJars', Copy) {
         new File(versioned,'SHA256SUMS.txt').text = checksum(versioned)
         new File(collected,"SHA256SUMS-${project.mod_version}.txt").text = checksum(collected)
         new File(versioned,'README.txt').text = "God Wand ${project.mod_version} - install ONE JAR for your exact Minecraft version and loader.\n" +
-                "All six targets are synchronized from canonical common source plus explicit API adapters.\n" +
+                "All eight targets are synchronized from canonical common source plus explicit API adapters.\n" +
                 "Includes current boss damage, Atomic terrain/head/render and Singularity/menu updates.\n" +
                 "Build/unit checks are not live FPS, shaderpack or multiplayer validation.\n" + names.join('\n') + '\n'
         copy { from rootProject.file('CHANGELOG.md'); into versioned }
@@ -99,6 +101,19 @@ tasks.register('build263', Exec) {
     group = 'build'
     description = 'Build and test both Minecraft 26.3 loaders with Java 25.'
     workingDir layout.projectDirectory.dir('ports/mc-26.3')
+    def wrapper = System.getProperty('os.name').toLowerCase().contains('windows') ? ['cmd', '/c', 'gradlew.bat'] : ['sh', './gradlew']
+    commandLine wrapper + ['build', '--console=plain'] + (gradle.startParameter.offline ? ['--offline'] : [])
+    doFirst {
+        def java25 = project(':common').javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }.get()
+        environment 'JAVA_HOME', java25.metadata.installationPath.asFile.absolutePath
+    }
+}
+
+
+tasks.register('build12111', Exec) {
+    group = 'build'
+    description = 'Build and test Fabric and NeoForge Minecraft 1.21.11.'
+    workingDir layout.projectDirectory.dir('ports/mc-1.21.11')
     def wrapper = System.getProperty('os.name').toLowerCase().contains('windows') ? ['cmd', '/c', 'gradlew.bat'] : ['sh', './gradlew']
     commandLine wrapper + ['build', '--console=plain'] + (gradle.startParameter.offline ? ['--offline'] : [])
     doFirst {

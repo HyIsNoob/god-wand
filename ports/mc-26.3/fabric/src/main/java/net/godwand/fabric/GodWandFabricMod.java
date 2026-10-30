@@ -78,6 +78,7 @@ public class GodWandFabricMod implements ModInitializer {
 
         PayloadTypeRegistry.clientboundPlay().register(DrillWindPayload.ID, DrillWindPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(AtomicFxPayload.ID, AtomicFxPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.SkillCooldownPayload.ID, net.godwand.network.SkillCooldownPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(SpatialAuraPayload.ID, SpatialAuraPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(CannonPressurePayload.ID, CannonPressurePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(SingularityThreadsPayload.ID, SingularityThreadsPayload.CODEC);

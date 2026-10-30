@@ -1,0 +1,17 @@
+{
+  "reason": "Minecraft 1.21.11 API adapter",
+  "changes": [
+    {
+      "before": "import org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;\n\n@Mixin(Entity.class)\npublic abstract class EntityMixin {\n\n    @Inject(method=\"isInvulnerableTo\",at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicProtection(net.minecraft.world.damagesource.DamageSource source,CallbackInfoReturnable<Boolean> cir) {\n        if((Object)this instanceof net.minecraft.server.level.ServerPlayer player && net.godwand.skill.AtomicManager.invulnerable(player))\n            cir.setReturnValue(true);\n",
+      "after": "import org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;\n\n@Mixin(value=Entity.class)\npublic abstract class EntityMixin {\n\n    @Inject(method=\"isInvulnerableToBase\",at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicProtection(net.minecraft.world.damagesource.DamageSource source,CallbackInfoReturnable<Boolean> cir) {\n        if((Object)this instanceof net.minecraft.server.level.ServerPlayer player && net.godwand.skill.AtomicManager.invulnerable(player))\n            cir.setReturnValue(true);\n"
+    },
+    {
+      "before": "    @Inject(method = \"isCurrentlyGlowing\", at = @At(\"HEAD\"), cancellable = true)\n    private void godwand$preventDisplacedIsGlowing(CallbackInfoReturnable<Boolean> cir) {\n        Entity self = (Entity) (Object) this;\n        if (self.getTags().contains(\"godwand_displaced\")) {\n            cir.setReturnValue(false);\n        }\n    }\n",
+      "after": "    @Inject(method = \"isCurrentlyGlowing\", at = @At(\"HEAD\"), cancellable = true)\n    private void godwand$preventDisplacedIsGlowing(CallbackInfoReturnable<Boolean> cir) {\n        Entity self = (Entity) (Object) this;\n        if (self.getTags().contains(\"godwand_displaced\")) {\n            cir.setReturnValue(false);\n        }\n    }\n"
+    },
+    {
+      "before": "    @Inject(method = \"hasGlowingTag\", at = @At(\"HEAD\"), cancellable = true)\n    private void godwand$preventDisplacedHasGlowingTag(CallbackInfoReturnable<Boolean> cir) {\n        Entity self = (Entity) (Object) this;\n        if (self.getTags().contains(\"godwand_displaced\")) {\n            cir.setReturnValue(false);\n        }\n    }\n",
+      "after": "    @Inject(method = \"hasGlowingTag\", at = @At(\"HEAD\"), cancellable = true)\n    private void godwand$preventDisplacedHasGlowingTag(CallbackInfoReturnable<Boolean> cir) {\n        Entity self = (Entity) (Object) this;\n        if (self.getTags().contains(\"godwand_displaced\")) {\n            cir.setReturnValue(false);\n        }\n    }\n"
+    }
+  ]
+}

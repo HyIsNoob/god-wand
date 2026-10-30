@@ -1,8 +1,8 @@
-# One source, six builds
+# One source, eight builds
 
 ## Normal development
 
-Edit gameplay, skill timings, damage/configuration, models, menus, effects and assets in `common/src/main/`. Add a new common Java class or asset there: all six builds receive it automatically. The canonical release version is only `gradle.properties` at the repository root.
+Edit gameplay, skill timings, damage/configuration, models, menus, effects and assets in `common/src/main/`. Add a new common Java class or asset there: all eight builds receive it automatically. The canonical release version is only `gradle.properties` at the repository root.
 
 Run from the root:
 
@@ -21,10 +21,12 @@ The source of truth is not a generated copy. `build/shared/<profile>/src/main/` 
 | `common/src/main/` | Gameplay and ordinary skill/UI/VFX edits, once for every target |
 | `compat/profiles/fabric-1.20.1/` | Java 17/1.20.1 API and Fabric-specific adapter hunks |
 | `compat/profiles/forge-1.20.1/` | Java 17/1.20.1 API and Forge-specific adapter hunks |
+| `compat/profiles/mc-1.21.11/` | Java 21 rendering, persistence and loader API adapters for Minecraft 1.21.11 |
 | `compat/profiles/mc-26.3/` | Java 25 native rendering, item/screen/input, registry and damage API hunks |
 | `fabric/`, `neoforge/`, `fabric-1.20.1/src/main/`, `forge-1.20.1/src/main/` | Loader registration/network entry points and metadata |
+| `ports/mc-1.21.11/common/src/main/` | Native 1.21.11 GPU, render-state, post-effect and mixin API bridges |
 | `ports/mc-26.3/common/src/main/` | Native-only bridges and mixins that have no canonical 1.21.1 counterpart |
-| `ports/mc-26.3/fabric/`, `ports/mc-26.3/neoforge/` | Native loader lifecycle, render events, networking, access rules and metadata |
+| `ports/mc-1.21.11/fabric/`, `ports/mc-1.21.11/neoforge/`, `ports/mc-26.3/fabric/`, `ports/mc-26.3/neoforge/` | Native loader lifecycle, render events, networking, access rules and metadata |
 | Per-version `src/test/` | Tests against that Minecraft API; root common tests remain the primary behavior suite |
 
 Adapters are explicit JSON before/after hunks. Builds reject a missing/ambiguous anchor, shared Java exclusions, or a local file shadowing canonical source. They never silently fall back to old port code. An error gives the profile and file that needs attention. Common behavior changes should not be recorded as adapter differences.
@@ -50,4 +52,4 @@ Inspect the JSON diff before accepting it. Do not regenerate every adapter to hi
 
 ## Verification limits
 
-A successful aggregate build proves generation, Java/API compilation, automated tests and packaging for six targets. It does not prove visual equality under shaderpacks, FPS, all boss-mod internals or multiplayer behavior. Minecraft 1.21.11 remains pending and is excluded from this matrix.
+A successful aggregate build proves generation, Java/API compilation, automated tests and packaging for eight targets. It does not prove visual equality under shaderpacks, FPS, all boss-mod internals or multiplayer behavior. Fabric and NeoForge 1.21.11 are included; their gameplay testing remains pending.

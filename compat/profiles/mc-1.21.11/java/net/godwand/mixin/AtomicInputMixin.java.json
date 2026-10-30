@@ -1,0 +1,9 @@
+{
+  "reason": "Minecraft 1.21.11 API adapter",
+  "changes": [
+    {
+      "before": "package net.godwand.mixin;\n\nimport net.godwand.client.AtomicCinematic;\nimport net.minecraft.client.player.KeyboardInput;\nimport net.minecraft.client.player.Input;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.injection.At;\nimport org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n@Mixin(KeyboardInput.class)\npublic abstract class AtomicInputMixin extends Input {\n    @Inject(method=\"tick\",at=@At(\"TAIL\"))\n    private void godwand$atomicInput(boolean slow,float multiplier,CallbackInfo ci) {\n        if(!AtomicCinematic.movementLocked())return;\n        forwardImpulse=leftImpulse=0;\n        up=down=left=right=jumping=shiftKeyDown=false;\n    }\n}\n",
+      "after": "package net.godwand.mixin;\nimport net.godwand.client.AtomicCinematic;\nimport net.minecraft.client.player.*;\nimport net.minecraft.world.entity.player.Input;\nimport net.minecraft.world.phys.Vec2;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.injection.*;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n@Mixin(value=KeyboardInput.class)\npublic abstract class AtomicInputMixin extends ClientInput {\n @Inject(method=\"tick\",at=@At(\"TAIL\"))\n private void godwand$atomicInput(CallbackInfo ci) {\n  if(AtomicCinematic.movementLocked()){keyPresses=Input.EMPTY;moveVector=Vec2.ZERO;}\n }\n}\n"
+    }
+  ]
+}

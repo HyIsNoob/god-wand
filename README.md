@@ -10,10 +10,12 @@ One wand with six skills: walk through mountains, pull enemies into a gravity or
 | 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.3.jar` |
 | 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.3.jar` |
 | 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.3.jar` |
+| 1.21.11 | Fabric + Fabric API | 21 | `godwand-fabric-1.21.11-1.3.3.jar` |
+| 1.21.11 | NeoForge | 21 | `godwand-neoforge-1.21.11-1.3.3.jar` |
 | 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.3.3.jar` |
 | 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.3.3.jar` |
 
-Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server.
+Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server. For multiplayer, update God Wand on both the server and every player’s client.
 
 ## Skills and controls
 
@@ -38,12 +40,12 @@ Client graphics settings are in `config/godwand-client.json`. [Dedicated-server 
 
 ## Build
 
-All six supported builds come from canonical `common/` sources plus explicit API adapters. One root command checks and collects every target. See [shared source ownership](docs/SHARED_SOURCES.md) before making changes.
+All eight supported builds come from canonical `common/` sources plus explicit API adapters. One root command checks and collects every target. See [shared source ownership](docs/SHARED_SOURCES.md) before making changes.
 
 Run from this repository root:
 
 ```powershell
-# Build and check all six variants, then collect their installable jars
+# Build and check all eight variants, then collect their installable jars
 .\gradlew.bat releaseJars
 
 # Build only Fabric/NeoForge 1.21.1
@@ -59,9 +61,9 @@ See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [sha
 
 ## Release status
 
-The 1.3.3 hotfix keeps Atomic block destruction inside its visible column and processes terrain in circular distance order across all six targets. 1.21.11 work remains paused. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
+The 1.3.3 hotfix keeps Atomic block destruction inside its visible column and processes terrain in circular distance order across all eight targets. Fabric and NeoForge 1.21.11 are included. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
 
-1.3.3 is a hotfix for the released 1.3.x builds. All six targets listed above build from the shared source and pass automated checks; gameplay testing is pending. Minecraft 1.21.11 remains pending by owner request.
+1.3.3 is a hotfix for the released 1.3.x builds. All eight targets listed above build from the shared source and pass automated checks; gameplay testing is pending.
 
 ## License
 

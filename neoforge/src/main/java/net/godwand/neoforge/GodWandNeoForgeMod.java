@@ -134,7 +134,7 @@ public class GodWandNeoForgeMod {
     }
 
     private void registerPayloadHandlers(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar(GodWandMod.MOD_ID).versioned("1.3.0");
+        PayloadRegistrar registrar = event.registrar(GodWandMod.MOD_ID).versioned("1.3.3");
 
         registrar.playToServer(net.godwand.network.AtomicSkipPayload.ID, net.godwand.network.AtomicSkipPayload.CODEC,
                 (payload,context) -> context.enqueueWork(() -> {
@@ -166,6 +166,7 @@ public class GodWandNeoForgeMod {
             registrar.playToClient(ImpactFxPayload.ID, ImpactFxPayload.CODEC, (payload, context) -> {});
             registrar.playToClient(CinematicFxPayload.ID, CinematicFxPayload.CODEC, (payload, context) -> {});
             registrar.playToClient(AtomicFxPayload.ID, AtomicFxPayload.CODEC, (payload, context) -> {});
+            registrar.playToClient(net.godwand.network.SkillCooldownPayload.ID, net.godwand.network.SkillCooldownPayload.CODEC, (payload, context) -> {});
         }
     }
 

@@ -1,0 +1,13 @@
+{
+  "reason": "Minecraft 1.21.11 API adapter",
+  "changes": [
+    {
+      "before": "import net.minecraft.network.codec.ByteBufCodecs;\nimport net.minecraft.network.codec.StreamCodec;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.resources.ResourceLocation;\n\n/**\n * Payload \u0111\u1ed3ng b\u1ed9 c\u00e1c s\u1ef1 ki\u1ec7n \u0111i\u1ec7n \u1ea3nh t\u1eeb Server xu\u1ed1ng Client:\n",
+      "after": "import net.minecraft.network.codec.ByteBufCodecs;\nimport net.minecraft.network.codec.StreamCodec;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.resources.Identifier;\n\n/**\n * Payload \u0111\u1ed3ng b\u1ed9 c\u00e1c s\u1ef1 ki\u1ec7n \u0111i\u1ec7n \u1ea3nh t\u1eeb Server xu\u1ed1ng Client:\n"
+    },
+    {
+      "before": "        int durationTicks\n) implements CustomPacketPayload {\n\n    public static final CustomPacketPayload.Type<CinematicFxPayload> ID = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(\"godwand\", \"cinematic_fx\"));\n\n    // C\u00e1c s\u1ef1 ki\u1ec7n \u0111i\u1ec7n \u1ea3nh \u0111\u1ed3ng b\u1ed9 v\u1edbi k\u1ef9 n\u0103ng\n    public static final int EVENT_TRAUMA_SHAKE        = 0; // Rung ch\u1ea5n th\u00f4ng th\u01b0\u1eddng\n",
+      "after": "        int durationTicks\n) implements CustomPacketPayload {\n\n    public static final CustomPacketPayload.Type<CinematicFxPayload> ID = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(\"godwand\", \"cinematic_fx\"));\n\n    // C\u00e1c s\u1ef1 ki\u1ec7n \u0111i\u1ec7n \u1ea3nh \u0111\u1ed3ng b\u1ed9 v\u1edbi k\u1ef9 n\u0103ng\n    public static final int EVENT_TRAUMA_SHAKE        = 0; // Rung ch\u1ea5n th\u00f4ng th\u01b0\u1eddng\n"
+    }
+  ]
+}

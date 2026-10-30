@@ -45,8 +45,8 @@ public class SpatialPathWalker {
     }
 
     public static void toggle(ServerPlayer player) {
-        if (player.getCooldowns().isOnCooldown(net.godwand.GodWandMod.GOD_WAND_ITEM)) return;
-        player.getCooldowns().addCooldown(net.godwand.GodWandMod.GOD_WAND_ITEM, net.godwand.config.GodWandConfig.skillCooldownTicks(0,1));
+        if (!SkillCooldowns.ready(player,0)) return;
+        SkillCooldowns.start(player,0,net.godwand.config.GodWandConfig.skillCooldownTicks(0,1));
         ServerLevel world = player.serverLevel();
         if (ACTIVE_PLAYERS.contains(player.getUUID())) {
             ACTIVE_PLAYERS.remove(player.getUUID());

@@ -1,0 +1,9 @@
+{
+  "reason": "Minecraft 1.21.11 API adapter",
+  "changes": [
+    {
+      "before": "package net.godwand.mixin;\n\nimport net.godwand.client.AtomicCinematic;\nimport net.minecraft.client.gui.Gui;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.injection.At;\nimport org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n@Mixin(Gui.class)\npublic abstract class AtomicGuiMixin {\n    @Inject(method={\"renderCrosshair\",\"renderHotbarAndDecorations\",\"renderChat\",\"renderScoreboardSidebar\",\"renderTabList\",\"renderEffects\",\"renderOverlayMessage\",\"renderTitle\"},at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicHideCrosshair(CallbackInfo ci) { if(AtomicCinematic.active())ci.cancel(); }\n}\n",
+      "after": "package net.godwand.mixin;\n\nimport net.godwand.client.AtomicCinematic;\nimport net.minecraft.client.gui.Gui;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.injection.At;\nimport org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n@Mixin(value=Gui.class)\npublic abstract class AtomicGuiMixin {\n    @Inject(method={\"renderCrosshair\",\"renderHotbarAndDecorations\",\"renderChat\",\"renderScoreboardSidebar\",\"renderTabList\",\"renderEffects\",\"renderOverlayMessage\",\"renderTitle\"},at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicHideCrosshair(CallbackInfo ci) { if(AtomicCinematic.active())ci.cancel(); }\n}\n"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
-# God Wand 1.3.0 dedicated server
+# God Wand dedicated server
 
-Install the matching Minecraft/loader God Wand JAR on both the server and every client. Fabric servers and clients also need Fabric API. Client graphics settings and external shaderpacks stay on the client. Do not install multiple loader/version JARs together.
+Install the matching Minecraft/loader God Wand JAR on both the server and every client. Fabric servers and clients also need Fabric API. Client graphics settings and external shaderpacks stay on the client. Do not install multiple loader/version JARs together. Update both server and clients to 1.3.3 together: per-skill cooldowns use a new server-to-client message.
 
 God Wand server settings are in config/godwand-server.json; client options are in config/godwand-client.json and the K screen. Restart the world/server after changing server configuration.
 

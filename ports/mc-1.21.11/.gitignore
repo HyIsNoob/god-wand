@@ -1,0 +1,10 @@
+.gradle/
+build/
+**/build/
+run/
+**/run/
+*.log
+api-*.txt
+compile-affected-files.txt
+gradle-threads.txt
+PORT_STATUS.md

@@ -248,6 +248,7 @@ public class ShockwaveSlicer {
         Services.NETWORK.sendToNearby(world, task.orbCenter, 96.0, detCinematic);
 
         ACTIVE_TASKS.add(task);
+        SkillCooldowns.sync(task.caster,1);
 
         if (caster != null) {
             caster.displayClientMessage(Component.literal("§dDeployed. Click to collapse."), true);
@@ -312,7 +313,7 @@ public class ShockwaveSlicer {
     }
 
     public static boolean triggerEarlySnap(ServerPlayer player) {
-        if (player.getCooldowns().isOnCooldown(net.godwand.GodWandMod.GOD_WAND_ITEM)) return false;
+
         for (SingularityTask task : ACTIVE_TASKS) {
             if (!task.restored && !task.earlySnapped) {
                 if (task.caster == null || task.caster == player || task.caster.getUUID().equals(player.getUUID())) {
@@ -326,6 +327,7 @@ public class ShockwaveSlicer {
 
     private static void snapTask(SingularityTask task) {
         task.earlySnapped = true;
+        SkillCooldowns.sync(task.caster,1);
         task.earlySnapTick = task.ageTicks;
         task.snappedBack = true;
         sendThreadFx(task, 4);
@@ -559,6 +561,7 @@ public class ShockwaveSlicer {
     private static void executeRestoration(SingularityTask task) {
         clearBeams(task);
         task.restored = true;
+        SkillCooldowns.sync(task.caster,1);
         ServerLevel world = task.world;
 
         List<DisplacedBlockRecord> toRestore = new ArrayList<>();

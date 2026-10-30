@@ -1,0 +1,9 @@
+{
+  "reason": "Minecraft 1.21.11 API adapter",
+  "changes": [
+    {
+      "before": "  \"type\": \"minecraft:crafting_shaped\",\n  \"category\": \"equipment\",\n  \"key\": {\n    \"A\": {\n      \"item\": \"minecraft:amethyst_shard\"\n    },\n    \"B\": {\n      \"item\": \"minecraft:netherite_ingot\"\n    },\n    \"E\": {\n      \"item\": \"minecraft:echo_shard\"\n    },\n    \"N\": {\n      \"item\": \"minecraft:nether_star\"\n    },\n    \"R\": {\n      \"item\": \"minecraft:blaze_rod\"\n    }\n  },\n  \"pattern\": [\n    \"ENE\",\n",
+      "after": "  \"type\": \"minecraft:crafting_shaped\",\n  \"category\": \"equipment\",\n  \"key\": {\n    \"A\": \"minecraft:amethyst_shard\",\n    \"B\": \"minecraft:netherite_ingot\",\n    \"E\": \"minecraft:echo_shard\",\n    \"N\": \"minecraft:nether_star\",\n    \"R\": \"minecraft:blaze_rod\"\n  },\n  \"pattern\": [\n    \"ENE\",\n"
+    }
+  ]
+}

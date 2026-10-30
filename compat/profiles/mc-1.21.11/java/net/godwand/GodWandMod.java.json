@@ -1,0 +1,13 @@
+{
+  "reason": "Minecraft 1.21.11 API adapter",
+  "changes": [
+    {
+      "before": "import net.godwand.entity.StoneCannonProjectileEntity;\nimport net.minecraft.core.registries.Registries;\nimport net.minecraft.resources.ResourceKey;\nimport net.minecraft.resources.ResourceLocation;\nimport net.minecraft.world.entity.EntityType;\nimport net.minecraft.world.item.CreativeModeTab;\nimport net.minecraft.world.item.Item;\n",
+      "after": "import net.godwand.entity.StoneCannonProjectileEntity;\nimport net.minecraft.core.registries.Registries;\nimport net.minecraft.resources.ResourceKey;\nimport net.minecraft.resources.Identifier;\nimport net.minecraft.world.entity.EntityType;\nimport net.minecraft.world.item.CreativeModeTab;\nimport net.minecraft.world.item.Item;\n"
+    },
+    {
+      "before": "    public static Item GOD_WAND_ITEM;\n    public static final ResourceKey<CreativeModeTab> GODWAND_ITEM_GROUP_KEY = ResourceKey.create(\n            Registries.CREATIVE_MODE_TAB,\n            ResourceLocation.fromNamespaceAndPath(MOD_ID, \"godwand_tab\")\n    );\n    public static CreativeModeTab GODWAND_ITEM_GROUP;\n}\n",
+      "after": "    public static Item GOD_WAND_ITEM;\n    public static final ResourceKey<CreativeModeTab> GODWAND_ITEM_GROUP_KEY = ResourceKey.create(\n            Registries.CREATIVE_MODE_TAB,\n            Identifier.fromNamespaceAndPath(MOD_ID, \"godwand_tab\")\n    );\n    public static CreativeModeTab GODWAND_ITEM_GROUP;\n}\n"
+    }
+  ]
+}

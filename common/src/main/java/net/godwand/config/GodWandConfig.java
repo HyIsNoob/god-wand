@@ -46,14 +46,15 @@ public final class GodWandConfig {
     }
 
     public static final class Server {
+        public int cooldownDefaultsVersion = 1;
         public float cooldownMultiplier = 1;
         public float damageMultiplier = 1;
         public int spatialPathCooldownTicks = 20;
-        public int[] singularityCooldownTicks = {20,20,20};
-        public int[] earthDrillCooldownTicks = {35,35,35,35};
-        public int[] stoneCannonCooldownTicks = {30,30,30,30};
-        public int supernovaCooldownTicks = 520;
-        public int atomicCooldownTicks = 600;
+        public int[] singularityCooldownTicks = {60,120,200};
+        public int[] earthDrillCooldownTicks = {80,140,220,320};
+        public int[] stoneCannonCooldownTicks = {40,80,140,220};
+        public int supernovaCooldownTicks = 900;
+        public int atomicCooldownTicks = 1200;
         public float[] singularityDamageMultipliers = {1,1,1};
         public float[] earthDrillDamageMultipliers = {1,1,1,1};
         public float[] stoneCannonDamageMultipliers = {1,1,1,1};
@@ -80,9 +81,9 @@ public final class GodWandConfig {
             spatialPathCooldownTicks=Mth.clamp(spatialPathCooldownTicks,0,72000);
             supernovaCooldownTicks=Mth.clamp(supernovaCooldownTicks,0,72000);
             atomicCooldownTicks=Mth.clamp(atomicCooldownTicks,0,72000);
-            singularityCooldownTicks=validatedCooldowns(singularityCooldownTicks,new int[]{20,20,20});
-            earthDrillCooldownTicks=validatedCooldowns(earthDrillCooldownTicks,new int[]{35,35,35,35});
-            stoneCannonCooldownTicks=validatedCooldowns(stoneCannonCooldownTicks,new int[]{30,30,30,30});
+            singularityCooldownTicks=validatedCooldowns(singularityCooldownTicks,new int[]{60,120,200});
+            earthDrillCooldownTicks=validatedCooldowns(earthDrillCooldownTicks,new int[]{80,140,220,320});
+            stoneCannonCooldownTicks=validatedCooldowns(stoneCannonCooldownTicks,new int[]{40,80,140,220});
             singularityDamageMultipliers=validatedDamage(singularityDamageMultipliers,3);
             earthDrillDamageMultipliers=validatedDamage(earthDrillDamageMultipliers,4);
             stoneCannonDamageMultipliers=validatedDamage(stoneCannonDamageMultipliers,4);
@@ -125,13 +126,26 @@ public final class GodWandConfig {
         write(directory.resolve("godwand-server.json"), SERVER);
     }
 
+    static boolean upgradeCooldownDefaults(com.google.gson.JsonObject object) {
+        if(object.has("cooldownDefaultsVersion")&&object.get("cooldownDefaultsVersion").getAsInt()>=1)return false;
+        var defaults=new Server();
+        String[] names={"singularityCooldownTicks","earthDrillCooldownTicks","stoneCannonCooldownTicks","supernovaCooldownTicks","atomicCooldownTicks"};
+        Object[] old={new int[]{20,20,20},new int[]{35,35,35,35},new int[]{30,30,30,30},520,600};
+        var next=JSON.toJsonTree(defaults).getAsJsonObject();
+        for(int i=0;i<names.length;i++)if(object.has(names[i])&&object.get(names[i]).equals(JSON.toJsonTree(old[i])))
+            object.add(names[i],next.get(names[i]));
+        object.addProperty("cooldownDefaultsVersion",1);
+        return true;
+    }
+
     static <T> T read(Path file, Class<T> type, T defaults) {
         try {
             if (Files.exists(file)) {
                 var object = com.google.gson.JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+                boolean upgraded = type==Server.class && upgradeCooldownDefaults(object);
                 T value = JSON.fromJson(object, type);
                 if (value == null) throw new IllegalArgumentException("Expected a JSON object");
-                boolean upgraded = false;
+
                 for (var entry : JSON.toJsonTree(defaults).getAsJsonObject().entrySet()) {
                     if (!object.has(entry.getKey())) {
                         object.add(entry.getKey(), entry.getValue()); upgraded = true;

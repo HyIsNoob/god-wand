@@ -80,6 +80,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
 
         ClientPlayNetworking.registerGlobalReceiver(DrillWindPayload.ID, (payload, context) ->
                 context.client().execute(() -> DrillWindRenderer.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.SkillCooldownPayload.ID,(payload,context) ->
+                context.client().execute(() -> net.godwand.client.SkillCooldownClient.receive(payload)));
+
         ClientPlayNetworking.registerGlobalReceiver(AtomicFxPayload.ID, (payload, context) ->
                 context.client().execute(() -> AtomicRenderer.receive(payload)));
 
@@ -146,10 +149,12 @@ public class GodWandFabricClientMod implements ClientModInitializer {
 
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","impact"),CustomImpactFrameOverlay::render);
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","atomic"),AtomicCinematic::render);
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","cooldown"),(graphics,timer)->net.godwand.client.SkillCooldownClient.render(graphics));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             SkillWheelScreen.handleKeyInput(client);
             AtomicRenderer.tick(client);
+            net.godwand.client.SkillCooldownClient.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
             EarthDrillSoundscape.tick(client);

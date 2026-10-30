@@ -8,6 +8,7 @@ import io.netty.buffer.Unpooled;
 public final class AtomicPortCheck {
  private static void check(boolean ok,String message){if(!ok)throw new AssertionError(message);}
  public static void main(String[] args) {
+        net.godwand.SkillCooldownPortCheck.verify();
         net.godwand.skill.AtomicVertexOrderCheck.verify();
   check(AtomicSequence.CHARGE_TICKS==380 && AtomicSequence.ATOMIC_WORD==396 && AtomicSequence.WAIT_TICK==406 && AtomicSequence.DETONATION==414 && AtomicSequence.END==834,"accepted timing");
   check(AtomicSequence.castAge(10000,0,-1)==406,"hold freezes sequence");

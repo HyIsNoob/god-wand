@@ -71,7 +71,7 @@ public class GodWandForgeClientMod {
 
         @SubscribeEvent
         public static void onRegisterGuiOverlays(RegisterGuiOverlaysEvent event) {
-            event.registerAboveAll("atomic_cinematic", (gui, graphics, partialTick, width, height) -> net.godwand.client.AtomicCinematic.render(graphics, partialTick));
+            event.registerAboveAll("atomic_cinematic", (gui, graphics, partialTick, width, height) -> {net.godwand.client.AtomicCinematic.render(graphics, partialTick);net.godwand.client.SkillCooldownClient.render(graphics);});
             event.registerAbove(VanillaGuiOverlay.VIGNETTE.id(), "impact_frame",
                     (gui, guiGraphics, partialTick, screenWidth, screenHeight) ->
                             CustomImpactFrameOverlay.render(guiGraphics, partialTick));
@@ -112,6 +112,7 @@ public class GodWandForgeClientMod {
             if (event.phase != TickEvent.Phase.END) return;
             Minecraft client = Minecraft.getInstance();
             net.godwand.client.AtomicRenderer.tick(client);
+            net.godwand.client.SkillCooldownClient.tick(client);
             SkillWheelScreen.handleKeyInput(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
