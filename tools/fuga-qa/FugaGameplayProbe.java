@@ -17,7 +17,7 @@ import java.util.*;
 
 /** Development-only real item/network capture; enabled only in its disposable QA directory. */
 public final class FugaGameplayProbe implements ClientModInitializer {
-    private int ticks,stage,started,run;
+    private int ticks,stage,started,run=7;
     private final Set<String> captured=new HashSet<>();
     private Vec3 anchor;
     private boolean released, checked;
@@ -29,6 +29,7 @@ public final class FugaGameplayProbe implements ClientModInitializer {
         var server=c.getSingleplayerServer();
         if(c.player==null||c.level==null||server==null||!c.gameDirectory.toPath().toAbsolutePath().normalize().endsWith(Path.of("build","fuga-qa","run")))return;
         c.options.pauseOnLostFocus=false;
+        if(Files.exists(c.gameDirectory.toPath().getParent().resolve("stop"))) {c.stop();return;}
         if(c.screen!=null)return;
         ticks++;
         if(stage==0&&ticks>80) {
@@ -37,11 +38,13 @@ public final class FugaGameplayProbe implements ClientModInitializer {
             c.options.renderDistance().set(16);c.options.framerateLimit().set(120);c.options.guiScale().set(2);c.options.broadcastOptions();
             net.godwand.config.GodWandConfig.CLIENT.fugaCutscene=true;
             server.submit(()->{
+                net.godwand.config.GodWandConfig.SERVER.fugaTerrainRadius=new net.godwand.config.GodWandConfig.Server().fugaTerrainRadius;
                 var p=server.getPlayerList().getPlayer(c.player.getUUID());
                 p.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
                 p.serverLevel().setDayTime(1000);p.serverLevel().setWeatherParameters(60000,0,false,false);
                 var wand=new ItemStack(GodWandMod.GOD_WAND_ITEM);GodWandItem.setSkillMode(wand,6);
                 p.getInventory().setItem(0,wand);p.getInventory().selected=0;p.getCooldowns().removeCooldown(GodWandMod.GOD_WAND_ITEM);
+                for(int x=-6;x<=6;x++)for(int z=-6;z<=6;z++)p.serverLevel().setBlock(new net.minecraft.core.BlockPos(x,-5,z),net.minecraft.world.level.block.Blocks.GRASS_BLOCK.defaultBlockState(),2);
                 p.connection.teleport(0,-4,0,0,1);p.inventoryMenu.broadcastChanges();
             }).join();
             System.out.println("FUGA_QA SETUP: Java="+System.getProperty("java.version")+", isolated flat world; background capture enabled");
@@ -69,8 +72,8 @@ public final class FugaGameplayProbe implements ClientModInitializer {
             return;
         }
         if(f.phase()==0) {
-            for(int m:new int[]{6,18,32,48,64,80,96,110,120,140,175})if(f.age()>=m)capture(c,"charge-"+m);
-            if(f.age()>=145&&!checked) {
+            for(int m:new int[]{12,30,50,80,110,140,170,190,205,230,255})if(f.age()>=m)capture(c,"charge-"+m);
+            if(f.age()>=220&&!checked) {
                 checked=true;
                 if(!c.player.isUsingItem()||c.player.position().distanceToSqr(anchor)>.03)throw new AssertionError("Held aim lost use or movement lock");
                 server.submit(()->{
@@ -79,14 +82,14 @@ public final class FugaGameplayProbe implements ClientModInitializer {
                 }).join();
                 System.out.println("FUGA_QA PASS: held beyond ready; real server movement lock and invulnerability");
             }
-            if(f.age()>=180&&!released) {
+            if(f.age()>=260&&!released) {
                 released=true;c.options.keyUse.setDown(false);c.gameMode.releaseUsingItem(c.player);
                 System.out.println("FUGA_QA RELEASE");
             }
         } else if(f.phase()==1) {
             for(int m:new int[]{1,5,10,16,24,32})if(f.age()>=m)capture(c,"flight-"+m);
         } else if(f.phase()==2) {
-            for(int m:new int[]{1,10,24,35,39,41,48,60,80,105,120,135,150,158})if(f.age()>=m)capture(c,"impact-"+m);
+            for(int m:new int[]{1,10,24,40,60,75,79,81,90,110,140,175,185,205,225})if(f.age()>=m)capture(c,"impact-"+m);
         }
     }
     private void capture(Minecraft c,String name) {

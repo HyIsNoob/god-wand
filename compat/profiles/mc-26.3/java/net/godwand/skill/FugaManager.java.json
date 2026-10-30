@@ -24,6 +24,10 @@
     {
       "before": "player.level().dimension().location().toString()",
       "after": "player.level().dimension().identifier().toString()"
+    },
+    {
+      "before": "task.world.getMinBuildHeight()",
+      "after": "task.world.getMinY()"
     }
   ]
 }

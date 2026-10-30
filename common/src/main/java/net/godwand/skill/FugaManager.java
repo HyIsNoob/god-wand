@@ -123,6 +123,11 @@ public final class FugaManager {
         }
         task.position=end;
         if(collided || boundary || end.distanceToSqr(task.target)<1e-6) {
+            var ground=task.world.getChunkSource().getChunkNow(net.minecraft.util.Mth.floor(end.x)>>4,net.minecraft.util.Mth.floor(end.z)>>4);
+            if(ground!=null) {
+                int surface=ground.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE,net.minecraft.util.Mth.floor(end.x)&15,net.minecraft.util.Mth.floor(end.z)&15)+1;
+                end=new Vec3(end.x,Math.max(task.world.getMinBuildHeight(),surface),end.z);task.position=end;
+            }
             task.origin=end;task.phase=FugaFxPayload.IMPACT;task.phaseAt=task.world.getGameTime();
             task.crater=new FugaCrater(BlockPos.containing(end),GodWandConfig.SERVER.fugaTerrainRadius);
             broadcast(task,FugaFxPayload.IMPACT);

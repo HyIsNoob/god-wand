@@ -2,7 +2,7 @@
 
 Development branch for Fuga, the seventh skill. The stable 1.3.x maintenance checkout remains at `D:/fileluu/Tools/god-wand-1.3.0`; this worktree does not publish or merge into it.
 
-One wand with seven skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile hold **I am Atomic** until you choose to release, or fire Fuga’s blazing arrow.
+One wand with seven skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile, hold **I am Atomic** until you choose to release, or fire Fuga’s blazing arrow.
 
 [Full mod description](DESCRIPTION.md) · [Changelog](CHANGELOG.md)
 
@@ -28,7 +28,7 @@ Hold **V** with the wand to select a skill. Press **K** for client graphics and 
 5. **Stone Cannon:** charge and release a piercing stone projectile.
 6. **I am Atomic:** hold through the buildup, ATOMIC pose and compression. The dark pause waits for you to release right-click, triggering the blast. Movement is locked and incoming damage is blocked during the cast. Esc/F5 skips its camera; skipping after detonation also restores movement.
 
-7. **Fuga:** hold to form a fire bow, aim while standing still, then release to fire. Releasing before the bow is ready cancels. Toggle its camera in **K**.
+7. **Fuga:** hold to form a fire arrow, aim while standing still, then release to fire. Releasing before the arrow is ready cancels. Toggle its camera in **K**.
 
 AUTO selects Aqua Heartia for skills 3/5, Shadow Blade for skill 6, and Eclipse for the others. K also supports a manual model choice.
 

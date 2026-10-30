@@ -10,10 +10,6 @@
       "after": "        GodWandGeometry.enableBlend(); GodWandGeometry.defaultBlendFunc();\n        GodWandGeometry.enableDepthTest(); GodWandGeometry.depthMask(false); GodWandGeometry.disableCull();\n        GodWandGeometry.colored();"
     },
     {
-      "before": "RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);",
-      "after": "GodWandGeometry.additiveBlend();"
-    },
-    {
       "before": "BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);",
       "after": "BufferBuilder buffer = GodWandGeometry.begin(PrimitiveTopology.QUADS,DefaultVertexFormat.POSITION_COLOR);"
     },
@@ -40,6 +36,14 @@
     {
       "before": "            RenderSystem.depthMask(true); RenderSystem.enableCull();\n            RenderSystem.defaultBlendFunc(); RenderSystem.disableBlend();",
       "after": "            GodWandGeometry.depthMask(true); GodWandGeometry.enableCull();\n            GodWandGeometry.defaultBlendFunc(); GodWandGeometry.disableBlend();"
+    },
+    {
+      "before": "accents(buffer,pose.last().pose(),frame,camera.getPosition());",
+      "after": "accents(buffer,pose.last().pose(),frame,camera.position());"
+    },
+    {
+      "before": "            RenderSystem.defaultBlendFunc();\n            for (int caster",
+      "after": "            GodWandGeometry.defaultBlendFunc();\n            for (int caster"
     }
   ]
 }

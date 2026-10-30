@@ -10,10 +10,11 @@ allprojects {
 }
 gradle.projectsEvaluated {
     def p=gradle.rootProject
+    def qaWorld=p.findProperty('fugaQaWorld') ?: 'Fuga QA'
     p.project(':fabric').tasks.named('runClient') {
         workingDir p.file('build/fuga-qa/run')
         jvmArgs '-Dgodwand.fuga.qa=true', '-Dfabric.addMods='+p.file('build/fuga-qa/probe.jar').absolutePath
-        args '--quickPlaySingleplayer','Fuga QA','--width','1280','--height','720'
+        args '--quickPlaySingleplayer',qaWorld,'--width','1280','--height','720'
         maxHeapSize='3G'
     }
 }

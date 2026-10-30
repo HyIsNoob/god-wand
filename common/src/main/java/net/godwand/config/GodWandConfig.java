@@ -74,7 +74,7 @@ public final class GodWandConfig {
         public float atomicShockwaveDamage = 15;
         public boolean atomicTerrainDamage = true;
         public boolean fugaTerrainDamage = true;
-        public int fugaTerrainRadius = 24;
+        public int fugaTerrainRadius = (int)net.godwand.skill.FugaSequence.RADIUS;
         public float fugaDamage = 9999;
         public List<String> dimensionBlacklist = new ArrayList<>();
 

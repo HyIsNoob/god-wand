@@ -9,7 +9,7 @@ public record FugaFxPayload(int casterId,long startedAt,double x,double y,double
     public static final int CHARGE=0, FIRE=1, IMPACT=2, CANCEL=3, END=4;
     public FugaFxPayload {
         if(casterId<0 || startedAt<0 || phaseAt<startedAt || phase<CHARGE || phase>END
-                || (phase==FIRE || phase==IMPACT || phase==END) && phaseAt-startedAt<120)
+                || (phase==FIRE || phase==IMPACT || phase==END) && phaseAt-startedAt<net.godwand.skill.FugaSequence.CHARGE_TICKS)
             throw new IllegalArgumentException("Invalid Fuga lifecycle");
         for(double coordinate:new double[]{x,y,z,tx,ty,tz})
             if(!Double.isFinite(coordinate) || Math.abs(coordinate)>30_000_000)

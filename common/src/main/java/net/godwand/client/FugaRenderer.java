@@ -67,7 +67,7 @@ public final class FugaRenderer {
                     || !(living.getUseItem().getItem() instanceof GodWandItem)
                     || GodWandItem.getSkillMode(living.getUseItem()) != GodWandItem.MODE_FUGA)
                     || p.phase() == 1 && age > 80
-                    || p.phase() == 2 && age >= 160;
+                    || p.phase() == 2 && age >= net.godwand.skill.FugaSequence.END_TICK;
         });
         RECEIVED.keySet().retainAll(ACTIVE.keySet());
     }
@@ -97,19 +97,20 @@ public final class FugaRenderer {
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         try {
             Frame local = localFrame(partial);
-            double darkness = FugaCinematic.environmentGain()<1 && local!=null ? 1-smooth((local.age()-26)/10) : 0;
-            if (local != null && local.phase() == 0 && local.age() < 36 && darkness > 0) {
+            double darkness = FugaCinematic.environmentGain()<1 && local!=null ? 1-smooth((FugaSequence.chargeAge(local.age())-26)/10) : 0;
+            if (local != null && local.phase() == 0 && FugaSequence.chargeAge(local.age()) < 36 && darkness > 0) {
                 BufferBuilder backdrop = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);
                 emitBackdrop(backdrop,pose.last().pose(),local,camera.getPosition(),darkness);
                 var backdropMesh = backdrop.build();
                 if (backdropMesh != null) BufferUploader.drawWithShader(backdropMesh);
             }
-            RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+            RenderSystem.defaultBlendFunc();
             for (int caster : ACTIVE.keySet()) {
                 Frame frame = frameFor(caster,partial);
                 if (frame == null) continue;
                 BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);
-                emit(buffer,pose.last().pose(),frame,camera.getPosition(),world.getMinBuildHeight()-frame.origin().y);
+                if(AtomicPostFx.available() && local!=null && local.casterId()==caster && AtomicRenderer.nearestFrame(partial)==null) accents(buffer,pose.last().pose(),frame,camera.getPosition());
+                else emit(buffer,pose.last().pose(),frame,camera.getPosition(),world.getMinBuildHeight()-frame.origin().y);
                 var mesh = buffer.build();
                 if (mesh != null) BufferUploader.drawWithShader(mesh);
             }
@@ -118,9 +119,48 @@ public final class FugaRenderer {
             RenderSystem.defaultBlendFunc(); RenderSystem.disableBlend();
         }
     }
+    private static void accents(VertexConsumer v,Matrix4f m,Frame f,Vec3 eye) {
+        Vec3 base=(f.phase()==1?f.arrowPosition():f.origin()).subtract(eye);
+        Vec3 d=direction(f.target().subtract(f.origin())),right=side(d),up=d.cross(right).normalize();
+        double age=f.phase()==0?FugaSequence.chargeAge(f.age()):f.age();
+        double gain=f.phase()==2?1-smooth((FugaSequence.visualAge(age)-120)/40):smooth((age-25)/55);
+        if(f.phase()==0) {
+            ring(v,m,base.add(0,.04,0),2.4*smooth(age/40),.035,0xFF7119,gain*.65);
+            ring(v,m,base.add(0,.045,0),1.9*smooth(age/40),.025,0xFFC265,gain*.8);
+            Vec3 hands=base.add(0,1.3,0).add(d.scale(.8));
+            for(int i=0;i<52;i++) {
+                double t=(i*.618033+f.age()*.012)%1,a=i*2.399963,r=(1-t)*5;
+                Vec3 p=hands.add(right.scale(Math.cos(a)*r)).add(up.scale(Math.sin(a)*r*.5)).add(d.scale(-r*.4));
+                star(v,m,p,right,up,.018+.025*t,gain*t);
+
+            }
+        }
+        if(f.phase()==2&&age<FugaSequence.ORB_TICKS) {
+            double close=smooth(age/FugaSequence.ORB_TICKS);
+            for(int i=0;i<3;i++) {
+                double pulse=(age*.035+i/3.0)%1;
+                ring(v,m,base.add(0,.12+i*.07,0),18+pulse*44,.05+close*.16,0xFFDCAE,close*(1-pulse)*.7);
+            }
+        }
+        if(f.phase()==1&&age<16) {
+            Vec3 rear=f.origin().subtract(eye).add(d.scale(-age*.5));
+            for(int i=0;i<64;i++) {
+                double a=i*TAU/64,b=(i+1)*TAU/64,r=.5+age*.7;
+                Vec3 p=rear.add(right.scale(Math.cos(a)*r)).add(up.scale(Math.sin(a)*r));
+                Vec3 q=rear.add(right.scale(Math.cos(b)*r)).add(up.scale(Math.sin(b)*r));
+                tube(v,m,p,q,.035,0xFFF0BC,(1-age/16)*.7,age,i);
+            }
+        }
+        for(int i=0;i<48;i++) {
+            double t=(i*.618033+f.age()*.017)%1,a=i*2.399963;
+            double radius=f.phase()==2?5+t*90:.4+t*2;
+            Vec3 p=base.add(right.scale(Math.cos(a)*radius)).add(up.scale(Math.sin(a)*radius)).add(0,f.phase()==2?t*30:1.3,0);
+            star(v,m,p,right,up,(f.phase()==2?.15:.025)*(1-t)*gain,gain*(1-t));
+        }
+    }
     /** The plane stays behind the subject, leaving their existing depth buffer visible. */
     public static void emitBackdrop(VertexConsumer v, Matrix4f m, Frame frame, Vec3 eye, double alpha) {
-        if (frame.phase() != 0 || frame.age() < 0 || frame.age() >= 36 || alpha <= 0) return;
+        if (frame.phase() != 0 || frame.age() < 0 || FugaSequence.chargeAge(frame.age()) >= 36 || alpha <= 0) return;
         Vec3 aim = frame.target().subtract(frame.origin());
         Vec3 facing = direction(new Vec3(aim.x,0,aim.z));
         Vec3 center = frame.origin().subtract(facing.scale(.4)).add(0,1.5,0).subtract(eye);
@@ -135,14 +175,14 @@ public final class FugaRenderer {
     /** Floor is relative to the impact anchor; only the column extends below that anchor. */
     public static void emit(VertexConsumer v, Matrix4f matrix, Frame f, Vec3 eye, double floor) {
         if (!Double.isFinite(f.age()) || !Double.isFinite(floor) || !finite(f.origin().x,f.origin().y,f.origin().z,f.target().x,f.target().y,f.target().z,eye.x,eye.y,eye.z)
-                || f.age() < 0 || f.phase() < 0 || f.phase() > 2 || f.phase() == 2 && f.age() >= 160) return;
+                || f.age() < 0 || f.phase() < 0 || f.phase() > 2 || f.phase() == 2 && f.age() >= FugaSequence.END_TICK) return;
         Vec3 base = f.origin().subtract(eye);
         if (f.phase() == 0) charge(v,matrix,f,base);
         else if (f.phase() == 1) flight(v,matrix,f,base);
-        else impact(v,matrix,f.age(),base,Math.min(0,floor));
+        else impact(v,matrix,FugaSequence.visualAge(f.age()),base,Math.min(0,floor));
     }
     private static void charge(VertexConsumer v, Matrix4f m, Frame f, Vec3 base) {
-        double age = f.age(), build = smooth((age-32)/70), draw = smooth((age-78)/42);
+        double age = FugaSequence.chargeAge(f.age()), build = smooth((age-32)/70), draw = smooth((age-78)/42);
         Vec3 forward = direction(f.target().subtract(f.origin()));
         Vec3 right = side(forward), up = forward.cross(right).normalize();
         Vec3 hand = base.add(0,1.23,0).add(forward.scale(.8)).add(right.scale(-.34));
@@ -150,22 +190,14 @@ public final class FugaRenderer {
         flame(v,m,hand.add(0,-.12,0),hand.add(up.scale(.52)),.17+.08*Math.sin(age*.16),age,0,1);
         flame(v,m,pulling.add(0,-.12,0),pulling.add(up.scale(.5)),.19,age,2,1);
         if (build <= 0) return;
-        Vec3 last = null;
-        for (int i=0;i<=28;i++) {
-            double t = i/28.0*2-1;
-            Vec3 point = hand.add(up.scale(t*1.65*build)).add(forward.scale((1-t*t)*.52*build));
-            if(last != null) flame(v,m,last,point,(.12+.10*(1-Math.abs(t)))*build,age,i*.2,1);
-            last=point;
-        }
-        Vec3 upper=hand.add(up.scale(1.65*build)), lower=hand.add(up.scale(-1.65*build));
-        tube(v,m,upper,pulling,.018,0xFFF5B2,.8,age,0);
-        tube(v,m,pulling,lower,.018,0xFFF5B2,.8,age,0);
-        arrow(v,m,hand.add(forward.scale(2.25*build)),forward,2.8*build,.16*build,age,1);
-        for(int i=0;i<12;i++) {
-            double t=i/11.0*2-1, lick=.3+.25*(.5+.5*Math.sin(age*.17+i*2.4));
-            Vec3 root=hand.add(up.scale(t*1.55*build)).add(forward.scale((1-t*t)*.52*build));
-            Vec3 tip=root.add(up.scale(lick*build)).add(right.scale(Math.sin(i*2.4+age*.1)*.22*build));
-            flame(v,m,root,tip,.11*build,age,i,1);
+        Vec3 head=hand.add(forward.scale(.12*build));
+        arrow(v,m,head,forward,5.4*build,.24*build,age,1);
+        fireWake(v,m,head,forward,age,build,5.8,24);
+        // Fire is drawn directly between the hands; there is no solid bow or string.
+        for(int i=0;i<9;i++) {
+            double t=i/8.0;
+            Vec3 root=pulling.lerp(hand,t);
+            flame(v,m,root,root.subtract(forward.scale(.7)).add(up.scale(.25+Math.sin(age*.2+i)*.16)),.09,age,i,.7*build);
         }
         for(int i=0;i<14;i++) {
             double a=i*2.399+age*.018,r=.7+(i%4)*.26;
@@ -176,8 +208,9 @@ public final class FugaRenderer {
     private static void flight(VertexConsumer v, Matrix4f m, Frame f, Vec3 base) {
         Vec3 direction=direction(f.target().subtract(f.origin()));
         Vec3 head=base.add(f.arrowPosition().subtract(f.origin()));
-        arrow(v,m,head,direction,4.5,.32,f.age(),1);
-        double length=Math.min(64,Math.min(160,f.age()*4));
+        arrow(v,m,head,direction,8,.6,f.age(),1);
+        fireWake(v,m,head,direction,f.age(),1,Math.min(100,f.age()*4+8),50);
+        double length=Math.min(100,Math.min(160,f.age()*4));
         for(int lane=0;lane<5;lane++) {
             Vec3 right=side(direction),up=direction.cross(right).normalize(),last=head;
             for(int j=1;j<=32;j++) {
@@ -195,6 +228,18 @@ public final class FugaRenderer {
             star(v,m,p,right,up,.08*(1-t)+.02,1-t);
         }
     }
+    /** Deterministic flame strips advect backwards, with detached embers and an orange heat envelope. */
+    private static void fireWake(VertexConsumer v, Matrix4f m, Vec3 head, Vec3 d, double age, double gain, double length, int count) {
+        Vec3 right=side(d),up=d.cross(right).normalize();
+        for(int i=0;i<count;i++) {
+            double t=((i*.61803398875+age*.047)%1),a=i*2.399963;
+            double spread=(.15+t*1.1)*gain;
+            Vec3 root=head.subtract(d.scale(t*length)).add(right.scale(Math.cos(a)*spread)).add(up.scale(Math.sin(a)*spread));
+            Vec3 tip=root.subtract(d.scale((.65+2*(1-t))*gain)).add(up.scale(.15*Math.sin(age*.32+i)));
+            flame(v,m,root,tip,(.035+.12*(1-t))*gain,age,i,(1-t)*.7);
+            if(i%3==0)star(v,m,root.add(up.scale(.4)),right,up,.025+.06*(1-t),gain*(1-t));
+        }
+    }
     private static void arrow(VertexConsumer v, Matrix4f m, Vec3 head, Vec3 d, double length, double radius, double age, double alpha) {
         Vec3 tail=head.subtract(d.scale(length));
         flame(v,m,tail,head,radius,age,2,alpha);
@@ -208,12 +253,12 @@ public final class FugaRenderer {
     }
     private static void impact(VertexConsumer v, Matrix4f m, double age, Vec3 base, double floor) {
         if(age<40) {
-            double descent=smooth(age/40),implode=1-smooth((age-33)/7);
-            Vec3 center=base.add(0,38*(1-descent)+12,0);
-            double radius=(10+6*smooth(age/18))*Math.max(.04,implode);
+            double descent=smooth(age/40);
+            Vec3 center=base.add(0,36*(1-descent)+32,0);
+            double radius=28+4*smooth(age/18);
             sphere(v,m,center,radius,age,0xF52B06,.55);
             sphere(v,m,center,radius*.87,age+2,0xFF8C1D,.85);
-            sphere(v,m,center,radius*.65,age+4,0xFFF4C5,.95);
+            sphere(v,m,center,radius*.65,age+4,0xFFF4C5,.65);
             for(int i=0;i<24;i++) {
                 double a=i*TAU/24;
                 Vec3 p=center.add(Math.cos(a)*radius*.78,-radius*.6,Math.sin(a)*radius*.78);
@@ -221,6 +266,13 @@ public final class FugaRenderer {
             }
             ring(v,m,center.add(0,-radius*.65,0),radius*1.2,.35,0x8A54FF,.35);
             ring(v,m,center.add(0,-radius*.7,0),radius*1.32,.20,0x479CFF,.3);
+            for(int i=0;i<36;i++) {
+                double a=i*2.399963,t=(i*.618033+age*.018)%1;
+                Vec3 root=center.add(Math.cos(a)*radius*.86,-radius*.55,Math.sin(a)*radius*.86);
+                flame(v,m,root,root.add(Math.cos(a)*3,8+t*16,Math.sin(a)*3),.35+(.8-t*.5),age,i,.55);
+                star(v,m,root.add(0,t*20,0),new Vec3(1,0,0),new Vec3(0,1,0),.13,.7);
+            }
+            ring(v,m,center.add(0,-radius*.8,0),radius*.9,.8,0xFF6711,.6);
             aura(v,m,base,age,.5);
             return;
         }
@@ -229,11 +281,17 @@ public final class FugaRenderer {
         if(age<45) sphere(v,m,base.add(0,5,0),(age-39)*8,age,0xFFF9DE,(45-age)/5);
         column(v,m,base,radius,floor,384*rise,age,fade,0xF42B06);
         column(v,m,base,radius*.78,floor,384*rise,age+3,fade*.9,0xFF941F);
-        column(v,m,base,radius*.47,floor,384*rise,age+5,fade,0xFFF4D6);
+        column(v,m,base,radius*.27,floor,384*rise,age+5,fade,0xFFF4D6);
         for(int i=0;i<28;i++) {
             double a=i*2.399+age*.023,r=radius*(.85+.28*Math.sin(i));
             Vec3 p=base.add(Math.cos(a)*r,0,Math.sin(a)*r);
             flame(v,m,p,p.add(Math.cos(a)*6,14+(i%6)*7,Math.sin(a)*6),2.6*fade,age,i,fade);
+        }
+        for(int i=0;i<48;i++) {
+            double t=(i*.618033+age*.016)%1,a=i*2.399963;
+            Vec3 root=base.add(Math.cos(a)*(radius+8+t*45),t*t*110,Math.sin(a)*(radius+8+t*45));
+            flame(v,m,root,root.add(Math.cos(a)*(2+t*6),1+t*4,Math.sin(a)*(2+t*6)),(.14+.28*(1-t))*fade,age,i,fade*(1-t)*.7);
+            if(i%3==0)star(v,m,root,new Vec3(1,0,0),new Vec3(0,1,0),(.15+.3*(1-t))*fade,fade);
         }
         aura(v,m,base,age,fade);
         for(int i=0;i<3;i++) {

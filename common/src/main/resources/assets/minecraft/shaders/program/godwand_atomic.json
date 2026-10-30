@@ -192,7 +192,9 @@
       "name": "BeamDepth",
       "type": "float",
       "count": 1,
-      "values": [30]
+      "values": [
+        30
+      ]
     },
     {
       "name": "BeamHeight",
@@ -280,6 +282,38 @@
       "count": 1,
       "values": [
         0.0
+      ]
+    },
+    {
+      "name": "FugaPhase",
+      "type": "float",
+      "count": 1,
+      "values": [
+        -1
+      ]
+    },
+    {
+      "name": "FugaDirX",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0
+      ]
+    },
+    {
+      "name": "FugaDirY",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0
+      ]
+    },
+    {
+      "name": "FugaDirZ",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1
       ]
     }
   ]

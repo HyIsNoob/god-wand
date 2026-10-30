@@ -19,7 +19,7 @@ public final class AtomicPostFx {
     private static boolean failed;
 
     public static void capture(Matrix4f view, Matrix4f projection, float delta) {
-        pending = GodWandConfig.CLIENT.postEffects && AtomicRenderer.nearestFrame(delta) != null
+        pending = GodWandConfig.CLIENT.postEffects && (AtomicRenderer.nearestFrame(delta) != null || FugaRenderer.localFrame(delta) != null)
                 ? new Frame(new Matrix4f(view), new Matrix4f(projection), delta) : null;
     }
     public static boolean available() { return GodWandConfig.CLIENT.postEffects&&chain!=null&&!failed; }
@@ -32,8 +32,10 @@ public final class AtomicPostFx {
         Frame context = pending; pending = null;
         if (context == null || failed) return;
         var fx = AtomicRenderer.nearestFrame(context.delta);
+        var fuga=FugaRenderer.localFrame(context.delta);
         var client = Minecraft.getInstance();
-        if (fx == null || client.level == null) return;
+        if ((fx == null && fuga == null) || client.level == null) return;
+        var center=fx!=null?fx.center():fuga.phase()==1?fuga.arrowPosition():fuga.center();
         int w=client.getWindow().getWidth(), h=client.getWindow().getHeight();
         if(w<=0||h<=0)return;
         try {
@@ -48,7 +50,7 @@ public final class AtomicPostFx {
                 width=w; height=h; downsample=GodWandConfig.CLIENT.bloomDownsample;
             }
             var camera=client.gameRenderer.getMainCamera().getPosition();
-            var clip=new Vector4f((float)(fx.center().x-camera.x),(float)(fx.center().y+2-camera.y),(float)(fx.center().z-camera.z),1)
+            var clip=new Vector4f((float)(center.x-camera.x),(float)(center.y+2-camera.y),(float)(center.z-camera.z),1)
                     .mul(context.view).mul(context.projection);
             float centerX=clip.w>.001?clip.x/clip.w*.5f+.5f:.5f, centerY=clip.w>.001?clip.y/clip.w*.5f+.5f:.5f;
             var inverseProjection=new Matrix4f(context.projection).invert();
@@ -60,8 +62,16 @@ public final class AtomicPostFx {
                 effect.safeGetUniform("InvProjMat").set(inverseProjection);
                 effect.safeGetUniform("InvViewMat").set(inverseView);
                 effect.safeGetUniform("CameraPos").set((float)camera.x,(float)camera.y,(float)camera.z);
-                effect.safeGetUniform("BlastCenter").set((float)fx.center().x,(float)fx.center().y,(float)fx.center().z);
+                effect.safeGetUniform("BlastCenter").set((float)center.x,(float)center.y,(float)center.z);
             }
+            chain.setUniform("FugaPhase",fx==null?fuga.phase():-1);
+            if(fx==null) {
+                var aim=fuga.target().subtract(fuga.origin()).normalize();
+                chain.setUniform("FugaDirX",(float)aim.x);chain.setUniform("FugaDirY",(float)aim.y);chain.setUniform("FugaDirZ",(float)aim.z);
+                chain.setUniform("Age",(float)fuga.age());
+                chain.setUniform("BloomStrength",GodWandConfig.CLIENT.bloomStrength*.45f);
+                chain.setUniform("BloomBurst",0);
+            } else {
             chain.setUniform("Age",fx.age());
             chain.setUniform("SequenceEnd",net.godwand.skill.AtomicSequence.END);
             chain.setUniform("DetonationTick",net.godwand.skill.AtomicSequence.DETONATION);
@@ -84,6 +94,7 @@ public final class AtomicPostFx {
             chain.setUniform("BloomStrength",GodWandConfig.CLIENT.bloomStrength);
             chain.setUniform("BloomBurst",fx.age()>=net.godwand.skill.AtomicSequence.DETONATION&&clip.w>0
                     ?Math.max(0,1-(fx.age()-net.godwand.skill.AtomicSequence.DETONATION)/24):0);
+            }
             RenderSystem.disableBlend(); RenderSystem.disableDepthTest(); RenderSystem.resetTextureMatrix();
             chain.process(context.delta);
         } catch(Exception error) {

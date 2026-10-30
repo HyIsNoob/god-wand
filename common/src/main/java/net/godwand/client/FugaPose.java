@@ -24,6 +24,7 @@ public final class FugaPose {
         return true;
     }
     public static Arms arms(int phase, double age, float pitch, float yaw) {
+        if(phase==0)age=net.godwand.skill.FugaSequence.chargeAge(age);
         float draw = phase == 0 ? FugaCinematic.smooth(age, 58, 108) : 1;
         float join = FugaCinematic.smooth(age, 10, 30);
         float separate = FugaCinematic.smooth(age, 35, 70);
@@ -35,13 +36,13 @@ public final class FugaPose {
         float handsYaw = .65f * join * (1 - separate);
         float rightPitch = Mth.lerp(draw, handsPitch, -1.5f + pitch) + idle;
         float leftPitch = Mth.lerp(draw, handsPitch, -(float)Math.PI / 2 + pitch) - idle;
-        float rightYaw = Mth.lerp(draw, -handsYaw, yaw - .94f);
+        float rightYaw = Mth.lerp(draw, -handsYaw, yaw - 1.28f);
         float leftYaw = Mth.lerp(draw, handsYaw, yaw + .08f);
-        rightPitch += release * .13f + settle * .5f;
-        rightYaw -= release * .32f;
+        rightPitch += release * .28f + settle * .5f;
+        rightYaw -= release * .48f;
         leftPitch += settle * .65f;
         float weight = rise * (phase == 2 ? 1 - FugaCinematic.smooth(age, 0, 14) : 1);
         return new Arms(rightPitch, rightYaw, -.08f * draw - release * .2f,
-                leftPitch, leftYaw, .08f * draw, -.18f * draw, weight);
+                leftPitch, leftYaw, .08f * draw, -.40f * draw + .08f * (float)Math.sin(age*.08)*(1-draw), weight);
     }
 }

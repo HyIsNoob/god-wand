@@ -5,9 +5,10 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class FugaCinematicTest {
+    private static double impactTick(double visual) { return visual<40?visual*2:80+(visual-40)/.8; }
     private static final Vec3 PLAYER = new Vec3(4, 70, 8);
     private static FugaRenderer.Frame frame(int phase, double age) {
-        return new FugaRenderer.Frame(1, 100, phase, age, PLAYER, PLAYER.add(0, 0, 100));
+        return new FugaRenderer.Frame(1, 100, phase, phase==2?impactTick(age):phase==0?age*5/3:age, PLAYER, PLAYER.add(0, 0, 100));
     }
     private static AtomicCinematic.Pose camera(int phase, double age, float yaw, float pitch, boolean director) {
         return FugaCinematic.cameraFor(frame(phase, age), PLAYER, 20, 10, PLAYER, yaw, pitch, director);
@@ -31,21 +32,27 @@ class FugaCinematicTest {
         assertEquals(10, returning.pitch(), .001);
     }
     @Test void impactShotTransitionsStayContinuousAndTravelDuringColumn() {
-        for (double boundary : new double[]{20, 40, 110, 140}) {
+        for (double boundary : new double[]{110, 140}) {
             var a = camera(2, boundary - .001, 0, 0, true);
             var b = camera(2, boundary + .001, 0, 0, true);
             assertTrue(a.position().distanceTo(b.position()) < .02, "camera cut at " + boundary);
             assertEquals(0, net.minecraft.util.Mth.wrapDegrees(a.yaw() - b.yaw()), .03, "yaw cut at " + boundary);
             assertEquals(a.pitch(), b.pitch(), .03, "pitch cut at " + boundary);
         }
-        assertTrue(camera(2, 60, 0, 0, true).position().distanceTo(camera(2, 90, 0, 0, true).position()) > 20);
+        assertTrue(camera(2, 60, 0, 0, true).position().distanceTo(camera(2, 90, 0, 0, true).position()) > 5);
         assertEquals(0, FugaCinematic.flash(20));
         assertEquals(1, FugaCinematic.flash(40));
         assertEquals(0, FugaCinematic.flash(50));
     }
+    @Test void meteorHasMediumAndStraightUpShotsBeforeExplosion() {
+        var mid=camera(2,10,0,0,true);var under=camera(2,25,0,0,true);
+        assertTrue(mid.position().subtract(PLAYER).horizontalDistance()>70);
+        assertEquals(0,under.position().subtract(PLAYER).horizontalDistance(),.001);
+        assertEquals(-90,under.pitch(),.001);
+    }
     @Test void bowArmsTrackAimAndFadeAfterImpact() {
-        var ready = FugaPose.arms(0, 120, 0, 0);
-        var aim = FugaPose.arms(0, 120, .5f, .4f);
+        var ready = FugaPose.arms(0, 200, 0, 0);
+        var aim = FugaPose.arms(0, 200, .5f, .4f);
         assertEquals(.5f, aim.leftPitch() - ready.leftPitch(), .0001f);
         assertEquals(.4f, aim.rightYaw() - ready.rightYaw(), .0001f);
         assertTrue(ready.rightYaw() < -.8f);

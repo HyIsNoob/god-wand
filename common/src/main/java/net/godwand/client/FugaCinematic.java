@@ -18,9 +18,9 @@ public final class FugaCinematic {
     private static boolean present(Minecraft client, FugaRenderer.Frame frame) {
         return frame != null && client.player != null && client.level != null
                 && client.player.isAlive() && !client.player.isSpectator()
-                && (frame.phase() == 0 || frame.phase() == 1 || frame.phase() == 2 && frame.age() < 160);
+                && (frame.phase() == 0 || frame.phase() == 1 || frame.phase() == 2 && frame.age() < net.godwand.skill.FugaSequence.END_TICK);
     }
-    public static boolean openingFaceVisible(FugaRenderer.Frame frame) {return frame!=null&&frame.phase()==0&&frame.age()<36;}
+    public static boolean openingFaceVisible(FugaRenderer.Frame frame) {return frame!=null&&frame.phase()==0&&net.godwand.skill.FugaSequence.chargeAge(frame.age())<36;}
     public static boolean showCaster(float partial) {return openingFaceVisible(FugaRenderer.localFrame(partial));}
     public static boolean active() {
         var client = Minecraft.getInstance();
@@ -55,7 +55,7 @@ public final class FugaCinematic {
         // Never move a detached shot into an unloaded chunk. Keep the shoulder/vanilla fallback local.
         if (shot != null && !client.level.getChunkSource().hasChunk(Mth.floor(shot.position().x) >> 4, Mth.floor(shot.position().z) >> 4))
             return frame.phase() == 0 ? shoulder(client.player.getPosition(delta), client.player.getViewYRot(delta), client.player.getViewXRot(delta)) : null;
-        if (shot != null && frame.phase() == 0 && (!GodWandConfig.CLIENT.fugaCutscene || skipped || frame.age() >= 120)) {
+        if (shot != null && frame.phase() == 0 && (!GodWandConfig.CLIENT.fugaCutscene || skipped || frame.age() >= net.godwand.skill.FugaSequence.CHARGE_TICKS)) {
             Vec3 eye = client.player.getEyePosition(delta);
             var hit = client.level.clip(new net.minecraft.world.level.ClipContext(eye, shot.position(),
                     net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, client.player));
@@ -71,14 +71,16 @@ public final class FugaCinematic {
             float vanillaPitch, Vec3 player, float yaw, float pitch, boolean director) {
         if (frame == null || frame.phase() > 2) return null;
         double age = Math.max(0, frame.age());
+        if(frame.phase()==2)age=net.godwand.skill.FugaSequence.visualAge(age);
+        if(frame.phase()==0)age=net.godwand.skill.FugaSequence.chargeAge(age);
         Vec3 forward = Vec3.directionFromRotation(0, yaw), right = forward.cross(new Vec3(0, 1, 0));
         var aim = shoulder(player, yaw, pitch);
         if (frame.phase() == 0) {
             if (!director || age >= 120) return aim;
             Vec3 focus = player.add(0, 1.52, 0);
             Vec3 face = player.add(forward.scale(.8 + age * .003)).add(right.scale(.12)).add(0, 1.62, 0);
-            Vec3 hands = player.add(forward.scale(1.3)).add(right.scale(-.35)).add(0, 1.2, 0);
-            Vec3 body = player.add(forward.scale(2.9)).add(right.scale(1.1)).add(0, 1.55, 0);
+            Vec3 hands = player.add(forward.scale(3.4)).add(right.scale(2.6)).add(0, 1.5, 0);
+            Vec3 body = player.add(forward.scale(3.7)).add(right.scale(2.9)).add(0, 1.55, 0);
             Vec3 position;
             if (age < 28) position = face;
             else if (age < 56) { position = face.lerp(hands, smooth(age, 28, 56)); focus = focus.lerp(player.add(forward.scale(.5)).add(0, 1.15, 0), smooth(age, 28, 56)); }
@@ -98,16 +100,15 @@ public final class FugaCinematic {
         }
         if (age >= 160) return null;
         Vec3 center = frame.center();
-        double angle = age * .009;
-        Vec3 overhead = new Vec3(Math.sin(angle) * 30, 62 - age * .22, Math.cos(angle) * 30);
-        Vec3 underneath = new Vec3(Math.sin(angle) * 29, 4 + age * .08, Math.cos(angle) * 29);
-        Vec3 far = new Vec3(Math.sin(angle) * 150, 125 + age * .1, Math.cos(angle) * 150);
-        Vec3 crater = new Vec3(Math.sin(angle) * 22, 12 + Math.sin(age * .04) * 2, Math.cos(angle) * 22);
-        Vec3 offset = age < 20 ? overhead.lerp(underneath, smooth(age, 15, 20))
-                : age < 40 ? underneath.lerp(far, smooth(age, 34, 40))
+        double angle = .65 + age * .0015;
+        Vec3 overhead = new Vec3(Math.sin(angle) * 78, 34 - age * .08, -Math.cos(angle) * 78);
+        Vec3 underneath = new Vec3(0, 1.4, 0);
+        Vec3 far = new Vec3(Math.sin(angle) * 180, 125 + age * .1, -Math.cos(angle) * 180);
+        Vec3 crater = new Vec3(Math.sin(angle) * 76, 44 + Math.sin(age * .04) * 3, -Math.cos(angle) * 76);
+        Vec3 offset = age < 20 ? overhead : age < 40 ? underneath
                 : age < 110 ? far.lerp(crater, smooth(age, 100, 110)) : crater;
-        double sphereY = 12 + 38 * (1 - smooth(age, 0, 40));
-        double focusY = age < 40 ? sphereY : (12 + 153 * smooth(age, 40, 58)) * (1 - smooth(age, 90, 110));
+        double sphereY = 32 + 36 * (1 - smooth(age, 0, 40));
+        double focusY = age < 40 ? sphereY : (32 + 133 * smooth(age, 40, 58)) * (1 - smooth(age, 90, 110));
         var impact = look(center.add(offset), center.add(0, focusY, 0));
         return blend(impact, new AtomicCinematic.Pose(vanilla, vanillaYaw, vanillaPitch), smooth(age, 140, 160));
     }
@@ -131,24 +132,25 @@ public final class FugaCinematic {
     }
     public static float environmentGain() {
         var frame = FugaRenderer.localFrame(0);
-        return active() && GodWandConfig.CLIENT.fugaCutscene && !skipped && frame.phase() == 0 && frame.age() < 36 ? .015f + .985f * smooth(frame.age(), 26, 36) : 1;
+        return active() && GodWandConfig.CLIENT.fugaCutscene && !skipped && frame.phase() == 0 && net.godwand.skill.FugaSequence.chargeAge(frame.age()) < 36 ? .015f + .985f * smooth(net.godwand.skill.FugaSequence.chargeAge(frame.age()), 26, 36) : 1;
     }
     public static double fov(double vanilla, float delta) {
         var frame = FugaRenderer.localFrame(delta);
         if (!active() || !GodWandConfig.CLIENT.cameraFov || !GodWandConfig.CLIENT.fugaCutscene || skipped) return vanilla;
-        if (frame.phase() == 0) return Mth.lerp(smooth(frame.age(), 90, 120), 46, vanilla);
+        if (frame.phase() == 0) return Mth.lerp(smooth(net.godwand.skill.FugaSequence.chargeAge(frame.age()), 90, 120), 46, vanilla);
         if (frame.phase() == 2) {
-            double wide = 68 + 37 * smooth(frame.age(), 34, 46) * (1 - smooth(frame.age(), 100, 110));
-            return Mth.lerp(smooth(frame.age(), 140, 160), wide, vanilla);
+            double age=net.godwand.skill.FugaSequence.visualAge(frame.age());
+            double wide = 68 + 37 * smooth(age, 34, 46) * (1 - smooth(age, 100, 110));
+            return Mth.lerp(smooth(age, 140, 160), wide, vanilla);
         }
         return vanilla;
     }
     public static float shake(float delta) {
         var frame = FugaRenderer.localFrame(delta);
         if (frame == null) return 0;
-        double age = frame.age();
-        float strength = frame.phase() == 1 ? (1 - smooth(age, 0, 8)) * .8f
-                : frame.phase() == 2 ? (1 - smooth(age, 0, 9)) * .7f + smooth(age, 36, 40) * (1 - smooth(age, 42, 60)) * 1.8f
+        double age = frame.phase()==2 ? net.godwand.skill.FugaSequence.visualAge(frame.age()) : frame.phase()==0 ? net.godwand.skill.FugaSequence.chargeAge(frame.age()) : frame.age();
+        float strength = frame.phase() == 1 ? (1 - smooth(age, 0, 8)) * 1.2f
+                : frame.phase() == 2 ? (1 - smooth(age, 0, 9)) * .7f + smooth(age, 36, 40) * (1 - smooth(age, 42, 60)) * 2.4f
                 + smooth(age, 40, 48) * (1 - smooth(age, 112, 140)) * .25f : 0;
         return strength * GodWandConfig.CLIENT.cameraShake;
     }
@@ -216,7 +218,7 @@ public final class FugaCinematic {
         var client = Minecraft.getInstance();
         if (!present(client, frame) || client.screen != null || !client.isWindowActive()) return;
         int width = graphics.guiWidth(), height = graphics.guiHeight();
-        double age = frame.age();
+        double age = frame.phase()==2 ? net.godwand.skill.FugaSequence.visualAge(frame.age()) : frame.phase()==0 ? net.godwand.skill.FugaSequence.chargeAge(frame.age()) : frame.age();
         boolean directing = GodWandConfig.CLIENT.fugaCutscene && !skipped;
         if (frame.phase() == 0 && (age >= 120 || !directing) && GodWandConfig.CLIENT.targetMarker) reticle(graphics, client, partial);
         float envelope = !directing ? 0 : frame.phase() == 0 ? 1 - smooth(age, 100, 120)

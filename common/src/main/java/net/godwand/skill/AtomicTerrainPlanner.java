@@ -12,18 +12,20 @@ final class AtomicTerrainPlanner {
                 thread.setDaemon(true); return thread;
             }, new ThreadPoolExecutor.AbortPolicy());
 
-    static CompletableFuture<Columns> request(int radius) {
-        try { return CompletableFuture.supplyAsync(() -> plan(radius), WORKER); }
+    static CompletableFuture<Columns> request(int radius) { return request(radius,true); }
+    static CompletableFuture<Columns> request(int radius,boolean keepPedestal) {
+        try { return CompletableFuture.supplyAsync(() -> plan(radius,keepPedestal), WORKER); }
         catch (RejectedExecutionException busy) { return null; }
     }
-    static Columns plan(int radius) {
+    static Columns plan(int radius) { return plan(radius,true); }
+    static Columns plan(int radius,boolean keepPedestal) {
         if (radius < 0 || radius > AtomicSequence.MAX_RADIUS)
             throw new IllegalArgumentException("Atomic terrain radius out of bounds");
         var offsets = new IntArrayList(); var distances = new IntArrayList();
         var cursor = new SupernovaCraterCursor(radius);
         while (!cursor.finished()) {
             int x=cursor.x(), z=cursor.z(), distance=x*x+z*z;
-            if (distance>9 && distance<=radius*radius) {
+            if ((!keepPedestal || distance>9) && distance<=radius*radius) {
                 offsets.add((x & 65535) | (z << 16)); distances.add(distance);
             }
             cursor.advance();

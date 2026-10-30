@@ -4,7 +4,7 @@
 
 ### Added
 
-- Fuga: form a fire bow, aim and release a blazing arrow.
+- Fuga: form a fire arrow, aim and release a blazing arrow.
 - Optional Fuga cutscene and configurable damage, cooldown and terrain destruction.
 
 ## [1.3.2]

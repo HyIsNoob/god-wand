@@ -54,7 +54,109 @@ vec2 cylinderHit(vec3 o,vec3 d,float radius,float height) {
     }
     return vec2(nearT,farT);
 }
+uniform float FugaPhase;
+uniform float FugaDirX;
+uniform float FugaDirY;
+uniform float FugaDirZ;
+vec2 fireBox(vec3 o,vec3 d,vec3 lo,vec3 hi) {
+    vec3 safe=sign(d)*max(abs(d),vec3(.00001));
+    safe+=vec3(equal(safe,vec3(0)))*.00001;
+    vec3 a=(lo-o)/safe,b=(hi-o)/safe;
+    vec3 n=min(a,b),f=max(a,b);
+    return vec2(max(0.0,max(n.x,max(n.y,n.z))),min(f.x,min(f.y,f.z)));
+}
+void fugaFire() {
+    vec2 uv=texCoord,ndc=uv*2.0-1.0;
+    vec3 original=texture(DiffuseSampler,uv).rgb;
+    vec4 farView=InvProjMat*vec4(ndc,1,1);
+    vec3 ray=normalize((InvViewMat*vec4(farView.xyz/farView.w,0)).xyz);
+    float depth=texture(MainDepthSampler,uv).r;
+    vec4 sceneView=InvProjMat*vec4(ndc,depth*2.0-1.0,1);
+    float sceneDistance=depth>.99999?1600.0:length(sceneView.xyz/sceneView.w);
+    vec3 o=CameraPos-BlastCenter,d=normalize(vec3(FugaDirX,FugaDirY,FugaDirZ));
+    vec3 right=normalize(cross(d,abs(d.y)>.98?vec3(1,0,0):vec3(0,1,0))),up=normalize(cross(right,d));
+    float age=Age<80.0?Age*.5:40.0+(Age-80.0)*.8;
+    float fade=1.0-smoothstep(120.0,160.0,age);
+    bool arrow=FugaPhase<1.5;
+    float ready=smoothstep(35.0,175.0,Age);
+    float trail=FugaPhase<.5?6.5: min(100.0,Age*4.0+8.0);
+    vec3 head=FugaPhase<.5?vec3(0,1.3,0)+d*.92-right*.34:vec3(0);
+    vec3 localO=vec3(dot(o-head,right),dot(o-head,up),dot(o-head,d));
+    vec3 localD=vec3(dot(ray,right),dot(ray,up),dot(ray,d));
+    vec2 hit;
+    float orbY=32.0+36.0*(1.0-smoothstep(0.0,40.0,age));
+    float orbR=28.0+4.0*smoothstep(0.0,18.0,age);
+    if(arrow)hit=fireBox(localO,localD,vec3(-3,-3,-trail),vec3(3,3,1.2));
+    else if(age<40.0)hit=cylinderHit(o,ray,40.0,140.0);
+    else hit=cylinderHit(o+vec3(0,384,0),ray,57.0,768.0);
+    hit.y=min(hit.y,sceneDistance);
+    vec3 emission=vec3(0);float transmit=1.0,heat=0.0;
+    if(hit.y>hit.x) {
+        float stepSize=(hit.y-hit.x)/28.0,jitter=.5;
+        for(int i=0;i<28;i++) {
+            vec3 p=o+ray*(hit.x+(float(i)+jitter)*stepSize);
+            float density=0.0,temp=0.0;
+            float n=noise(p*vec3(.5,.32,.5)-vec3(0,Age*.13,0));
+            float curl=noise(p*.95+vec3(Age*.07,-Age*.18,0));
+            if(arrow) {
+                vec3 q=vec3(dot(p-head,right),dot(p-head,up),dot(p-head,d));
+                q.xy-=vec2(sin(q.z*2.4-Age*.21),cos(q.z*1.7-Age*.17))*(.08+.30*clamp(-q.z/trail,0.0,1.0));
+                float along=clamp(-q.z/trail,0.0,1.0),r=length(q.xy);
+                float width=(FugaPhase<.5?.16:.45)*(1.0-along*.7);
+                float shaft=exp(-pow(r/max(.035,width*(.45+n)),2.0))*step(-trail,q.z)*step(q.z,0.0);
+                float crossHead=min(max(abs(q.x)-(.045+.035*n),abs(q.y)-(.48+.30*curl)),max(abs(q.y)-(.045+.035*curl),abs(q.x)-(.48+.30*n)));
+                float point=(1.0-smoothstep(0.0,.12,crossHead))*exp(-pow((q.z+.35)/.23,2.0));
+                float tongues=exp(-r/(width*2.4))*smoothstep(.42,.8,n*.6+curl*.4)*(1.0-along)*step(-trail,q.z)*step(q.z,.2);
+                float ribbons=0.0;
+                for(int k=0;k<4;k++) {
+                    float a=float(k)*1.5707963+q.z*.72-Age*.11;
+                    float spread=(.18+.65*along)*(1.0+.32*sin(q.z*2.1+float(k)-Age*.19));
+                    vec2 path=vec2(cos(a),sin(a))*spread;
+                    path.y+=sin(q.z*1.7-Age*.23+float(k))*(.12+along*.25);
+                    float widthRibbon=(.065+.07*n)*(1.0-along*.75);
+                    ribbons+=exp(-pow(length(q.xy-path)/widthRibbon,2.0))*(1.0-along)*step(-trail,q.z)*step(q.z,.2);
+                }
+                density=(shaft*2.0+point+tongues*.7+ribbons*.85)*(FugaPhase<.5?ready:1.0);
+                temp=clamp(shaft*1.8+point,0.0,1.0);
+            } else if(age<40.0) {
+                vec3 q=p-vec3(0,orbY,0);float r=length(q);
+                float shape=orbR*(.78+.20*n+.10*curl);
+                float core=1.0-smoothstep(shape*.3,shape,r);
+                float mantle=exp(-abs(r-shape)*.6)*smoothstep(.25,.75,n);
+                float wake=exp(-length(q.xz)/max(.1,orbR*.8))*exp(-max(0.0,q.y)*.045)*step(0.0,q.y)*smoothstep(.45,.8,curl)*.08;
+                float compression=exp(-pow((length(q.xz)-orbR*.7)/2.2,2.0))*exp(-pow((q.y+orbR*.78)/1.5,2.0));
+                density=core*.22+mantle*.2+wake+compression*.32;temp=clamp(core+compression,0.0,1.0);
+            } else {
+                float r=length(p.xz),radius=48.0*fade;
+                float core=1.0-smoothstep(radius*.2,radius*(.52+.40*n+.16*curl),r);
+                float tongues=exp(-abs(r-radius)*.15)*smoothstep(.35,.8,n*.6+curl*.4);
+                density=(core*.17+tongues*.085)*fade*step(-384.0,p.y)*step(p.y,384.0);
+                float wind=noise(vec3(atan(p.z,p.x)*5.0,p.y*.12,(r-Age*4.0)*.06));
+                density+=smoothstep(radius,radius+5.0,r)*exp(-pow((p.y-10.0)/20.0,2.0))*smoothstep(.42,.8,wind)*.008*fade;
+                temp=core*.85;
+            }
+            float opacity=1.0-exp(-density*stepSize);
+            vec3 color=mix(vec3(1.5,.055,.002),vec3(2.9,.64,.025),clamp(n*.5+temp*.5,0.0,1.0));
+            color=mix(color,vec3(5.5,5.2,4.8),smoothstep(.4,.95,temp)*.85);
+            emission+=transmit*color*opacity;transmit*=1.0-opacity;
+            heat+=transmit*opacity;
+            if(transmit<.004)break;
+        }
+    }
+    if(EmissionOnly>.5) {fragColor=vec4(emission,1);return;}
+    // Sample the scene through animated heat refraction, attenuated by the visible fire volume.
+    vec2 bend=vec2(sin(uv.y*170.0-Age*.19),cos(uv.x*140.0+Age*.13))*.0008*clamp(heat,0.0,1.0);
+    vec3 scene=texture(DiffuseSampler,clamp(uv+bend,vec2(.001),vec2(.999))).rgb;
+    vec3 surface=o+ray*sceneDistance;
+    vec3 lightPoint=arrow?head:age<40.0?vec3(0,orbY,0):vec3(0,4,0);
+    float bounce=depth<.99999?exp(-length(surface-lightPoint)/(arrow?4.0:55.0))*(arrow?ready:fade):0.0;
+    float warmth=clamp(length(emission)*.08+bounce*.35,0.0,.4);
+    scene=mix(scene,scene*vec3(1.08,.65,.38),warmth)+vec3(.13,.035,.004)*bounce;
+    vec3 result=1.0-(1.0-scene*transmit)*exp(-emission*.85);
+    fragColor=vec4(clamp(result,0.0,1.0),1);
+}
 void main() {
+    if(FugaPhase>=0.0) {fugaFire();return;}
     vec2 uv=texCoord;
     vec3 original=texture(DiffuseSampler,uv).rgb;
     if(Age<0.0||Age>=SequenceEnd) { fragColor=vec4(EmissionOnly>.5?vec3(0):original,1); return; }
