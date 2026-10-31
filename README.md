@@ -12,6 +12,8 @@ One wand with six skills: walk through mountains, pull enemies into a gravity or
 | 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.4.jar` |
 | 1.21.11 | Fabric + Fabric API | 21 | `godwand-fabric-1.21.11-1.3.4.jar` |
 | 1.21.11 | NeoForge | 21 | `godwand-neoforge-1.21.11-1.3.4.jar` |
+| 26.1.2 | Fabric + Fabric API | 25 | `godwand-fabric-26.1.2-1.3.4.jar` |
+| 26.1.2 | NeoForge | 25 | `godwand-neoforge-26.1.2-1.3.4.jar` |
 | 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.3.4.jar` |
 | 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.3.4.jar` |
 
@@ -63,7 +65,7 @@ Run from this repository root:
 
 On Linux/macOS use `./gradlew`. Outputs from `releaseJars` are in `build/release/`. Install JDK 17, 21 and 25 for the complete matrix. The wrapper automatically selects the installed JDK 25 to run the build; this does not change the Java version needed to play each Minecraft version. See the development guide if Gradle cannot find an installed JDK.
 
-See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [shared-source ownership](docs/SHARED_SOURCES.md) for where to make changes. The root aggregate also invokes the Java 25 build for Fabric/NeoForge 26.3.
+See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [shared-source ownership](docs/SHARED_SOURCES.md) for where to make changes. The root aggregate also invokes the Java 25 build for Fabric/NeoForge 26.1.2 and 26.3.
 
 ## Release status
 

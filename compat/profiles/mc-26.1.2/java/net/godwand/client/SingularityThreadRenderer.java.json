@@ -1,0 +1,17 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "package net.godwand.client;\n\nimport com.mojang.blaze3d.platform.GlStateManager;\nimport com.mojang.blaze3d.systems.RenderSystem;\nimport com.mojang.blaze3d.vertex.BufferBuilder;\nimport com.mojang.blaze3d.vertex.BufferUploader;\nimport com.mojang.blaze3d.vertex.DefaultVertexFormat;\nimport com.mojang.blaze3d.vertex.MeshData;\nimport com.mojang.blaze3d.vertex.Tesselator;\nimport com.mojang.blaze3d.vertex.VertexFormat;\nimport com.mojang.blaze3d.vertex.PoseStack;\nimport net.minecraft.client.Camera;\nimport net.godwand.network.SingularityThreadsPayload;\n",
+      "after": "package net.godwand.client;\n\nimport net.godwand.client.compat.GodWandGeometry;\n\n\nimport com.mojang.blaze3d.systems.RenderSystem;\nimport com.mojang.blaze3d.vertex.BufferBuilder;\n\nimport com.mojang.blaze3d.vertex.DefaultVertexFormat;\nimport com.mojang.blaze3d.vertex.MeshData;\n\nimport com.mojang.blaze3d.vertex.VertexFormat;\nimport com.mojang.blaze3d.vertex.PoseStack;\nimport net.minecraft.client.Camera;\nimport net.godwand.network.SingularityThreadsPayload;\n"
+    },
+    {
+      "before": "        THREADS.values().removeIf(t -> now - t.received > (t.recallTicks > 0 ? t.recallTicks + 2 : 160));\n        if (THREADS.isEmpty()) return;\n        float delta = tickDelta;\n        var camera = cameraObj.getPosition();\n        var matrix = matrices.last().pose();\n        var buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);\n        RenderSystem.enableBlend();\n        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);\n        RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();\n        RenderSystem.setShader(GameRenderer::getPositionColorShader);\n        try {\n            for (var entry : THREADS.entrySet()) {\n                var entity = world.getEntity(entry.getKey());\n",
+      "after": "        THREADS.values().removeIf(t -> now - t.received > (t.recallTicks > 0 ? t.recallTicks + 2 : 160));\n        if (THREADS.isEmpty()) return;\n        float delta = tickDelta;\n        var camera = cameraObj.position();\n        var matrix = matrices.last().pose();\n        var buffer = GodWandGeometry.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);\n        GodWandGeometry.enableBlend();\n        GodWandGeometry.additiveBlend();\n        GodWandGeometry.enableDepthTest(); GodWandGeometry.depthMask(false); GodWandGeometry.disableCull();\n        GodWandGeometry.colored();\n        try {\n            for (var entry : THREADS.entrySet()) {\n                var entity = world.getEntity(entry.getKey());\n"
+    },
+    {
+      "before": "                }\n            }\n            var built = buffer.build();\n            if (built != null) BufferUploader.drawWithShader(built);\n        } finally {\n            RenderSystem.depthMask(true); RenderSystem.enableCull(); RenderSystem.defaultBlendFunc(); RenderSystem.disableBlend();\n        }\n    }\n}\n",
+      "after": "                }\n            }\n            var built = buffer.build();\n            if (built != null) GodWandGeometry.draw(built);\n        } finally {\n            GodWandGeometry.depthMask(true); GodWandGeometry.enableCull(); GodWandGeometry.defaultBlendFunc(); GodWandGeometry.disableBlend();\n        }\n    }\n}\n"
+    }
+  ]
+}

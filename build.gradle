@@ -55,7 +55,7 @@ tasks.named('build') {
 tasks.register('buildAll') {
     group = 'build'
     description = 'Build and check all eight supported loader/version combinations.'
-    dependsOn 'verifySharedSources', 'build', 'buildFabric1201', 'buildForge1201', 'build263', 'build12111'
+    dependsOn 'verifySharedSources', 'build', 'buildFabric1201', 'buildForge1201', 'build263', 'build2612', 'build12111'
 }
 
 tasks.register('releaseJars', Copy) {
@@ -66,6 +66,7 @@ tasks.register('releaseJars', Copy) {
     ['fabric', 'neoforge'].each { loader ->
         from("ports/mc-1.21.11/${loader}/build/libs") { include "godwand-${loader}-1.21.11-${project.mod_version}.jar" }
         from("ports/mc-26.3/${loader}/build/libs") { include "godwand-${loader}-26.3-${project.mod_version}.jar" }
+        from("ports/mc-26.1.2/${loader}/build/libs") { include "godwand-${loader}-26.1.2-${project.mod_version}.jar" }
     }
     ['fabric', 'neoforge', 'fabric-1.20.1', 'forge-1.20.1'].each { loader ->
         from("${loader}/build/libs") { include "godwand-${loader}-${project.mod_version}.jar" }
@@ -74,6 +75,7 @@ tasks.register('releaseJars', Copy) {
     doLast {
         def names = ['fabric','neoforge','fabric-1.20.1','forge-1.20.1'].collect { "godwand-${it}-${project.mod_version}.jar" } +
                 ['fabric','neoforge'].collect { "godwand-${it}-26.3-${project.mod_version}.jar" } +
+                ['fabric','neoforge'].collect { "godwand-${it}-26.1.2-${project.mod_version}.jar" } +
                 ['fabric','neoforge'].collect { "godwand-${it}-1.21.11-${project.mod_version}.jar" }
         File collected = destinationDir
         File versioned = project.version.toString().endsWith('-dev') ? collected : new File(collected, project.version.toString())
@@ -82,6 +84,7 @@ tasks.register('releaseJars', Copy) {
         }
         copy { from names.collect { new File(collected,it) }; into versioned }
         copy { from names.findAll { it.contains('-26.3-') }.collect { new File(collected,it) }; into new File(collected,'26.3') }
+        copy { from names.findAll { it.contains('-26.1.2-') }.collect { new File(collected,it) }; into new File(collected,'26.1.2') }
         def checksum = { File directory -> names.collect { name ->
             def digest = java.security.MessageDigest.getInstance('SHA-256').digest(new File(directory,name).bytes).encodeHex()
             "${digest}  ${name}"
@@ -114,6 +117,19 @@ tasks.register('build12111', Exec) {
     group = 'build'
     description = 'Build and test Fabric and NeoForge Minecraft 1.21.11.'
     workingDir layout.projectDirectory.dir('ports/mc-1.21.11')
+    def wrapper = System.getProperty('os.name').toLowerCase().contains('windows') ? ['cmd', '/c', 'gradlew.bat'] : ['sh', './gradlew']
+    commandLine wrapper + ['build', '--console=plain'] + (gradle.startParameter.offline ? ['--offline'] : [])
+    doFirst {
+        def java25 = project(':common').javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) }.get()
+        environment 'JAVA_HOME', java25.metadata.installationPath.asFile.absolutePath
+    }
+}
+
+
+tasks.register('build2612', Exec) {
+    group = 'build'
+    description = 'Build and test both Minecraft 26.1.2 loaders with Java 25.'
+    workingDir layout.projectDirectory.dir('ports/mc-26.1.2')
     def wrapper = System.getProperty('os.name').toLowerCase().contains('windows') ? ['cmd', '/c', 'gradlew.bat'] : ['sh', './gradlew']
     commandLine wrapper + ['build', '--console=plain'] + (gradle.startParameter.offline ? ['--offline'] : [])
     doFirst {
