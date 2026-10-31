@@ -1,0 +1,9 @@
+{
+  "reason": "Native command permission checks",
+  "changes": [
+    {
+      "before": "source -> source.hasPermission(2)",
+      "after": "Commands.hasPermission(Commands.LEVEL_GAMEMASTERS)"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "import net.minecraft.network.codec.ByteBufCodecs;\nimport net.minecraft.network.codec.StreamCodec;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.resources.ResourceLocation;\n\npublic record ImpactFxPayload(double x, double y, double z, int fxType, int durationTicks, float intensity) implements CustomPacketPayload {\n    public static final CustomPacketPayload.Type<ImpactFxPayload> ID = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(\"godwand\", \"impact_fx\"));\n\n    public static final int TYPE_DETONATION = 0;\n    public static final int TYPE_IMPLOSION = 1;\n",
+      "after": "import net.minecraft.network.codec.ByteBufCodecs;\nimport net.minecraft.network.codec.StreamCodec;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.resources.Identifier;\n\npublic record ImpactFxPayload(double x, double y, double z, int fxType, int durationTicks, float intensity) implements CustomPacketPayload {\n    public static final CustomPacketPayload.Type<ImpactFxPayload> ID = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(\"godwand\", \"impact_fx\"));\n\n    public static final int TYPE_DETONATION = 0;\n    public static final int TYPE_IMPLOSION = 1;\n"
+    }
+  ]
+}

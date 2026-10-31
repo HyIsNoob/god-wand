@@ -31,11 +31,11 @@ class SharedBehaviorParityTest {
             {"client/gui/GodWandConfigScreen.java","init"},
             {"client/SkillWheelScreen.java","skillColor","drawWheel","render"}
         };
-        for(String profile:new String[]{"fabric-1.20.1","forge-1.20.1","mc-26.3"})
+        for(String profile:new String[]{"fabric-1.20.1","forge-1.20.1","mc-26.3","mc-26.1.2"})
             for(String[] entry:methods) {
                 String common=Files.readString(root.resolve("common/src/main/java/net/godwand/"+entry[0]));
                 String port=Files.readString(root.resolve("build/shared/"+profile+"/src/main/java/net/godwand/"+entry[0]));
-                for(int i=1;i<entry.length;i++)assertEquals(body(common,entry[i]),body(port,profile.equals("mc-26.3")&&entry[i].equals("render")?"extractRenderState":entry[i]),profile+": "+entry[0]+"#"+entry[i]);
+                for(int i=1;i<entry.length;i++)assertEquals(body(common,entry[i]),body(port,(profile.equals("mc-26.3")||profile.equals("mc-26.1.2"))&&entry[i].equals("render")?"extractRenderState":entry[i]),profile+": "+entry[0]+"#"+entry[i]);
             }
     }
 }

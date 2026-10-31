@@ -1,0 +1,9 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "import org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n@Mixin(Entity.class)\npublic abstract class AtomicLocalMovementMixin {\n    @Inject(method=\"move\",at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicStill(MoverType type,Vec3 movement,CallbackInfo ci) {\n",
+      "after": "import org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n@Mixin(value=Entity.class,remap=false)\npublic abstract class AtomicLocalMovementMixin {\n    @Inject(method=\"move\",at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicStill(MoverType type,Vec3 movement,CallbackInfo ci) {\n"
+    }
+  ]
+}
