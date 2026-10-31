@@ -35,13 +35,18 @@ class GodWandGeometryTest {
             var vertices=GodWandGeometry.begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);
             for(int i=0;i<4;i++) vertices.addVertex(i%2,i/2,-2).setColor(255,255,255,255);
             GodWandGeometry.draw(vertices.buildOrThrow());
+            GodWandGeometry.textured();
+            GodWandGeometry.setShaderTexture(0,net.minecraft.resources.Identifier.fromNamespaceAndPath("godwand","textures/effect/atomic_dome.png"));
+            var textured=GodWandGeometry.begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_TEX_COLOR);
+            for(int i=0;i<4;i++) textured.addVertex(i%2,i/2,-2).setUv(i%2,i/2).setColor(255,255,255,255);
+            GodWandGeometry.draw(textured.buildOrThrow());
             GodWandGeometry.flush(new Matrix4f());
-            // RenderPearl: index count, instance count, first index, vertex offset, first instance.
-            verify(pass).drawIndexed(0,0,6,1);
-            verify(pass).close();
-            render.verify(() -> RenderSystem.queueFencedTask(any()));
+            // Blaze3D: base vertex, first index, index count, instance count; each draw uses its own buffer.
+            verify(pass,times(2)).drawIndexed(0,0,6,1);
+            verify(pass,times(2)).close();
+            render.verify(() -> RenderSystem.queueFencedTask(any()),times(2));
         } finally {
-            GodWandGeometry.reset();GodWandGeometry.depthMask(true);
+            GodWandGeometry.reset();GodWandGeometry.colored();GodWandGeometry.depthMask(true);
             GodWandGeometry.enableCull();GodWandGeometry.defaultBlendFunc();GodWandGeometry.disableBlend();
         }
     }

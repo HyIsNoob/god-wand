@@ -94,44 +94,29 @@ public final class GodWandGeometry {
         var client = Minecraft.getInstance();
         var target = client.getMainRenderTarget();
         var device = RenderSystem.getDevice();
-        int byteCount = PENDING.stream().mapToInt(draw -> draw.mesh.vertexBuffer().remaining()).sum();
-        var upload = org.lwjgl.system.MemoryUtil.memAlloc(byteCount);
-        GpuBuffer vertices = null;
         try {
-            for (Draw draw : PENDING) upload.put(draw.mesh.vertexBuffer());
-            upload.flip();
-            vertices = device.createBuffer(() -> "God Wand frame geometry", GpuBuffer.USAGE_VERTEX, upload);
-            var encoder = device.createCommandEncoder();
-            long offset = 0;
             for (Draw draw : PENDING) {
                 var state = draw.mesh.drawState();
-                int size = state.vertexCount() * state.format().getVertexSize();
-                var sequential = RenderSystem.getSequentialBuffer(state.mode());
-                var indices = sequential.getBuffer(state.indexCount());
-                var transforms = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(view), draw.color, new org.joml.Vector3f(), new Matrix4f());
-                try (var pass = encoder.createRenderPass(() -> "God Wand procedural geometry", target.getColorTextureView(), OptionalInt.empty(),
-                        target.getDepthTextureView(), OptionalDouble.empty())) {
-                    pass.setPipeline(pipeline(draw.key));
-                    pass.setUniform("Projection",RenderSystem.getProjectionMatrixBuffer());
-                    pass.setUniform("DynamicTransforms",transforms);
-                    if (draw.key.texture) {
-                        var sampled = client.getTextureManager().getTexture(Objects.requireNonNull(draw.texture));
-                        pass.bindTexture("Sampler0",sampled.getTextureView(),sampled.getSampler());
+                var vertices = device.createBuffer(() -> "God Wand frame geometry", GpuBuffer.USAGE_VERTEX, draw.mesh.vertexBuffer());
+                try {
+                    var sequential = RenderSystem.getSequentialBuffer(state.mode());
+                    var indices = sequential.getBuffer(state.indexCount());
+                    var transforms = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(view), draw.color, new org.joml.Vector3f(), new Matrix4f());
+                    try (var pass = device.createCommandEncoder().createRenderPass(() -> "God Wand procedural geometry",
+                            target.getColorTextureView(), OptionalInt.empty(), target.getDepthTextureView(), OptionalDouble.empty())) {
+                        pass.setPipeline(pipeline(draw.key));
+                        pass.setUniform("Projection", RenderSystem.getProjectionMatrixBuffer());
+                        pass.setUniform("DynamicTransforms", transforms);
+                        if (draw.key.texture) {
+                            var sampled = client.getTextureManager().getTexture(Objects.requireNonNull(draw.texture));
+                            pass.bindTexture("Sampler0", sampled.getTextureView(), sampled.getSampler());
+                        }
+                        pass.setVertexBuffer(0, vertices);
+                        pass.setIndexBuffer(indices, sequential.type());
+                        pass.drawIndexed(0, 0, state.indexCount(), 1);
                     }
-                    pass.setVertexBuffer(0,vertices);
-                    pass.setIndexBuffer(indices,sequential.type());
-                    pass.drawIndexed((int)(offset / state.format().getVertexSize()),0,state.indexCount(),1);
-                }
-                offset += size;
+                } finally { RenderSystem.queueFencedTask(vertices::close); }
             }
-            
-        } finally {
-            if (vertices != null) {
-                GpuBuffer submitted = vertices;
-                RenderSystem.queueFencedTask(submitted::close);
-            }
-            org.lwjgl.system.MemoryUtil.memFree(upload);
-            reset();
-        }
+        } finally { reset(); }
     }
 }
