@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- Fixed Singularity rays remaining after death and collapse, including unloaded areas.
+- Replaced Atomic, Earth Drill and Supernova SFX with the owner-provided CC0-only mixes.
+- Updated the second impact frame with the owner-created Filmora image.
+
 - Fixed skills staying unavailable after dying and respawning, including when another skill was selected during cooldown.
 - Inactive cinematic effects no longer block other mods from adjusting zoom.
 - Released Earth Drill and Supernova blocks no longer disappear when the caster dies.

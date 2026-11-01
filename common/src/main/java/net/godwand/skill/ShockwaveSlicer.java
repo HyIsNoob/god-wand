@@ -663,6 +663,7 @@ public class ShockwaveSlicer {
                 if (beam == null) {
                     beam = new BlockDisplay(net.minecraft.world.entity.EntityType.BLOCK_DISPLAY, task.world);
                     beam.addTag("godwand_displaced");
+                    beam.addTag("godwand_managed_displacement");
                     beam.setPos(task.orbCenter);
                     beam.setBlockState(net.minecraft.world.level.block.Blocks.AMETHYST_BLOCK.defaultBlockState());
                     beam.setBrightnessOverride(new net.minecraft.util.Brightness(15, 15));
@@ -670,6 +671,7 @@ public class ShockwaveSlicer {
                     beam.setGlowColorOverride(-1);
                     task.world.addFreshEntity(beam);
                     task.beams.put(pos, beam);
+                    SpatialDisplacementManager.trackEntity(beam.getUUID(), beam);
                 }
                 updateBeam(task, pos, curOffset, duration);
             }
@@ -686,7 +688,7 @@ public class ShockwaveSlicer {
 
     private static void sendThreadFx(SingularityTask task, int recallTicks) {
         if (task.beams.isEmpty()) return;
-        var ids = task.beams.values().stream().filter(BlockDisplay::isAlive).map(BlockDisplay::getId).toList();
+        var ids = task.beams.values().stream().map(beam -> SpatialDisplacementManager.getActiveEntity(beam.getUUID())).filter(Objects::nonNull).filter(BlockDisplay::isAlive).map(BlockDisplay::getId).toList();
         var payload = new net.godwand.network.SingularityThreadsPayload(ids, recallTicks);
         Services.NETWORK.sendToNearby(task.world, task.orbCenter, 96.0, payload);
     }
@@ -698,13 +700,19 @@ public class ShockwaveSlicer {
     private static void updateBeam(SingularityTask task, BlockPos pos, Vec3 offset, int duration) {
         BlockDisplay beam = task.beams.get(pos);
         if (beam == null) return;
+        beam = SpatialDisplacementManager.getActiveEntity(beam.getUUID());
+        if (beam == null) return;
         beam.setTransformationInterpolationDelay(0);
         beam.setTransformationInterpolationDuration(duration);
         beam.setTransformation(SpatialMath.createThinBeamTransform(task.orbCenter, pos.getCenter().add(offset), 0.012f));
     }
 
     private static void clearBeams(SingularityTask task) {
-        task.beams.values().forEach(BlockDisplay::discard);
+        for (BlockDisplay original : task.beams.values()) {
+            BlockDisplay loaded = SpatialDisplacementManager.getActiveEntity(original.getUUID());
+            SpatialDisplacementManager.untrackEntity(original.getUUID());
+            (loaded != null ? loaded : original).discard();
+        }
         task.beams.clear();
     }
 

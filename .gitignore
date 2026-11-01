@@ -11,12 +11,14 @@ local.properties
 .env
 .env.*
 !.env.example
+__pycache__/
 
 /Test/
 fuga-references/
 
 # Maintained public guides are opt-in; plans, audits and working notes stay local.
 /docs/*
+!/docs/AUDIO_ASSETS.md
 !/docs/BALANCE_CONFIG.md
 !/docs/BOSS_COMPATIBILITY.md
 !/docs/DEDICATED_SERVER.md
