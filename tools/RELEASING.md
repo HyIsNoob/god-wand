@@ -18,7 +18,7 @@ For a beta, append `--release-type beta`.
 
 The tool reads the current version and its changelog, validates the eight JARs
 against `SHA256SUMS.txt` and embedded mod metadata, and assigns exact
-Minecraft/loader tags. Fabric uploads declare Fabric API as required.
+Minecraft/loader tags plus both Client and Server environments. Fabric uploads declare Fabric API as required.
 Preview is offline. Upload uses the [official CurseForge Upload API](https://support.curseforge.com/support/solutions/articles/9000197321).
 No Modrinth or GitHub binaries are published, and the project description is not changed.
 

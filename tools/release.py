@@ -84,7 +84,7 @@ def prepare(current, release_type):
             if mod_id != "godwand" or mod.get("version") != current:
                 raise ValueError(f"Wrong mod/version in {name}")
         metadata = {"displayName": f"God Wand {current} - {loader.title()} {mc}",
-                    "gameVersionNames": [mc, {"fabric": "Fabric", "forge": "Forge", "neoforge": "NeoForge"}[loader]],
+                    "gameVersionNames": [mc, {"fabric": "Fabric", "forge": "Forge", "neoforge": "NeoForge"}[loader], "Client", "Server"],
                     "releaseType": release_type, "changelogType": "markdown", "changelog": changes}
         if loader == "fabric":
             metadata["relations"] = {"projects": [{"slug": "fabric-api", "type": "requiredDependency"}]}
@@ -107,7 +107,15 @@ def request(route, token, data=None, content_type=None):
         with urllib.request.build_opener(NoRedirect).open(req, timeout=180) as response:
             return json.load(response)
     except urllib.error.HTTPError as error:
-        raise RuntimeError(f"CurseForge HTTP {error.code}; request failed. Token was not logged.") from None
+        detail = "Request rejected"
+        try:
+            payload = json.loads(error.read(16384))
+            detail = str(payload.get("errorMessage", detail))
+        except (OSError, ValueError):
+            pass
+        if token:
+            detail = detail.replace(token, "[REDACTED]")
+        raise RuntimeError(f"CurseForge HTTP {error.code}: {detail[:2000]}") from None
     except (OSError, ValueError):
         raise RuntimeError("CurseForge request did not complete. Check the project file list before retrying an upload.") from None
 
@@ -139,7 +147,7 @@ def main():
         versions = request("/game/versions", token)
         if not isinstance(versions, list):
             raise ValueError("Unexpected CurseForge game version response")
-        print(f"Token accepted; {len(versions)} game version entries. Nothing uploaded.")
+        print(f"API read succeeded; {len(versions)} game version entries. Upload permission is checked when uploading. Nothing uploaded.")
         return
     if args.build:
         subprocess.run([str(ROOT / "gradlew.bat"), "releaseJars", "--console=plain"], cwd=ROOT, check=True)

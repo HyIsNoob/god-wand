@@ -1,4 +1,6 @@
 """Offline release checks: python -m unittest discover -s tools -p test_release.py"""
+import io
+import urllib.error
 import hashlib
 import json
 from pathlib import Path
@@ -38,6 +40,7 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(8, len(entries))
         self.assertEqual(8, len({tuple(metadata["gameVersionNames"]) for _, _, metadata in entries}))
         for path, _, metadata in entries:
+            self.assertTrue({"Client", "Server"}.issubset(metadata["gameVersionNames"]))
             self.assertIn("New fix", metadata["changelog"])
             self.assertNotIn("Old fix", metadata["changelog"])
             self.assertEqual("relations" in metadata, "-fabric-" in path.name)
@@ -60,8 +63,17 @@ class ReleaseTest(unittest.TestCase):
         with patch("sys.argv", ["release.py"]), patch.object(release, "request", side_effect=AssertionError("network")), patch("builtins.print"):
             release.main()
 
+    def test_api_error_explains_rejection_without_exposing_token(self):
+        body = json.dumps({"errorMessage": "Missing environment; test-token"}).encode()
+        error = urllib.error.HTTPError("https://minecraft.curseforge.com/api", 400, "Bad Request", {}, io.BytesIO(body))
+        with patch("urllib.request.build_opener") as opener:
+            opener.return_value.open.side_effect = error
+            with self.assertRaisesRegex(RuntimeError, "Missing environment") as caught:
+                release.request("/projects/1760928/upload-file", "test-token", b"file")
+            self.assertNotIn("test-token", str(caught.exception))
+
     def test_upload_journal_skips_successful_files_on_second_run(self):
-        versions = [{"name": n} for n in ["Fabric", "Forge", "NeoForge", "1.20.1", "1.21.1", "1.21.11", "26.3"]]
+        versions = [{"name": n} for n in ["Fabric", "Forge", "NeoForge", "1.20.1", "1.21.1", "1.21.11", "26.3", "Client", "Server"]]
         def response(route, *_):
             return versions if route == "/game/versions" else {"id": 42}
         with patch("sys.argv", ["release.py", "--upload"]), patch.object(release, "settings", return_value=("1760928", "test-token")), patch.object(release, "request", side_effect=response) as api, patch("builtins.print"):
