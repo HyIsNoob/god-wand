@@ -135,7 +135,7 @@ public class GodWandNeoForgeMod {
     }
 
     private void registerPayloadHandlers(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar(GodWandMod.MOD_ID).versioned("1.3.4");
+        PayloadRegistrar registrar = event.registrar(GodWandMod.MOD_ID).versioned("1.3.5");
 
         registrar.playToServer(net.godwand.network.AtomicSkipPayload.ID, net.godwand.network.AtomicSkipPayload.CODEC,
                 (payload,context) -> context.enqueueWork(() -> {
@@ -233,18 +233,21 @@ public class GodWandNeoForgeMod {
     private void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             SpatialPathWalker.deactivate(serverPlayer);
+            net.godwand.skill.SkillCooldowns.reset(serverPlayer);
         }
     }
 
     private void onLivingDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             SpatialPathWalker.deactivate(serverPlayer);
+            net.godwand.skill.SkillCooldowns.reset(serverPlayer);
         }
     }
 
     private void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             SpatialPathWalker.deactivate(serverPlayer);
+            net.godwand.skill.SkillCooldowns.reset(serverPlayer);
         }
     }
 

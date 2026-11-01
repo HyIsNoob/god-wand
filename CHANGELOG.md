@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.5]
+
+### Fixed
+
+- Fixed skills staying unavailable after dying and respawning, including when another skill was selected during cooldown.
+- Inactive cinematic effects no longer block other mods from adjusting zoom.
+
 ## [1.3.4]
 
 This release includes all eight supported builds.

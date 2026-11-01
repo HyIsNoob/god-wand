@@ -1,4 +1,4 @@
-# God Wand 1.3.4
+# God Wand 1.3.5
 
 One wand with six skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile or hold **I am Atomic** until you choose to release.
 
@@ -6,14 +6,14 @@ One wand with six skills: walk through mountains, pull enemies into a gravity or
 
 | Minecraft | Loader | Java | Installable file |
 | --- | --- | --- | --- |
-| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.4.jar` |
-| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.4.jar` |
-| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.4.jar` |
-| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.4.jar` |
-| 1.21.11 | Fabric + Fabric API | 21 | `godwand-fabric-1.21.11-1.3.4.jar` |
-| 1.21.11 | NeoForge | 21 | `godwand-neoforge-1.21.11-1.3.4.jar` |
-| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.3.4.jar` |
-| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.3.4.jar` |
+| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.5.jar` |
+| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.5.jar` |
+| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.5.jar` |
+| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.5.jar` |
+| 1.21.11 | Fabric + Fabric API | 21 | `godwand-fabric-1.21.11-1.3.5.jar` |
+| 1.21.11 | NeoForge | 21 | `godwand-neoforge-1.21.11-1.3.5.jar` |
+| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.3.5.jar` |
+| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.3.5.jar` |
 
 Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server. For multiplayer, update God Wand on both the server and every player’s client.
 
@@ -67,9 +67,9 @@ See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [sha
 
 ## Release status
 
-1.3.4 includes all eight builds listed above. It adds player repulsion to Spatial Path, single-skill wand commands and fixes rendering issues in Minecraft 1.21.11. This is the first public release for Minecraft 1.21.11 on Fabric and NeoForge.
+1.3.5 fixes cooldowns carrying over incorrectly after respawn and avoids cancelling other zoom hooks while cinematic FOV effects are inactive. Update both server and clients together.
 
-All eight targets pass automated build and test checks. The owner has completed gameplay testing for this release. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
+All eight version/loader targets share these fixes. Build and automated checks do not replace gameplay, multiplayer or shaderpack testing. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
 
 ## License
 

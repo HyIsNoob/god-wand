@@ -10,9 +10,23 @@ import java.util.WeakHashMap;
 
 /** Player identity, not the wand stack, owns cooldowns; switching or copying wands cannot bypass them. */
 public final class SkillCooldowns {
-    private static final Map<ServerPlayer,SkillCooldownState> STATES=new WeakHashMap<>();
+    private record Entry(java.lang.ref.WeakReference<ServerPlayer> owner, SkillCooldownState timers) {}
+    private static final Map<ServerPlayer,Entry> STATES=new WeakHashMap<>();
     private SkillCooldowns() {}
-    private static SkillCooldownState state(ServerPlayer player) {return STATES.computeIfAbsent(player,p->new SkillCooldownState());}
+    private static SkillCooldownState state(ServerPlayer player) {
+        var entry=STATES.get(player);
+        // Entity.equals uses the reused network ID; respawn must not inherit the old tick clock.
+        if(entry==null || entry.owner().get()!=player) {
+            STATES.remove(player);
+            entry=new Entry(new java.lang.ref.WeakReference<>(player),new SkillCooldownState());
+            STATES.put(player,entry);
+        }
+        return entry.timers();
+    }
+    public static void reset(ServerPlayer player) {
+        STATES.remove(player);
+        for(int mode=0;mode<net.godwand.item.GodWandItem.TOTAL_MODES;mode++)sync(player,mode);
+    }
     public static boolean ready(Player user,int mode) {
         if(!(user instanceof ServerPlayer player))return true;
         int left=state(player).remaining(mode,player.tickCount);

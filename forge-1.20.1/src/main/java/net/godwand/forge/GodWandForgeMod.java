@@ -193,6 +193,7 @@ public class GodWandForgeMod {
     public void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             SpatialPathWalker.deactivate(serverPlayer);
+            net.godwand.skill.SkillCooldowns.reset(serverPlayer);
         }
     }
 
@@ -200,6 +201,7 @@ public class GodWandForgeMod {
     public void onLivingDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             SpatialPathWalker.deactivate(serverPlayer);
+            net.godwand.skill.SkillCooldowns.reset(serverPlayer);
         }
     }
 
@@ -207,6 +209,7 @@ public class GodWandForgeMod {
     public void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             SpatialPathWalker.deactivate(serverPlayer);
+            net.godwand.skill.SkillCooldowns.reset(serverPlayer);
         }
     }
 
