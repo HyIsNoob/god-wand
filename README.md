@@ -2,7 +2,7 @@
 
 One wand with six skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile or hold **I am Atomic** until you choose to release.
 
-[Full mod description](DESCRIPTION.md) · [Changelog](CHANGELOG.md)
+[Wiki and guides](https://god-wand-wiki.vercel.app/) · [CurseForge downloads](https://www.curseforge.com/minecraft/mc-mods/god-wand) · [Full mod description](DESCRIPTION.md) · [Changelog](CHANGELOG.md)
 
 | Minecraft | Loader | Java | Installable file |
 | --- | --- | --- | --- |
@@ -14,6 +14,8 @@ One wand with six skills: walk through mountains, pull enemies into a gravity or
 | 1.21.11 | NeoForge | 21 | `godwand-neoforge-1.21.11-1.3.5.jar` |
 | 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.3.5.jar` |
 | 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.3.5.jar` |
+
+The Minecraft 26.1.2 port is available on [GitHub main](https://github.com/HyIsNoob/god-wand); it is not yet integrated into this 1.3.5 hotfix branch. CurseForge downloads are pending.
 
 Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server. For multiplayer, update God Wand on both the server and every player’s client.
 
@@ -85,4 +87,4 @@ These paths cover every loader/version module. Restrictions on bundled assets do
 
 ## Contributors
 
-Thanks to [KingIronMan2011](https://github.com/KingIronMan2011) for modernizing the build tools and fixing cross-version toolchain and encoding issues ([PR #2](https://github.com/HyIsNoob/god-wand/pull/2)).
+Thanks to [KingIronMan2011](https://github.com/KingIronMan2011) for build modernization, the Minecraft 26.1.2 port, Iris compatibility and bundled icon support ([#2](https://github.com/HyIsNoob/god-wand/pull/2), [#4](https://github.com/HyIsNoob/god-wand/pull/4), [#5](https://github.com/HyIsNoob/god-wand/pull/5), [#6](https://github.com/HyIsNoob/god-wand/pull/6)).
