@@ -88,6 +88,16 @@ public final class GodWandGeometry {
         ARENA.clear();
     }
 
+    /** Fabric queues geometry inside the level pass; Iris' final pass would overwrite it, so draw after the level finishes. */
+    private static Matrix4f deferredView;
+    public static void deferFlush() { deferredView = new Matrix4f(RenderSystem.getModelViewMatrix()); }
+    public static void flushDeferred() {
+        if (deferredView == null) return;
+        var view = deferredView;
+        deferredView = null;
+        flush(view);
+    }
+
     public static void flush() { flush(new Matrix4f(RenderSystem.getModelViewMatrix())); }
     public static void flush(org.joml.Matrix4fc view) {
         if (PENDING.isEmpty()) return;
