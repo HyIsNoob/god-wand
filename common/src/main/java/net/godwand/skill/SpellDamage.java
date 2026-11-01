@@ -22,6 +22,10 @@ public final class SpellDamage {
     private static final String WORM="net.jelly.sandworm_mod.entity.IK.worm.";
     private static final Set<Class<?>> WARNED=new HashSet<>();
 
+    public static boolean isCaster(Entity target, Entity caster) {
+        return target != null && caster != null && target.getUUID().equals(caster.getUUID());
+    }
+
     public static boolean hurt(Entity target,DamageSource original,float amount) {
         if(!Float.isFinite(amount)||amount<=0)return false;
         // Keep PvP, creative immunity and player-protection hooks on the original damage path.

@@ -53,6 +53,58 @@ class BridgeRestorationTest {
 
     @AfterEach void cleanup() { SpatialDisplacementManager.clearRuntimeState(); }
 
+    private DisplacedBlockRecord addRecord(BlockPos pos, DisplacedBlockRecord.DisplacementMode mode, boolean permanent) {
+        var added = new DisplacedBlockRecord(pos, Level.OVERWORLD, Blocks.STONE.defaultBlockState(), null,
+                new Vector3f(), new Quaternionf(), new Vector3f(1), 200, true, mode, owner);
+        added.permanentDestruction = permanent;
+        added.displayEntityUuid = UUID.randomUUID();
+        SpatialDisplacementManager.recoverBridge(added);
+        var display = mock(net.minecraft.world.entity.Display.BlockDisplay.class);
+        when(display.isAlive()).thenReturn(true);
+        SpatialDisplacementManager.trackEntity(added.displayEntityUuid, display);
+        return added;
+    }
+
+    @Test void pathCleanupRestoresPathAndBridgeButRetainsCommittedSpellRecordsAndDisplays() {
+        var path = addRecord(source.offset(1, 0, 0), DisplacedBlockRecord.DisplacementMode.PATH_WALKER, false);
+        var aura = addRecord(source.offset(2, 0, 0), DisplacedBlockRecord.DisplacementMode.HYSTERESIS_AURA, false);
+        var temporary = addRecord(source.offset(3, 0, 0), DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED, false);
+        var permanent = addRecord(source.offset(4, 0, 0), DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED, true);
+        SpatialDisplacementManager.restorePathForPlayer(owner, world);
+        assertEquals(Blocks.STONE.defaultBlockState(), blocks.get(source));
+        assertFalse(blocks.containsKey(target));
+        assertNull(SpatialDisplacementManager.getActiveRecord(Level.OVERWORLD, path.pos));
+        assertNull(SpatialDisplacementManager.getActiveRecord(Level.OVERWORLD, aura.pos));
+        for (var spell : List.of(temporary, permanent)) {
+            assertSame(spell, SpatialDisplacementManager.getActiveRecord(Level.OVERWORLD, spell.pos));
+            assertFalse(blocks.containsKey(spell.pos));
+            assertEquals(0, spell.restoreTick);
+            verify(SpatialDisplacementManager.getActiveEntity(spell.displayEntityUuid), never()).discard();
+        }
+    }
+
+    @Test void explicitFullCleanupStillRestoresTemporaryAndRemovesPermanentSpellRecords() {
+        var temporary = addRecord(source.offset(1, 0, 0), DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED, false);
+        var permanent = addRecord(source.offset(2, 0, 0), DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED, true);
+        var temporaryDisplay = SpatialDisplacementManager.getActiveEntity(temporary.displayEntityUuid);
+        var permanentDisplay = SpatialDisplacementManager.getActiveEntity(permanent.displayEntityUuid);
+        SpatialDisplacementManager.restoreAllForPlayer(owner, world);
+        assertEquals(Blocks.STONE.defaultBlockState(), blocks.get(temporary.pos));
+        assertFalse(blocks.containsKey(permanent.pos));
+        assertEquals(0, SpatialDisplacementManager.getActiveRecordCount());
+        verify(temporaryDisplay).discard();
+        verify(permanentDisplay).discard();
+    }
+
+    @Test void auraCollapseDoesNotStartRestoringCommittedSpellBlocks() {
+        var path = addRecord(source.offset(1, 0, 0), DisplacedBlockRecord.DisplacementMode.PATH_WALKER, false);
+        var spell = addRecord(source.offset(2, 0, 0), DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED, false);
+        SpatialDisplacementManager.collapsePlayerAura(owner);
+        assertTrue(path.isRestoring());
+        assertTrue(record.isRestoring());
+        assertFalse(spell.isRestoring());
+    }
+
     @Test void unloadedDestinationKeepsJournalAndDoesNotRestoreSource() {
         when(chunks.hasChunk(10, 0)).thenReturn(false);
         SpatialDisplacementManager.restoreAllForPlayer(owner, world);

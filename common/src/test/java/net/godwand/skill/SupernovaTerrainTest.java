@@ -82,4 +82,28 @@ class SupernovaTerrainTest {
             verify(world,never()).setBlock(any(),any(),anyInt());
         } finally { GodWandConfig.SERVER = previous; }
     }
+    @Test void blastInvalidatesRestorationJournalEvenWhenDisplacedPositionIsAir() throws Exception {
+        var previous=GodWandConfig.SERVER;
+        try {
+            GodWandConfig.SERVER=new GodWandConfig.Server();GodWandConfig.SERVER.supernovaTerrainRadius=16;
+            var world=mock(ServerLevel.class);var chunks=mock(ServerChunkCache.class);var chunk=mock(LevelChunk.class);
+            when(world.getChunkSource()).thenReturn(chunks);when(chunks.getChunkNow(anyInt(),anyInt())).thenReturn(chunk);
+            when(world.getMinBuildHeight()).thenReturn(64);when(world.getMaxBuildHeight()).thenReturn(80);
+            when(chunk.getHeight(any(),anyInt(),anyInt())).thenReturn(70);
+            when(chunk.getBlockState(any())).thenReturn(Blocks.AIR.defaultBlockState());
+            var journal=mock(net.godwand.spatial.DisplacementPersistentState.class);
+            try(var displacements=mockStatic(net.godwand.spatial.SpatialDisplacementManager.class);
+                var persistence=mockStatic(net.godwand.spatial.DisplacementPersistentState.class)) {
+                var record=mock(net.godwand.spatial.DisplacedBlockRecord.class);
+                displacements.when(()->net.godwand.spatial.SpatialDisplacementManager.getActiveRecord(any(),any())).thenReturn(record);
+                persistence.when(()->net.godwand.spatial.DisplacementPersistentState.getServerState(world)).thenReturn(journal);
+                var task=new SupernovaManager.SupernovaTask(world,null,new BlockPos(0,70,0),Vec3.ZERO);
+                var carve=SupernovaManager.class.getDeclaredMethod("carveSphericalCraterShell",SupernovaManager.SupernovaTask.class,int.class,int.class);
+                carve.setAccessible(true);carve.invoke(null,task,0,60);
+                displacements.verify(()->net.godwand.spatial.SpatialDisplacementManager.removeActiveRecord(any(),any()),atLeastOnce());
+                verify(journal).setDirty();verify(world,never()).setBlock(any(),any(),anyInt());
+            }
+        } finally {GodWandConfig.SERVER=previous;}
+    }
+
 }

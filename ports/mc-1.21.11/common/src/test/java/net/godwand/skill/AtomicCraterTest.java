@@ -111,9 +111,10 @@ class AtomicCraterTest {
         assertTrue(writes.size()>1000,"The crater must reach the outer columns");
         assertTrue(writes.stream().anyMatch(p -> p.getZ()==0),"Storage blocks in the blast must also be removed");
         long lookups=mockingDetails(chunks).getInvocations().stream().filter(call -> call.getMethod().getName().equals("getChunkNow")).count();
-        assertTrue(lookups<writes.size()/5,"Chunk lookup must be shared across a column, not repeated per block");
+        assertTrue(lookups<writes.size()/3,"Surface and resumed depth slices must still share chunk lookups across multiple blocks");
         verify(world,never()).getChunk(anyInt(),anyInt());
-        assertTrue(writes.stream().mapToInt(BlockPos::getY).min().orElseThrow()<50,"The deeper crater should extend more than twenty blocks beneath its center");
+        assertEquals(54,writes.stream().mapToInt(BlockPos::getY).min().orElseThrow(),"Terrain stops sixteen blocks below the cast origin");
+        assertEquals(30,AtomicSequence.BEAM_DEPTH,"Reducing terrain depth must not shorten the visible beam");
     }
 
     @Test void carvingWaitsForTheColumnWithoutLeavingPermanentScarBlocks() {
@@ -143,6 +144,39 @@ class AtomicCraterTest {
         front[0]=16;
         for(int tick=0;tick<2000&&!crater.finished();tick++)assertTrue(crater.carve(world,97,front[0])<=97);
         assertTrue(crater.finished());
+    }
+
+    @Test void denseUnevenTerrainReachesEverySurfaceBeforeDeepeningTheCenter() {
+        var world=mock(ServerLevel.class);
+        var chunks=mock(ServerChunkCache.class);
+        var loaded=mock(net.minecraft.world.level.chunk.LevelChunk.class);
+        when(world.getChunkSource()).thenReturn(chunks);
+        when(chunks.getChunkNow(anyInt(),anyInt())).thenReturn(loaded);
+        when(world.getMinY()).thenReturn(-64);
+        when(world.getMaxY()).thenReturn(319);
+        // Dense stone, with higher ridges rather than a shallow superflat fixture.
+        when(loaded.getHeight(any(),anyInt(),anyInt())).thenAnswer(call -> 90+(int)call.getArgument(1)/2);
+        when(loaded.getBlockState(any())).thenReturn(Blocks.STONE.defaultBlockState());
+        var surfaces=new HashSet<Long>();
+        when(world.setBlock(any(),any(),anyInt())).thenAnswer(call -> {
+            BlockPos pos=call.getArgument(0);
+            assertEquals(90+(pos.getX()&15)/2,pos.getY(),"An inner column deepened before the outer surface was reached");
+            assertTrue(surfaces.add(pos.asLong()),"Surface was visited twice");
+            return true;
+        });
+        var crater=readyCrater(new BlockPos(0,70,0),32);
+        var footprint=AtomicTerrainPlanner.plan(32);
+        int allowance=2*footprint.offsets().length;
+        // Split across small ticks to exercise resumption inside the first surface pass.
+        while(allowance>0) {
+            int used=crater.carve(world,Math.min(73,allowance),32);
+            assertTrue(used>0);
+            allowance-=used;
+        }
+        assertEquals(footprint.offsets().length,surfaces.size());
+        assertTrue(surfaces.stream().map(BlockPos::of).anyMatch(pos -> pos.getX()==32&&pos.getZ()==0));
+        assertFalse(crater.finished(),"Depth work remains after broad surface coverage");
+        verify(world,never()).getChunk(anyInt(),anyInt());
     }
 
     @Test void terrainReachNeverExceedsVisibleColumnRadius() {

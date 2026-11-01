@@ -116,7 +116,7 @@ public final class AtomicManager {
                 var area=new AABB(task.center.x-radius,task.center.y-14,task.center.z-radius,
                         task.center.x+radius,task.center.y+AtomicSequence.BEAM_HEIGHT,task.center.z+radius);
                 for(LivingEntity entity:world.getEntitiesOfClass(LivingEntity.class,area,
-                        e -> AtomicSequence.beamRadius(age)>0 && e!=task.caster && e.isAlive() && !(e instanceof Player p && (p.isCreative()||p.isSpectator())))) {
+                        e -> AtomicSequence.beamRadius(age)>0 && !SpellDamage.isCaster(e,task.caster) && e.isAlive() && !(e instanceof Player p && (p.isCreative()||p.isSpectator())))) {
                     double distance=Math.hypot(entity.getX()-task.center.x,entity.getZ()-task.center.z);
                     float hit=damage(distance);
                     if(distance>AtomicSequence.beamRadius(age) || hit<=0 || task.struck.contains(entity.getUUID()))continue;

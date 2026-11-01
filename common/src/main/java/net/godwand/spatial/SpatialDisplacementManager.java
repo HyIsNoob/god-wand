@@ -662,17 +662,31 @@ public class SpatialDisplacementManager {
 
     public static void collapsePlayerAura(UUID playerUuid) {
         for (DisplacedBlockRecord record : ACTIVE_RECORDS.values()) {
-            if (record.boundPlayerUuid != null && record.boundPlayerUuid.equals(playerUuid)) {
+            if (playerUuid != null && playerUuid.equals(record.boundPlayerUuid) && isPathRecord(record)) {
                 record.beginRestoration();
             }
         }
     }
 
+    private static boolean isPathRecord(DisplacedBlockRecord record) {
+        return record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER
+                || record.mode == DisplacedBlockRecord.DisplacementMode.HYSTERESIS_AURA
+                || record.bridgeDestination != null;
+    }
+
+    public static void restorePathForPlayer(UUID playerUuid, ServerLevel preferredLevel) {
+        restoreForPlayer(playerUuid, preferredLevel, true);
+    }
+
     public static void restoreAllForPlayer(UUID playerUuid, ServerLevel preferredLevel) {
+        restoreForPlayer(playerUuid, preferredLevel, false);
+    }
+
+    private static void restoreForPlayer(UUID playerUuid, ServerLevel preferredLevel, boolean pathOnly) {
         if (playerUuid == null) return;
         List<DisplacedBlockRecord> toRestore = new ArrayList<>();
         for (DisplacedBlockRecord r : ACTIVE_RECORDS.values()) {
-            if (playerUuid.equals(r.boundPlayerUuid)) {
+            if (playerUuid.equals(r.boundPlayerUuid) && (!pathOnly || isPathRecord(r))) {
                 if (r.permanentDestruction) {
                     removeActiveRecord(r.worldKey, r.pos);
                 } else {

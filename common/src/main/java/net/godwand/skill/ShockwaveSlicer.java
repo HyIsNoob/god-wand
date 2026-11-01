@@ -345,7 +345,7 @@ public class ShockwaveSlicer {
         // 2. Sát thương nghiền nát (45 - 125) & Lực hút trọng trường kéo tụt mục tiêu xuống đáy hố
         AABB snapBox = new AABB(task.center).inflate(task.maxRadius * 1.15);
         SpellDamage.hurtExtras(world,snapBox,task.caster!=null?world.damageSources().fallingBlock(task.caster):world.damageSources().inWall(),e -> e.position().distanceTo(task.center.getCenter())<=task.maxRadius * 1.15 ? 2*Math.max(45.0,(1-e.position().distanceTo(task.center.getCenter())/(task.maxRadius * 1.15))*80+45)*net.godwand.config.GodWandConfig.skillDamageMultiplier(1,task.chargeLevel):0);
-        for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, snapBox, ent -> ent != task.caster && ent.isAlive())) {
+        for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, snapBox, ent -> !SpellDamage.isCaster(ent, task.caster) && ent.isAlive())) {
             Vec3 diff = task.center.getCenter().subtract(e.position());
             double dist = diff.length();
             if (dist <= task.maxRadius * 1.15) {
@@ -581,7 +581,7 @@ public class ShockwaveSlicer {
         // Sát thương chôn vùi & ngạt thở (Entombment & Suffocation)
         AABB entombBox = new AABB(task.center).inflate(task.maxRadius * 1.05);
         SpellDamage.hurtExtras(world,entombBox,task.caster!=null?world.damageSources().fallingBlock(task.caster):world.damageSources().inWall(),e -> e.position().distanceTo(task.center.getCenter())<=task.maxRadius * 1.05 ? 70*net.godwand.config.GodWandConfig.skillDamageMultiplier(1,task.chargeLevel):0);
-        for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, entombBox, ent -> ent != task.caster && ent.isAlive())) {
+        for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, entombBox, ent -> !SpellDamage.isCaster(ent, task.caster) && ent.isAlive())) {
             BlockPos feetPos = BlockPos.containing(e.position());
             BlockPos eyePos = BlockPos.containing(e.getEyePosition());
             BlockState feetState = world.getBlockState(feetPos);

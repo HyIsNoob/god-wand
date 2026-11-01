@@ -492,7 +492,7 @@ public class RatioCollapseManager {
                 // Hút sinh vật xung quanh và tạo vệt gió xoáy quanh mũi khoan đang hình thành
                 if (task.ageTicks % 6 == 0) {
                     AABB suctionBox = new AABB(task.center).inflate(task.radius * 1.2);
-                    for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, suctionBox, ent -> ent != task.caster)) {
+                    for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, suctionBox, ent -> !SpellDamage.isCaster(ent, task.caster))) {
                         Vec3 pull = task.meteorCore.subtract(e.position()).normalize().scale(0.24);
                         e.push(pull.x, pull.y, pull.z);
                         e.hurtMarked = true;
@@ -599,7 +599,7 @@ public class RatioCollapseManager {
                     // Sát thương nghiền nát xuyên thấu khi mũi khoan cắm sâu xuống đất (Ticks 159..169)
                     AABB drillPenetrateBox = AABB.ofSize(currentDrillCenter, task.boulderRadius * 2.2, task.boulderRadius * 3.6, task.boulderRadius * 2.2);
                     SpellDamage.hurtExtras(world,drillPenetrateBox,world.damageSources().fallingBlock(task.caster),e -> 20*task.damageMult*net.godwand.config.GodWandConfig.skillDamageMultiplier(2,task.chargeLevel));
-                    for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, drillPenetrateBox, ent -> ent != task.caster)) {
+                    for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, drillPenetrateBox, ent -> !SpellDamage.isCaster(ent, task.caster))) {
                         SpellDamage.hurt(e,world.damageSources().fallingBlock(task.caster), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (10.0f * task.damageMult * net.godwand.config.GodWandConfig.skillDamageMultiplier(2,task.chargeLevel)));
                         e.push(0, -0.45, 0); // Ép chặt nạn nhân xuống đáy lỗ khoan
                         e.hurtMarked = true;
@@ -627,7 +627,7 @@ public class RatioCollapseManager {
                             task.center.getZ() + task.radius * 1.45
                     );
                     SpellDamage.hurtExtras(world,slamBox,world.damageSources().fallingBlock(task.caster),e -> 2*Math.max(35.0,((1-e.position().distanceTo(task.center.getCenter())/(task.radius*1.45))*75+25)*task.damageMult)*net.godwand.config.GodWandConfig.skillDamageMultiplier(2,task.chargeLevel));
-                    for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, slamBox, ent -> ent != task.caster)) {
+                    for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, slamBox, ent -> !SpellDamage.isCaster(ent, task.caster))) {
                         double dist = e.position().distanceTo(task.center.getCenter());
                         float dmg = (float) Math.max(35.0, ((1.0 - (dist / (task.radius * 1.45))) * 75.0 + 25.0) * task.damageMult) * net.godwand.config.GodWandConfig.skillDamageMultiplier(2,task.chargeLevel);
                         SpellDamage.hurt(e,world.damageSources().fallingBlock(task.caster), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (dmg));
