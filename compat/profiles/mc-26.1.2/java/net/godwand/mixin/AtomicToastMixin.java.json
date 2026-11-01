@@ -1,0 +1,9 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "package net.godwand.mixin;\n\nimport net.godwand.client.AtomicCinematic;\nimport net.minecraft.client.gui.components.toasts.ToastComponent;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.injection.At;\nimport org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n@Mixin(ToastComponent.class)\npublic abstract class AtomicToastMixin {\n    @Inject(method=\"render\",at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicDeferToasts(CallbackInfo ci) { if(AtomicCinematic.active())ci.cancel(); }\n}\n",
+      "after": "package net.godwand.mixin;\n\nimport net.godwand.client.AtomicCinematic;\nimport net.minecraft.client.gui.components.toasts.ToastManager;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.injection.At;\nimport org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n@Mixin(value=ToastManager.class,remap=false)\npublic abstract class AtomicToastMixin {\n    @Inject(method=\"extractRenderState\",at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$atomicDeferToasts(CallbackInfo ci) { if(AtomicCinematic.active())ci.cancel(); }\n}\n"
+    }
+  ]
+}

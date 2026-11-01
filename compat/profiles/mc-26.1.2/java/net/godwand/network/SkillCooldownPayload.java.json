@@ -1,0 +1,13 @@
+{
+  "reason": "Identifier API",
+  "changes": [
+    {
+      "before": "import net.minecraft.resources.ResourceLocation;",
+      "after": "import net.minecraft.resources.Identifier;"
+    },
+    {
+      "before": "ResourceLocation.fromNamespaceAndPath(",
+      "after": "Identifier.fromNamespaceAndPath("
+    }
+  ]
+}

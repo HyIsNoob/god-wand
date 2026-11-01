@@ -1,0 +1,13 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "import org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;\n\n@Mixin(Minecraft.class)\npublic abstract class MinecraftClientMixin {\n\n    /**\n",
+      "after": "import org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;\n\n@Mixin(value=Minecraft.class,remap=false)\npublic abstract class MinecraftClientMixin {\n\n    /**\n"
+    },
+    {
+      "before": "     */\n    @Inject(method = \"shouldEntityAppearGlowing\", at = @At(\"HEAD\"), cancellable = true)\n    private void godwand$suppressBlockDisplayOutline(Entity entity, CallbackInfoReturnable<Boolean> cir) {\n        if (entity instanceof Display || (entity != null && entity.getTags().contains(\"godwand_displaced\"))) {\n            cir.setReturnValue(false);\n        }\n    }\n",
+      "after": "     */\n    @Inject(method = \"shouldEntityAppearGlowing\", at = @At(\"HEAD\"), cancellable = true)\n    private void godwand$suppressBlockDisplayOutline(Entity entity, CallbackInfoReturnable<Boolean> cir) {\n        if (entity != null && entity.entityTags().contains(\"godwand_displaced\")) {\n            cir.setReturnValue(false);\n        }\n    }\n"
+    }
+  ]
+}

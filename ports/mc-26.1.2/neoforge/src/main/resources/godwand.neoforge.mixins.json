@@ -1,0 +1,30 @@
+{
+  "required": true,
+  "package": "net.godwand.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "EntityMixin",
+    "FlowableFluidMixin",
+    "AtomicMovementMixin"
+  ],
+  "client": [
+    "AtomicCameraMixin",
+    "AtomicPoseMixin",
+    "AtomicFacingMixin",
+    "AtomicGuiMixin",
+    "AtomicToastMixin",
+    "AtomicKeyboardMixin",
+    "GameRendererMixin",
+    "MinecraftClientMixin",
+    "SoundSystemMixin",
+    "PostEffectProcessorAccessor",
+    "AtomicInputMixin",
+    "AtomicLocalMovementMixin",
+    "PostPassUniformsAccessor",
+    "AtomicPoseCaptureMixin",
+    "SkillCooldownUseMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

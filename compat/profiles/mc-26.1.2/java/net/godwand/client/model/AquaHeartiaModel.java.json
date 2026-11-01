@@ -1,0 +1,29 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "import net.minecraft.client.model.geom.builders.LayerDefinition;\nimport net.minecraft.client.model.geom.builders.MeshDefinition;\nimport net.minecraft.client.model.geom.builders.PartDefinition;\nimport net.minecraft.client.renderer.LightTexture;\nimport net.minecraft.client.renderer.RenderType;\nimport org.joml.Vector3f;\nimport java.util.ArrayList;\nimport java.util.List;\n",
+      "after": "import net.minecraft.client.model.geom.builders.LayerDefinition;\nimport net.minecraft.client.model.geom.builders.MeshDefinition;\nimport net.minecraft.client.model.geom.builders.PartDefinition;\n\nimport net.minecraft.client.renderer.rendertype.RenderType;\nimport org.joml.Vector3f;\nimport java.util.ArrayList;\nimport java.util.List;\n"
+    },
+    {
+      "before": " * a polished silver metallic orbital crescent ring, a mitered right-side bracket strut,\n * and the floating Water Dragon King sapphire magic sphere.\n */\npublic class AquaHeartiaModel extends Model {\n    private final ModelPart root, chassis, silver, vents, manaCore;\n    private float animationTime;\n    private float charge;\n",
+      "after": " * a polished silver metallic orbital crescent ring, a mitered right-side bracket strut,\n * and the floating Water Dragon King sapphire magic sphere.\n */\npublic class AquaHeartiaModel {\n    private final ModelPart root, chassis, silver, vents, manaCore;\n    private float animationTime;\n    private float charge;\n"
+    },
+    {
+      "before": "    private static final Vector3f[][] AURA_SPHERE_QUADS = createSphereQuads(4.05f, 8, 12);\n\n    public AquaHeartiaModel(ModelPart root) {\n        super(RenderType::entityCutoutNoCull);\n        this.root = root;\n        this.chassis = root.getChild(\"chassis\");\n        this.silver = root.getChild(\"silver\");\n",
+      "after": "    private static final Vector3f[][] AURA_SPHERE_QUADS = createSphereQuads(4.05f, 8, 12);\n\n    public AquaHeartiaModel(ModelPart root) {\n        this.root = root;\n        this.chassis = root.getChild(\"chassis\");\n        this.silver = root.getChild(\"silver\");\n"
+    },
+    {
+      "before": "        this.manaCore.z = 0.0f;\n    }\n\n    @Override\n    public void renderToBuffer(PoseStack matrices, VertexConsumer vertexConsumer, int light, int overlay, int color) {\n        renderQuads(matrices, vertexConsumer, CHASSIS_QUADS, light, overlay, 0xFF262328);\n        renderQuads(matrices, vertexConsumer, SILVER_QUADS, light, overlay, 0xFFDCEDF8);\n        renderQuads(matrices, vertexConsumer, VENT_QUADS, LightTexture.FULL_BRIGHT, overlay, 0xFF00E5FF);\n    }\n\n    public void renderWand(PoseStack matrices, Supplier<VertexConsumer> solidBuffer,\n",
+      "after": "        this.manaCore.z = 0.0f;\n    }\n\n    public void renderToBuffer(PoseStack matrices, VertexConsumer vertexConsumer, int light, int overlay, int color) {\n        renderQuads(matrices, vertexConsumer, CHASSIS_QUADS, light, overlay, 0xFF262328);\n        renderQuads(matrices, vertexConsumer, SILVER_QUADS, light, overlay, 0xFFDCEDF8);\n        renderQuads(matrices, vertexConsumer, VENT_QUADS, 0x00F000F0, overlay, 0xFF00E5FF);\n    }\n\n    public void renderWand(PoseStack matrices, Supplier<VertexConsumer> solidBuffer,\n"
+    },
+    {
+      "before": "        renderQuads(matrices, solidBuffer.get(), SILVER_QUADS, light, overlay, 0xFFDCEDF8);\n\n        // 3. Glowing cyan energy vents on top hood\n        renderQuads(matrices, emissiveBuffer.get(), VENT_QUADS, LightTexture.FULL_BRIGHT, overlay, 0xFF00E5FF);\n\n        // 4. Floating Water Dragon King Magic Sphere\n        matrices.pushPose();\n",
+      "after": "        renderQuads(matrices, solidBuffer.get(), SILVER_QUADS, light, overlay, 0xFFDCEDF8);\n\n        // 3. Glowing cyan energy vents on top hood\n        renderQuads(matrices, emissiveBuffer.get(), VENT_QUADS, 0x00F000F0, overlay, 0xFF00E5FF);\n\n        // 4. Floating Water Dragon King Magic Sphere\n        matrices.pushPose();\n"
+    },
+    {
+      "before": "        renderQuads(matrices, solidBuffer.get(), SPHERE_QUADS, light, overlay, 0xEE1465E5);\n\n        // Luminous radiant core\n        renderQuads(matrices, emissiveBuffer.get(), CORE_SPHERE_QUADS, LightTexture.FULL_BRIGHT, overlay, 0xFFE0FFFF);\n\n        // Ambient magical aura\n        int alphaOuter = Math.min(255, 30 + (int) (charge * 55));\n        renderQuads(matrices, emissiveBuffer.get(), AURA_SPHERE_QUADS, LightTexture.FULL_BRIGHT, overlay,\n                (alphaOuter << 24) | 0x00D2FF);\n\n        matrices.popPose();\n",
+      "after": "        renderQuads(matrices, solidBuffer.get(), SPHERE_QUADS, light, overlay, 0xEE1465E5);\n\n        // Luminous radiant core\n        renderQuads(matrices, emissiveBuffer.get(), CORE_SPHERE_QUADS, 0x00F000F0, overlay, 0xFFE0FFFF);\n\n        // Ambient magical aura\n        int alphaOuter = Math.min(255, 30 + (int) (charge * 55));\n        renderQuads(matrices, emissiveBuffer.get(), AURA_SPHERE_QUADS, 0x00F000F0, overlay,\n                (alphaOuter << 24) | 0x00D2FF);\n\n        matrices.popPose();\n"
+    }
+  ]
+}

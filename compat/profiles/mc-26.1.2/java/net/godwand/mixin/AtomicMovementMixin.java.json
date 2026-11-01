@@ -1,0 +1,9 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "import org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n@Mixin(ServerGamePacketListenerImpl.class)\npublic abstract class AtomicMovementMixin {\n    @Shadow public ServerPlayer player;\n    @Inject(method=\"handleMovePlayer\",at=@At(value=\"INVOKE\",target=\"Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/server/level/ServerLevel;)V\",shift=At.Shift.AFTER),cancellable=true)\n",
+      "after": "import org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n@Mixin(value=ServerGamePacketListenerImpl.class,remap=false)\npublic abstract class AtomicMovementMixin {\n    @Shadow public ServerPlayer player;\n    @Inject(method=\"handleMovePlayer\",at=@At(value=\"INVOKE\",target=\"Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/server/level/ServerLevel;)V\",shift=At.Shift.AFTER),cancellable=true)\n"
+    }
+  ]
+}

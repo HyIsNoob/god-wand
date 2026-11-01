@@ -67,7 +67,7 @@ ext.generateSharedProfile = { String profile ->
     output
 }
 
-def profiles = ['fabric-1.20.1', 'forge-1.20.1', 'mc-26.3', 'mc-1.21.11']
+def profiles = ['fabric-1.20.1', 'forge-1.20.1', 'mc-26.3', 'mc-26.1.2', 'mc-1.21.11']
 if (project.hasProperty('sharedProfile')) {
     ext.sharedSourcesDir = generateSharedProfile(project.sharedProfile)
     sourceSets.main.java.setSrcDirs([new File(sharedSourcesDir, 'java')])
