@@ -86,6 +86,7 @@ public final class GodWandGeometry {
         for (Draw draw : PENDING) draw.mesh.close();
         PENDING.clear();
         ARENA.clear();
+        deferredView = null;
     }
 
     /** Fabric queues geometry inside the level pass; Iris' final pass would overwrite it, so draw after the level finishes. */

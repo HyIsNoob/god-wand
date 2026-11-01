@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added Fabric and NeoForge support for Minecraft 26.1.2 in source.
+- Improved Iris shaderpack compatibility on modern Minecraft versions.
+- Added a bundled mod icon for all loaders.
+- Fixed stale deferred camera state after visual reset on 26.1.2.
+
 ## [1.3.4]
 
 This release includes all eight supported builds.

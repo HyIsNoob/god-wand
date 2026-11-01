@@ -40,7 +40,11 @@ class GodWandGeometryTest {
             var textured=GodWandGeometry.begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_TEX_COLOR);
             for(int i=0;i<4;i++) textured.addVertex(i%2,i/2,-2).setUv(i%2,i/2).setColor(255,255,255,255);
             GodWandGeometry.draw(textured.buildOrThrow());
-            GodWandGeometry.flush(new Matrix4f());
+            render.when(RenderSystem::getModelViewMatrix).thenReturn(new Matrix4f());
+            GodWandGeometry.deferFlush();
+            verify(device,never()).createCommandEncoder();
+            GodWandGeometry.flushDeferred();
+            GodWandGeometry.flushDeferred();
             // Blaze3D: base vertex, first index, index count, instance count; each draw uses its own buffer.
             verify(pass,times(2)).drawIndexed(0,0,6,1);
             verify(pass,times(2)).close();
@@ -49,5 +53,23 @@ class GodWandGeometryTest {
             GodWandGeometry.reset();GodWandGeometry.colored();GodWandGeometry.depthMask(true);
             GodWandGeometry.enableCull();GodWandGeometry.defaultBlendFunc();GodWandGeometry.disableBlend();
         }
+    }
+
+    @Test void deferredCameraSnapshotIsIndependentAndResetCancelsIt() throws Exception {
+        GodWandGeometry.reset();
+        var snapshot=GodWandGeometry.class.getDeclaredField("deferredView");
+        snapshot.setAccessible(true);
+        try(var render=mockStatic(RenderSystem.class)) {
+            var view=new Matrix4f().rotateY(.42f);
+            var expected=new Matrix4f(view);
+            render.when(RenderSystem::getModelViewMatrix).thenReturn(view);
+            GodWandGeometry.deferFlush();
+            view.identity();
+            org.junit.jupiter.api.Assertions.assertEquals(expected,snapshot.get(null));
+            GodWandGeometry.reset();
+            org.junit.jupiter.api.Assertions.assertNull(snapshot.get(null));
+            GodWandGeometry.flushDeferred();
+            render.verify(RenderSystem::getDevice,never());
+        } finally { GodWandGeometry.reset(); }
     }
 }

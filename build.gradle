@@ -54,13 +54,13 @@ tasks.named('build') {
 
 tasks.register('buildAll') {
     group = 'build'
-    description = 'Build and check all eight supported loader/version combinations.'
+    description = 'Build and check all ten supported loader/version combinations.'
     dependsOn 'verifySharedSources', 'build', 'buildFabric1201', 'buildForge1201', 'build263', 'build2612', 'build12111'
 }
 
 tasks.register('releaseJars', Copy) {
     group = 'build'
-    description = 'Build all eight versions and collect only installable jars in build/release.'
+    description = 'Build all ten versions and collect only installable jars in build/release.'
     dependsOn 'buildAll'
     into layout.buildDirectory.dir(project.version.toString().endsWith('-dev') ? "preview/${project.version}" : 'release')
     ['fabric', 'neoforge'].each { loader ->
@@ -92,7 +92,7 @@ tasks.register('releaseJars', Copy) {
         new File(versioned,'SHA256SUMS.txt').text = checksum(versioned)
         new File(collected,"SHA256SUMS-${project.mod_version}.txt").text = checksum(collected)
         new File(versioned,'README.txt').text = "God Wand ${project.mod_version} - install ONE JAR for your exact Minecraft version and loader.\n" +
-                "All eight targets are synchronized from canonical common source plus explicit API adapters.\n" +
+                "All ten targets are synchronized from canonical common source plus explicit API adapters.\n" +
                 "Includes current boss damage, Atomic terrain/head/render and Singularity/menu updates.\n" +
                 "Build/unit checks are not live FPS, shaderpack or multiplayer validation.\n" + names.join('\n') + '\n'
         copy { from rootProject.file('CHANGELOG.md'); into versioned }
