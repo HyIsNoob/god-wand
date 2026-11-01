@@ -9,8 +9,9 @@
 - Released Earth Drill and Supernova blocks no longer disappear when the caster dies.
 - Ongoing spells no longer pull in or damage their caster after respawning.
 - Supernova no longer leaves displaced blocks that can return inside its blast.
-- Atomic spreads terrain destruction across its full radius before digging deeper on dense terrain.
+- Improved Atomic terrain coverage on normal worlds.
 - Reduced Atomic crater depth to prioritize wider terrain coverage. Visual effects are unchanged.
+- Atomic now levels high terrain first instead of leaving tall ridges across its crater when terrain work stops.
 
 ## [1.3.4]
 

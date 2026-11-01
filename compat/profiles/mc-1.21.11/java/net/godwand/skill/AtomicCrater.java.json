@@ -2,16 +2,16 @@
   "reason": "Explicit version/loader API adapter",
   "changes": [
     {
-      "before": "if (center.getY()<world.getMinBuildHeight() || center.getY()>=world.getMaxBuildHeight()",
-      "after": "if (center.getY()<world.getMinY() || center.getY()>=(world.getMaxY() + 1)"
+      "before": "center.getY()<world.getMinBuildHeight() || center.getY()>=world.getMaxBuildHeight()",
+      "after": "center.getY()<world.getMinY() || center.getY()>=(world.getMaxY() + 1)"
     },
     {
-      "before": "? Math.min(Math.min(world.getMaxBuildHeight()-1,center.getY()+AtomicSequence.BEAM_HEIGHT),",
-      "after": "? Math.min(Math.min(world.getMaxY(),center.getY()+AtomicSequence.BEAM_HEIGHT),"
+      "before": "world.getMinBuildHeight(), center.getY() - AtomicSequence.CRATER_DEPTH",
+      "after": "world.getMinY(), center.getY() - AtomicSequence.CRATER_DEPTH"
     },
     {
-      "before": "bottom = Math.max(world.getMinBuildHeight(), center.getY() - AtomicSequence.CRATER_DEPTH);",
-      "after": "bottom = Math.max(world.getMinY(), center.getY() - AtomicSequence.CRATER_DEPTH);"
+      "before": "world.getMaxBuildHeight()-1,center.getY()+AtomicSequence.BEAM_HEIGHT",
+      "after": "world.getMaxY(),center.getY()+AtomicSequence.BEAM_HEIGHT"
     }
   ]
 }

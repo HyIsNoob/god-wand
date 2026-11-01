@@ -146,7 +146,7 @@ class AtomicCraterTest {
         assertTrue(crater.finished());
     }
 
-    @Test void denseUnevenTerrainReachesEverySurfaceBeforeDeepeningTheCenter() {
+    @Test void limitedWorkLevelsHighTerrainInsteadOfPreservingTallRidges() {
         var world=mock(ServerLevel.class);
         var chunks=mock(ServerChunkCache.class);
         var loaded=mock(net.minecraft.world.level.chunk.LevelChunk.class);
@@ -154,28 +154,33 @@ class AtomicCraterTest {
         when(chunks.getChunkNow(anyInt(),anyInt())).thenReturn(loaded);
         when(world.getMinBuildHeight()).thenReturn(-64);
         when(world.getMaxBuildHeight()).thenReturn(320);
-        // Dense stone, with higher ridges rather than a shallow superflat fixture.
-        when(loaded.getHeight(any(),anyInt(),anyInt())).thenAnswer(call -> 90+(int)call.getArgument(1)/2);
+        when(loaded.getHeight(any(),anyInt(),anyInt())).thenAnswer(call -> (int)call.getArgument(1)<8?100:116);
         when(loaded.getBlockState(any())).thenReturn(Blocks.STONE.defaultBlockState());
-        var surfaces=new HashSet<Long>();
+        var footprint=AtomicTerrainPlanner.plan(8);
+        var tops=new java.util.HashMap<Long,Integer>();
+        for(int packed:footprint.offsets()) {
+            int x=(short)packed,z=(short)(packed>>16);
+            tops.put(((long)x<<32)|(z&0xffffffffL),(x&15)<8?100:116);
+        }
         when(world.setBlock(any(),any(),anyInt())).thenAnswer(call -> {
             BlockPos pos=call.getArgument(0);
-            assertEquals(90+(pos.getX()&15)/2,pos.getY(),"An inner column deepened before the outer surface was reached");
-            assertTrue(surfaces.add(pos.asLong()),"Surface was visited twice");
+            long key=((long)pos.getX()<<32)|(pos.getZ()&0xffffffffL);
+            assertEquals(tops.values().stream().mapToInt(Integer::intValue).max().orElseThrow(),pos.getY(),
+                    "Lower ground was deepened while a higher ridge remained");
+            assertEquals(tops.get(key).intValue(),pos.getY());
+            tops.put(key,pos.getY()-1);
             return true;
         });
-        var crater=readyCrater(new BlockPos(0,70,0),32);
-        var footprint=AtomicTerrainPlanner.plan(32);
-        int allowance=2*footprint.offsets().length;
-        // Split across small ticks to exercise resumption inside the first surface pass.
+        var crater=readyCrater(new BlockPos(0,70,0),8);
+        int allowance=18*footprint.offsets().length;
         while(allowance>0) {
-            int used=crater.carve(world,Math.min(73,allowance),32);
-            assertTrue(used>0);
-            allowance-=used;
+            int used=crater.carve(world,Math.min(73,allowance),8);
+            assertTrue(used>0); allowance-=used;
         }
-        assertEquals(footprint.offsets().length,surfaces.size());
-        assertTrue(surfaces.stream().map(BlockPos::of).anyMatch(pos -> pos.getX()==32&&pos.getZ()==0));
-        assertFalse(crater.finished(),"Depth work remains after broad surface coverage");
+        int high=tops.values().stream().mapToInt(Integer::intValue).max().orElseThrow();
+        int low=tops.values().stream().mapToInt(Integer::intValue).min().orElseThrow();
+        assertTrue(high-low<=1,"Stopping before retraction must not preserve tall steps across the crater");
+        assertFalse(crater.finished(),"This regression deliberately stops before full depth");
         verify(world,never()).getChunk(anyInt(),anyInt());
     }
 
