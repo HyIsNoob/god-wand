@@ -45,6 +45,15 @@ class ReleaseTest(unittest.TestCase):
             self.assertNotIn("Old fix", metadata["changelog"])
             self.assertEqual("relations" in metadata, "-fabric-" in path.name)
 
+    def test_changelog_uses_compact_html_with_escaped_text(self):
+        (self.root / "CHANGELOG.md").write_text("## [1.3.5]\n\n### Fixed\n\n- One <tag> & fix.\n\n- Two fixes.\n")
+        _, entries = release.prepare("1.3.5", "release")
+        metadata = entries[0][2]
+        self.assertEqual("html", metadata["changelogType"])
+        self.assertIn("<li>One &lt;tag&gt; &amp; fix.</li>", metadata["changelog"])
+        self.assertNotIn("<li><p>", metadata["changelog"])
+        self.assertEqual(1, metadata["changelog"].count("<ul>"))
+
     def test_changed_jar_is_rejected(self):
         next(self.directory.glob("*.jar")).write_bytes(b"changed")
         with self.assertRaisesRegex(ValueError, "Checksum mismatch"):

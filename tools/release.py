@@ -1,6 +1,7 @@
 """God Wand CurseForge uploader. Offline preview by default; upload is explicit."""
 import argparse
 import hashlib
+import html
 import json
 import os
 from pathlib import Path
@@ -58,6 +59,31 @@ def targets(current):
             yield mc, loader, f"godwand-{stem}-{current}.jar"
 
 
+def changelog_html(text):
+    # Keep list text directly inside li; paragraph wrappers split bullets on CurseForge.
+    output = []
+    listing = False
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("- "):
+            if not listing:
+                output.append("<ul>")
+                listing = True
+            output.append("<li>" + html.escape(line[2:]) + "</li>")
+        else:
+            if listing:
+                output.append("</ul>")
+                listing = False
+            heading = line.startswith("#")
+            content = html.escape(line.lstrip("# ") if heading else line)
+            output.append("<p>" + ("<strong>" + content + "</strong>" if heading else content) + "</p>")
+    if listing:
+        output.append("</ul>")
+    return "".join(output)
+
+
 def prepare(current, release_type):
     directory = ROOT / "build" / "release" / current
     sums = {}
@@ -65,7 +91,7 @@ def prepare(current, release_type):
         digest, name = line.split("  ", 1)
         sums[name] = digest
     entries = []
-    changes = changelog(current)
+    changes = changelog_html(changelog(current))
     for mc, loader, name in targets(current):
         path = directory / name
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
@@ -85,7 +111,7 @@ def prepare(current, release_type):
                 raise ValueError(f"Wrong mod/version in {name}")
         metadata = {"displayName": f"God Wand {current} - {loader.title()} {mc}",
                     "gameVersionNames": [mc, {"fabric": "Fabric", "forge": "Forge", "neoforge": "NeoForge"}[loader], "Client", "Server"],
-                    "releaseType": release_type, "changelogType": "markdown", "changelog": changes}
+                    "releaseType": release_type, "changelogType": "html", "changelog": changes}
         if loader == "fabric":
             metadata["relations"] = {"projects": [{"slug": "fabric-api", "type": "requiredDependency"}]}
         entries.append((path, digest, metadata))

@@ -28,3 +28,5 @@ release is complete. If the connection fails during upload, check CurseForge bef
 retrying: the server may have accepted the file before the connection failed.
 Remote uploads made outside this tool are not recorded in the local journal.
 CurseForge moderation still applies after upload.
+
+Changelogs are sent as compact HTML lists, avoiding paragraph wrappers inside each bullet. Previously uploaded files can be edited under CurseForge Manage File. The documented update-file API returned HTTP 500 during verification, so this tool does not automate editing existing files.
