@@ -8,6 +8,7 @@
     "GodWand Team"
   ],
   "license": "Custom (MIT code, ARR assets, OFL-1.1 font); see LICENSE",
+  "icon": "assets/godwand/icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [
