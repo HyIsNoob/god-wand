@@ -105,6 +105,53 @@ class BridgeRestorationTest {
         assertFalse(spell.isRestoring());
     }
 
+    @Test void removalFindsReloadedDisplayInsteadOfTheUnloadedInstance() {
+        var spell=addRecord(source.offset(3,0,0),DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED,true);
+        var old=SpatialDisplacementManager.getActiveEntity(spell.displayEntityUuid);
+        when(old.isAlive()).thenReturn(false);
+        when(old.level()).thenReturn(world);
+        var reloaded=mock(net.minecraft.world.entity.Display.BlockDisplay.class);
+        when(reloaded.isAlive()).thenReturn(true);
+        when(world.getEntity(spell.displayEntityUuid)).thenReturn(reloaded);
+        SpatialDisplacementManager.removeActiveRecord(Level.OVERWORLD,spell.pos);
+        verify(reloaded).discard();
+        assertNull(SpatialDisplacementManager.getActiveRecord(Level.OVERWORLD,spell.pos));
+    }
+
+    @Test void managedDisplayReloadReattachesWhileItsSpellRemainsActive() {
+        var spell=addRecord(source.offset(3,0,0),DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED,true);
+        var reloaded=mock(net.minecraft.world.entity.Display.BlockDisplay.class);
+        when(reloaded.level()).thenReturn(world);
+        when(reloaded.getUUID()).thenReturn(spell.displayEntityUuid);
+        when(reloaded.getTags()).thenReturn(Set.of("godwand_managed_displacement"));
+        when(reloaded.isAlive()).thenReturn(true);
+        SpatialDisplacementManager.tickManagedDisplay(reloaded);
+        assertSame(reloaded,SpatialDisplacementManager.getActiveEntity(spell.displayEntityUuid));
+        verify(reloaded,never()).discard();
+        SpatialDisplacementManager.removeActiveRecord(Level.OVERWORLD,spell.pos);
+        verify(reloaded).discard();
+    }
+
+    @Test void managedDisplayReloadAfterSpellCompletionDiscardsTheOrphan() {
+        var spell=addRecord(source.offset(3,0,0),DisplacedBlockRecord.DisplacementMode.CUSTOM_SCRIPTED,true);
+        SpatialDisplacementManager.removeActiveRecord(Level.OVERWORLD,spell.pos);
+        var reloaded=mock(net.minecraft.world.entity.Display.BlockDisplay.class);
+        when(reloaded.level()).thenReturn(world);
+        when(reloaded.getUUID()).thenReturn(spell.displayEntityUuid);
+        when(reloaded.getTags()).thenReturn(Set.of("godwand_managed_displacement"));
+        SpatialDisplacementManager.tickManagedDisplay(reloaded);
+        verify(reloaded).discard();
+        assertNull(SpatialDisplacementManager.getActiveEntity(spell.displayEntityUuid));
+    }
+
+    @Test void standaloneBeamAndBridgeDisplaysAreNotTreatedAsOrphans() {
+        var beam=mock(net.minecraft.world.entity.Display.BlockDisplay.class);
+        when(beam.level()).thenReturn(world);
+        when(beam.getTags()).thenReturn(Set.of("godwand_displaced"));
+        SpatialDisplacementManager.tickManagedDisplay(beam);
+        verify(beam,never()).discard();
+    }
+
     @Test void unloadedDestinationKeepsJournalAndDoesNotRestoreSource() {
         when(chunks.hasChunk(10, 0)).thenReturn(false);
         SpatialDisplacementManager.restoreAllForPlayer(owner, world);

@@ -94,7 +94,21 @@ public class SpatialDisplacementManager {
     }
 
     public static BlockDisplay getActiveEntity(UUID uuid) {
-        return uuid != null ? ACTIVE_ENTITIES.get(uuid) : null;
+        BlockDisplay display=uuid!=null?ACTIVE_ENTITIES.get(uuid):null;
+        if(display!=null&&!display.isAlive()&&display.level() instanceof ServerLevel world
+                &&world.getEntity(uuid) instanceof BlockDisplay loaded) {
+            ACTIVE_ENTITIES.put(uuid,loaded);
+            return loaded;
+        }
+        return display;
+    }
+
+    public static void tickManagedDisplay(BlockDisplay display) {
+        if(!(display.level() instanceof ServerLevel)||!display.getTags().contains("godwand_managed_displacement"))return;
+        UUID id=display.getUUID();
+        // A chunk can reload after its spell has already retired the original display.
+        if(ACTIVE_ENTITIES.containsKey(id))ACTIVE_ENTITIES.put(id,display);
+        else display.discard();
     }
 
     public static void trackEntity(UUID uuid, BlockDisplay entity) {
@@ -113,7 +127,8 @@ public class SpatialDisplacementManager {
         DisplacedBlockRecord rec = ACTIVE_RECORDS.remove(new DimensionPos(worldKey, pos));
         if (rec != null && rec.bridgeDestination != null) BRIDGE_DESTINATIONS.remove(new DimensionPos(rec.worldKey, rec.bridgeDestination));
         if (rec != null && rec.displayEntityUuid != null) {
-            BlockDisplay ent = ACTIVE_ENTITIES.remove(rec.displayEntityUuid);
+            BlockDisplay ent = getActiveEntity(rec.displayEntityUuid);
+            ACTIVE_ENTITIES.remove(rec.displayEntityUuid);
             if (ent != null && ent.isAlive()) {
                 ent.discard();
             }
@@ -282,6 +297,7 @@ public class SpatialDisplacementManager {
         if (spawnDisplay) {
             BlockDisplay display = new BlockDisplay(EntityType.BLOCK_DISPLAY, world);
             display.addTag("godwand_displaced");
+            display.addTag("godwand_managed_displacement");
             display.setPos(immutablePos.getX(), immutablePos.getY(), immutablePos.getZ());
             display.setBlockState(state);
 

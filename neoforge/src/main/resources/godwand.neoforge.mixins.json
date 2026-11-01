@@ -5,7 +5,8 @@
   "mixins": [
     "EntityMixin",
     "FlowableFluidMixin",
-    "AtomicMovementMixin"
+    "AtomicMovementMixin",
+    "DisplayLifecycleMixin"
   ],
   "client": [
     "AtomicCameraMixin",

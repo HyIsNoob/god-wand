@@ -7,6 +7,7 @@
 - Fixed skills staying unavailable after dying and respawning, including when another skill was selected during cooldown.
 - Inactive cinematic effects no longer block other mods from adjusting zoom.
 - Released Earth Drill and Supernova blocks no longer disappear when the caster dies.
+- Fixed displaced spell blocks remaining in the air after dying and reloading their area.
 - Ongoing spells no longer pull in or damage their caster after respawning.
 - Supernova no longer leaves displaced blocks that can return inside its blast.
 - Improved Atomic terrain coverage on normal worlds.
