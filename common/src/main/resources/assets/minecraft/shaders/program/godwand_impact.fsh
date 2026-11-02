@@ -60,22 +60,30 @@ float hash12(vec2 p) {
     return fract((p3.x + p3.y) * p3.z);
 }
 
-vec3 prismStop(int i) {
-    return i == 0 ? vec3(1.0, 0.07, 0.10) :
-           i == 1 ? vec3(1.0, 0.42, 0.03) :
-           i == 2 ? vec3(1.0, 0.88, 0.06) :
-           i == 3 ? vec3(0.10, 0.95, 0.28) :
-           i == 4 ? vec3(0.06, 0.48, 1.00) :
-           i == 5 ? vec3(0.28, 0.14, 1.00) :
-                    vec3(0.74, 0.16, 1.00);
+// Periodic Fourier reconstruction of God Wand's seven RGB art-direction swatches.
+vec3 impactSpectrum(float phase) {
+    float angle = fract(phase) * TAU;
+    float c = cos(angle), h = sin(angle);
+    vec3 cosine = vec3(c, 2.0 * c * c - 1.0, c * (4.0 * c * c - 3.0));
+    vec3 sine = vec3(h, 2.0 * h * c, h * (4.0 * c * c - 1.0));
+    vec3 color = vec3(0.597142857, 0.442857143, 0.495714286);
+    color += vec3(0.473111555, -0.309637928, -0.184833670) * cosine.x
+           + vec3(0.263594181, 0.322470914, -0.567772876) * sine.x;
+    color += vec3(-0.125905202, -0.024702849, -0.081759033) * cosine.y
+           + vec3(-0.025768084, -0.124301002, 0.007168374) * sine.y;
+    color += vec3(0.055650791, -0.038516366, -0.129121583) * cosine.z
+           + vec3(-0.117460508, -0.002151259, -0.110826780) * sine.z;
+    return clamp(color, 0.0, 1.0);
 }
 
-vec3 prism7(float h) {
-    float x = fract(h) * 7.0;
-    int i = int(floor(x));
-    float f = x - float(i);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(prismStop(i), prismStop(i == 6 ? 0 : i + 1), f);
+// A luminance plane through a three-point cell keeps fine contours without a blur pass.
+float impactCellEdge(vec2 uv, vec2 extent) {
+    vec2 corner = uv - extent;
+    float reference = lum(texture(DiffuseSampler, corner).rgb);
+    float horizontal = lum(texture(DiffuseSampler, corner + vec2(extent.x * 2.0, 0.0)).rgb);
+    float vertical = lum(texture(DiffuseSampler, corner + vec2(0.0, extent.y * 2.0)).rgb);
+    float detail = length(vec2(horizontal - reference, vertical - reference));
+    return smoothstep(0.05, 0.16, detail * 1.10);
 }
 
 const vec3 VOID_VIOLET = vec3(0.72, 0.025, 0.62);
@@ -692,7 +700,7 @@ void main() {
     col += waveGlow;
 
     // =========================================================================
-    // 6. 36 ANIME IMPACT FRAMES & MANGA SCREENTONE (Công nghệ The Shooting Star)
+    // 6. ANIME IMPACT FRAMES & MANGA SCREENTONE
     // =========================================================================
     if (ImpactFrame > 0.001) {
         float mode = ImpactMode;
@@ -729,40 +737,49 @@ void main() {
 
         // Xử lý các chế độ 36 Anime Impact Frame
         if (mode > 32.5) {
-            vec3 black = vec3(0.015, 0.012, 0.025);
+            vec3 paperWhite = vec3(1.0);
+            vec3 darkPaper = vec3(0.015, 0.012, 0.025);
             if (mode < 33.5) {
-                // Mode 33: Prism Line-Art (Đường nét 7 màu cầu vồng tách ra từ tâm hit)
-                vec2 out1 = normalize(d + 1e-5) / vec2(Aspect, 1.0);
-                vec3 acc = vec3(0.0);
-                for (int k = 0; k < 7; k++) {
-                    vec2 o = baseUV + out1 * float(k - 3) * (0.0035 + 0.004 * length(d));
-                    float ex = lum(texture(DiffuseSampler, o + vec2(step1.x, 0.0)).rgb) -
-                               lum(texture(DiffuseSampler, o - vec2(step1.x, 0.0)).rgb);
-                    float ey = lum(texture(DiffuseSampler, o + vec2(0.0, step1.y)).rgb) -
-                               lum(texture(DiffuseSampler, o - vec2(0.0, step1.y)).rgb);
-                    acc += prism7(float(k) / 7.0) * smoothstep(0.05, 0.16, length(vec2(ex, ey)));
+                // Seven spatially separated contour exposures, measured on three-point cells.
+                vec2 radial = d / max(length(d), 0.00001);
+                vec2 spread = radial / vec2(Aspect, 1.0) * (0.0035 + length(d) * 0.004);
+                vec3 contour = vec3(0.0);
+                for (int exposure = -3; exposure <= 3; ++exposure) {
+                    float coverage = impactCellEdge(baseUV + spread * float(exposure), 1.25 / OutSize);
+                    contour += coverage * impactSpectrum(float(exposure + 3) / 7.0);
                 }
-                frame = black + acc * 0.85;
-                frame = mix(frame, vec3(1.0), core * 0.95);
+                float whiteCoverage = core * 0.95;
+                frame = (darkPaper + contour * 0.85) * (1.0 - whiteCoverage) + paperWhite * whiteCoverage;
             } else if (mode < 34.5) {
-                // Mode 34: Spectral Posterized Bands (Vành đai phân tầng quang phổ 7 màu)
-                float band = floor(saturate((l - avg) * 2.4 + 0.5) * 6.999);
-                int ring = int(floor(length(d) * 9.0 - GTime * 6.0));
-                frame = prismStop(int(mod(float(6 - int(band) + ring), 7.0)));
-                frame = mix(frame, vec3(1.0), core);
-                frame = mix(frame, black, ink * 0.9);
+                // Compose seven luminance masks over a travelling, seven-shell color cycle.
+                float exposure = clamp((l - avg) * 2.4 + 0.5, 0.0, 1.0);
+                float shell = floor(length(d) * 9.0 - GTime * 6.0);
+                float tonePhase = 0.0;
+                for (int level = 0; level < 7; ++level) {
+                    float low = float(level) / 6.999;
+                    float high = float(level + 1) / 6.999;
+                    float coverage = step(low, exposure) * (1.0 - step(high, exposure));
+                    tonePhase += coverage * (6.0 - float(level));
+                }
+                vec3 bands = impactSpectrum(mod(shell + tonePhase, 7.0) / 7.0);
+                float edgeCoverage = ink * 0.9;
+                frame = darkPaper * edgeCoverage
+                      + (bands * (1.0 - core) + paperWhite * core) * (1.0 - edgeCoverage);
             } else {
-                // Mode 35: Isometric 30-degree Wireframe (Lưới không gian Isometric)
-                vec2 sp = texCoord * OutSize / 46.0;
-                float gridD = 1.0;
-                gridD = min(gridD, abs(fract(dot(sp, vec2(-0.5, 0.866))) - 0.5));
-                gridD = min(gridD, abs(fract(dot(sp, vec2(0.5, 0.866))) - 0.5));
-                gridD = min(gridD, abs(fract(sp.x * 1.1547) - 0.5));
-                float gl = smoothstep(0.035, 0.0, gridD);
-                vec3 hue = prism7(dot(texCoord, vec2(0.6, 0.4)) + GTime * 0.5);
-                frame = black + hue * gl * 0.32;
-                frame = mix(frame, hue * 1.15, ink);
-                frame = mix(frame, vec3(1.0), core * 0.90);
+                // A triangular lattice is the union of a cell's three barycentric edges.
+                vec2 pixel = texCoord * OutSize;
+                vec2 lattice = vec2(pixel.x / 39.83717, pixel.y / 46.0 - pixel.x / 79.67434);
+                vec2 cell = fract(lattice);
+                vec3 barycentric = vec3(cell, 1.0 - cell.x - cell.y);
+                if (barycentric.z < 0.0) barycentric = vec3(1.0 - cell, -barycentric.z);
+                float edgeDistance = min(barycentric.x, min(barycentric.y, barycentric.z));
+                float footprint = max(fwidth(edgeDistance), 0.0001);
+                float mesh = 1.0 - smoothstep(0.0, 0.035 + footprint * 0.25, edgeDistance);
+                vec3 spectrum = impactSpectrum(texCoord.x * 0.6 + texCoord.y * 0.4 + GTime * 0.5);
+                vec3 underprint = darkPaper + spectrum * mesh * 0.32;
+                vec3 lineArt = underprint * (1.0 - ink) + spectrum * ink * 1.15;
+                float whiteCoverage = core * 0.90;
+                frame = lineArt * (1.0 - whiteCoverage) + paperWhite * whiteCoverage;
             }
         } else if (mode < 0.5) {
             // Mode 0: Ink-Wash Threshold (Mực tàu cổ điển)
