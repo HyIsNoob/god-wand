@@ -64,7 +64,10 @@ public class SpatialPathWalker {
                     SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 0.55f, 1.2f);
 
             // Push nearby entities away
-            for (net.minecraft.world.entity.Entity e : world.getEntities(player, player.getBoundingBox().inflate(5.0))) {
+            for (net.minecraft.world.entity.LivingEntity e : world.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                    player.getBoundingBox().inflate(5.0),
+                    ent -> ent != player && (ent instanceof net.minecraft.world.entity.Mob || ent instanceof net.minecraft.world.entity.player.Player)
+                            && ent.isAlive() && !ent.isSpectator() && !ent.isPassengerOfSameVehicle(player))) {
                 Vec3 diff = e.position().subtract(player.position()).normalize().scale(0.95).add(0, 0.28, 0);
                 e.push(diff.x, diff.y, diff.z);
                 e.hurtMarked = true;
