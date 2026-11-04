@@ -28,6 +28,9 @@ public final class AtomicPostFx {
         if (chain != null) chain.close();
         chain = null; failed = false; width = height = downsample = 0;
     }
+    /** Whether the post shader is meant to draw this frame (configured and not failed), regardless of whether the chain
+     *  has been built yet: mesh stand-ins keyed to it must not flicker on and off between frames. */
+    public static boolean enabled() { return GodWandConfig.CLIENT.postEffects&&!failed; }
     public static void renderAfterWorld() {
         Frame context = pending; pending = null;
         if (context == null || failed) return;
@@ -35,7 +38,18 @@ public final class AtomicPostFx {
         var fuga=FugaRenderer.localFrame(context.delta);
         var client = Minecraft.getInstance();
         if ((fx == null && fuga == null) || client.level == null) return;
+        // The chain is built behind the static opening shot, so the release frame never stalls on shader linking;
+        // during the charge it only adds screen-space light (bloom, shafts, haze) around the mesh flame.
+        if(fx==null && fuga.phase()==0 && fuga.age()<4)return;
         var center=fx!=null?fx.center():fuga.phase()==1?fuga.arrowPosition():fuga.center();
+        if(fx==null && fuga.phase()==0) {
+            // Light source: the hands, sliding out to the arrowhead as it forms (projected at center.y+2 below).
+            var d=fuga.target().subtract(fuga.origin()).normalize();
+            center=FugaRenderer.chargeHand(fuga,fuga.origin(),false).add(d.scale(1.6*FugaCinematic.smooth(fuga.age(),144,190))).subtract(0,2,0);
+            // While the palms pull the flame apart the shader draws it as a volume: anchor it between both hands.
+            if(FugaRenderer.ribbonVolume(fuga.age())>0)
+                center=FugaRenderer.chargeHand(fuga,fuga.origin(),true).lerp(FugaRenderer.chargeHand(fuga,fuga.origin(),false),.5).subtract(0,2,0);
+        }
         int w=client.getWindow().getWidth(), h=client.getWindow().getHeight();
         if(w<=0||h<=0)return;
         try {
@@ -66,11 +80,16 @@ public final class AtomicPostFx {
             }
             chain.setUniform("FugaPhase",fx==null?fuga.phase():-1);
             if(fx==null) {
-                var aim=fuga.target().subtract(fuga.origin()).normalize();
+                var aim=FugaRenderer.shaderAxis(fuga);
                 chain.setUniform("FugaDirX",(float)aim.x);chain.setUniform("FugaDirY",(float)aim.y);chain.setUniform("FugaDirZ",(float)aim.z);
                 chain.setUniform("Age",(float)fuga.age());
-                chain.setUniform("BloomStrength",GodWandConfig.CLIENT.bloomStrength*.45f);
+                chain.setUniform("BloomStrength",GodWandConfig.CLIENT.bloomStrength*.8f);
                 chain.setUniform("BloomBurst",0);
+                chain.setUniform("ImpactFrames",GodWandConfig.CLIENT.impactFrames?1:0);
+                // Impact frame on release and on the sphere's birth, timed from local receipt of that phase.
+                chain.setUniform("Cut",fuga.phase()>0&&FugaRenderer.phaseSeen(fuga.casterId(),context.delta)<3?1:0);
+                // Off-screen detonations move the screen flare out of view instead of centring it.
+                chain.setUniform("CenterX",clip.w>.001?centerX:-10); chain.setUniform("CenterY",centerY);
             } else {
             chain.setUniform("Age",fx.age());
             chain.setUniform("SequenceEnd",net.godwand.skill.AtomicSequence.END);

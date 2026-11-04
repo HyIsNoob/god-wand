@@ -20,4 +20,9 @@ public abstract class AtomicLocalMovementMixin {
             ci.cancel();
         }
     }
+    // The Fuga build-up is a directed shot: mouse look must not swing the caster or the frame.
+    @Inject(method="turn",at=@At("HEAD"),cancellable=true)
+    private void godwand$fugaFacing(double yaw,double pitch,CallbackInfo ci) {
+        if((Object)this instanceof LocalPlayer && net.godwand.client.FugaCinematic.rotationLocked())ci.cancel();
+    }
 }

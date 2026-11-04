@@ -8,6 +8,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 class FugaManagerTest {
+ @Test void forcedChunksQueueNearestFirstWithoutDuplicates() {
+  var order=FugaManager.forceOrder(new net.minecraft.core.BlockPos(40,70,-20),96);
+  assertEquals((2L<<32)|((-2)&0xFFFFFFFFL),order.get(0),"the impact chunk is forced first");
+  assertEquals(order.size(),new java.util.HashSet<>(order).size());
+  long prev=-1;
+  for(long k:order){int dx=(int)(k>>32)-2,dz=(int)k+2;long d=(long)dx*dx+(long)dz*dz;assertTrue(d>=prev);prev=d;}
+ }
  @Test void diagonalCannotTunnelThroughANarrowUnloadedChunkCorner() {
   var world=mock(ServerLevel.class);var chunks=mock(ServerChunkCache.class);var chunk=mock(LevelChunk.class);
   when(world.getChunkSource()).thenReturn(chunks);when(world.isInWorldBounds(any())).thenReturn(true);

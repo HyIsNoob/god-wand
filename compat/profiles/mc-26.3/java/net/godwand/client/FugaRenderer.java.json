@@ -6,16 +6,16 @@
       "after": "import net.godwand.client.compat.GodWandGeometry;\nimport com.mojang.renderpearl.api.pipeline.PrimitiveTopology;"
     },
     {
-      "before": "        RenderSystem.enableBlend();\n        RenderSystem.defaultBlendFunc();\n        RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();\n        RenderSystem.setShader(GameRenderer::getPositionColorShader);",
-      "after": "        GodWandGeometry.enableBlend(); GodWandGeometry.defaultBlendFunc();\n        GodWandGeometry.enableDepthTest(); GodWandGeometry.depthMask(false); GodWandGeometry.disableCull();\n        GodWandGeometry.colored();"
+      "before": "        RenderSystem.enableBlend();\n        RenderSystem.defaultBlendFunc();\n        RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();\n        ensureFlameTexture();\n        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);\n        RenderSystem.setShaderTexture(0,FLAME_TEXTURE);",
+      "after": "        GodWandGeometry.enableBlend(); GodWandGeometry.defaultBlendFunc();\n        GodWandGeometry.enableDepthTest(); GodWandGeometry.depthMask(false); GodWandGeometry.disableCull();\n        ensureFlameTexture();\n        GodWandGeometry.textured();\n        GodWandGeometry.setShaderTexture(0,FLAME_TEXTURE);"
     },
     {
-      "before": "BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);",
-      "after": "BufferBuilder buffer = GodWandGeometry.begin(PrimitiveTopology.QUADS,DefaultVertexFormat.POSITION_COLOR);"
+      "before": "BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_TEX_COLOR);",
+      "after": "BufferBuilder buffer = GodWandGeometry.begin(PrimitiveTopology.QUADS,DefaultVertexFormat.POSITION_TEX_COLOR);"
     },
     {
-      "before": "BufferBuilder backdrop = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);",
-      "after": "BufferBuilder backdrop = GodWandGeometry.begin(PrimitiveTopology.QUADS,DefaultVertexFormat.POSITION_COLOR);"
+      "before": "BufferBuilder backdrop = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_TEX_COLOR);",
+      "after": "BufferBuilder backdrop = GodWandGeometry.begin(PrimitiveTopology.QUADS,DefaultVertexFormat.POSITION_TEX_COLOR);"
     },
     {
       "before": "emit(buffer,pose.last().pose(),frame,camera.getPosition(),world.getMinBuildHeight()-frame.origin().y);",
@@ -42,8 +42,36 @@
       "after": "accents(buffer,pose.last().pose(),frame,camera.position());"
     },
     {
-      "before": "            RenderSystem.defaultBlendFunc();\n            for (int caster",
-      "after": "            GodWandGeometry.defaultBlendFunc();\n            for (int caster"
+      "before": "            if (pass == 1) RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);\n            else RenderSystem.defaultBlendFunc();",
+      "after": "            if (pass == 1) GodWandGeometry.additiveBlend();\n            else GodWandGeometry.defaultBlendFunc();"
+    },
+    {
+      "before": "storms(buffer,pose.last().pose(),camera.getPosition());",
+      "after": "storms(buffer,pose.last().pose(),camera.position());"
+    },
+    {
+      "before": "import net.minecraft.resources.ResourceLocation;\n",
+      "after": "import net.minecraft.resources.Identifier;\n"
+    },
+    {
+      "before": "private static final ResourceLocation FLAME_TEXTURE = ResourceLocation.fromNamespaceAndPath(\"godwand\",\"fuga_flame\");",
+      "after": "private static final Identifier FLAME_TEXTURE = Identifier.fromNamespaceAndPath(\"godwand\",\"fuga_flame\");"
+    },
+    {
+      "before": "pixels.setPixelRGBA(x,y,(flameAlpha(x,y)<<24)|0xFFFFFF);",
+      "after": "pixels.setPixelABGR(x,y,(flameAlpha(x,y)<<24)|0xFFFFFF);"
+    },
+    {
+      "before": "        var texture = new net.minecraft.client.renderer.texture.DynamicTexture(pixels);\n        texture.setFilter(true,false);\n",
+      "after": "        var texture = new FlameTexture(pixels);\n"
+    },
+    {
+      "before": "    private static double fibre(double x,double y,int period) {",
+      "after": "    /** Repeating sampler: fibres scroll along strands without a seam. */\n    private static final class FlameTexture extends net.minecraft.client.renderer.texture.DynamicTexture {\n        FlameTexture(com.mojang.blaze3d.platform.NativeImage pixels) {\n            super(() -> \"God Wand Fuga flame\", pixels);\n            sampler = RenderSystem.getSamplerCache().getRepeat(com.mojang.renderpearl.api.textures.FilterMode.LINEAR);\n        }\n    }\n    private static double fibre(double x,double y,int period) {"
+    },
+    {
+      "before": "net.minecraft.client.ParticleStatus.MINIMAL",
+      "after": "net.minecraft.server.level.ParticleStatus.MINIMAL"
     }
   ]
 }

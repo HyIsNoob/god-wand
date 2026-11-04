@@ -17,7 +17,7 @@ import java.util.*;
 
 /** Development-only real item/network capture; enabled only in its disposable QA directory. */
 public final class FugaGameplayProbe implements ClientModInitializer {
-    private int ticks,stage,started,run=7;
+    private int ticks,stage,started,run=8;
     private final Set<String> captured=new HashSet<>();
     private Vec3 anchor;
     private boolean released, checked;

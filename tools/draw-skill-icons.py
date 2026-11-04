@@ -90,14 +90,22 @@ def icon(mode):
         d.rectangle((11, 10, 12, 11), fill=(255, 237, 255))
         for x, y in [(21, 11), (7, 3), (6, 19)]:
             d.rectangle((x, y, x + 1, y + 1), fill=(225, 182, 255))
-    else:  # Fire arrow and curved flame bow.
-        d.line([(5,20),(10,15),(15,10),(20,5)],fill=(255,232,157),width=2)
-        d.polygon([(13,4),(22,2),(20,11),(18,6)],fill=(255,106,28))
-        d.line([(14,5),(22,2),(20,10)],fill=(255,243,204),width=2)
-        d.line([(4,3),(10,4),(17,11),(20,18),(20,22)],fill=(235,66,15),width=3)
-        d.line([(4,3),(11,6),(17,12),(20,22)],fill=(255,167,43))
-        d.line([(4,3),(20,22)],fill=(164,83,34))
-        for x,y in [(2,16),(7,21),(22,14)]: d.point((x,y),fill=(255,223,108))
+    else:  # A single flaming arrow: flame streams back along the shaft from a white-hot head.
+        # Shaft with fletching, visible past the flame.
+        d.line([(3,20),(16,7)],fill=(150,82,40),width=2)
+        d.line([(4,20),(16,8)],fill=(255,226,150))
+        d.polygon([(1,19),(4,18),(3,22)],fill=(235,66,15))
+        d.polygon([(3,16),(6,17),(4,20)],fill=(255,140,40))
+        d.polygon([(5,21),(5,18),(8,19)],fill=(196,44,14))
+        # Flame wrapped round the front of the shaft, its tongues licking back (outer red, orange, yellow core).
+        d.polygon([(18,4),(10,8),(6,10),(9,11),(6,14),(10,13),(9,16),(13,13),(19,7)],fill=(196,44,14))
+        d.polygon([(18,5),(12,8),(9,10),(11,11),(9,13),(12,12),(12,14),(15,11),(18,7)],fill=(255,106,28))
+        d.polygon([(17,6),(13,9),(12,11),(15,9),(17,7)],fill=(255,196,70))
+        # Barbed broadhead, white-hot at the core.
+        d.polygon([(23,0),(14,3),(17,5),(18,6),(20,9)],fill=(120,40,16))
+        d.polygon([(22,1),(16,3),(18,5),(20,7)],fill=(255,150,40))
+        d.polygon([(21,2),(18,3),(20,5)],fill=(255,246,214))
+        for x,y in [(3,11),(8,21),(13,18),(22,11)]: d.point((x,y),fill=(255,223,108))
     return im
 
 
@@ -142,6 +150,8 @@ def build():
     out.parent.mkdir(parents=True, exist_ok=True)
     atlas.save(out)
     print(out)
+    if '--sectors' not in __import__('sys').argv:
+        return
     sectors = Image.new('RGBA', (224 * 8, 224))
     sector_pen = ImageDraw.Draw(sectors)
     for y in range(-112, 112, 2):

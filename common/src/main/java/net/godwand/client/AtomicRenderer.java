@@ -104,7 +104,13 @@ public final class AtomicRenderer {
         if (state.heartbeatSound != null) sounds.stop(state.heartbeatSound);
     }
     public static void tick(Minecraft client) {
-        if (client.level != world || client.player == null) { reset(); return; }
+        if (client.level != world || client.player == null) {
+            // Only a real world change resets; with no Atomic yet seen, `world` stays null and this ran every tick,
+            // closing the shared post chain each time (Fuga's shader flickered and rebuilt it, dropping frames).
+            if (world != null || !ACTIVE.isEmpty()) reset();
+            world = client.player == null ? null : client.level;
+            return;
+        }
         AUDIO_TAILS.removeIf(tail -> (tail.charge==null||!client.getSoundManager().isActive(tail.charge))
                 &&(tail.blast==null||!client.getSoundManager().isActive(tail.blast)));
         SCARS.values().removeIf(s -> world.getGameTime()-s.started>=AtomicSequence.SCAR_END);

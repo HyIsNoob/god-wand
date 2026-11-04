@@ -50,8 +50,16 @@
       "after": "var camera = client.gameRenderer.mainCamera();\n        Vec3 point = project(aimTarget(client, partial), camera.position(), camera.yRot(), camera.xRot(),"
     },
     {
-      "before": "if (!present(client, frame) || client.screen != null || !client.isWindowActive()) return;",
-      "after": "if (!present(client, frame) || client.gui.screen() != null || !client.isWindowActive()) return;"
+      "before": "if (client.screen != null || !client.isWindowActive()) return;\n        boolean here",
+      "after": "if (client.gui.screen() != null || !client.isWindowActive()) return;\n        boolean here"
+    },
+    {
+      "before": "private static void tint(GuiGraphics graphics",
+      "after": "private static void tint(GuiGraphicsExtractor graphics"
+    },
+    {
+      "before": "private static void grade(GuiGraphics graphics",
+      "after": "private static void grade(GuiGraphicsExtractor graphics"
     }
   ]
 }

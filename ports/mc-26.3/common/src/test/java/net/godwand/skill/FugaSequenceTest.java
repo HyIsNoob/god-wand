@@ -10,13 +10,13 @@ class FugaSequenceTest {
  }
  @Test void releaseRequiresTenSecondsAndImpactStopsBeforeRetraction() {
   assertFalse(FugaSequence.ready(1199,1000)); assertTrue(FugaSequence.ready(1200,1000));
-  assertFalse(FugaSequence.terrainActive(79)); assertTrue(FugaSequence.terrainActive(80));
-  assertTrue(FugaSequence.terrainActive(179)); assertFalse(FugaSequence.terrainActive(180));
+  assertFalse(FugaSequence.terrainActive(71)); assertTrue(FugaSequence.terrainActive(72));
+  assertTrue(FugaSequence.terrainActive(544)); assertFalse(FugaSequence.terrainActive(545));
   assertEquals(0,FugaSequence.columnRadius(79)); assertEquals(48,FugaSequence.columnRadius(80));
-  assertEquals(48,FugaSequence.columnRadius(180)); assertEquals(0,FugaSequence.columnRadius(230));
+  assertEquals(48,FugaSequence.columnRadius(225)); assertEquals(0,FugaSequence.columnRadius(305));
  }
  @Test void visualClockMatchesExplosionRetractionAndFinish() {
-  assertEquals(40,FugaSequence.visualAge(80));assertEquals(120,FugaSequence.visualAge(180));assertEquals(160,FugaSequence.visualAge(230));
+  assertEquals(40,FugaSequence.visualAge(80));assertEquals(60,FugaSequence.visualAge(105));assertEquals(120,FugaSequence.visualAge(225));assertEquals(160,FugaSequence.visualAge(305));
  }
  @Test void aimRemainsStraightAndFiniteAtTheWorldEdge() {
   Vec3 from=new Vec3(29_999_990,80,0),look=new Vec3(1,0,1).normalize();

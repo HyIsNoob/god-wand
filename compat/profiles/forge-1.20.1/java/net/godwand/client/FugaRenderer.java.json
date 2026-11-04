@@ -2,16 +2,20 @@
   "reason": "Minecraft 1.20.1 vertex API adapter",
   "changes": [
     {
-      "before": "                BufferBuilder backdrop = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);\n                emitBackdrop(backdrop,pose.last().pose(),local,camera.getPosition(),darkness);\n                var backdropMesh = backdrop.build();\n                if (backdropMesh != null) BufferUploader.drawWithShader(backdropMesh);",
-      "after": "                BufferBuilder backdrop = RenderHelper.begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);\n                emitBackdrop(backdrop,pose.last().pose(),local,camera.getPosition(),darkness);\n                RenderHelper.draw(backdrop);"
+      "before": "                BufferBuilder backdrop = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_TEX_COLOR);\n                emitBackdrop(backdrop,pose.last().pose(),local,camera.getPosition(),darkness);\n                var backdropMesh = backdrop.build();\n                if (backdropMesh != null) BufferUploader.drawWithShader(backdropMesh);",
+      "after": "                BufferBuilder backdrop = RenderHelper.begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_TEX_COLOR);\n                emitBackdrop(backdrop,pose.last().pose(),local,camera.getPosition(),darkness);\n                RenderHelper.draw(backdrop);"
     },
     {
-      "before": "                BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);\n                if(AtomicPostFx.available() && local!=null && local.casterId()==caster && AtomicRenderer.nearestFrame(partial)==null) accents(buffer,pose.last().pose(),frame,camera.getPosition());\n                else emit(buffer,pose.last().pose(),frame,camera.getPosition(),world.getMinBuildHeight()-frame.origin().y);\n                var mesh = buffer.build();\n                if (mesh != null) BufferUploader.drawWithShader(mesh);",
-      "after": "                BufferBuilder buffer = RenderHelper.begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_COLOR);\n                if(AtomicPostFx.available() && local!=null && local.casterId()==caster && AtomicRenderer.nearestFrame(partial)==null) accents(buffer,pose.last().pose(),frame,camera.getPosition());\n                else emit(buffer,pose.last().pose(),frame,camera.getPosition(),world.getMinBuildHeight()-frame.origin().y);\n                RenderHelper.draw(buffer);"
+      "before": "                BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_TEX_COLOR);\n                if(frame==null) storms(buffer,pose.last().pose(),camera.getPosition());\n                else if(frame.phase()!=0 && AtomicPostFx.available() && local!=null && local.casterId()==caster && AtomicRenderer.nearestFrame(partial)==null) accents(buffer,pose.last().pose(),frame,camera.getPosition());\n                else emit(buffer,pose.last().pose(),frame,camera.getPosition(),world.getMinBuildHeight()-frame.origin().y);\n                var mesh = buffer.build();\n                if (mesh != null) BufferUploader.drawWithShader(mesh);",
+      "after": "                BufferBuilder buffer = RenderHelper.begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_TEX_COLOR);\n                if(frame==null) storms(buffer,pose.last().pose(),camera.getPosition());\n                else if(frame.phase()!=0 && AtomicPostFx.available() && local!=null && local.casterId()==caster && AtomicRenderer.nearestFrame(partial)==null) accents(buffer,pose.last().pose(),frame,camera.getPosition());\n                else emit(buffer,pose.last().pose(),frame,camera.getPosition(),world.getMinBuildHeight()-frame.origin().y);\n                RenderHelper.draw(buffer);"
     },
     {
-      "before": "v.addVertex(m,(float)p.x,(float)p.y,(float)p.z).setColor((color>>16)&255,(color>>8)&255,color&255,opacity);",
-      "after": "RenderHelper.vertex(v,m,(float)p.x,(float)p.y,(float)p.z,(color>>16)&255,(color>>8)&255,color&255,opacity);"
+      "before": "v.addVertex(m,(float)p.x,(float)p.y,(float)p.z).setColor((color>>16)&255,(color>>8)&255,color&255,opacity).setUv(u,tv);",
+      "after": "v.vertex(m,(float)p.x,(float)p.y,(float)p.z).uv(u,tv).color((color>>16)&255,(color>>8)&255,color&255,opacity).endVertex();"
+    },
+    {
+      "before": "ResourceLocation.fromNamespaceAndPath(\"godwand\",\"fuga_flame\");",
+      "after": "new ResourceLocation(\"godwand\",\"fuga_flame\");"
     }
   ]
 }

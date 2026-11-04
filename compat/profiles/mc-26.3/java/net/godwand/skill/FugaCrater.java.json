@@ -10,12 +10,12 @@
       "after": "                y=Math.min(world.getMaxY(),Math.min(center.getY()+FugaSequence.COLUMN_HEIGHT,\n"
     },
     {
-      "before": "                if(--y<world.getMinBuildHeight()) {inColumn=false;column++;}\n",
-      "after": "                if(--y<world.getMinY()) {inColumn=false;column++;}\n"
+      "before": "                bottom=Math.max(world.getMinBuildHeight(),center.getY()-(blastColumn?12:depth));\n",
+      "after": "                bottom=Math.max(world.getMinY(),center.getY()-(blastColumn?12:depth));\n"
     },
     {
-      "before": "                if(y<world.getMinBuildHeight()) {column++;continue;}\n",
-      "after": "                if(y<world.getMinY()) {column++;continue;}\n"
+      "before": "        if(pos.getY()<world.getMinBuildHeight())return;\n",
+      "after": "        if(pos.getY()<world.getMinY())return;\n"
     }
   ]
 }

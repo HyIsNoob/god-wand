@@ -22,6 +22,9 @@ import java.util.*;
 /** Server owns every flight segment, impact and terrain slice. */
 public final class FugaManager {
     private static final Map<UUID,Task> TASKS=new LinkedHashMap<>();
+    /** Craters whose rim is still settling after the cast ended; terrain work only, no caster state. */
+    private record Settling(ServerLevel world,FugaCrater crater,long impactAt,List<Long> forced) {}
+    private static final List<Settling> SETTLING=new ArrayList<>();
     private static final class Task {
         final ServerPlayer caster;
         final ServerLevel world;
@@ -35,6 +38,10 @@ public final class FugaManager {
         FugaCrater crater;
         boolean detonated;
         final Set<UUID> struck=new HashSet<>();
+        /** Chunks this cast force-loaded around its far impact; released once the crater work is done. */
+        List<Long> forced=new ArrayList<>();
+        /** Chunks still to force, nearest first: a few per tick, since forcing them all at once stalled the server. */
+        final java.util.ArrayDeque<Long> toForce=new java.util.ArrayDeque<>();
         Task(ServerPlayer player,InteractionHand hand) {
             caster=player;world=player.serverLevel();this.hand=hand;wand=player.getItemInHand(hand);
             started=phaseAt=world.getGameTime();anchor=origin=position=player.position();
@@ -69,6 +76,9 @@ public final class FugaManager {
         task.origin=task.position=player.getEyePosition();
         task.target=FugaSequence.launchTarget(task.origin,player.getLookAngle());
         task.phase=FugaFxPayload.FIRE;task.phaseAt=task.world.getGameTime();broadcast(task,FugaFxPayload.FIRE);
+        // Recoil: a short shove back along the shot line, never stronger than a knockback hit.
+        Vec3 kick=player.getLookAngle().scale(-.55);
+        player.setDeltaMovement(kick.x,Math.max(.12,kick.y*.3),kick.z);player.hurtMarked=true;
         task.world.playSound(null,task.origin.x,task.origin.y,task.origin.z,SoundEvents.FIRECHARGE_USE,SoundSource.PLAYERS,3,.6f);
     }
     private static boolean invalid(Task task) {
@@ -81,7 +91,7 @@ public final class FugaManager {
         for(var iterator=TASKS.values().iterator();iterator.hasNext();) {
             Task task=iterator.next();if(task.world!=world)continue;
             if(invalid(task) || task.phase==FugaFxPayload.CHARGE && !task.caster.isUsingItem()) {
-                broadcast(task,FugaFxPayload.CANCEL);iterator.remove();continue;
+                broadcast(task,FugaFxPayload.CANCEL);release(task.world,task.forced);iterator.remove();continue;
             }
             if(FugaSequence.movementLocked(task.phase)) {
                 task.caster.setDeltaMovement(Vec3.ZERO);task.caster.fallDistance=0;
@@ -92,17 +102,36 @@ public final class FugaManager {
             }
             if(task.phase==FugaFxPayload.FIRE)advance(task);
             if(task.phase!=FugaFxPayload.IMPACT)continue;
+            forceSome(world,task.toForce,task.forced,FORCE_PER_TICK);
             long age=world.getGameTime()-task.phaseAt;
-            if(age>=FugaSequence.END_TICK) {broadcast(task,FugaFxPayload.END);iterator.remove();continue;}
+            if(age>=FugaSequence.END_TICK) {
+                broadcast(task,FugaFxPayload.END);iterator.remove();
+                if(task.crater!=null && !task.crater.finished() && GodWandConfig.SERVER.fugaTerrainDamage)SETTLING.add(new Settling(world,task.crater,task.phaseAt,task.forced));
+                else release(world,task.forced);
+                continue;
+            }
             if(age>=FugaSequence.ORB_TICKS) {
                 if(!task.detonated) {
                     task.detonated=true;
                     world.playSound(null,task.position.x,task.position.y,task.position.z,SoundEvents.GENERIC_EXPLODE.value(),SoundSource.PLAYERS,6,.55f);
                 }
                 damage(task,age);
+                outflow(task,age);
             }
+            // The ground heaves up into rock spires under the descending mass, before the crater tears them out.
+            if(age>=8 && age<FugaSequence.ORB_TICKS-8 && budget>0 && task.crater!=null && GodWandConfig.SERVER.fugaTerrainDamage)
+                budget-=task.crater.upheave(world,budget,age);
             if(FugaSequence.terrainActive(age) && budget>0 && GodWandConfig.SERVER.fugaTerrainDamage)
                 budget-=task.crater.carve(world,budget,deadline,age);
+        }
+        settle(world,budget,deadline);
+    }
+    private static void settle(ServerLevel world,int budget,long deadline) {
+        for(var iterator=SETTLING.iterator();iterator.hasNext();) {
+            var s=iterator.next();if(s.world()!=world)continue;
+            double age=world.getGameTime()-s.impactAt();
+            if(s.crater().finished() || !FugaSequence.terrainActive(age) || !GodWandConfig.SERVER.fugaTerrainDamage) {release(s.world(),s.forced());iterator.remove();continue;}
+            if(budget>0)budget-=s.crater().carve(world,budget,deadline,age);
         }
     }
     private static void advance(Task task) {
@@ -130,6 +159,9 @@ public final class FugaManager {
             }
             task.origin=end;task.phase=FugaFxPayload.IMPACT;task.phaseAt=task.world.getGameTime();
             task.crater=new FugaCrater(BlockPos.containing(end),GodWandConfig.SERVER.fugaTerrainRadius);
+            // The shot lands far from the caster, often past their loaded area: keep the whole crater and blast ring
+            // loaded while it is carved, or it is left full of missing chunks.
+            if(GodWandConfig.SERVER.fugaTerrainDamage)task.toForce.addAll(forceOrder(BlockPos.containing(end),FugaCrater.reach(GodWandConfig.SERVER.fugaTerrainRadius)));
             broadcast(task,FugaFxPayload.IMPACT);
             task.world.playSound(null,end.x,end.y,end.z,SoundEvents.BLAZE_SHOOT,SoundSource.PLAYERS,3,.5f);
         }
@@ -182,5 +214,68 @@ public final class FugaManager {
                 point.x,point.y,point.z,task.target.x,task.target.y,task.target.z,phase,
                 phase==FugaFxPayload.CANCEL || phase==FugaFxPayload.END?task.world.getGameTime():task.phaseAt));
     }
-    public static void clearAllTasks() {TASKS.clear();}
+    public static void clearAllTasks() {
+        for(var task:TASKS.values())release(task.world,task.forced);
+        for(var s:SETTLING)release(s.world(),s.forced());
+        TASKS.clear();SETTLING.clear();
+    }
+    static final int FORCE_PER_TICK=2;
+    /** Chunk keys within {@code radius} blocks of {@code center}, nearest first (the sphere lands on the first ones). */
+    static List<Long> forceOrder(BlockPos center,int radius) {
+        var keys=new ArrayList<long[]>();
+        int r=(radius>>4)+1,cx=center.getX()>>4,cz=center.getZ()>>4;
+        for(int x=-r;x<=r;x++)for(int z=-r;z<=r;z++)
+            if(x*x+z*z<=r*r+1)keys.add(new long[]{x*x+z*z,((long)(cx+x)<<32)|((cz+z)&0xFFFFFFFFL)});
+        keys.sort(java.util.Comparator.comparingLong(k->k[0]));
+        var order=new ArrayList<Long>();for(var k:keys)order.add(k[1]);
+        return order;
+    }
+    /** Forces up to {@code count} queued chunks; remembers only those it changed, so release never unforces others'. */
+    private static void forceSome(ServerLevel world,java.util.ArrayDeque<Long> queue,List<Long> forced,int count) {
+        for(int i=0;i<count&&!queue.isEmpty();i++) {
+            long key=queue.poll();
+            if(world.setChunkForced((int)(key>>32),(int)key,true))forced.add(key);
+        }
+    }
+    private static void release(ServerLevel world,List<Long> forced) {
+        for(long key:forced)world.setChunkForced((int)(key>>32),(int)key,false);
+        forced.clear();
+    }
+    /** The pillar's hot outflow rolling out over the ground (the shader aura): it keeps burning and shoving whatever
+     *  it reaches, and sets fire to flammable things in its path, until the column fades. */
+    private static void outflow(Task task,long age) {
+        double visual=FugaSequence.visualAge(age);
+        if(visual<40 || visual>=150)return;
+        var p=task.position;
+        double inner=FugaSequence.RADIUS*.6,reach=Math.min(230,FugaSequence.RADIUS*.75+10+(visual-40)*7);
+        if(age%10==0) {
+            var area=new AABB(p.x-reach,p.y-6,p.z-reach,p.x+reach,p.y+40,p.z+reach);
+            float amount=GodWandConfig.SERVER.fugaDamage*GodWandConfig.SERVER.damageMultiplier*.08f;
+            for(var entity:task.world.getEntitiesOfClass(LivingEntity.class,area,e->e!=task.caster && e.isAlive()
+                    && !(e instanceof Player player && (player.isCreative() || player.isSpectator())))) {
+                double dx=entity.getX()-p.x,dz=entity.getZ()-p.z,d=Math.hypot(dx,dz);
+                if(d<inner || d>reach)continue;
+                SpellDamage.hurt(entity,task.world.damageSources().indirectMagic(task.caster,task.caster),amount);
+                entity.setRemainingFireTicks(Math.max(entity.getRemainingFireTicks(),100));
+                entity.setDeltaMovement(entity.getDeltaMovement().add(dx/Math.max(1,d)*.6,.15,dz/Math.max(1,d)*.6));
+                entity.hurtMarked=true;
+            }
+        }
+        if(!GodWandConfig.SERVER.fugaTerrainDamage)return;
+        // Only flammable things it touches catch: plants, wood, leaves. Loaded chunks only, protected blocks kept.
+        var random=task.world.getRandom();
+        for(int i=0;i<6;i++) {
+            double a=random.nextDouble()*Math.PI*2,r=reach-random.nextDouble()*14;
+            int x=net.minecraft.util.Mth.floor(p.x+Math.cos(a)*r),z=net.minecraft.util.Mth.floor(p.z+Math.sin(a)*r);
+            var chunk=task.world.getChunkSource().getChunkNow(x>>4,z>>4);
+            if(chunk==null)continue;
+            int y=chunk.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE,x&15,z&15);
+            var top=new BlockPos(x,y,z);var state=chunk.getBlockState(top);
+            if(!state.ignitedByLava())continue;
+            var at=state.canBeReplaced()?top:top.above();
+            var there=chunk.getBlockState(at);
+            if(!there.canBeReplaced() || !net.godwand.spatial.SpatialDisplacementManager.canDisplace(task.world,at,there))continue;
+            task.world.setBlock(at,net.minecraft.world.level.block.BaseFireBlock.getState(task.world,at),3);
+        }
+    }
 }
