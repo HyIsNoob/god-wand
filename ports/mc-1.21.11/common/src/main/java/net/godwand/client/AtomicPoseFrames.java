@@ -9,7 +9,10 @@ import java.util.*;
 public final class AtomicPoseFrames {
     public record Pose(int entityId, boolean charging, boolean rightHand, double age, AtomicRenderer.Frame frame) {}
     private static final Map<HumanoidRenderState,Pose> POSES = Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<HumanoidRenderState,Integer> IDS=Collections.synchronizedMap(new WeakHashMap<>());
+    public static int entityId(HumanoidRenderState state) {return IDS.getOrDefault(state,-1);}
     public static void capture(LivingEntity entity,HumanoidRenderState state,float delta) {
+        IDS.put(state,entity.getId());
         var item = entity.getUseItem();
         var frame = AtomicRenderer.frameFor(entity.getId(),delta);
         boolean charging = item.getItem() instanceof GodWandItem && GodWandItem.getSkillMode(item)==GodWandItem.MODE_ATOMIC;

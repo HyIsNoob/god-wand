@@ -1,6 +1,6 @@
 # Boss damage compatibility — 1.3.3
 
-The shared damage path applies to all eight supported targets, including Fabric/NeoForge 26.3 and 1.21.11. The new 1.21.11 targets pass automated checks; boss-mod gameplay testing remains pending.
+The shared damage path applies to all ten supported targets, including Fabric/NeoForge 1.21.11, 26.1.2 and 26.3. Fuga uses the same path. Boss-mod gameplay testing of Fuga remains pending.
 
 ## Changes
 

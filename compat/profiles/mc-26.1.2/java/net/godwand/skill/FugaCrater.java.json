@@ -1,0 +1,21 @@
+{
+  "reason": "Explicit Minecraft API adapter for Fuga",
+  "changes": [
+    {
+      "before": "                        || center.getY()<world.getMinBuildHeight() || center.getY()>=world.getMaxBuildHeight()) {column++;continue;}\n",
+      "after": "                        || center.getY()<world.getMinY() || center.getY()>=(world.getMaxY()+1)) {column++;continue;}\n"
+    },
+    {
+      "before": "                y=Math.min(world.getMaxBuildHeight()-1,Math.min(center.getY()+FugaSequence.COLUMN_HEIGHT,\n",
+      "after": "                y=Math.min(world.getMaxY(),Math.min(center.getY()+FugaSequence.COLUMN_HEIGHT,\n"
+    },
+    {
+      "before": "                bottom=Math.max(world.getMinBuildHeight(),center.getY()-(blastColumn?12:depth));\n",
+      "after": "                bottom=Math.max(world.getMinY(),center.getY()-(blastColumn?12:depth));\n"
+    },
+    {
+      "before": "        if(pos.getY()<world.getMinBuildHeight())return;\n",
+      "after": "        if(pos.getY()<world.getMinY())return;\n"
+    }
+  ]
+}

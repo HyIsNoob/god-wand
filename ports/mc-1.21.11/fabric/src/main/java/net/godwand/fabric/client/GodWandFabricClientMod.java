@@ -84,6 +84,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
                 context.client().execute(() -> net.godwand.client.SkillCooldownClient.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(AtomicFxPayload.ID, (payload, context) ->
                 context.client().execute(() -> AtomicRenderer.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.FugaFxPayload.ID, (payload, context) ->
+                context.client().execute(() -> net.godwand.client.FugaRenderer.receive(payload)));
 
         ClientPlayNetworking.registerGlobalReceiver(SpatialAuraPayload.ID, (payload, context) ->
                 context.client().execute(() -> SpatialAuraRenderer.receive(payload)));
@@ -130,6 +132,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             ArcaneOrbChargeRenderer.render(matrices, camera, tickDelta);
             SupernovaAccretionRenderer.render(matrices, camera, tickDelta);
             AtomicRenderer.render(matrices, camera, tickDelta);
+            net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
             net.godwand.client.compat.GodWandGeometry.deferFlush();
         });
 
@@ -148,12 +151,15 @@ public class GodWandFabricClientMod implements ClientModInitializer {
 
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","impact"),CustomImpactFrameOverlay::render);
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","atomic"),AtomicCinematic::render);
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","fuga"),net.godwand.client.FugaCinematic::render);
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","cooldown"),(graphics,timer) -> net.godwand.client.SkillCooldownClient.render(graphics));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             net.godwand.client.SkillCooldownClient.tick(client);
             SkillWheelScreen.handleKeyInput(client);
             AtomicRenderer.tick(client);
+            net.godwand.client.FugaRenderer.tick(client);
+            net.godwand.client.FugaCinematic.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
             EarthDrillSoundscape.tick(client);
@@ -166,6 +172,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             net.godwand.client.compat.GodWandGeometry.reset();
             AtomicRenderer.reset();
+            net.godwand.client.FugaRenderer.reset();
+            net.godwand.client.FugaCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();
@@ -182,6 +190,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             net.godwand.client.compat.GodWandGeometry.reset();
             AtomicRenderer.reset();
+            net.godwand.client.FugaRenderer.reset();
+            net.godwand.client.FugaCinematic.reset();
             StoneCannonWindSound.reset();
             EarthDrillSoundscape.reset();
             SupernovaAccretionRenderer.reset();

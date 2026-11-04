@@ -191,6 +191,26 @@
             "name": "CenterY",
             "type": "float",
             "value": 0.5
+          },
+          {
+            "name": "FugaPhase",
+            "type": "float",
+            "value": -1
+          },
+          {
+            "name": "FugaDirX",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "FugaDirY",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "FugaDirZ",
+            "type": "float",
+            "value": 1
           }
         ]
       }
@@ -380,6 +400,26 @@
             "name": "CenterY",
             "type": "float",
             "value": 0.5
+          },
+          {
+            "name": "FugaPhase",
+            "type": "float",
+            "value": -1
+          },
+          {
+            "name": "FugaDirX",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "FugaDirY",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "FugaDirZ",
+            "type": "float",
+            "value": 1
           }
         ]
       }

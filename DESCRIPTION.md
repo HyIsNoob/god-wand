@@ -2,13 +2,13 @@
 
 [Wiki, controls and guides](https://god-wand-wiki.vercel.app/)
 
-**One wand. Six skills. Choose the spell, charge it, and decide when to release.**
+**One wand. Seven skills. Choose the spell, charge it, and decide when to release.**
 
-Walk through mountains, pull enemies into a gravity orb, raise a drill from the ground or hold an Atomic blast until you are ready to let it go.
+Walk through mountains, pull enemies into a gravity orb, raise a drill from the ground, hold an Atomic blast until you are ready to let it go, or fire Fuga's blazing arrow.
 
 Enjoying the project? You can support it on [Ko-Fi](https://ko-fi.com/hyisnoob).
 
-## Six skills
+## Seven skills
 
 ### 1. Spatial Path
 Open a temporary path through solid terrain. The blocks return behind you. Use its shield against incoming projectiles, or form a temporary bridge across a gap.
@@ -36,6 +36,11 @@ The fortress compresses. The screen goes dark. A heartbeat repeats while the spe
 
 Atomic includes its own camera sequence, character poses and sound effects. Your movement is locked and incoming damage is blocked while casting. Once the explosion begins, skipping the camera lets you move again. Release before the initial charge finishes to cancel.
 
+### 7. Fuga
+Hold right-click to gather fire between your palms. Clap them together and a burning vortex rises around you as you draw an arrow made of flame. Aim freely, then release.
+
+The arrow calls down a blazing meteor that crashes into the ground and erupts into a pillar of fire, setting nearby enemies and flammable blocks alight and leaving the ground glowing red-hot. The cutscene is optional, and server owners can adjust its damage, cooldown and terrain destruction.
+
 ## Pick your wand's appearance
 
 - **Eclipse**
@@ -48,7 +53,7 @@ Choose one yourself, or use **AUTO** to switch with your skill: Aqua Heartia for
 
 Destructive spells can change a large area. **Terrain destruction is enabled by default.**
 
-Server owners can turn off permanent block damage for Earth Drill, Supernova, Stone Cannon and Atomic. Earth Drill and Supernova also have separate choices for lifting blocks, so you can keep temporary block movement or use damage-only versions.
+Server owners can turn off permanent block damage for Earth Drill, Supernova, Stone Cannon, Atomic and Fuga. Earth Drill and Supernova also have separate choices for lifting blocks, so you can keep temporary block movement or use damage-only versions.
 
 Damage, cooldowns and selected terrain ranges can be adjusted. Atomic's main blast and outer shockwaves have separate damage settings. Existing settings files automatically gain new options without replacing your choices.
 
@@ -60,7 +65,7 @@ Damage, cooldowns and selected terrain ranges can be adjusted. Atomic's main bla
 | **Right-click** | Use the selected skill; hold to charge where required |
 | **K** | Choose a wand appearance and adjust visual effects |
 | **Shift while Spatial Path is active** | Use the temporary bridge |
-| **Esc or F5 during Atomic** | Skip its camera |
+| **Esc or F5 during Atomic or Fuga** | Skip its camera |
 
 ## Crafting
 
@@ -72,7 +77,7 @@ Damage, cooldowns and selected terrain ranges can be adjusted. Atomic's main bla
 - **Minecraft 1.21.11:** Fabric or NeoForge.
 - **Minecraft 1.21.1:** Fabric or NeoForge.
 - **Minecraft 1.20.1:** Fabric or Forge.
-- **Minecraft 26.1.2:** Fabric and NeoForge port available in source; CurseForge downloads are pending.
+- **Minecraft 26.1.2:** Fabric or NeoForge.
 - Fabric requires **Fabric API**.
 - Install God Wand on both your game and the server when playing multiplayer.
 - An extra shaderpack is optional.

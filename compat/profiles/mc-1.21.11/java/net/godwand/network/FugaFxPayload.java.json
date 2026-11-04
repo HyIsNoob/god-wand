@@ -1,0 +1,13 @@
+{
+  "reason": "Explicit Minecraft API adapter for Fuga",
+  "changes": [
+    {
+      "before": "import net.minecraft.resources.ResourceLocation;",
+      "after": "import net.minecraft.resources.Identifier;"
+    },
+    {
+      "before": "ResourceLocation.fromNamespaceAndPath(\"godwand\",\"fuga_fx\")",
+      "after": "Identifier.fromNamespaceAndPath(\"godwand\",\"fuga_fx\")"
+    }
+  ]
+}

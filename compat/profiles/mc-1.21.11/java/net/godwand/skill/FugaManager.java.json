@@ -1,0 +1,37 @@
+{
+  "reason": "Explicit Minecraft API adapter for Fuga",
+  "changes": [
+    {
+      "before": "            caster=player;world=player.serverLevel();this.hand=hand;wand=player.getItemInHand(hand);\n",
+      "after": "            caster=player;world=player.level();this.hand=hand;wand=player.getItemInHand(hand);\n"
+    },
+    {
+      "before": "                || TASKS.containsKey(player.getUUID()) || TASKS.values().stream().filter(t->t.world==player.serverLevel()).count()>=4)return false;\n",
+      "after": "                || TASKS.containsKey(player.getUUID()) || TASKS.values().stream().filter(t->t.world==player.level()).count()>=4)return false;\n"
+    },
+    {
+      "before": "        return task!=null && FugaSequence.movementLocked(task.phase) && player.isAlive() && !player.isSpectator() && task.world==player.serverLevel();\n",
+      "after": "        return task!=null && FugaSequence.movementLocked(task.phase) && player.isAlive() && !player.isSpectator() && task.world==player.level();\n"
+    },
+    {
+      "before": "                || task.caster.serverLevel()!=task.world || task.caster.getItemInHand(task.hand)!=task.wand\n",
+      "after": "                || task.caster.level()!=task.world || task.caster.getItemInHand(task.hand)!=task.wand\n"
+    },
+    {
+      "before": "        var area=new AABB(p.x-radius,task.world.getMinBuildHeight(),p.z-radius,p.x+radius,p.y+FugaSequence.COLUMN_HEIGHT,p.z+radius);\n",
+      "after": "        var area=new AABB(p.x-radius,task.world.getMinY(),p.z-radius,p.x+radius,p.y+FugaSequence.COLUMN_HEIGHT,p.z+radius);\n"
+    },
+    {
+      "before": "player.level().dimension().location().toString()",
+      "after": "player.level().dimension().identifier().toString()"
+    },
+    {
+      "before": "task.world.getMinBuildHeight()",
+      "after": "task.world.getMinY()"
+    },
+    {
+      "before": "        player.setDeltaMovement(kick.x,Math.max(.12,kick.y*.3),kick.z);player.hurtMarked=true;\n",
+      "after": "        player.setDeltaMovement(kick.x,Math.max(.12,kick.y*.3),kick.z);player.hurtMarked=true;\n"
+    }
+  ]
+}

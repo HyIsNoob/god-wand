@@ -1,0 +1,65 @@
+{
+  "reason": "Minecraft API adapter for mc-26.3",
+  "changes": [
+    {
+      "before": "import net.minecraft.client.gui.GuiGraphics;",
+      "after": "import net.minecraft.client.gui.GuiGraphics;"
+    },
+    {
+      "before": "import org.lwjgl.glfw.GLFW;",
+      "after": "import com.mojang.blaze3d.platform.InputConstants;"
+    },
+    {
+      "before": "return present(client, frame) && client.screen == null && client.isWindowActive()",
+      "after": "return present(client, frame) && client.screen == null && client.isWindowActive()"
+    },
+    {
+      "before": "if (client.screen != null || !client.isWindowActive()) return;\n        long window = client.getWindow().getWindow();\n        if (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_ESCAPE) == GLFW.GLFW_PRESS\n                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_F5) == GLFW.GLFW_PRESS) skip();",
+      "after": "if (client.screen != null || !client.isWindowActive()) return;\n        if (InputConstants.isKeyDown(client.getWindow(), InputConstants.KEY_ESCAPE)\n                || InputConstants.isKeyDown(client.getWindow(), InputConstants.KEY_F5)) skip();"
+    },
+    {
+      "before": "public static void render(GuiGraphics graphics, DeltaTracker timer)",
+      "after": "public static void render(GuiGraphics graphics, DeltaTracker timer)"
+    },
+    {
+      "before": "graphics.pose().pushPose();",
+      "after": "graphics.pose().pushMatrix();"
+    },
+    {
+      "before": "graphics.pose().translate(width * .5f, height * .68f, 0);",
+      "after": "graphics.pose().translate(width * .5f, height * .68f);"
+    },
+    {
+      "before": "graphics.pose().scale(scale, scale, 1);",
+      "after": "graphics.pose().scale(scale, scale);"
+    },
+    {
+      "before": "graphics.drawString(Minecraft.getInstance().font, \"F U G A\",",
+      "after": "graphics.drawString(Minecraft.getInstance().font, \"F U G A\","
+    },
+    {
+      "before": "graphics.pose().popPose();",
+      "after": "graphics.pose().popMatrix();"
+    },
+    {
+      "before": "private static void reticle(GuiGraphics graphics, Minecraft client, float partial)",
+      "after": "private static void reticle(GuiGraphics graphics, Minecraft client, float partial)"
+    },
+    {
+      "before": "var camera = client.gameRenderer.getMainCamera();\n        Vec3 point = project(aimTarget(client, partial), camera.getPosition(), camera.getYRot(), camera.getXRot(),",
+      "after": "var camera = client.gameRenderer.getMainCamera();\n        Vec3 point = project(aimTarget(client, partial), camera.position(), camera.yRot(), camera.xRot(),"
+    },
+    {
+      "before": "if (client.screen != null || !client.isWindowActive()) return;\n        boolean here",
+      "after": "if (client.screen != null || !client.isWindowActive()) return;\n        boolean here"
+    },
+    {
+      "before": "private static void tint(GuiGraphics graphics",
+      "after": "private static void tint(GuiGraphics graphics"
+    },
+    {
+      "before": "private static void grade(GuiGraphics graphics",
+      "after": "private static void grade(GuiGraphics graphics"
+    }
+  ]
+}

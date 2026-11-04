@@ -71,6 +71,8 @@ public class GodWandNeoForgeClientMod {
                 (payload,context)->context.enqueueWork(()->net.godwand.client.SkillCooldownClient.receive(payload)));
         registrar.playToClient(AtomicFxPayload.ID, AtomicFxPayload.CODEC,
                 (payload, context) -> context.enqueueWork(() -> AtomicRenderer.receive(payload)));
+        registrar.playToClient(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC,
+                (payload, context) -> context.enqueueWork(() -> net.godwand.client.FugaRenderer.receive(payload)));
         registrar.playToClient(
                 DrillWindPayload.ID,
                 DrillWindPayload.CODEC,
@@ -167,6 +169,7 @@ public class GodWandNeoForgeClientMod {
             ArcaneOrbChargeRenderer.render(matrices,camera,tickDelta);
             SupernovaAccretionRenderer.render(matrices,camera,tickDelta);
             AtomicRenderer.render(matrices,camera,tickDelta);
+            net.godwand.client.FugaRenderer.render(matrices,camera,tickDelta);
             net.godwand.client.compat.GodWandGeometry.flush(event.getModelViewMatrix());
         }
 
@@ -175,6 +178,7 @@ public class GodWandNeoForgeClientMod {
             if (VanillaGuiLayers.CAMERA_OVERLAYS.equals(event.getName())) {
                 CustomImpactFrameOverlay.render(event.getGuiGraphics(), event.getPartialTick());
                 AtomicCinematic.render(event.getGuiGraphics(), event.getPartialTick());
+                net.godwand.client.FugaCinematic.render(event.getGuiGraphics(), event.getPartialTick());
                 net.godwand.client.SkillCooldownClient.render(event.getGuiGraphics());
             }
         }
@@ -184,6 +188,8 @@ public class GodWandNeoForgeClientMod {
             Minecraft client = Minecraft.getInstance();
             SkillWheelScreen.handleKeyInput(client);
             AtomicRenderer.tick(client);
+            net.godwand.client.FugaRenderer.tick(client);
+            net.godwand.client.FugaCinematic.tick(client);
             net.godwand.client.SkillCooldownClient.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
@@ -198,6 +204,8 @@ public class GodWandNeoForgeClientMod {
         public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
             net.godwand.client.compat.GodWandGeometry.reset();
             AtomicRenderer.reset();
+            net.godwand.client.FugaRenderer.reset();
+            net.godwand.client.FugaCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();

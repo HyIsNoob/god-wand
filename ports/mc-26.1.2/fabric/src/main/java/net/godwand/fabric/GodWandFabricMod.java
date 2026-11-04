@@ -79,6 +79,7 @@ public class GodWandFabricMod implements ModInitializer {
 
         PayloadTypeRegistry.clientboundPlay().register(DrillWindPayload.ID, DrillWindPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(AtomicFxPayload.ID, AtomicFxPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.SkillCooldownPayload.ID, net.godwand.network.SkillCooldownPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(SpatialAuraPayload.ID, SpatialAuraPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(CannonPressurePayload.ID, CannonPressurePayload.CODEC);
@@ -156,22 +157,26 @@ public class GodWandFabricMod implements ModInitializer {
             RatioCollapseManager.tick(level);
             SupernovaManager.tick(level);
             AtomicManager.tick(level);
+            net.godwand.skill.FugaManager.tick(level);
             SpatialBridge.tickWorld(level);
             SpatialDisplacementManager.tick(level);
         });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             SpatialPathWalker.deactivate(handler.player);
+            net.godwand.skill.SkillCooldowns.reset(handler.player);
         });
 
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (entity instanceof ServerPlayer player) {
                 SpatialPathWalker.deactivate(player);
+                net.godwand.skill.SkillCooldowns.reset(player);
             }
         });
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             SpatialPathWalker.deactivate(newPlayer);
+            net.godwand.skill.SkillCooldowns.reset(newPlayer);
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
@@ -179,6 +184,7 @@ public class GodWandFabricMod implements ModInitializer {
             RatioCollapseManager.clearAllTasks();
             SupernovaManager.clearAllTasks();
             AtomicManager.clearAllTasks();
+            net.godwand.skill.FugaManager.clearAllTasks();
             for (ServerLevel level : server.getAllLevels()) {
                 SpatialBridge.clearVisuals(level);
                 SpatialDisplacementManager.emergencyRestoreAll(level);

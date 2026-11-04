@@ -1,8 +1,8 @@
-# One source, eight builds
+# One source, ten builds
 
 ## Normal development
 
-Edit gameplay, skill timings, damage/configuration, models, menus, effects and assets in `common/src/main/`. Add a new common Java class or asset there: all eight builds receive it automatically. The canonical release version is only `gradle.properties` at the repository root.
+Edit gameplay, skill timings, damage/configuration, models, menus, effects and assets in `common/src/main/`. Add a new common Java class or asset there: all ten builds receive it automatically. The canonical release version is only `gradle.properties` at the repository root.
 
 Run from the root:
 
@@ -52,4 +52,4 @@ Inspect the JSON diff before accepting it. Do not regenerate every adapter to hi
 
 ## Verification limits
 
-A successful aggregate build proves generation, Java/API compilation, automated tests and packaging for eight targets. It does not prove visual equality under shaderpacks, FPS, all boss-mod internals or multiplayer behavior. Fabric and NeoForge 1.21.11 are included; their gameplay testing remains pending.
+A successful aggregate build proves generation, Java/API compilation, automated tests and packaging for ten targets. It does not prove visual equality under shaderpacks, FPS, all boss-mod internals or multiplayer behavior. Fabric and NeoForge 1.21.11 and 26.1.2 are included.

@@ -14,6 +14,7 @@ Values are in ticks: **20 ticks = 1 second**. Lists run from charge level 1 to t
 | stoneCannonCooldownTicks | [40,80,140,220] | Stone Cannon levels 1–4 |
 | supernovaCooldownTicks | 900 | Supernova |
 | atomicCooldownTicks | 1200 | Atomic |
+| fugaCooldownTicks | 1200 | Fuga |
 
 Each skill has its own cooldown per player. Changing skills lets you cast another ready skill; changing wands does not reset the timers. The skill wheel shows each cooldown separately. Singularity can still be collapsed while its cooldown is running. Charge durations and cinematic timing are unchanged.
 
@@ -32,6 +33,7 @@ Some spells hit repeatedly or lose damage with distance. Their settings multiply
 | supernovaInstantKillHealthThreshold | 50 | Enemies with this maximum health or less can be killed outright;0 disables this rule |
 | atomicDamage | 9999 | Atomic center damage before distance falloff |
 | atomicShockwaveDamage | 15 | Each successful outer wave hit |
+| fugaDamage | 9999 | Fuga blast damage before distance falloff; its fire outflow deals a small share of it |
 
 Spatial Path has no separate spell damage to tune. Its shield keeps normal projectile behavior.
 
@@ -56,6 +58,6 @@ The wand deals **5 attack damage** at full attack charge before armor, enchantme
 
 ## Supported versions
 
-These settings are shared by all eight supported 1.3.3 builds: Fabric/NeoForge 1.21.1, Fabric/Forge 1.20.1, Fabric/NeoForge 26.3 and Fabric/NeoForge 1.21.11. See the root README for the release matrix and docs/SHARED_SOURCES.md for source ownership.
+These settings are shared by all ten supported 1.4.0 builds: Fabric/NeoForge 1.21.1, Fabric/Forge 1.20.1, Fabric/NeoForge 1.21.11, Fabric/NeoForge 26.1.2 and Fabric/NeoForge 26.3. See the root README for the release matrix and docs/SHARED_SOURCES.md for source ownership.
 
 Automated checks cover config migration, missing/invalid tier arrays, global and tier scaling, zero damage/cooldown, minimum positive cooldown, the five-damage melee attribute and damage/cooldown call-site parity. Build checks do not replace in-game or multiplayer testing.

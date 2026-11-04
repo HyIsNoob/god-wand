@@ -8,8 +8,9 @@ class IdleFovCompatibilityTest {
  @Test void inactiveEffectsDoNotCancelTheRemainingZoomHooks() throws Exception {
   var method=java.util.Arrays.stream(GameRendererMixin.class.getDeclaredMethods()).filter(m->m.getName().contains("Fov")||m.getName().contains("FOV")).findFirst().orElseThrow();
   method.setAccessible(true);
-  try(var cinema=mockStatic(AtomicCinematic.class);var engine=mockStatic(GodWandCinematicEngine.class)) {
+  try(var cinema=mockStatic(AtomicCinematic.class);var fuga=mockStatic(FugaCinematic.class);var engine=mockStatic(GodWandCinematicEngine.class)) {
    cinema.when(()->AtomicCinematic.fov(anyDouble(),anyFloat())).thenAnswer(c->c.getArgument(0));
+   fuga.when(()->FugaCinematic.fov(anyDouble(),anyFloat())).thenAnswer(c->c.getArgument(0));
    engine.when(()->GodWandCinematicEngine.getFovMultiplier(anyFloat())).thenReturn(1d);
    var result=new CallbackInfoReturnable<Double>("getFov",true,30d);
    method.invoke(mock(GameRendererMixin.class),null,0f,true,result);

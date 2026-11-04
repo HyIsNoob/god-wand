@@ -13,7 +13,7 @@ class SelectSkillPayloadTest {
         assertFalse(new SelectSkillPayload(1, 2).matchesHeldSlot(3));
         assertFalse(new SelectSkillPayload(-1, 2).matchesHeldSlot(2));
         assertTrue(new SelectSkillPayload(5, 2).matchesHeldSlot(2));
-        assertFalse(new SelectSkillPayload(6, 2).matchesHeldSlot(2));
+        assertFalse(new SelectSkillPayload(7, 2).matchesHeldSlot(2));
         assertFalse(new SelectSkillPayload(0, -1).matchesHeldSlot(-1));
         assertFalse(new SelectSkillPayload(0, 9).matchesHeldSlot(9));
         assertFalse(new SelectSkillPayload(0, 39).matchesHeldSlot(2));

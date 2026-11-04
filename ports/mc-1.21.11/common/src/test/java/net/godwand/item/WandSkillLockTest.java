@@ -18,6 +18,6 @@ class WandSkillLockTest {
   WandSkillLock.lock(copy,2);assertEquals(2,GodWandItem.getSkillMode(copy));assertEquals(5,GodWandItem.getSkillMode(stack));
   WandSkillLock.unlock(copy);assertFalse(WandSkillLock.isLocked(copy));assertEquals(2,GodWandItem.getSkillMode(copy));
   GodWandItem.setSkillMode(copy,1);assertEquals(1,GodWandItem.getSkillMode(copy));
-  assertThrows(IllegalArgumentException.class,()->WandSkillLock.lock(stack,6));assertEquals(5,GodWandItem.getSkillMode(stack));
+  assertThrows(IllegalArgumentException.class,()->WandSkillLock.lock(stack,7));assertEquals(5,GodWandItem.getSkillMode(stack));
  }
 }

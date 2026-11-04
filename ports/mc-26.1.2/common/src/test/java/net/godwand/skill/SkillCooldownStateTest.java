@@ -14,7 +14,7 @@ class SkillCooldownStateTest {
   var otherPlayer=new SkillCooldownState();assertEquals(0,otherPlayer.remaining(5,100));
  }
  @Test void rejectsInvalidSkillAndTimerBounds() {
-  var timers=new SkillCooldownState();assertThrows(IllegalArgumentException.class,()->timers.set(6,20,20,0));
+  var timers=new SkillCooldownState();assertThrows(IllegalArgumentException.class,()->timers.set(7,20,20,0));
   assertThrows(IllegalArgumentException.class,()->timers.set(0,20,21,0));assertThrows(IllegalArgumentException.class,()->timers.set(0,-1,0,0));
  }
 }

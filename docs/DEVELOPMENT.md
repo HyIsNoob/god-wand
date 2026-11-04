@@ -33,8 +33,8 @@ Use your actual installation directories. Keep machine paths out of repository f
 .\gradlew.bat buildForge1201        # standalone Forge 1.20.1
 .\gradlew.bat build263              # standalone 26.3 Fabric and NeoForge
 .\gradlew.bat build12111            # standalone 1.21.11 Fabric and NeoForge
-.\gradlew.bat buildAll              # all eight builds and their checks
-.\gradlew.bat releaseJars           # all eight builds plus build/release/*.jar
+.\gradlew.bat buildAll              # all ten builds and their checks
+.\gradlew.bat releaseJars           # all ten builds plus build/release/*.jar
 .\gradlew.bat :fabric:runClient     # ordinary manual Fabric 1.21.1 game
 ```
 
@@ -42,7 +42,7 @@ On Linux/macOS use `./gradlew`. Add `--offline` when dependencies/toolchains are
 
 Development versions ending in -dev collect jars under build/preview/<version>/ instead of build/release/, so previews stay separate from released jars.
 
-Root `clean` clears root build output. Each loader/standalone build owns its own build directory. Use the eight jars collected in build/release rather than old files left elsewhere.
+Root `clean` clears root build output. Each loader/standalone build owns its own build directory. Use the ten jars collected in build/release rather than old files left elsewhere.
 
 ## QA scope
 

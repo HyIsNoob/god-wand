@@ -11,6 +11,7 @@ Merge the selected keys below into config/godwand-server.json, then restart the 
 | 4 Supernova | supernovaTerrainDamage | Explosion does not carve a crater; any peeled originals are restored at detonation |
 | 5 Stone Cannon | stoneCannonTerrainDamage | Projectile impact does not excavate blocks |
 | 6 Atomic | atomicTerrainDamage | No block removal; damage and cinematic remain |
+| 7 Fuga | fugaTerrainDamage | No crater, rock spires or fire placement; damage and cinematic remain. fugaTerrainRadius (default 48, max 64) sets the crater radius |
 
 Defaults remain true to retain the existing destructive spell style. Set lift=false and terrainDamage=false for pure entity damage with no skill 3/4 terrain movement. Set lift=true and terrainDamage=false for reversible block effects. Set both true for the original destructive behavior. Lift=false with damage=true still allows the explosion/crater to destroy blocks.
 

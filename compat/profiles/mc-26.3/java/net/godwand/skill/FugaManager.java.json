@@ -32,6 +32,10 @@
     {
       "before": "        player.setDeltaMovement(kick.x,Math.max(.12,kick.y*.3),kick.z);player.hurtMarked=true;\n",
       "after": "        player.setDeltaMovement(kick.x,Math.max(.12,kick.y*.3),kick.z);player.syncVelocity=true;\n"
+    },
+    {
+      "before": "                entity.hurtMarked=true;\n",
+      "after": "                entity.syncVelocity=true;\n"
     }
   ]
 }
