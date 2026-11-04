@@ -22,6 +22,9 @@ class SkillCooldownClientTest {
    when(client.isPaused()).thenReturn(true);for(int i=0;i<20;i++)SkillCooldownClient.tick(client);assertEquals(59,SkillCooldownClient.remaining(5));
    SkillCooldownClient.receive(new SkillCooldownPayload(1,200,100,true));assertTrue(SkillCooldownClient.canUse(1));
    SkillCooldownClient.receive(new SkillCooldownPayload(1,200,90,false));assertFalse(SkillCooldownClient.canUse(1));
+   when(client.player.getHealth()).thenReturn(0f);
+   client.player=mock(LocalPlayer.class);when(client.player.getHealth()).thenReturn(20f);
+   SkillCooldownClient.tick(client);assertEquals(0,SkillCooldownClient.remaining(5));assertEquals(0,SkillCooldownClient.remaining(1));
    when(client.getConnection()).thenReturn(null);client.player=null;client.level=null;SkillCooldownClient.tick(client);assertEquals(0,SkillCooldownClient.remaining(5));
   }
  }

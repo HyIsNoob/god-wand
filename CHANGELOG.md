@@ -1,17 +1,33 @@
 # Changelog
 
-## [1.4.0] - In development
+## [1.4.0]
 
 ### Added
 
-- Fuga: form a fire arrow, aim and release a blazing arrow.
-- Optional Fuga cutscene and configurable damage, cooldown and terrain destruction.
-## Unreleased
+- Fuga, the seventh skill: gather fire between your palms, draw a burning arrow and release it to bring down a blazing meteor and a pillar of fire.
+- Optional Fuga cutscene, with configurable damage, cooldown and terrain destruction.
+- Fabric and NeoForge builds for Minecraft 26.1.2.
+- Bundled mod icon for all loaders.
 
-- Added Fabric and NeoForge support for Minecraft 26.1.2 in source.
+### Changed
+
 - Improved Iris shaderpack compatibility on modern Minecraft versions.
-- Added a bundled mod icon for all loaders.
-- Fixed stale deferred camera state after visual reset on 26.1.2.
+- Replaced Atomic, Earth Drill and Supernova SFX with the owner-provided CC0-only mixes.
+- Updated the second impact frame with the owner-created Filmora image.
+- Improved Atomic terrain coverage on normal worlds, with a shallower crater. Visual effects are unchanged.
+- Atomic now levels high terrain first instead of leaving tall ridges across its crater when terrain work stops.
+
+### Fixed
+
+- Fixed Singularity rays remaining after death and collapse, including unloaded areas.
+- Fixed skills staying unavailable after dying and respawning, including when another skill was selected during cooldown.
+- Inactive cinematic effects no longer block other mods from adjusting zoom.
+- Released Earth Drill and Supernova blocks no longer disappear when the caster dies.
+- Fixed displaced spell blocks remaining in the air after dying and reloading their area.
+- Ongoing spells no longer pull in or damage their caster after respawning.
+- Supernova no longer leaves displaced blocks that can return inside its blast.
+- Spatial Path no longer destroys cushions and attached decorations.
+- Fixed stale deferred camera state after a visual reset on 26.1.2.
 
 ## [1.3.4]
 

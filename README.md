@@ -1,6 +1,4 @@
-# God Wand 1.4.0 development
-
-Development branch for Fuga, the seventh skill. The stable 1.3.x maintenance checkout remains at `D:/fileluu/Tools/god-wand-1.3.0`; this worktree does not publish or merge into it.
+# God Wand 1.4.0
 
 One wand with seven skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile, hold **I am Atomic** until you choose to release, or fire Fuga’s blazing arrow.
 
@@ -8,16 +6,16 @@ One wand with seven skills: walk through mountains, pull enemies into a gravity 
 
 | Minecraft | Loader | Java | Installable file |
 | --- | --- | --- | --- |
-| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.4.jar` |
-| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.4.jar` |
-| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.4.jar` |
-| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.4.jar` |
-| 1.21.11 | Fabric + Fabric API | 21 | `godwand-fabric-1.21.11-1.3.4.jar` |
-| 1.21.11 | NeoForge | 21 | `godwand-neoforge-1.21.11-1.3.4.jar` |
-| 26.1.2 | Fabric + Fabric API | 25 | `godwand-fabric-26.1.2-1.3.4.jar` |
-| 26.1.2 | NeoForge | 25 | `godwand-neoforge-26.1.2-1.3.4.jar` |
-| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.3.4.jar` |
-| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.3.4.jar` |
+| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.4.0.jar` |
+| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.4.0.jar` |
+| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.4.0.jar` |
+| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.4.0.jar` |
+| 1.21.11 | Fabric + Fabric API | 21 | `godwand-fabric-1.21.11-1.4.0.jar` |
+| 1.21.11 | NeoForge | 21 | `godwand-neoforge-1.21.11-1.4.0.jar` |
+| 26.1.2 | Fabric + Fabric API | 25 | `godwand-fabric-26.1.2-1.4.0.jar` |
+| 26.1.2 | NeoForge | 25 | `godwand-neoforge-26.1.2-1.4.0.jar` |
+| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.4.0.jar` |
+| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.4.0.jar` |
 
 The 26.1.2 port is available in source; check CurseForge Files for published downloads. Source support does not mean a release JAR has been uploaded.
 
@@ -75,7 +73,9 @@ See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [sha
 
 ## Release status
 
-This isolated 1.4.0 branch adds Fuga. It is a gameplay preview, not a published release. Build checks do not establish visual quality, multiplayer behavior or FPS/TPS. The 1.3.x maintenance branch remains separate. Minecraft 1.21.11 remains pending.
+1.4.0 adds Fuga, the seventh skill, and includes every 1.3.x fix, including the unreleased 1.3.5 fixes, plus the new Minecraft 26.1.2 builds. Update both server and clients together.
+
+All ten version/loader targets pass automated build and test checks. Build and automated checks do not replace gameplay, multiplayer or shaderpack testing. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
 
 ## License
 

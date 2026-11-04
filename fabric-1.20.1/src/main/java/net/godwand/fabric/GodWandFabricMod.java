@@ -153,16 +153,19 @@ public class GodWandFabricMod implements ModInitializer {
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             SpatialPathWalker.deactivate(handler.player);
+            net.godwand.skill.SkillCooldowns.reset(handler.player);
         });
 
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (entity instanceof ServerPlayer player) {
                 SpatialPathWalker.deactivate(player);
+                net.godwand.skill.SkillCooldowns.reset(player);
             }
         });
 
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             SpatialPathWalker.deactivate(newPlayer);
+            net.godwand.skill.SkillCooldowns.reset(newPlayer);
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {

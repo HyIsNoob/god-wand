@@ -111,9 +111,10 @@ class AtomicCraterTest {
         assertTrue(writes.size()>1000,"The crater must reach the outer columns");
         assertTrue(writes.stream().anyMatch(p -> p.getZ()==0),"Storage blocks in the blast must also be removed");
         long lookups=mockingDetails(chunks).getInvocations().stream().filter(call -> call.getMethod().getName().equals("getChunkNow")).count();
-        assertTrue(lookups<writes.size()/5,"Chunk lookup must be shared across a column, not repeated per block");
+        assertTrue(lookups<writes.size()/3,"Surface and resumed depth slices must still share chunk lookups across multiple blocks");
         verify(world,never()).getChunk(anyInt(),anyInt());
-        assertTrue(writes.stream().mapToInt(BlockPos::getY).min().orElseThrow()<50,"The deeper crater should extend more than twenty blocks beneath its center");
+        assertEquals(54,writes.stream().mapToInt(BlockPos::getY).min().orElseThrow(),"Terrain stops sixteen blocks below the cast origin");
+        assertEquals(30,AtomicSequence.BEAM_DEPTH,"Reducing terrain depth must not shorten the visible beam");
     }
 
     @Test void carvingWaitsForTheColumnWithoutLeavingPermanentScarBlocks() {
@@ -143,6 +144,44 @@ class AtomicCraterTest {
         front[0]=16;
         for(int tick=0;tick<2000&&!crater.finished();tick++)assertTrue(crater.carve(world,97,front[0])<=97);
         assertTrue(crater.finished());
+    }
+
+    @Test void limitedWorkLevelsHighTerrainInsteadOfPreservingTallRidges() {
+        var world=mock(ServerLevel.class);
+        var chunks=mock(ServerChunkCache.class);
+        var loaded=mock(net.minecraft.world.level.chunk.LevelChunk.class);
+        when(world.getChunkSource()).thenReturn(chunks);
+        when(chunks.getChunkNow(anyInt(),anyInt())).thenReturn(loaded);
+        when(world.getMinY()).thenReturn(-64);
+        when(world.getMaxY()).thenReturn(320);
+        when(loaded.getHeight(any(),anyInt(),anyInt())).thenAnswer(call -> (int)call.getArgument(1)<8?100:116);
+        when(loaded.getBlockState(any())).thenReturn(Blocks.STONE.defaultBlockState());
+        var footprint=AtomicTerrainPlanner.plan(8);
+        var tops=new java.util.HashMap<Long,Integer>();
+        for(int packed:footprint.offsets()) {
+            int x=(short)packed,z=(short)(packed>>16);
+            tops.put(((long)x<<32)|(z&0xffffffffL),(x&15)<8?100:116);
+        }
+        when(world.setBlock(any(),any(),anyInt())).thenAnswer(call -> {
+            BlockPos pos=call.getArgument(0);
+            long key=((long)pos.getX()<<32)|(pos.getZ()&0xffffffffL);
+            assertEquals(tops.values().stream().mapToInt(Integer::intValue).max().orElseThrow(),pos.getY(),
+                    "Lower ground was deepened while a higher ridge remained");
+            assertEquals(tops.get(key).intValue(),pos.getY());
+            tops.put(key,pos.getY()-1);
+            return true;
+        });
+        var crater=readyCrater(new BlockPos(0,70,0),8);
+        int allowance=18*footprint.offsets().length;
+        while(allowance>0) {
+            int used=crater.carve(world,Math.min(73,allowance),8);
+            assertTrue(used>0); allowance-=used;
+        }
+        int high=tops.values().stream().mapToInt(Integer::intValue).max().orElseThrow();
+        int low=tops.values().stream().mapToInt(Integer::intValue).min().orElseThrow();
+        assertTrue(high-low<=1,"Stopping before retraction must not preserve tall steps across the crater");
+        assertFalse(crater.finished(),"This regression deliberately stops before full depth");
+        verify(world,never()).getChunk(anyInt(),anyInt());
     }
 
     @Test void terrainReachNeverExceedsVisibleColumnRadius() {

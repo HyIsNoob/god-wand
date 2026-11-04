@@ -14,6 +14,7 @@ dependencies {
     testImplementation "org.ow2.asm:asm:9.7"
     testImplementation "org.ow2.asm:asm-tree:9.7"
     testImplementation "org.mockito:mockito-core:5.14.2"
+    testImplementation "org.spongepowered:mixin:0.8.7"
 }
 
 loom {

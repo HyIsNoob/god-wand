@@ -94,7 +94,21 @@ public class SpatialDisplacementManager {
     }
 
     public static BlockDisplay getActiveEntity(UUID uuid) {
-        return uuid != null ? ACTIVE_ENTITIES.get(uuid) : null;
+        BlockDisplay display=uuid!=null?ACTIVE_ENTITIES.get(uuid):null;
+        if(display!=null&&!display.isAlive()&&display.level() instanceof ServerLevel world
+                &&world.getEntity(uuid) instanceof BlockDisplay loaded) {
+            ACTIVE_ENTITIES.put(uuid,loaded);
+            return loaded;
+        }
+        return display;
+    }
+
+    public static void tickManagedDisplay(BlockDisplay display) {
+        if(!(display.level() instanceof ServerLevel)||!display.getTags().contains("godwand_managed_displacement"))return;
+        UUID id=display.getUUID();
+        // A chunk can reload after its spell has already retired the original display.
+        if(ACTIVE_ENTITIES.containsKey(id))ACTIVE_ENTITIES.put(id,display);
+        else display.discard();
     }
 
     public static void trackEntity(UUID uuid, BlockDisplay entity) {
@@ -113,7 +127,8 @@ public class SpatialDisplacementManager {
         DisplacedBlockRecord rec = ACTIVE_RECORDS.remove(new DimensionPos(worldKey, pos));
         if (rec != null && rec.bridgeDestination != null) BRIDGE_DESTINATIONS.remove(new DimensionPos(rec.worldKey, rec.bridgeDestination));
         if (rec != null && rec.displayEntityUuid != null) {
-            BlockDisplay ent = ACTIVE_ENTITIES.remove(rec.displayEntityUuid);
+            BlockDisplay ent = getActiveEntity(rec.displayEntityUuid);
+            ACTIVE_ENTITIES.remove(rec.displayEntityUuid);
             if (ent != null && ent.isAlive()) {
                 ent.discard();
             }
@@ -282,6 +297,7 @@ public class SpatialDisplacementManager {
         if (spawnDisplay) {
             BlockDisplay display = new BlockDisplay(EntityType.BLOCK_DISPLAY, world);
             display.addTag("godwand_displaced");
+            display.addTag("godwand_managed_displacement");
             display.setPos(immutablePos.getX(), immutablePos.getY(), immutablePos.getZ());
             display.setBlockState(state);
 
@@ -662,17 +678,31 @@ public class SpatialDisplacementManager {
 
     public static void collapsePlayerAura(UUID playerUuid) {
         for (DisplacedBlockRecord record : ACTIVE_RECORDS.values()) {
-            if (record.boundPlayerUuid != null && record.boundPlayerUuid.equals(playerUuid)) {
+            if (playerUuid != null && playerUuid.equals(record.boundPlayerUuid) && isPathRecord(record)) {
                 record.beginRestoration();
             }
         }
     }
 
+    private static boolean isPathRecord(DisplacedBlockRecord record) {
+        return record.mode == DisplacedBlockRecord.DisplacementMode.PATH_WALKER
+                || record.mode == DisplacedBlockRecord.DisplacementMode.HYSTERESIS_AURA
+                || record.bridgeDestination != null;
+    }
+
+    public static void restorePathForPlayer(UUID playerUuid, ServerLevel preferredLevel) {
+        restoreForPlayer(playerUuid, preferredLevel, true);
+    }
+
     public static void restoreAllForPlayer(UUID playerUuid, ServerLevel preferredLevel) {
+        restoreForPlayer(playerUuid, preferredLevel, false);
+    }
+
+    private static void restoreForPlayer(UUID playerUuid, ServerLevel preferredLevel, boolean pathOnly) {
         if (playerUuid == null) return;
         List<DisplacedBlockRecord> toRestore = new ArrayList<>();
         for (DisplacedBlockRecord r : ACTIVE_RECORDS.values()) {
-            if (playerUuid.equals(r.boundPlayerUuid)) {
+            if (playerUuid.equals(r.boundPlayerUuid) && (!pathOnly || isPathRecord(r))) {
                 if (r.permanentDestruction) {
                     removeActiveRecord(r.worldKey, r.pos);
                 } else {

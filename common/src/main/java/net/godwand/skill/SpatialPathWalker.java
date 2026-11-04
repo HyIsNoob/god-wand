@@ -148,10 +148,10 @@ public class SpatialPathWalker {
         CURRENT_PLAYER_SPEED.remove(player.getUUID());
         LAST_SHIELD_SOUND.remove(player.getUUID());
         if (player instanceof ServerPlayer serverPlayer) {
-            SpatialDisplacementManager.restoreAllForPlayer(player.getUUID(), serverPlayer.serverLevel());
+            SpatialDisplacementManager.restorePathForPlayer(player.getUUID(), serverPlayer.serverLevel());
             syncAura(serverPlayer);
         } else {
-            SpatialDisplacementManager.restoreAllForPlayer(player.getUUID(), null);
+            SpatialDisplacementManager.restorePathForPlayer(player.getUUID(), null);
         }
     }
 

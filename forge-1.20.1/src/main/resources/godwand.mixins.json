@@ -9,7 +9,8 @@
     "FlowableFluidMixin",
     "DisplayAccessor",
     "BlockDisplayAccessor",
-    "AtomicMovementMixin"
+    "AtomicMovementMixin",
+    "DisplayLifecycleMixin"
   ],
   "client": [
     "GameRendererMixin",

@@ -235,18 +235,21 @@ public class GodWandNeoForgeMod {
     private void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             SpatialPathWalker.deactivate(serverPlayer);
+            net.godwand.skill.SkillCooldowns.reset(serverPlayer);
         }
     }
 
     private void onLivingDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             SpatialPathWalker.deactivate(serverPlayer);
+            net.godwand.skill.SkillCooldowns.reset(serverPlayer);
         }
     }
 
     private void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             SpatialPathWalker.deactivate(serverPlayer);
+            net.godwand.skill.SkillCooldowns.reset(serverPlayer);
         }
     }
 
