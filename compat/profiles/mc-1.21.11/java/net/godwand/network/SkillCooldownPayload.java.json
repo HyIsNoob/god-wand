@@ -1,0 +1,13 @@
+{
+  "reason": "Minecraft 1.21.11 resource identifier API",
+  "changes": [
+    {
+      "before": "import net.minecraft.resources.ResourceLocation;\n",
+      "after": "import net.minecraft.resources.Identifier;\n"
+    },
+    {
+      "before": "    public static final Type<SkillCooldownPayload> ID=new Type<>(ResourceLocation.fromNamespaceAndPath(\"godwand\",\"skill_cooldown\"));\n",
+      "after": "    public static final Type<SkillCooldownPayload> ID=new Type<>(Identifier.fromNamespaceAndPath(\"godwand\",\"skill_cooldown\"));\n"
+    }
+  ]
+}

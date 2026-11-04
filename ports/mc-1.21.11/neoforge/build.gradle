@@ -1,0 +1,58 @@
+plugins {
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+version = project.mod_version
+group = project.maven_group
+base {
+    archivesName = "godwand-neoforge-1.21.11"
+}
+
+neoForge {
+    version = project.neoforge_version
+    accessTransformers.from(file('src/main/resources/META-INF/accesstransformer.cfg'))
+    mods {
+        godwand {
+            sourceSet project.sourceSets.main
+        }
+    }
+}
+
+dependencies {
+    implementation project(':common')
+
+    testImplementation files(sourceSets.main.compileClasspath)
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+compileJava {
+    source project(':common').sourceSets.main.allSource
+}
+
+processResources {
+    from project(':common').sourceSets.main.resources
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    inputs.property "version", project.version
+
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand "version": project.version
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// Shared generated inputs must precede every loader task that consumes them.
+tasks.withType(JavaCompile).configureEach { dependsOn ':common:generateSharedSources' }
+tasks.named('processResources') { dependsOn ':common:generateSharedSources' }
+
+tasks.matching { it.name in ['validateAccessWidener', 'sourcesJar', 'javadoc'] }.configureEach { dependsOn ':common:generateSharedSources' }
+
+// Native target inspection uses the stable Java 25 classfile API; shipped classes stay Java 21.
+tasks.named('compileTestJava', JavaCompile) {
+    javaCompiler = javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(25) }
+    options.release = 25
+}
+test { javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(25) } }

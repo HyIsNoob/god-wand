@@ -72,13 +72,14 @@ public class GodWandItem extends Item {
     }
 
     public static void setSkillMode(ItemStack stack, int mode) {
+        if (mode < 0 || mode >= TOTAL_MODES || net.godwand.item.WandSkillLock.isLocked(stack)) return;
         CustomData.update(DataComponents.CUSTOM_DATA, stack, nbt -> nbt.putInt("GodWandMode", mode));
     }
 
     public static void selectSkill(Player user, InteractionHand hand, int mode) {
         if (mode < 0 || mode >= TOTAL_MODES) return;
         ItemStack stack = user.getItemInHand(hand);
-        if (!(stack.getItem() instanceof GodWandItem)) return;
+        if (!(stack.getItem() instanceof GodWandItem) || net.godwand.item.WandSkillLock.isLocked(stack)) return;
         if (user.isUsingItem() && user.getUseItem() == stack) {
             if (user instanceof ServerPlayer player) {
                 SupernovaManager.cancelCharge(player);
@@ -117,7 +118,7 @@ public class GodWandItem extends Item {
         ItemStack stack = user.getItemInHand(hand);
         int currentMode = getSkillMode(stack);
 
-        if (user.getCooldowns().isOnCooldown(this)) return InteractionResultHolder.fail(stack);
+
 
         String dimId = world.dimension().location().toString();
         if (net.godwand.config.GodWandConfig.SERVER.isDimensionBlacklisted(dimId)) {
@@ -140,6 +141,7 @@ public class GodWandItem extends Item {
             }
         }
 
+        if (!net.godwand.skill.SkillCooldowns.ready(user,currentMode)) return InteractionResultHolder.fail(stack);
         switch (currentMode) {
             case MODE_SPATIAL_PATH -> {
                 if (!world.isClientSide() && user instanceof ServerPlayer serverPlayer) {
@@ -344,7 +346,7 @@ public class GodWandItem extends Item {
         if (!world.isClientSide() && user instanceof ServerPlayer player) {
             if (chargeTicks >= 140) {
                 SupernovaManager.cast(player);
-                player.getCooldowns().addCooldown(this, net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_SUPERNOVA,1));
+                net.godwand.skill.SkillCooldowns.start(player,MODE_SUPERNOVA,net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_SUPERNOVA,1));
                 player.stopUsingItem();
                 player.displayClientMessage(Component.literal("§4Released."), true);
             }
@@ -357,7 +359,7 @@ public class GodWandItem extends Item {
             if(user instanceof ServerPlayer player) {
                 boolean ready=getUseDuration(stack,user)-remainingUseTicks>=net.godwand.skill.FugaSequence.CHARGE_TICKS;
                 net.godwand.skill.FugaManager.releaseCharge(player);
-                if(ready) player.getCooldowns().addCooldown(this,net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_FUGA,1));
+                if(ready) net.godwand.skill.SkillCooldowns.start(player,MODE_FUGA,net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_FUGA,1));
             }
             return;
         }
@@ -365,7 +367,7 @@ public class GodWandItem extends Item {
             if (user instanceof ServerPlayer player) {
                 boolean committed=getUseDuration(stack,user)-remainingUseTicks>=AtomicSequence.CHARGE_TICKS;
                 AtomicManager.releaseCharge(player);
-                if(committed)player.getCooldowns().addCooldown(this,net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_ATOMIC,1));
+                if(committed)net.godwand.skill.SkillCooldowns.start(player,MODE_ATOMIC,net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_ATOMIC,1));
             }
             return;
         }
@@ -397,7 +399,7 @@ public class GodWandItem extends Item {
                 }
 
                 RatioCollapseManager.cast(player, level);
-                player.getCooldowns().addCooldown(this, net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_RATIO_COLLAPSE,level));
+                net.godwand.skill.SkillCooldowns.start(player,MODE_RATIO_COLLAPSE,net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_RATIO_COLLAPSE,level));
             }
             return;
         }
@@ -406,7 +408,7 @@ public class GodWandItem extends Item {
             if (!world.isClientSide() && user instanceof ServerPlayer player) {
                 int chargeDuration = this.getUseDuration(stack, user) - remainingUseTicks;
                 StoneCannonManager.fire(player, chargeDuration);
-                player.getCooldowns().addCooldown(this, net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_STONE_CANNON,StoneCannonManager.calculateChargeLevel(chargeDuration)));
+                net.godwand.skill.SkillCooldowns.start(player,MODE_STONE_CANNON,net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_STONE_CANNON,StoneCannonManager.calculateChargeLevel(chargeDuration)));
             }
             return;
         }
@@ -414,7 +416,7 @@ public class GodWandItem extends Item {
         if (getSkillMode(stack) != MODE_ARCANE_ORB) return;
 
         if (!world.isClientSide() && user instanceof Player player) {
-            if (player.getCooldowns().isOnCooldown(this)) return;
+            if (!net.godwand.skill.SkillCooldowns.ready(player,MODE_ARCANE_ORB)) return;
             int chargeDuration = this.getUseDuration(stack, user) - remainingUseTicks;
             int level = 1;
             if (chargeDuration >= 45) {
@@ -434,7 +436,7 @@ public class GodWandItem extends Item {
             double speed = 2.4 + level * 0.35;
             orb.setDeltaMovement(look.scale(speed));
             world.addFreshEntity(orb);
-            player.getCooldowns().addCooldown(this, net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_ARCANE_ORB,level));
+            net.godwand.skill.SkillCooldowns.start(player,MODE_ARCANE_ORB,net.godwand.config.GodWandConfig.skillCooldownTicks(MODE_ARCANE_ORB,level));
 
             // Powerful Arcane Recoil
             double recoilForce = switch (level) {
@@ -465,7 +467,7 @@ public class GodWandItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag type) {
         int mode = getSkillMode(stack);
-        tooltip.add(Component.literal("§7[Hold V]: §eSelect skill"));
+        tooltip.add(net.godwand.item.WandSkillLock.isLocked(stack) ? Component.translatable("message.godwand.skill_locked", Component.translatable("skill.godwand." + mode)) : Component.literal("§7[Hold V]: §eSelect skill"));
         switch (mode) {
             case MODE_SPATIAL_PATH -> tooltip.add(Component.literal("§a§bSpatial Path §7(Toggle)"));
             case MODE_ARCANE_ORB -> tooltip.add(Component.literal("§a§dSingularity §7(Hold to charge)"));

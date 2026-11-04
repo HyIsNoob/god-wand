@@ -6,6 +6,7 @@ license="Custom (MIT code, ARR assets, OFL-1.1 font); see LICENSE"
 modId="godwand"
 version="${version}"
 displayName="God Wand"
+logoFile="assets/godwand/icon.png"
 description="Six spells in one wand. Shape terrain, control gravity and hold I am Atomic until you choose to release."
 
 [[dependencies.godwand]]

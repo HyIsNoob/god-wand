@@ -1,0 +1,9 @@
+{
+  "reason": "Overlay message API",
+  "changes": [
+    {
+      "before": "player.displayClientMessage(Component.translatable(\"message.godwand.skill_cooldown\",Component.translatable(\"skill.godwand.\"+mode),(left+19)/20),true);",
+      "after": "player.sendOverlayMessage(Component.translatable(\"message.godwand.skill_cooldown\",Component.translatable(\"skill.godwand.\"+mode),(left+19)/20));"
+    }
+  ]
+}

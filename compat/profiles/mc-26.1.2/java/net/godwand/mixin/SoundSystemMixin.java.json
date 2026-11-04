@@ -1,0 +1,9 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "import org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;\n\n@Mixin(SoundEngine.class)\npublic abstract class SoundSystemMixin {\n\n    /**\n",
+      "after": "import org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;\n\n@Mixin(value=SoundEngine.class,remap=false)\npublic abstract class SoundSystemMixin {\n\n    /**\n"
+    }
+  ]
+}

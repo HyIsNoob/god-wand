@@ -29,7 +29,7 @@ class GodWandConfigTest {
             assertEquals(80,GodWandConfig.skillCooldownTicks(1,2));
             assertEquals(0,GodWandConfig.skillCooldownTicks(1,3));
             assertEquals(20,GodWandConfig.skillCooldownTicks(2,1));
-            assertEquals(70,GodWandConfig.skillCooldownTicks(2,4));
+            assertEquals(640,GodWandConfig.skillCooldownTicks(2,4));
             assertEquals(0,GodWandConfig.skillDamageMultiplier(4,1));
             assertEquals(.5f,GodWandConfig.skillDamageMultiplier(4,2));
             assertEquals(1,GodWandConfig.skillDamageMultiplier(3,1));
@@ -49,8 +49,8 @@ class GodWandConfigTest {
         assertEquals(3,saved.getAsJsonArray("singularityDamageMultipliers").size());
         assertEquals(4,saved.getAsJsonArray("earthDrillCooldownTicks").size());
         assertEquals(4,saved.getAsJsonArray("stoneCannonDamageMultipliers").size());
-        assertEquals(520,saved.get("supernovaCooldownTicks").getAsInt());
-        assertEquals(600,saved.get("atomicCooldownTicks").getAsInt());
+        assertEquals(900,saved.get("supernovaCooldownTicks").getAsInt());
+        assertEquals(1200,saved.get("atomicCooldownTicks").getAsInt());
         assertEquals(0.5,saved.get("damageMultiplier").getAsDouble());
         assertEquals(123,saved.get("atomicDamage").getAsInt());
         assertFalse(saved.get("earthDrillTerrainDamage").getAsBoolean());

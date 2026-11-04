@@ -50,6 +50,7 @@ public class GodWandFabricMod implements ModInitializer {
     @Override
     public void onInitialize() {
         GodWandConfig.loadServer(FabricLoader.getInstance().getConfigDir());
+        net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> net.godwand.command.GodWandCommands.register(dispatcher));
 
         GodWandMod.ARCANE_ORB_ENTITY_TYPE = Registry.register(
                 BuiltInRegistries.ENTITY_TYPE,

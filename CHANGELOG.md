@@ -6,6 +6,43 @@
 
 - Fuga: form a fire arrow, aim and release a blazing arrow.
 - Optional Fuga cutscene and configurable damage, cooldown and terrain destruction.
+## Unreleased
+
+- Added Fabric and NeoForge support for Minecraft 26.1.2 in source.
+- Improved Iris shaderpack compatibility on modern Minecraft versions.
+- Added a bundled mod icon for all loaders.
+- Fixed stale deferred camera state after visual reset on 26.1.2.
+
+## [1.3.4]
+
+This release includes all eight supported builds.
+
+### Added
+
+- First public release for Minecraft 1.21.11 on Fabric and NeoForge.
+- Spatial Path now pushes away other players as well as mobs.
+- Admin commands to lock each wand to one skill and unlock it again.
+
+### Fixed
+
+- Fixed distorted screens during impact effects in Minecraft 1.21.11.
+- Fixed missing surfaces on wand models in Minecraft 1.21.11.
+
+## [1.3.3]
+
+### Added
+
+- Separate cooldowns for each skill.
+
+### Changed
+
+- Longer cooldowns at higher charge levels. Damage is unchanged.
+- Existing stock cooldowns update automatically; custom settings are preserved.
+
+### Fixed
+
+- Atomic now destroys blocks within its expanding light column.
+- Atomic terrain destruction expands in a circle instead of square layers.
 
 ## [1.3.2]
 

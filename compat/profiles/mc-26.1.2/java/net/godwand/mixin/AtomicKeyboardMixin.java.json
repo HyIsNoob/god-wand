@@ -1,0 +1,9 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "package net.godwand.mixin;\n\nimport net.godwand.client.AtomicCinematic;\nimport net.minecraft.client.KeyboardHandler;\nimport net.minecraft.client.Minecraft;\nimport org.lwjgl.glfw.GLFW;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.injection.At;\nimport org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n@Mixin(KeyboardHandler.class)\npublic abstract class AtomicKeyboardMixin {\n    @Inject(method=\"keyPress\",at=@At(\"HEAD\"),cancellable=true)\n    private void godwand$skipAtomic(long window,int key,int scan,int action,int modifiers,CallbackInfo ci) {\n        var client=Minecraft.getInstance();\n        if(window==client.getWindow().getWindow()&&key==GLFW.GLFW_KEY_ESCAPE&&action==GLFW.GLFW_PRESS\n                &&client.screen==null&&AtomicCinematic.active()) {\n            AtomicCinematic.skip();\n            ci.cancel();\n        }\n    }\n}\n",
+      "after": "package net.godwand.mixin;\nimport net.godwand.client.AtomicCinematic;\nimport net.minecraft.client.*;\nimport net.minecraft.client.input.KeyEvent;\nimport com.mojang.blaze3d.platform.InputConstants;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.injection.*;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n@Mixin(value=KeyboardHandler.class,remap=false)\npublic abstract class AtomicKeyboardMixin {\n @Inject(method=\"keyPress\",at=@At(\"HEAD\"),cancellable=true)\n private void godwand$skipAtomic(long window,int action,KeyEvent event,CallbackInfo ci) {\n  var client=Minecraft.getInstance();\n  if(window==client.getWindow().handle()&&event.key()==InputConstants.KEY_ESCAPE&&action==InputConstants.PRESS&&client.screen==null&&AtomicCinematic.active()) {\n   AtomicCinematic.skip();ci.cancel();\n  }\n }\n}\n"
+    }
+  ]
+}

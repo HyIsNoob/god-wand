@@ -35,7 +35,11 @@ class GodWandGeometryTest {
             var vertices=GodWandGeometry.begin(PrimitiveTopology.QUADS,DefaultVertexFormat.POSITION_COLOR);
             for(int i=0;i<4;i++) vertices.addVertex(i%2,i/2,-2).setColor(255,255,255,255);
             GodWandGeometry.draw(vertices.buildOrThrow());
-            GodWandGeometry.flush(new Matrix4f());
+            render.when(RenderSystem::getModelViewMatrixCopy).thenReturn(new Matrix4f());
+            GodWandGeometry.deferFlush();
+            verify(device,never()).createCommandEncoder();
+            GodWandGeometry.flushDeferred();
+            GodWandGeometry.flushDeferred();
             // RenderPearl: index count, instance count, first index, vertex offset, first instance.
             verify(pass).drawIndexed(6,1,0,0,0);
             verify(pass).close();verify(encoder).submit();
@@ -44,5 +48,23 @@ class GodWandGeometryTest {
             GodWandGeometry.reset();GodWandGeometry.depthMask(true);
             GodWandGeometry.enableCull();GodWandGeometry.defaultBlendFunc();GodWandGeometry.disableBlend();
         }
+    }
+
+    @Test void deferredCameraSnapshotIsIndependentAndResetCancelsIt() throws Exception {
+        GodWandGeometry.reset();
+        var snapshot=GodWandGeometry.class.getDeclaredField("deferredView");
+        snapshot.setAccessible(true);
+        try(var render=mockStatic(RenderSystem.class)) {
+            var view=new Matrix4f().rotateY(.42f);
+            var expected=new Matrix4f(view);
+            render.when(RenderSystem::getModelViewMatrixCopy).thenReturn(view);
+            GodWandGeometry.deferFlush();
+            view.identity();
+            org.junit.jupiter.api.Assertions.assertEquals(expected,snapshot.get(null));
+            GodWandGeometry.reset();
+            org.junit.jupiter.api.Assertions.assertNull(snapshot.get(null));
+            GodWandGeometry.flushDeferred();
+            render.verify(RenderSystem::getDevice,never());
+        } finally { GodWandGeometry.reset(); }
     }
 }

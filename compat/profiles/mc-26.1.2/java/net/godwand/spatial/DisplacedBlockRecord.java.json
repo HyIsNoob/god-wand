@@ -1,0 +1,9 @@
+{
+  "reason": "Minecraft 26.3 API adapter",
+  "changes": [
+    {
+      "before": "    public void writeBridgeData(CompoundTag nbt) {\n        if (bridgeDestination == null) return;\n        nbt.putLong(\"bridgeDestination\", bridgeDestination.asLong());\n        if (boundPlayerUuid != null) nbt.putUUID(\"bridgeOwner\", boundPlayerUuid);\n    }\n\n    public void readBridgeData(CompoundTag nbt) {\n        if (nbt.contains(\"bridgeDestination\")) bridgeDestination = BlockPos.of(nbt.getLong(\"bridgeDestination\"));\n        if (nbt.hasUUID(\"bridgeOwner\")) boundPlayerUuid = nbt.getUUID(\"bridgeOwner\");\n    }\n\n    public DisplacedBlockRecord(BlockPos pos, ResourceKey<Level> worldKey, BlockState state, CompoundTag nbt,\n",
+      "after": "    public void writeBridgeData(CompoundTag nbt) {\n        if (bridgeDestination == null) return;\n        nbt.putLong(\"bridgeDestination\", bridgeDestination.asLong());\n        if (boundPlayerUuid != null) nbt.store(\"bridgeOwner\", net.minecraft.core.UUIDUtil.CODEC, boundPlayerUuid);\n    }\n\n    public void readBridgeData(CompoundTag nbt) {\n        if (nbt.contains(\"bridgeDestination\")) bridgeDestination = BlockPos.of(nbt.getLongOr(\"bridgeDestination\", 0L));\n        boundPlayerUuid = nbt.read(\"bridgeOwner\", net.minecraft.core.UUIDUtil.CODEC).orElse(null);\n    }\n\n    public DisplacedBlockRecord(BlockPos pos, ResourceKey<Level> worldKey, BlockState state, CompoundTag nbt,\n"
+    }
+  ]
+}

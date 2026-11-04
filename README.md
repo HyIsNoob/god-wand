@@ -4,18 +4,24 @@ Development branch for Fuga, the seventh skill. The stable 1.3.x maintenance che
 
 One wand with seven skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile, hold **I am Atomic** until you choose to release, or fire Fuga’s blazing arrow.
 
-[Full mod description](DESCRIPTION.md) · [Changelog](CHANGELOG.md)
+[Wiki and guides](https://god-wand-wiki.vercel.app/) · [CurseForge downloads](https://www.curseforge.com/minecraft/mc-mods/god-wand) · [Full mod description](DESCRIPTION.md) · [Changelog](CHANGELOG.md)
 
 | Minecraft | Loader | Java | Installable file |
 | --- | --- | --- | --- |
-| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.4.0.jar` |
-| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.4.0.jar` |
-| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.4.0.jar` |
-| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.4.0.jar` |
-| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.4.0.jar` |
-| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.4.0.jar` |
+| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.3.4.jar` |
+| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.3.4.jar` |
+| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.3.4.jar` |
+| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.3.4.jar` |
+| 1.21.11 | Fabric + Fabric API | 21 | `godwand-fabric-1.21.11-1.3.4.jar` |
+| 1.21.11 | NeoForge | 21 | `godwand-neoforge-1.21.11-1.3.4.jar` |
+| 26.1.2 | Fabric + Fabric API | 25 | `godwand-fabric-26.1.2-1.3.4.jar` |
+| 26.1.2 | NeoForge | 25 | `godwand-neoforge-26.1.2-1.3.4.jar` |
+| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.3.4.jar` |
+| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.3.4.jar` |
 
-Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server.
+The 26.1.2 port is available in source; check CurseForge Files for published downloads. Source support does not mean a release JAR has been uploaded.
+
+Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server. For multiplayer, update God Wand on both the server and every player’s client.
 
 ## Skills and controls
 
@@ -40,14 +46,20 @@ Permanent terrain changes are configurable in `config/godwand-server.json`; defa
 
 Client graphics settings are in `config/godwand-client.json`. [Dedicated-server verification and limits](docs/DEDICATED_SERVER.md) describes what has actually been tested.
 
+## Single-skill wands
+
+Admins can hold a God Wand in their main hand and use `/godwand lock atomic` to restrict that wand to one skill. Other names: `spatial_path`, `singularity`, `earth_drill`, `supernova`, `stone_cannon`. Use `/godwand unlock` to restore skill selection.
+
+The restriction stays on the item when saved, copied or traded. It does not change other wands. Commands require operator permission level 2; finish or cancel casting before using them. Locked wands show their skill in the tooltip and do not open the skill wheel.
+
 ## Build
 
-All six supported builds come from canonical `common/` sources plus explicit API adapters. One root command checks and collects every target. See [shared source ownership](docs/SHARED_SOURCES.md) before making changes.
+All ten supported builds come from canonical `common/` sources plus explicit API adapters. One root command checks and collects every target. See [shared source ownership](docs/SHARED_SOURCES.md) before making changes.
 
 Run from this repository root:
 
 ```powershell
-# Build and check all six variants, then collect their installable jars
+# Build and check all ten variants, then collect their installable jars
 .\gradlew.bat releaseJars
 
 # Build only Fabric/NeoForge 1.21.1
@@ -59,7 +71,7 @@ Run from this repository root:
 
 On Linux/macOS use `./gradlew`. Outputs from `releaseJars` are in `build/release/`. Install JDK 17, 21 and 25 for the complete matrix. The wrapper automatically selects the installed JDK 25 to run the build; this does not change the Java version needed to play each Minecraft version. See the development guide if Gradle cannot find an installed JDK.
 
-See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [shared-source ownership](docs/SHARED_SOURCES.md) for where to make changes. The root aggregate also invokes the Java 25 build for Fabric/NeoForge 26.3.
+See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [shared-source ownership](docs/SHARED_SOURCES.md) for where to make changes. The root aggregate also invokes the Java 25 build for Fabric/NeoForge 26.1.2 and 26.3.
 
 ## Release status
 
@@ -79,4 +91,4 @@ These paths cover every loader/version module. Restrictions on bundled assets do
 
 ## Contributors
 
-Thanks to [KingIronMan2011](https://github.com/KingIronMan2011) for modernizing the build tools and fixing cross-version toolchain and encoding issues ([PR #2](https://github.com/HyIsNoob/god-wand/pull/2)).
+Thanks to [KingIronMan2011](https://github.com/KingIronMan2011) for build modernization, the Minecraft 26.1.2 port, Iris compatibility and bundled icon support ([#2](https://github.com/HyIsNoob/god-wand/pull/2), [#4](https://github.com/HyIsNoob/god-wand/pull/4), [#5](https://github.com/HyIsNoob/god-wand/pull/5), [#6](https://github.com/HyIsNoob/god-wand/pull/6)).

@@ -1,0 +1,13 @@
+{
+  "reason": "Minecraft 1.21.11 API adapter",
+  "changes": [
+    {
+      "before": "        Minecraft client = Minecraft.getInstance();\n        if (client == null || client.level == null) return;\n\n        Vec3 camPos = cameraObj.getPosition();\n\n        for (Player player : client.level.players()) {\n            if (!player.isUsingItem()) continue;\n",
+      "after": "        Minecraft client = Minecraft.getInstance();\n        if (client == null || client.level == null) return;\n\n        Vec3 camPos = cameraObj.position();\n\n        for (Player player : client.level.players()) {\n            if (!player.isUsingItem()) continue;\n"
+    },
+    {
+      "before": "            matrices.pushPose();\n            matrices.translate(renderPos.x, renderPos.y, renderPos.z);\n\n            matrices.mulPose(cameraObj.rotation());\n\n            // K\u00edch th\u01b0\u1edbc nh\u1ecf g\u1ecdn tinh t\u1ebf (0.11m -> 0.25m) v\u1eeba v\u1eb7n nh\u01b0 vi\u00ean \u0111\u1ea1n n\u0103ng l\u01b0\u1ee3ng\n            float pulse = (float) Math.sin(animTime * 0.18f) * (0.004f + chargeRatio * 0.006f);\n",
+      "after": "            matrices.pushPose();\n            matrices.translate(renderPos.x, renderPos.y, renderPos.z);\n\n            matrices.mulPose(cameraObj.rotation());\n\n            // K\u00edch th\u01b0\u1edbc nh\u1ecf g\u1ecdn tinh t\u1ebf (0.11m -> 0.25m) v\u1eeba v\u1eb7n nh\u01b0 vi\u00ean \u0111\u1ea1n n\u0103ng l\u01b0\u1ee3ng\n            float pulse = (float) Math.sin(animTime * 0.18f) * (0.004f + chargeRatio * 0.006f);\n"
+    }
+  ]
+}

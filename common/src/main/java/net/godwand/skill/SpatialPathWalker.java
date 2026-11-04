@@ -45,8 +45,8 @@ public class SpatialPathWalker {
     }
 
     public static void toggle(ServerPlayer player) {
-        if (player.getCooldowns().isOnCooldown(net.godwand.GodWandMod.GOD_WAND_ITEM)) return;
-        player.getCooldowns().addCooldown(net.godwand.GodWandMod.GOD_WAND_ITEM, net.godwand.config.GodWandConfig.skillCooldownTicks(0,1));
+        if (!SkillCooldowns.ready(player,0)) return;
+        SkillCooldowns.start(player,0,net.godwand.config.GodWandConfig.skillCooldownTicks(0,1));
         ServerLevel world = player.serverLevel();
         if (ACTIVE_PLAYERS.contains(player.getUUID())) {
             ACTIVE_PLAYERS.remove(player.getUUID());
@@ -64,7 +64,10 @@ public class SpatialPathWalker {
                     SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 0.55f, 1.2f);
 
             // Push nearby entities away
-            for (net.minecraft.world.entity.Entity e : world.getEntities(player, player.getBoundingBox().inflate(5.0))) {
+            for (net.minecraft.world.entity.LivingEntity e : world.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                    player.getBoundingBox().inflate(5.0),
+                    ent -> ent != player && (ent instanceof net.minecraft.world.entity.Mob || ent instanceof net.minecraft.world.entity.player.Player)
+                            && ent.isAlive() && !ent.isSpectator() && !ent.isPassengerOfSameVehicle(player))) {
                 Vec3 diff = e.position().subtract(player.position()).normalize().scale(0.95).add(0, 0.28, 0);
                 e.push(diff.x, diff.y, diff.z);
                 e.hurtMarked = true;
@@ -202,10 +205,11 @@ public class SpatialPathWalker {
         }
     }
 
-    private static void repelMobs(ServerPlayer player) {
+    static void repelMobs(ServerPlayer player) {
         Vec3 center = player.position().add(0, 1.5, 0);
-        for (var mob : player.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.Mob.class,
-                player.getBoundingBox().inflate(5), e -> e.isAlive() && !e.isSpectator() && !e.isPassengerOfSameVehicle(player))) {
+        for (var mob : player.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
+                player.getBoundingBox().inflate(5), e -> e != player && (e instanceof net.minecraft.world.entity.Mob || e instanceof net.minecraft.world.entity.player.Player)
+                        && e.isAlive() && !e.isSpectator() && !e.isPassengerOfSameVehicle(player))) {
             Vec3 offset = mob.getBoundingBox().getCenter().subtract(center);
             double distance = offset.length();
             double reach = 3.3 + mob.getBbWidth() * 0.5;

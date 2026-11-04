@@ -1,8 +1,12 @@
 # God Wand
 
+[Wiki, controls and guides](https://god-wand-wiki.vercel.app/)
+
 **One wand. Six skills. Choose the spell, charge it, and decide when to release.**
 
 Walk through mountains, pull enemies into a gravity orb, raise a drill from the ground or hold an Atomic blast until you are ready to let it go.
+
+Enjoying the project? You can support it on [Ko-Fi](https://ko-fi.com/hyisnoob).
 
 ## Six skills
 
@@ -64,8 +68,11 @@ Damage, cooldowns and selected terrain ranges can be adjusted. Atomic's main bla
 
 ## Supported versions
 
+- **Minecraft 26.3:** Fabric or NeoForge.
+- **Minecraft 1.21.11:** Fabric or NeoForge.
 - **Minecraft 1.21.1:** Fabric or NeoForge.
 - **Minecraft 1.20.1:** Fabric or Forge.
+- **Minecraft 26.1.2:** Fabric and NeoForge port available in source; CurseForge downloads are pending.
 - Fabric requires **Fabric API**.
 - Install God Wand on both your game and the server when playing multiplayer.
 - An extra shaderpack is optional.

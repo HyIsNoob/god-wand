@@ -1,6 +1,6 @@
-# Boss damage compatibility — 1.3.2
+# Boss damage compatibility — 1.3.3
 
-This patch applies to all six supported targets, including Fabric/NeoForge 26.3. The 1.21.11 port is paused until this release is tested.
+The shared damage path applies to all eight supported targets, including Fabric/NeoForge 26.3 and 1.21.11. The new 1.21.11 targets pass automated checks; boss-mod gameplay testing remains pending.
 
 ## Changes
 

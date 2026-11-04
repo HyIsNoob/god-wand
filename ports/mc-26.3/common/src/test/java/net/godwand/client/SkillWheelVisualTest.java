@@ -61,7 +61,7 @@ class SkillWheelVisualTest {
             int[] args=new int[5];for(int i=0;i<5;i++)args[i]=call.getArgument(i);
             fills.add(args);return null;
         }).when(context).fill(anyInt(),anyInt(),anyInt(),anyInt(),anyInt());
-        SkillWheelScreen.drawWheel(context,5,1,2);
+        SkillWheelScreen.drawWheel(context,5,1,new float[]{0,.5f,0,0,0,1,0});
         int[][] positions=new int[7][2];
         for(int i=0;i<7;i++){double angle=-Math.PI/2+i*Math.PI*2/7;positions[i][0]=(int)Math.round(Math.cos(angle)*82)-20;positions[i][1]=(int)Math.round(Math.sin(angle)*82)-20;}
         assertEquals(7,sprites.size());
@@ -72,8 +72,9 @@ class SkillWheelVisualTest {
             int[] a=sprites.get(mode);
             assertArrayEquals(new int[]{positions[mode][0],positions[mode][1],mode*40,mode==1?80:mode==5?40:0,40,40,280,120},a);
         }
+        assertEquals(4,fills.size(),"Each cooling skill needs its own bar");
         assertTrue(fills.stream().allMatch(a -> a[2]-a[0]<=28&&a[3]-a[1]<=3),"No opaque wheel plate or overflowing cooldown");
-        sprites.clear();fills.clear();layers.clear();SkillWheelScreen.drawWheel(context,5,5,.35f);
+        sprites.clear();fills.clear();layers.clear();SkillWheelScreen.drawWheel(context,5,5,new float[]{0,.5f,0,0,0,.35f,0});
         Path path=Path.of("build/previews/skill-wheel-draws.json");Files.createDirectories(path.getParent());
         Files.writeString(path,new com.google.gson.Gson().toJson(Map.of("sprites",sprites,"fills",fills,"layers",layers)));
     }

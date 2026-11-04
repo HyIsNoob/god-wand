@@ -19,7 +19,8 @@
     "SoundSystemMixin",
     "PostEffectProcessorAccessor",
     "AtomicInputMixin",
-    "AtomicLocalMovementMixin"
+    "AtomicLocalMovementMixin",
+    "SkillCooldownUseMixin"
   ],
   "injectors": {
     "defaultRequire": 1

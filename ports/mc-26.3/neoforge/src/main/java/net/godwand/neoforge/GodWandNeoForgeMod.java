@@ -95,6 +95,7 @@ public class GodWandNeoForgeMod {
 
     public GodWandNeoForgeMod(IEventBus modBus) {
         GodWandConfig.loadServer(FMLPaths.CONFIGDIR.get());
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.RegisterCommandsEvent event) -> net.godwand.command.GodWandCommands.register(event.getDispatcher()));
 
         ITEMS.register(modBus);
         ENTITY_TYPES.register(modBus);
@@ -167,6 +168,7 @@ public class GodWandNeoForgeMod {
             registrar.playToClient(CinematicFxPayload.ID, CinematicFxPayload.CODEC, (payload, context) -> {});
             registrar.playToClient(AtomicFxPayload.ID, AtomicFxPayload.CODEC, (payload, context) -> {});
             registrar.playToClient(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC, (payload, context) -> {});
+            registrar.playToClient(net.godwand.network.SkillCooldownPayload.ID, net.godwand.network.SkillCooldownPayload.CODEC, (payload, context) -> {});
         }
     }
 

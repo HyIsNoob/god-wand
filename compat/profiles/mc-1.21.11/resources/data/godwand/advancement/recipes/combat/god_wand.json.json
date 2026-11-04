@@ -1,0 +1,9 @@
+{
+  "reason": "Minecraft 1.21.11 API adapter",
+  "changes": [
+    {
+      "before": "    },\n    \"has_the_recipe\": {\n      \"trigger\": \"minecraft:recipe_unlocked\",\n      \"conditions\": { \"recipe\": \"godwand:god_wand\" }\n    }\n  },\n  \"requirements\": [[\"has_nether_star\", \"has_the_recipe\"]],\n",
+      "after": "    },\n    \"has_the_recipe\": {\n      \"trigger\": \"minecraft:recipe_unlocked\",\n      \"conditions\": { \"recipes\": \"godwand:god_wand\" }\n    }\n  },\n  \"requirements\": [[\"has_nether_star\", \"has_the_recipe\"]],\n"
+    }
+  ]
+}

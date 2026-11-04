@@ -22,7 +22,8 @@
     "AtomicKeyboardMixin",
     "AtomicLocalMovementMixin",
     "AtomicPoseMixin",
-    "AtomicToastMixin"
+    "AtomicToastMixin",
+    "SkillCooldownUseMixin"
   ],
   "injectors": {
     "defaultRequire": 1

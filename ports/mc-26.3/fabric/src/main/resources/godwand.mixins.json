@@ -21,7 +21,8 @@
     "AtomicInputMixin",
     "AtomicLocalMovementMixin",
     "PostPassUniformsAccessor",
-    "AtomicPoseCaptureMixin"
+    "AtomicPoseCaptureMixin",
+    "SkillCooldownUseMixin"
   ],
   "injectors": {
     "defaultRequire": 1

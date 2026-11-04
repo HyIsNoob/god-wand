@@ -1,0 +1,17 @@
+{
+  "reason": "Minecraft 1.21.11 API adapter",
+  "changes": [
+    {
+      "before": "import net.godwand.skill.StoneCannonManager;\nimport net.minecraft.core.particles.DustParticleOptions;\nimport net.minecraft.core.particles.ParticleTypes;\nimport net.minecraft.nbt.CompoundTag;\nimport net.minecraft.network.syncher.SynchedEntityData;\nimport net.minecraft.server.level.ServerLevel;\nimport net.minecraft.world.entity.EntityType;\n",
+      "after": "import net.godwand.skill.StoneCannonManager;\nimport net.minecraft.core.particles.DustParticleOptions;\nimport net.minecraft.core.particles.ParticleTypes;\nimport net.minecraft.world.level.storage.ValueInput;\nimport net.minecraft.world.level.storage.ValueOutput;\nimport net.minecraft.network.syncher.SynchedEntityData;\nimport net.minecraft.server.level.ServerLevel;\nimport net.minecraft.world.entity.EntityType;\n"
+    },
+    {
+      "before": "    }\n\n    @Override\n    protected void addAdditionalSaveData(CompoundTag nbt) {\n        super.addAdditionalSaveData(nbt);\n        nbt.putInt(\"ChargeLevel\", getChargeLevel());\n        nbt.putInt(\"Age\", this.tickCount);\n    }\n\n    @Override\n    protected void readAdditionalSaveData(CompoundTag nbt) {\n        super.readAdditionalSaveData(nbt);\n        setChargeLevel(nbt.getInt(\"ChargeLevel\"));\n        this.tickCount = nbt.getInt(\"Age\");\n    }\n\n    @Override\n",
+      "after": "    }\n\n    @Override\n    protected void addAdditionalSaveData(ValueOutput nbt) {\n        super.addAdditionalSaveData(nbt);\n        nbt.putInt(\"ChargeLevel\", getChargeLevel());\n        nbt.putInt(\"Age\", this.tickCount);\n    }\n\n    @Override\n    protected void readAdditionalSaveData(ValueInput nbt) {\n        super.readAdditionalSaveData(nbt);\n        setChargeLevel(nbt.getIntOr(\"ChargeLevel\", 1));\n        this.tickCount = nbt.getIntOr(\"Age\", 0);\n    }\n\n    @Override\n"
+    },
+    {
+      "before": "            ServerLevel sw = (ServerLevel) this.level();\n\n            // B\u1ee5i \u0111\u00e1 m\u00e0i m\u00f2n n\u00e9n si\u00eau \u00e2m\n            sw.sendParticles(new DustParticleOptions(new Vector3f(0.82f, 0.78f, 0.65f), 1.0f),\n                    this.getX(), this.getY(), this.getZ(), 1, 0.05, 0.05, 0.05, 0.0);\n\n            // Tia l\u1eeda \u0111i\u1ec7n ma s\u00e1t c\u1ef1c h\u1ea1n \u1edf c\u1ea5p \u0111\u1ed9 cao\n",
+      "after": "            ServerLevel sw = (ServerLevel) this.level();\n\n            // B\u1ee5i \u0111\u00e1 m\u00e0i m\u00f2n n\u00e9n si\u00eau \u00e2m\n            sw.sendParticles(new DustParticleOptions(net.godwand.compat.NativeColors.rgb(new Vector3f(0.82f, 0.78f, 0.65f)), 1.0f),\n                    this.getX(), this.getY(), this.getZ(), 1, 0.05, 0.05, 0.05, 0.0);\n\n            // Tia l\u1eeda \u0111i\u1ec7n ma s\u00e1t c\u1ef1c h\u1ea1n \u1edf c\u1ea5p \u0111\u1ed9 cao\n"
+    }
+  ]
+}

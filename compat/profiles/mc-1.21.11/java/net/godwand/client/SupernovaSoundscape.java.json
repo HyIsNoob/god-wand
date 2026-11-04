@@ -1,0 +1,17 @@
+{
+  "reason": "Minecraft 1.21.11 API adapter",
+  "changes": [
+    {
+      "before": "import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;\nimport net.minecraft.client.resources.sounds.SimpleSoundInstance;\nimport net.minecraft.client.resources.sounds.SoundInstance;\nimport net.minecraft.resources.ResourceLocation;\nimport net.minecraft.sounds.SoundEvents;\nimport net.minecraft.sounds.SoundSource;\nimport net.minecraft.util.RandomSource;\n",
+      "after": "import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;\nimport net.minecraft.client.resources.sounds.SimpleSoundInstance;\nimport net.minecraft.client.resources.sounds.SoundInstance;\nimport net.minecraft.resources.Identifier;\nimport net.minecraft.sounds.SoundEvents;\nimport net.minecraft.sounds.SoundSource;\nimport net.minecraft.util.RandomSource;\n"
+    },
+    {
+      "before": " *  running full duration without premature cutoffs, while falling back to vanilla sound cues\n *  when using the default placeholder. */\npublic final class SupernovaSoundscape {\n    private static final ResourceLocation AUDIO = ResourceLocation.fromNamespaceAndPath(\"godwand\", \"supernova_sequence\");\n    private static final String PLACEHOLDER_SHA = \"225b65ec21cc27259fd742d6e1488a69c28f4a0365301d533eeaf433e3c60443\";\n    private static Charge chargeSound;\n    private static SimpleSoundInstance sequence;\n",
+      "after": " *  running full duration without premature cutoffs, while falling back to vanilla sound cues\n *  when using the default placeholder. */\npublic final class SupernovaSoundscape {\n    private static final Identifier AUDIO = Identifier.fromNamespaceAndPath(\"godwand\", \"supernova_sequence\");\n    private static final String PLACEHOLDER_SHA = \"225b65ec21cc27259fd742d6e1488a69c28f4a0365301d533eeaf433e3c60443\";\n    private static Charge chargeSound;\n    private static SimpleSoundInstance sequence;\n"
+    },
+    {
+      "before": "\n    private static boolean checkCustom(Minecraft client) {\n        if (customChecked) return custom;\n        var resource = client.getResourceManager().getResource(ResourceLocation.fromNamespaceAndPath(\"godwand\", \"sounds/supernova_sequence.ogg\"));\n        if (resource.isPresent()) {\n            try (var input = resource.get().open()) {\n                custom = isCustomAudio(input.readAllBytes());\n",
+      "after": "\n    private static boolean checkCustom(Minecraft client) {\n        if (customChecked) return custom;\n        var resource = client.getResourceManager().getResource(Identifier.fromNamespaceAndPath(\"godwand\", \"sounds/supernova_sequence.ogg\"));\n        if (resource.isPresent()) {\n            try (var input = resource.get().open()) {\n                custom = isCustomAudio(input.readAllBytes());\n"
+    }
+  ]
+}

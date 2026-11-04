@@ -114,6 +114,9 @@ public final class GodWandForgeNetwork {
                     handleFuga(payload);
                     ctx.get().setPacketHandled(true);
                 }).add();
+        CHANNEL.messageBuilder(net.godwand.network.SkillCooldownPayload.class,id++,NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(net.godwand.network.SkillCooldownPayload::write).decoder(net.godwand.network.SkillCooldownPayload::read)
+                .consumerMainThread((payload,ctx)->{handleSkillCooldown(payload);ctx.get().setPacketHandled(true);}).add();
         CHANNEL.messageBuilder(SelectSkillPayload.class, id++, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(SelectSkillPayload::write)
                 .decoder(SelectSkillPayload::read)
@@ -156,6 +159,7 @@ public final class GodWandForgeNetwork {
 
     @OnlyIn(Dist.CLIENT)
     private static void handleFuga(net.godwand.network.FugaFxPayload payload) { net.godwand.client.FugaRenderer.receive(payload); }
+    private static void handleSkillCooldown(net.godwand.network.SkillCooldownPayload payload) {net.godwand.client.SkillCooldownClient.receive(payload);}
 
     @OnlyIn(Dist.CLIENT)
     private static void handleAtomic(net.godwand.network.AtomicFxPayload payload) { net.godwand.client.AtomicRenderer.receive(payload); }

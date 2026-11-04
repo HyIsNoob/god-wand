@@ -9,7 +9,7 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 profile, key = sys.argv[1:]
-if profile not in {"fabric-1.20.1", "forge-1.20.1", "mc-26.3"}:
+if profile not in {"fabric-1.20.1", "forge-1.20.1", "mc-26.3", "mc-26.1.2", "mc-1.21.11"}:
     raise SystemExit("Unknown supported profile")
 if not key.startswith(("java/", "resources/")) or ".." in Path(key).parts:
     raise SystemExit("Expected a relative java/ or resources/ path")

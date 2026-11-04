@@ -1,0 +1,9 @@
+{
+  "reason": "Native CustomData exposes compound-tag queries through copyTag",
+  "changes": [
+    {
+      "before": "data.contains(\"GodWandLocked\")",
+      "after": "data.copyTag().contains(\"GodWandLocked\")"
+    }
+  ]
+}

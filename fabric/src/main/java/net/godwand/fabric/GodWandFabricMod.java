@@ -53,6 +53,7 @@ public class GodWandFabricMod implements ModInitializer {
     @Override
     public void onInitialize() {
         GodWandConfig.loadServer(FabricLoader.getInstance().getConfigDir());
+        net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> net.godwand.command.GodWandCommands.register(dispatcher));
 
         GodWandMod.ARCANE_ORB_ENTITY_TYPE = Registry.register(
                 BuiltInRegistries.ENTITY_TYPE,
@@ -79,6 +80,7 @@ public class GodWandFabricMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(DrillWindPayload.ID, DrillWindPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(AtomicFxPayload.ID, AtomicFxPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(net.godwand.network.SkillCooldownPayload.ID, net.godwand.network.SkillCooldownPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(SpatialAuraPayload.ID, SpatialAuraPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(CannonPressurePayload.ID, CannonPressurePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(SingularityThreadsPayload.ID, SingularityThreadsPayload.CODEC);

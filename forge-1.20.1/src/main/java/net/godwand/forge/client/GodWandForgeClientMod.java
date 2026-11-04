@@ -71,7 +71,7 @@ public class GodWandForgeClientMod {
 
         @SubscribeEvent
         public static void onRegisterGuiOverlays(RegisterGuiOverlaysEvent event) {
-            event.registerAboveAll("atomic_cinematic", (gui, graphics, partialTick, width, height) -> net.godwand.client.AtomicCinematic.render(graphics, partialTick));
+            event.registerAboveAll("atomic_cinematic", (gui, graphics, partialTick, width, height) -> {net.godwand.client.AtomicCinematic.render(graphics, partialTick);net.godwand.client.SkillCooldownClient.render(graphics);});
             event.registerAboveAll("fuga_cinematic", (gui, graphics, partialTick, width, height) -> net.godwand.client.FugaCinematic.render(graphics, partialTick));
             event.registerAbove(VanillaGuiOverlay.VIGNETTE.id(), "impact_frame",
                     (gui, guiGraphics, partialTick, screenWidth, screenHeight) ->
@@ -116,6 +116,7 @@ public class GodWandForgeClientMod {
             net.godwand.client.AtomicRenderer.tick(client);
             net.godwand.client.FugaRenderer.tick(client);
             net.godwand.client.FugaCinematic.tick(client);
+            net.godwand.client.SkillCooldownClient.tick(client);
             SkillWheelScreen.handleKeyInput(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);

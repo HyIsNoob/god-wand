@@ -1,0 +1,25 @@
+{
+  "reason": "GUI extraction API",
+  "changes": [
+    {
+      "before": "import net.minecraft.client.gui.GuiGraphics;",
+      "after": "import net.minecraft.client.gui.GuiGraphicsExtractor;"
+    },
+    {
+      "before": "render(GuiGraphics graphics)",
+      "after": "render(GuiGraphicsExtractor graphics)"
+    },
+    {
+      "before": "graphics.drawCenteredString(",
+      "after": "graphics.centeredText("
+    },
+    {
+      "before": "client.screen!=null",
+      "after": "client.gui.screen()!=null"
+    },
+    {
+      "before": "client.options.hideGui",
+      "after": "client.gui.hud.isHidden()"
+    }
+  ]
+}

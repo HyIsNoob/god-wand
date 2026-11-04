@@ -1,0 +1,17 @@
+{
+  "reason": "Minecraft 1.21.11 API adapter",
+  "changes": [
+    {
+      "before": "        Minecraft client = Minecraft.getInstance();\n        if (client == null || client.level == null) return;\n\n        Vec3 camPos = cameraObj.getPosition();\n\n        for (Player player : client.level.players()) {\n            if (!player.isUsingItem()) continue;\n",
+      "after": "        Minecraft client = Minecraft.getInstance();\n        if (client == null || client.level == null) return;\n\n        Vec3 camPos = cameraObj.position();\n\n        for (Player player : client.level.players()) {\n            if (!player.isUsingItem()) continue;\n"
+    },
+    {
+      "before": "            // C\u0103n ch\u1ec9nh tr\u1ee5c m\u0169i khoan theo h\u01b0\u1edbng nh\u00ecn c\u1ee7a ng\u01b0\u1eddi ch\u01a1i\n            float yaw = player.getViewYRot(tickDelta);\n            float pitch = player.getViewXRot(tickDelta);\n            matrices.mulPose(Axis.YP.rotationDegrees(-yaw));\n            matrices.mulPose(Axis.XP.rotationDegrees(pitch));\n\n            // T\u1ed1c \u0111\u1ed9 xo\u00e1y n\u00f2ng si\u00eau thanh t\u0103ng d\u1ea7n theo t\u1eebng c\u1ea5p \u0111\u1ed9 n\u1ea1p\n            float spinAngle = StoneCannonModel.chargeDrillRotation(animTime);\n",
+      "after": "            // C\u0103n ch\u1ec9nh tr\u1ee5c m\u0169i khoan theo h\u01b0\u1edbng nh\u00ecn c\u1ee7a ng\u01b0\u1eddi ch\u01a1i\n            float yaw = player.getViewYRot(tickDelta);\n            float pitch = player.getViewXRot(tickDelta);\n            matrices.mulPose(Axis.YP.rotationDegrees(-yaw));\n            matrices.mulPose(Axis.XP.rotationDegrees(pitch));\n\n            // T\u1ed1c \u0111\u1ed9 xo\u00e1y n\u00f2ng si\u00eau thanh t\u0103ng d\u1ea7n theo t\u1eebng c\u1ea5p \u0111\u1ed9 n\u1ea1p\n            float spinAngle = StoneCannonModel.chargeDrillRotation(animTime);\n"
+    },
+    {
+      "before": "            float baseScale = 0.22f + chargeRatio * 0.40f;\n\n            StoneCannonModel.renderChargeWind(matrices.last().pose(), baseScale, animTime, chargeRatio);\n            matrices.mulPose(Axis.ZP.rotationDegrees(spinAngle));\n            StoneCannonModel.render(matrices.last().pose(), baseScale, animTime, 0.4f + chargeRatio * 0.6f);\n\n            matrices.popPose();\n",
+      "after": "            float baseScale = 0.22f + chargeRatio * 0.40f;\n\n            StoneCannonModel.renderChargeWind(matrices.last().pose(), baseScale, animTime, chargeRatio);\n            matrices.mulPose(Axis.ZP.rotationDegrees(spinAngle));\n            StoneCannonModel.render(matrices.last().pose(), baseScale, animTime, 0.4f + chargeRatio * 0.6f);\n\n            matrices.popPose();\n"
+    }
+  ]
+}

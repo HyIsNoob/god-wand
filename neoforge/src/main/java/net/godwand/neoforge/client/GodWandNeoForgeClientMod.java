@@ -67,6 +67,8 @@ public class GodWandNeoForgeClientMod {
     }
 
     public static void registerClientPayloads(PayloadRegistrar registrar) {
+        registrar.playToClient(net.godwand.network.SkillCooldownPayload.ID,net.godwand.network.SkillCooldownPayload.CODEC,
+                (payload,context)->context.enqueueWork(()->net.godwand.client.SkillCooldownClient.receive(payload)));
         registrar.playToClient(AtomicFxPayload.ID, AtomicFxPayload.CODEC,
                 (payload, context) -> context.enqueueWork(() -> AtomicRenderer.receive(payload)));
         registrar.playToClient(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC,
@@ -197,6 +199,7 @@ public class GodWandNeoForgeClientMod {
                 CustomImpactFrameOverlay.render(event.getGuiGraphics(), event.getPartialTick());
                 AtomicCinematic.render(event.getGuiGraphics(), event.getPartialTick());
                 net.godwand.client.FugaCinematic.render(event.getGuiGraphics(), event.getPartialTick());
+                net.godwand.client.SkillCooldownClient.render(event.getGuiGraphics());
             }
         }
 
@@ -207,6 +210,7 @@ public class GodWandNeoForgeClientMod {
             AtomicRenderer.tick(client);
             net.godwand.client.FugaRenderer.tick(client);
             net.godwand.client.FugaCinematic.tick(client);
+            net.godwand.client.SkillCooldownClient.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
             EarthDrillSoundscape.tick(client);

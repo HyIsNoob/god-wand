@@ -1,2 +1,5 @@
-# Unfinished source and internal progress notes remain local.
-/mc-1.21.11/
+# All supported port source is tracked. Local build and progress files remain ignored by the root rules.
+
+/mc-1.21.11/*.log
+/mc-1.21.11/api-*.txt
+/mc-1.21.11/compile-*.txt

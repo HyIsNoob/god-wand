@@ -1,0 +1,238 @@
+{
+  "targets": {
+    "swap": {}
+  },
+  "passes": [
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "minecraft:program/godwand_impact",
+      "inputs": [
+        {
+          "sampler_name": "Diffuse",
+          "target": "minecraft:main",
+          "bilinear": false
+        },
+        {
+          "sampler_name": "MainDepth",
+          "target": "minecraft:main",
+          "use_depth_buffer": true,
+          "bilinear": false
+        }
+      ],
+      "output": "swap",
+      "uniforms": {
+        "GodWandConfig": [
+          {
+            "name": "InvProjMat",
+            "type": "matrix4x4",
+            "value": [
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          },
+          {
+            "name": "InvViewMat",
+            "type": "matrix4x4",
+            "value": [
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          },
+          {
+            "name": "CameraPos",
+            "type": "vec3",
+            "value": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "name": "BlastCenter",
+            "type": "vec3",
+            "value": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "name": "CoreRadius",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "NovaAftermath",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "NovaProgress",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "SkyRiftAge",
+            "type": "float",
+            "value": -1.0
+          },
+          {
+            "name": "SkyRiftScale",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "SkyRiftCenter",
+            "type": "vec3",
+            "value": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "name": "SkyRiftCollapse",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "SkyBlackout",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "RiftPulseRadius",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "RiftPulseStrength",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "EmissionOnly",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "CollapseProgress",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "LensingPower",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "ImpactIntensity",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "ImpactFrame",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "ImpactMode",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "ShockwaveRadius",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "DistortionPower",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "ChromaticAmount",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "ZoomBlur",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "RetinaBurn",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "CenterX",
+            "type": "float",
+            "value": 0.5
+          },
+          {
+            "name": "CenterY",
+            "type": "float",
+            "value": 0.5
+          },
+          {
+            "name": "Aspect",
+            "type": "float",
+            "value": 1.7777
+          },
+          {
+            "name": "GTime",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "FxType",
+            "type": "float",
+            "value": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "minecraft:program/godwand_copy",
+      "inputs": [
+        {
+          "sampler_name": "Diffuse",
+          "target": "swap",
+          "bilinear": false
+        }
+      ],
+      "output": "minecraft:main",
+      "uniforms": {}
+    }
+  ]
+}
