@@ -188,16 +188,17 @@ void fugaFire() {
             bounce=exp(-dist/6.0)*(1.0-along*.6)*1.4;
         }
     } else if(!charge) {
-        // Visual beats (mirrored by FugaRenderer.orb*): the energy mass falls from 28 blocks up to the ground 0-32, crushes against the
-        // ground 32-37, implodes 37-39.6, dark beat, detonation at 40. Air resistance slows it near the ground.
-        float fall=clamp(age/32.0,0.0,1.0);
+        // Visual beats (mirrored by FugaRenderer.orb*): the energy mass falls from 28 blocks up to the
+        // ground 0-39 (never resting, swelling from 33), contact at 39, a last swell 38.5-39.6, dark beat, detonation at 40. Air resistance slows it near the ground.
+        float fall=clamp(age/39.0,0.0,1.0);
         // The compressed air below resists harder the closer it gets: it slows right down before contact.
-        float gap=28.0*pow(1.0-fall,2.2),squash=smoothstep(32.0,37.0,age);
-        float implode=smoothstep(37.0,39.6,age);
+        float gap=28.0*pow(1.0-fall,1.4);
+        float implode=smoothstep(38.5,39.6,age);
         // Full size from its first frame; at the end it swells a little and flashes white instead of collapsing.
-        float k=1.0+.05*smoothstep(32.0,37.0,age)+.05*implode;
+        float k=1.0+.1*smoothstep(33.0,39.0,age)+.12*implode;
         float orbR=44.0;
-        float sy=1.0-.22*squash,sxz=1.0+.12*squash;
+        // Stays round on contact: it swells (k) instead of flattening.
+        float sy=1.0,sxz=1.0;
         float cy=gap+orbR*sy*k;
         // White-hot where the underside meets the compressed air and then the ground.
         float contact=1.0-smoothstep(0.0,12.0,gap);
@@ -212,7 +213,7 @@ void fugaFire() {
         // Sphere, column, halos and outflow are raymarched once at half resolution (VolumePass) and read back here:
         // raymarching them in both full passes cost most of the frame.
         float nearGround=1.0-smoothstep(0.0,28.0,gap);
-        float auraLife=age<40.0?nearGround*nearGround*(1.0-smoothstep(37.0,40.0,age)):smoothstep(40.0,45.0,age)*smoothstep(0.0,.35,retract);
+        float auraLife=age<40.0?nearGround*nearGround*(1.0-smoothstep(38.0,40.0,age)):smoothstep(40.0,45.0,age)*smoothstep(0.0,.35,retract);
         if(VolumePass<.5) {
             vec4 vol=texture(FugaVolumeSampler,uv);
             emission=vol.rgb/max(vec3(.003),1.0-vol.rgb);transmit=vol.a;heat=max(heat,(1.0-vol.a)*1.5);

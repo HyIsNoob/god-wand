@@ -6,6 +6,7 @@
 
 - Fuga, the seventh skill: gather fire between your palms, draw a burning arrow and release it to bring down a blazing meteor and a pillar of fire.
 - Optional Fuga cutscene, with configurable damage, cooldown and terrain destruction.
+- Fuga audio in three parts: the charge (cut if you let go early), a looping hum while the bow is drawn and ready, and the shot through to the end. Packs can replace `fuga_charge.ogg`, `fuga_hold.ogg` and `fuga_release.ogg`.
 - Fabric and NeoForge builds for Minecraft 26.1.2.
 - Bundled mod icon for all loaders.
 

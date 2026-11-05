@@ -98,7 +98,7 @@ public class GodWandForgeClientMod {
                 Camera camera = event.getCamera();
                 float tickDelta = event.getPartialTick();
                 net.godwand.client.AtomicRenderer.render(matrices, camera, tickDelta);
-                net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
+                if (!net.godwand.client.FugaRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
                 net.godwand.client.AtomicPostFx.capture(matrices.last().pose(), event.getProjectionMatrix(), tickDelta);
                 CannonPressureRenderer.render(matrices, camera, tickDelta);
                 DrillWindRenderer.render(matrices, camera, tickDelta);

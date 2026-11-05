@@ -1,5 +1,13 @@
 {
-  "atomic_charge": {
+  "fuga_charge": {
+    "sounds": [{"name":"godwand:fuga_charge","stream":true}]
+  },
+  "fuga_hold": {
+    "sounds": [{"name":"godwand:fuga_hold","stream":false}]
+  },
+  "fuga_release": {
+    "sounds": [{"name":"godwand:fuga_release","stream":true}]
+  },  "atomic_charge": {
     "subtitle": "subtitles.godwand.atomic_charge",
     "sounds": [{"name":"godwand:atomic_charge","stream":true}]
   },

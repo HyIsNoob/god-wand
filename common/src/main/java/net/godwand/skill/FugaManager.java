@@ -7,8 +7,6 @@ import net.godwand.platform.Services;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -36,7 +34,6 @@ public final class FugaManager {
         long phaseAt;
         int phase=FugaFxPayload.CHARGE;
         FugaCrater crater;
-        boolean detonated;
         final Set<UUID> struck=new HashSet<>();
         /** Chunks this cast force-loaded around its far impact; released once the crater work is done. */
         List<Long> forced=new ArrayList<>();
@@ -56,7 +53,6 @@ public final class FugaManager {
         if(!(player.getItemInHand(hand).getItem() instanceof GodWandItem)
                 || GodWandItem.getSkillMode(player.getItemInHand(hand))!=GodWandItem.MODE_FUGA)return false;
         var task=new Task(player,hand);TASKS.put(player.getUUID(),task);broadcast(task,FugaFxPayload.CHARGE);
-        task.world.playSound(null,task.anchor.x,task.anchor.y,task.anchor.z,SoundEvents.BLAZE_AMBIENT,SoundSource.PLAYERS,1.5f,.65f);
         return true;
     }
     public static boolean movementLocked(ServerPlayer player) {
@@ -79,7 +75,6 @@ public final class FugaManager {
         // Recoil: a short shove back along the shot line, never stronger than a knockback hit.
         Vec3 kick=player.getLookAngle().scale(-.55);
         player.setDeltaMovement(kick.x,Math.max(.12,kick.y*.3),kick.z);player.hurtMarked=true;
-        task.world.playSound(null,task.origin.x,task.origin.y,task.origin.z,SoundEvents.FIRECHARGE_USE,SoundSource.PLAYERS,3,.6f);
     }
     private static boolean invalid(Task task) {
         return !task.caster.isAlive() || task.caster.hasDisconnected() || task.caster.isSpectator()
@@ -97,8 +92,6 @@ public final class FugaManager {
                 task.caster.setDeltaMovement(Vec3.ZERO);task.caster.fallDistance=0;
                 if(task.caster.position().distanceToSqr(task.anchor)>.0001)
                     task.caster.connection.teleport(task.anchor.x,task.anchor.y,task.anchor.z,task.caster.getYRot(),task.caster.getXRot());
-                if(world.getGameTime()-task.started==FugaSequence.CHARGE_TICKS)
-                    world.playSound(null,task.anchor.x,task.anchor.y,task.anchor.z,SoundEvents.BLAZE_SHOOT,SoundSource.PLAYERS,1,.7f);
             }
             if(task.phase==FugaFxPayload.FIRE)advance(task);
             if(task.phase!=FugaFxPayload.IMPACT)continue;
@@ -111,10 +104,6 @@ public final class FugaManager {
                 continue;
             }
             if(age>=FugaSequence.ORB_TICKS) {
-                if(!task.detonated) {
-                    task.detonated=true;
-                    world.playSound(null,task.position.x,task.position.y,task.position.z,SoundEvents.GENERIC_EXPLODE.value(),SoundSource.PLAYERS,6,.55f);
-                }
                 damage(task,age);
                 outflow(task,age);
             }
@@ -166,7 +155,6 @@ public final class FugaManager {
             // loaded while it is carved, or it is left full of missing chunks.
             if(GodWandConfig.SERVER.fugaTerrainDamage)task.toForce.addAll(forceOrder(BlockPos.containing(end),FugaCrater.reach(GodWandConfig.SERVER.fugaTerrainRadius)));
             broadcast(task,FugaFxPayload.IMPACT);
-            task.world.playSound(null,end.x,end.y,end.z,SoundEvents.BLAZE_SHOOT,SoundSource.PLAYERS,3,.5f);
         }
     }
     /** Clip to the first unloaded chunk without asking a chunk manager to load it. */

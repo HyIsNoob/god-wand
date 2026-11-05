@@ -1,0 +1,17 @@
+{
+  "reason": "Minecraft 1.21.11 API adapter",
+  "changes": [
+    {
+      "before": "import net.minecraft.resources.ResourceLocation;\n",
+      "after": "import net.minecraft.resources.Identifier;\n"
+    },
+    {
+      "before": "    private static ResourceLocation id(String namespace, String path) { return ResourceLocation.fromNamespaceAndPath(namespace, path); }\n",
+      "after": "    private static Identifier id(String namespace, String path) { return Identifier.fromNamespaceAndPath(namespace, path); }\n"
+    },
+    {
+      "before": "        Hold(ResourceLocation sound, float gain) {\n",
+      "after": "        Hold(Identifier sound, float gain) {\n"
+    }
+  ]
+}

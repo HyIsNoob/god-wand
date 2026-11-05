@@ -67,7 +67,7 @@ public final class FugaRenderer {
         if (ACTIVE.size() > 16) ACTIVE.remove(ACTIVE.keySet().iterator().next());
         RECEIVED.keySet().retainAll(ACTIVE.keySet()); PHASE_SEEN.keySet().retainAll(ACTIVE.keySet());
     }
-    public static void reset() { LAUNCH.clear(); ACTIVE.clear(); RECEIVED.clear(); PHASE_SEEN.clear(); LATEST.clear(); AFTERMATH.clear(); glow = null; world = null; }
+    public static void reset() { FugaSoundscape.reset(); LAUNCH.clear(); ACTIVE.clear(); RECEIVED.clear(); PHASE_SEEN.clear(); LATEST.clear(); AFTERMATH.clear(); glow = null; world = null; }
     /** The local caster's last impact, so its smouldering ground can keep cooling after the cast has ended. */
     private record Glow(int caster,long token,long phaseAt,Vec3 center) {}
     private static Glow glow;
@@ -106,6 +106,7 @@ public final class FugaRenderer {
                     || p.phase() == 2 && age >= net.godwand.skill.FugaSequence.END_TICK;
         });
         RECEIVED.keySet().retainAll(ACTIVE.keySet());
+        FugaSoundscape.tick(client, world, ACTIVE);
         long now = world.getGameTime();
         for (var p : ACTIVE.values()) {
             // A caster standing still keeps its body facing wherever the last cast left it (vanilla only turns it
@@ -974,15 +975,13 @@ public final class FugaRenderer {
     // Huge and there at full size at once, so that from the ground it covers nearly the whole sky above its landing.
     static double orbRadius(double age) {return 44;}
     /** Swells slightly as it settles and again into the white flash of the blast; it never collapses (mirrors the shader). */
-    static double orbScale(double age) {return 1+.05*smooth((age-32)/5)+.05*smooth((age-37)/2.6);}
+    static double orbScale(double age) {return 1+.1*smooth((age-33)/6)+.12*smooth((age-38.5)/1.1);}
     /** Gap under the energy mass: it falls from 28 blocks and slows right down near the ground (mirrors the shader). */
-    static double orbGap(double age) { return 28*Math.pow(1-Math.max(0,Math.min(1,age/32)),2.2); }
-    /** 0..1 crush against the ground after contact: flatter and wider. */
-    static double orbSquash(double age) { return smooth((age-32)/5); }
-    static double orbCenter(double age) { return orbGap(age)+orbRadius(age)*orbScale(age)*(1-.22*orbSquash(age)); }
+    static double orbGap(double age) { return 28*Math.pow(1-Math.max(0,Math.min(1,age/39)),1.4); }
+    static double orbCenter(double age) { return orbGap(age)+orbRadius(age)*orbScale(age); }
     private static void impactVolume(VertexConsumer v, Matrix4f m, double age, Vec3 base, double floor) {
         if(age<40) {
-            double k=orbScale(age),radius=orbRadius(age)*k,sy=1-.22*orbSquash(age),sxz=1+.12*orbSquash(age);
+            double k=orbScale(age),radius=orbRadius(age)*k,sy=1,sxz=1;
             Vec3 center=base.add(0,orbCenter(age),0);
             // Crimson crust, orange mantle, a smaller white heart: a molten mass rather than a white blob.
             ellipsoid(v,m,center,radius*sxz,radius*sy,age,0xB81A06,.7,false);
@@ -1048,7 +1047,7 @@ public final class FugaRenderer {
             }
             // Energy radiates like the Atomic blast's pressure aura: soft billows blown off the surface,
             // heat rings climbing over the sphere and widening, thin shock strokes and rising shards.
-            Vec3 c=base.add(0,orbCenter(age),0);double R=radius*orbScale(age),live=1-smooth((age-37)/2);
+            Vec3 c=base.add(0,orbCenter(age),0);double R=radius*orbScale(age),live=1-smooth((age-38)/1.6);
             for(int i=0;i<72;i++) {
                 double life=(i*.618034+age*.05)%1,y=1-2*((i+.5)/72),band=Math.sqrt(1-y*y),a=i*2.399963+age*.01;
                 Vec3 dir=new Vec3(Math.cos(a)*band,y,Math.sin(a)*band);
@@ -1068,7 +1067,7 @@ public final class FugaRenderer {
                 line(v,m,from,from.add(0,14+22*((i*.53)%1),0),.12*(1-life)+.05,.02,i%4==0?0xFFF4D8:0xFFA850,true,Math.sin(Math.PI*life)*falling*.55);
             }
             // Molten lumps drip off the underside: they fall glowing, splash on the ground and cool from yellow to a dark crust.
-            double under=orbCenter(age)-R*(1-.22*orbSquash(age));
+            double under=orbCenter(age)-R;
             for(int i=0;i<60;i++) {
                 double life=(hash(i,51)+age*(.035+.03*hash(i,52)))%1,a=hash(i,53)*TAU,rr=R*Math.sqrt(hash(i,54))*.85;
                 double drop=Math.min(1,life*1.8),landed=Math.max(0,life-1/1.8)/(1-1/1.8),size=.25+.35*hash(i,56);
@@ -1088,7 +1087,7 @@ public final class FugaRenderer {
             double beam=1-smooth(age/2.5);
             if(beam>0)skyBeam(v,m,base,1,beam);
             // No collapse: the blast announces itself as a white flare swelling out of the underside.
-            double flare=smooth((age-37)/3);
+            double flare=smooth((age-38)/2);
             if(flare>0) {
                 puff(v,m,c.subtract(0,R*.6,0),R*(.8+.8*flare),0xFFF4D8,flare*.55,true);
                 puff(v,m,c,R*(1.2+flare),0xFFB060,flare*.3,true);

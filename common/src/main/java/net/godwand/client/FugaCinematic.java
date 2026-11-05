@@ -129,7 +129,7 @@ public final class FugaCinematic {
             // Starts up close to the full-size mass looking up at it, drops fast to the ground and backs off more slowly,
             // always aimed low at the sphere's lower rim.
             Vec3 position = center.add(away.scale(spline(age, IMPACT_KEYS, IMPACT_OUT))).add(across.scale(spline(age, IMPACT_KEYS, IMPACT_SIDE)))
-                    .add(0, 2.2 + 14 * (1 - smooth(age, 0, 12)), 0);
+                    .add(0, 2.2 + 14 * (1 - smooth(age, 0, 15)), 0);
             impact = look(position, center.add(0, FugaRenderer.orbGap(age) + 3, 0));
         } else if (age < PILLAR_CUT) {
             // Pillar, shot 1: low on the ground at its foot looking up, backing away without rising.
@@ -165,8 +165,8 @@ public final class FugaCinematic {
     static final double PILLAR_CUT = 90;
     // Energy mass only (visual 0-40): low, right under it looking up, then backing away as it comes down.
     // Later keys only keep the spline's ends smooth.
-    private static final double[] IMPACT_KEYS = {0, 30, 37, 41, 52, 100, 122, 140, 160};
-    private static final double[] IMPACT_OUT = {20, 40, 46, 48, 48, 48, 48, 48, 48};
+    private static final double[] IMPACT_KEYS = {0, 36, 39, 41, 52, 100, 122, 140, 160};
+    private static final double[] IMPACT_OUT = {14, 30, 36, 48, 48, 48, 48, 48, 48};
     private static final double[] IMPACT_SIDE = {4, 4, 4, 4, 4, 4, 4, 4, 4};
     private static double spline(double age, double[] keys, double[] values) {
         int i = 0, last = keys.length - 1;
