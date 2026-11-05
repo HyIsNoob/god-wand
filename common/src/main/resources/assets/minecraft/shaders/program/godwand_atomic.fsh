@@ -149,14 +149,15 @@ void fugaFire() {
             // A chaotic comet: white-hot core with tongues torn backward and outward, re-spawning every few ticks.
             emission+=fireStrand(localO,localD,vec3(0,0,-1.2),vec3(0,0,2.6),1.0,limit,1.4);
             emission+=fireStrand(localO,localD,vec3(0,0,-7.0),vec3(0,0,-1.0),.7,limit,1.0);
+            // Swept back like a comet: a tight cone of filaments trailing behind the head, not spokes around it.
             for(int k=0;k<10;k++) {
-                float a=float(k)*.6283+Age*.2;
-                emission+=fireStrand(localO,localD,vec3(0,0,2.0),vec3(cos(a),sin(a),0)*3.4+vec3(0,0,-7.0),.16,limit,.3);
+                float a=float(k)*.6283+Age*.2,wob=.6+.4*sin(Age*.7+float(k)*1.9);
+                emission+=fireStrand(localO,localD,vec3(0,0,1.6),vec3(cos(a),sin(a)+.25,0)*(.9*wob)+vec3(0,0,-13.0),.1,limit,.3);
             }
             for(int k=0;k<9;k++) {
                 float life=fract(float(k)*.618+Age*.13),a=float(k)*2.39996+floor(float(k)*.618+Age*.13)*1.3;
-                vec3 root=vec3(cos(a),sin(a),0)*.4+vec3(0,0,.8-life*2.0);
-                vec3 dir=vec3(cos(a)*(1.0+life),sin(a)*(1.0+life)+.4,-1.5-life*2.0);
+                vec3 root=vec3(cos(a),sin(a),0)*.3+vec3(0,0,.8-life*2.0);
+                vec3 dir=vec3(cos(a)*(.25+.3*life),sin(a)*(.25+.3*life)+.2,-2.6-life*3.0);
                 emission+=fireStrand(localO,localD,root,root+dir*(1.4+life*2.6),1.0-.6*life,limit,(1.0-life)*.95);
             }
             for(int i=0;i<10;i++) {
@@ -173,8 +174,8 @@ void fugaFire() {
             // Secondary streaks peel away from the wake and burn out.
             for(int k=0;k<7;k++) {
                 float life=fract(float(k)*.618+Age*.09),a=float(k)*2.39996;
-                vec3 root=vec3(cos(a),sin(a),0)*(.5+life*2.5)+vec3(0,0,-4.0-life*trail*.6);
-                vec3 tail=root+vec3(cos(a),sin(a)+.4,0)*(.8+life*2.0)-vec3(0,0,3.0+life*6.0);
+                vec3 root=vec3(cos(a),sin(a),0)*(.3+life*.9)+vec3(0,0,-4.0-life*trail*.6);
+                vec3 tail=root+vec3(cos(a),sin(a)+.4,0)*(.2+life*.5)-vec3(0,0,4.0+life*7.0);
                 emission+=fireStrand(localO,localD,root,tail,.22+.3*life,limit,(1.0-life)*.7);
             }
             heat=clamp(length(emission)*.1,0.0,1.0);transmit=exp(-length(emission)*.06);
@@ -513,6 +514,17 @@ void fugaFire() {
     // Strong heat shimmer: the air itself wobbles around the fire.
     vec2 bend=vec2(sin(uv.y*170.0-Age*.19)+.5*sin(uv.y*61.0+Age*.31),cos(uv.x*140.0+Age*.13)+.5*cos(uv.x*53.0-Age*.27))*.0028*clamp(heat+dust,0.0,2.5);
     bend+=ballLens;
+    // Shockwave: a refractive ring tears outward from the palms at the clap (fast, before the black beat) and from the
+    // impact at the detonation (wide and slower). Pure screen-space bend, so it costs a few instructions.
+    float shockT=charge?(Age-94.4)/2.2:(!arrow?(age-40.3)/9.0:-1.0),shockGlow=0.0;
+    if(shockT>0.0&&shockT<1.0&&CenterX>-1.0) {
+        vec2 dv=(uv-light)*vec2(aspect,1.0);float dist=length(dv);
+        float radius=shockT*(charge?.55:1.4),width=(charge?.035:.06)+.05*shockT;
+        float ring=exp(-pow((dist-radius)/width,2.0))*(1.0-shockT)*(1.0-shockT);
+        bend+=dv/max(dist,.0001)*vec2(1.0/aspect,1.0)*ring*(charge?.035:.05);
+        // A faint hot rim, so the wave still reads against the black beat of the clap.
+        shockGlow=ring*(charge?.35:.12);
+    }
     vec3 scene=texture(DiffuseSampler,clamp(uv+bend,vec2(.001),vec2(.999))).rgb;
     // Chromatic split: the release kick and the detonation tear the image apart for a few frames.
     float split=arrow?1.0-smoothstep(0.0,7.0,Age):charge?0.0:smoothstep(39.7,40.1,age)*(1.0-smoothstep(40.1,47.0,age));
@@ -542,6 +554,7 @@ void fugaFire() {
     if(shafts>0.0 && CenterX>-1.0) result+=fugaRays(uv,light,.22)*shafts*vec3(1.0,.72,.42)*.6;
     // The mass's arrival: a soft warm flash as it appears overhead.
     if(!charge&&!arrow&&age<12.0) result+=vec3(1.0,.62,.32)*.4*exp(-age/1.8)*ObserverGain;
+    result+=vec3(1.0,.55,.25)*shockGlow;
     // Charge vignette: the world closes in around the fire.
     if(charge) result*=1.0-.42*gather*ObserverGain*smoothstep(.25,.95,length((uv-.5)*vec2(aspect*.8,1.0)));
     fragColor=vec4(clamp(result,0.0,1.0),1);

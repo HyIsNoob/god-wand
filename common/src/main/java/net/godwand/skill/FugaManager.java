@@ -121,6 +121,9 @@ public final class FugaManager {
             // The ground heaves up into rock spires under the descending mass, before the crater tears them out.
             if(age>=8 && age<FugaSequence.ORB_TICKS-8 && budget>0 && task.crater!=null && GodWandConfig.SERVER.fugaTerrainDamage)
                 budget-=task.crater.upheave(world,budget,age);
+            // The ground sinks and buckles under the sphere as it presses down, just before the blast tears it out.
+            if(age>=FugaSequence.ORB_TICKS-36 && age<FugaSequence.ORB_TICKS+4 && budget>0 && task.crater!=null && GodWandConfig.SERVER.fugaTerrainDamage)
+                budget-=task.crater.press(world,budget,age);
             if(FugaSequence.terrainActive(age) && budget>0 && GodWandConfig.SERVER.fugaTerrainDamage)
                 budget-=task.crater.carve(world,budget,deadline,age);
         }

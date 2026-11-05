@@ -99,7 +99,16 @@ public final class FugaCinematic {
         }
         if (!director) return null;
         // The shot is watched from the shoulder; the camera cuts to the sphere once it forms.
-        if (frame.phase() == 1) return aim;
+        if (frame.phase() == 1) {
+            // The shot leaves the shoulder, then the camera swings behind the arrow and chases it as it accelerates.
+            Vec3 d = frame.target().subtract(frame.origin());
+            d = d.lengthSqr() < 1e-6 ? forward : d.normalize();
+            Vec3 side = d.cross(new Vec3(0, 1, 0));
+            side = side.lengthSqr() < 1e-6 ? right : side.normalize();
+            Vec3 arrow = frame.arrowPosition();
+            var chase = look(arrow.subtract(d.scale(16)).add(side.scale(3)).add(0, 3.5, 0), arrow.add(d.scale(10)));
+            return blend(aim, chase, smooth(age, 2, 10));
+        }
         if (age >= 160) return null;
         Vec3 center = frame.center();
         // Framed from the caster's side of the impact, so the shot reads as "what I just fired".

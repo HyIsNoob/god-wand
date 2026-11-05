@@ -28,9 +28,16 @@ public final class FugaSequence {
             range=Math.min(range,Math.max(0,((axes[i]>0?29_999_999:-29_999_999)-starts[i])/axes[i]));
         return origin.add(direction.scale(range));
     }
+    /** Blocks flown after release: the arrow leaves the bow slowly (a beat of slow motion, ~1 block/tick) and
+     *  accelerates to SPEED. Server travel and client visuals share it so the impact never drifts. */
+    public static double flightDistance(double age) {
+        if(!(age>0))return 0;
+        return SPEED*age-FLIGHT_EASE*(SPEED-1)*(1-Math.exp(-age/FLIGHT_EASE));
+    }
+    static final double FLIGHT_EASE=6;
     public static Vec3 arrowPosition(Vec3 origin,Vec3 target,double age) {
         double distance=origin.distanceTo(target);
         if(distance<1e-9)return origin;
-        return origin.lerp(target,Math.max(0,Math.min(1,age*SPEED/distance)));
+        return origin.lerp(target,Math.max(0,Math.min(1,flightDistance(age)/distance)));
     }
 }

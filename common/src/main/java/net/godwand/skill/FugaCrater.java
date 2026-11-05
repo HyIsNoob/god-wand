@@ -139,6 +139,64 @@ final class FugaCrater {
         }
         return used;
     }
+    /** Pressure under the descending sphere: the ground sinks into a shallow bowl as it presses down and the displaced
+     *  earth buckles up into a lip around it. Positive = blocks sunk, negative = blocks raised; 0 elsewhere. */
+    static int pressShape(double progress,double contactRadius,double r) {
+        if(progress<=0||contactRadius<=0)return 0;
+        if(r<contactRadius)return (int)Math.round(PRESS_SINK*progress*(1-r*r/(contactRadius*contactRadius)));
+        double lip=(r-contactRadius)/PRESS_LIP;
+        return lip<1?-(int)Math.round(2*progress*(1-lip)):0;
+    }
+    static final int PRESS_SINK=4,PRESS_LIP=3;
+    private int[] pressGround,pressDone;
+    private int pressSpan;
+    /** Budgeted like the carve: loaded chunks only, protected blocks kept, the carve later digs through it. */
+    int press(ServerLevel world,int budget,double impactAge) {
+        if(radius<8||budget<=0)return 0;
+        double visual=FugaSequence.visualAge(impactAge);
+        double t=Math.max(0,Math.min(1,(visual-24)/14.0)),progress=t*t*(3-2*t);
+        int maxContact=Math.min(26,(int)(radius*.55));
+        double contact=maxContact*progress;
+        if(pressGround==null) {
+            pressSpan=maxContact+PRESS_LIP+1;
+            int n=(2*pressSpan+1)*(2*pressSpan+1);
+            pressGround=new int[n];pressDone=new int[n];
+            java.util.Arrays.fill(pressGround,Integer.MIN_VALUE);
+        }
+        int used=0;
+        var pos=new BlockPos.MutableBlockPos();
+        for(int dx=-pressSpan;dx<=pressSpan&&used<budget;dx++)for(int dz=-pressSpan;dz<=pressSpan&&used<budget;dz++) {
+            int target=pressShape(progress,contact,Math.sqrt(dx*dx+dz*dz)),i=(dx+pressSpan)*(2*pressSpan+1)+dz+pressSpan;
+            if(target==pressDone[i])continue;
+            int x=center.getX()+dx,z=center.getZ()+dz;
+            var chunk=world.getChunkSource().getChunkNow(x>>4,z>>4);
+            if(chunk==null)continue;
+            if(pressGround[i]==Integer.MIN_VALUE)
+                pressGround[i]=chunk.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE,x&15,z&15);
+            int ground=pressGround[i];
+            while(pressDone[i]<target&&used<budget) {
+                // Sink: the top block goes, the new floor below is crushed into scorched rock.
+                pos.set(x,ground-pressDone[i],z);used++;
+                if(world.isOutsideBuildHeight(pos.getY()))break;
+                var state=chunk.getBlockState(pos);
+                if(!state.isAir()&&!SpatialDisplacementManager.canDisplace(world,pos,state)) {pressDone[i]=target;break;}
+                world.setBlock(pos,Blocks.AIR.defaultBlockState(),Block.UPDATE_CLIENTS|Block.UPDATE_KNOWN_SHAPE|Block.UPDATE_SUPPRESS_DROPS);
+                pressDone[i]++;
+                scorch(world,chunk,pos.move(0,-1,0),dx,dz);
+            }
+            while(pressDone[i]>target&&used<budget) {
+                // Lip: displaced earth piles up just outside the contact.
+                pos.set(x,ground+1-pressDone[i],z);used++;
+                if(world.isOutsideBuildHeight(pos.getY()))break;
+                var state=chunk.getBlockState(pos);
+                if(!state.canBeReplaced()||!SpatialDisplacementManager.canDisplace(world,pos,state)) {pressDone[i]=target;break;}
+                int roll=(x*73856093^pos.getY()*19349663^z*83492791)&15;
+                world.setBlock(pos,(roll<3?Blocks.BLACKSTONE:roll<6?Blocks.BASALT:Blocks.COARSE_DIRT).defaultBlockState(),Block.UPDATE_CLIENTS|Block.UPDATE_KNOWN_SHAPE);
+                pressDone[i]--;
+            }
+        }
+        return used;
+    }
     // Static scorched floor instead of fire blocks: no spread, ticking or lingering server work.
     private void scorch(ServerLevel world,net.minecraft.world.level.chunk.LevelChunk chunk,BlockPos.MutableBlockPos pos,int dx,int dz) {
         if(pos.getY()<world.getMinBuildHeight())return;

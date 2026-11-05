@@ -29,7 +29,7 @@ class FugaVisualTest {
             if(phase>=3 || phase==2&&age>=160 || phase==0&&age<15) assertTrue(mesh.vertices.isEmpty());
             else assertFalse(mesh.vertices.isEmpty(),"Missing phase "+phase+" at "+age);
             assertEquals(0,mesh.vertices.size()%4);
-            assertTrue(mesh.vertices.size()<40000,"Unbounded mesh: "+mesh.vertices.size());
+            assertTrue(mesh.vertices.size()<48000,"Unbounded mesh: "+mesh.vertices.size());
             for(float[] p:mesh.vertices) {
                 for(float n:p)assertTrue(Float.isFinite(n));
                 assertTrue(Math.abs(p[0])<520&&Math.abs(p[2])<520,"shock front stays bounded");
@@ -41,11 +41,11 @@ class FugaVisualTest {
         assertTrue(invalid.vertices.isEmpty());
     }
     @Test void arrowIsStraightClampedAndLeavesALongAfterimage() {
-        assertEquals(new Vec3(0,0,80),frame(1,20).arrowPosition());
+        assertEquals(net.godwand.skill.FugaSequence.flightDistance(20),frame(1,20).arrowPosition().z,1e-9);
         assertEquals(new Vec3(0,0,160),frame(1,100).arrowPosition());
         Mesh mesh=new Mesh(); FugaRenderer.emit(mesh,new Matrix4f(),frame(1,20),Vec3.ZERO);
         assertTrue(mesh.vertices.stream().mapToDouble(p->p[2]).min().orElseThrow()<18);
-        assertEquals(80,mesh.vertices.stream().mapToDouble(p->p[2]).max().orElseThrow(),.001,"the broadhead tip leads");
+        assertEquals(net.godwand.skill.FugaSequence.flightDistance(20),mesh.vertices.stream().mapToDouble(p->p[2]).max().orElseThrow(),.001,"the broadhead tip leads");
         assertTrue(mesh.vertices.stream().anyMatch(p->Math.abs(p[0])>.5),"Arrowhead needs a broad silhouette");
     }
     @Test void bowAndArrowKeepTheirSizeDuringHoldAndRotateWithAim() {
@@ -216,5 +216,17 @@ class FugaVisualTest {
         public VertexConsumer setUv1(int u,int v){return this;}
         public VertexConsumer setUv2(int u,int v){return this;}
         public VertexConsumer setNormal(float x,float y,float z){return this;}
+    }
+    @Test void pulledFlameCracklesInSingleTickFlashesDenserBeforeTheClap() {
+        int early=0,late=0;
+        for(int tick=0;tick<220;tick++) {
+            double c=FugaRenderer.crackle(tick+.5);
+            assertTrue(c>=0&&c<=1);
+            if(tick<40||tick>=FugaPose.CLAP)assertEquals(0,c,"only while the palms pull the ball");
+            else if(c>0){if(tick<FugaPose.CLAP-22)early++;else late++;}
+        }
+        assertEquals(1,FugaRenderer.crackle(FugaPose.CLAP-1.5),"flash right before the clap");
+        assertTrue(early>0,"occasional flashes while pulling");
+        assertTrue(late/22.0>early/Math.max(1.0,FugaPose.CLAP-62),"denser as the clap nears");
     }
 }

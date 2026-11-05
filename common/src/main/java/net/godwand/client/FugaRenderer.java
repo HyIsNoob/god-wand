@@ -26,7 +26,7 @@ public final class FugaRenderer {
         public Vec3 arrowPosition() {
             Vec3 travel = target.subtract(origin);
             double distance = travel.length();
-            return distance < .0001 ? origin : origin.add(travel.scale(Math.min(distance, Math.max(0, age) * 4) / distance));
+            return distance < .0001 ? origin : origin.add(travel.scale(Math.min(distance, FugaSequence.flightDistance(age)) / distance));
         }
     }
     private static final Map<Integer, FugaFxPayload> ACTIVE = new LinkedHashMap<>();
@@ -291,7 +291,7 @@ public final class FugaRenderer {
     private static void accents(VertexConsumer v,Matrix4f m,Frame f,Vec3 eye) {
         if(!valid(f,eye))return;
         Vec3 base=f.origin().subtract(eye);
-        if(f.phase()==1) { launch(v,m,f,base); streamers(v,m,f,base); }
+        if(f.phase()==1) { launch(v,m,f,base); streamers(v,m,f,base); lingeringTrail(v,m,f,base); }
         else if(f.phase()==2) impactAccents(v,m,FugaSequence.visualAge(f.age()),base);
     }
     /** The plane stays behind the subject, leaving their existing depth buffer visible. */
@@ -323,7 +323,7 @@ public final class FugaRenderer {
         if (!valid(f,eye) || !Double.isFinite(floor)) return;
         Vec3 base = f.origin().subtract(eye);
         if (f.phase() == 0) ritualRibbon(v,matrix,f,base);
-        else if (f.phase() == 1) { flight(v,matrix,f,base); launch(v,matrix,f,base); streamers(v,matrix,f,base); }
+        else if (f.phase() == 1) { flight(v,matrix,f,base); launch(v,matrix,f,base); streamers(v,matrix,f,base); lingeringTrail(v,matrix,f,base); }
         else {
             double age=FugaSequence.visualAge(f.age());
             impactVolume(v,matrix,age,base,Math.min(0,floor)); impactAccents(v,matrix,age,base);
@@ -367,7 +367,7 @@ public final class FugaRenderer {
         // For the local caster with the post shader the pulled flame is a real volume; its mesh body steps back.
         boolean volume=pass>=0&&AtomicPostFx.enabled()&&shaderCaster==f.casterId()&&AtomicRenderer.nearestFrame(0)==null;
         // With the ball the old pulled-ribbon mesh never shows (it came back between the palms at the clap); it only returns as the drawn shaft.
-        double mesh=gain*(volume?PULL_BALL?draw:1-ribbonVolume(age):1);
+        double mesh=gain*(volume?PULL_BALL?Math.max(draw,crackle(age)):1-ribbonVolume(age):1);
         fireBody(v,m,a,end,width,(.06+tremble)*(1-draw),age*(1+press),mesh,0);
         fireBody(v,m,a,end.subtract(axis.scale(.1*draw)),width*.62,(.09-tremble)*(1-draw),age*(1.4+press),mesh*.6,5);
         // White-hot core runs the full length, hotter as the energy is pressed in.
@@ -402,16 +402,24 @@ public final class FugaRenderer {
             // Fire sparks (plain hot points, no trails) are pulled in from all around and whirl chaotically round the
             // small ball as they fall into it, feeding it: each orbits faster the closer it gets, jittering as it goes.
             Vec3 core=a.lerp(b,.5);
-            for(int i=0;i<70;i++) {
-                double life=(hash(i,131)+age*(.05+.04*hash(i,132)))%1,ease=life*life;
-                // They clearly fall into the centre: a quick inward plunge with a moderate swirl and a little jitter.
-                double yaw=hash(i,133)*TAU+life*TAU*(.6+.9*hash(i,136))*(hash(i,137)<.5?1:-1),el=(hash(i,134)-.5)*1.6;
-                double rad=(.7+.9*hash(i,135))*(1-Math.sqrt(life))+.02,jit=.025*(1-life);
-                Vec3 at=core.add(Math.cos(yaw)*Math.cos(el)*rad,Math.sin(el)*rad,Math.sin(yaw)*Math.cos(el)*rad)
-                        .add(Math.sin(age*1.7+i)*jit,Math.cos(age*2.1+i*1.3)*jit,Math.sin(age*1.9+i*.7)*jit);
+            // An accretion disk: sparks spiral into the ball in one plane tilted toward the viewer, orbiting faster as
+            // they near it (like matter falling into a black hole), with only a thin scatter off the disk.
+            // The disk turns about the palm-to-palm axis so the hands sit off its plane, tilted toward the viewer.
+            Vec3 fwd=direction(new Vec3(aim.x,0,aim.z)),spanAxis=direction(a.subtract(b));
+            Vec3 toward=direction(fwd.scale(-1).subtract(spanAxis.scale(spanAxis.dot(fwd.scale(-1)))));
+            Vec3 normal=direction(spanAxis.scale(Math.cos(.7)).add(toward.scale(Math.sin(.7))));
+            Vec3 e1=direction(normal.cross(new Vec3(0,1,0))),e2=direction(normal.cross(e1));
+            for(int i=0;i<140;i++) {
+                double life=(hash(i,131)+age*(.045+.035*hash(i,132)))%1;
+                double r0=.25+.5*hash(i,135),rad=r0*Math.pow(1-life,.75)+.012;
+                double theta=hash(i,133)*TAU+.22*(1/(rad+.05)-1/(r0+.05))+age*.04;
+                double off=(hash(i,134)-.5)*.07*rad/r0;
+                Vec3 at=core.add(e1.scale(Math.cos(theta)*rad)).add(e2.scale(Math.sin(theta)*rad)).add(normal.scale(off));
                 // Full strength from the moment they appear; they only vanish as they are swallowed by the ball.
-                double fade=(gain>0?1:0)*(1-smooth((life-.82)/.18))*(1-FugaCinematic.smooth(age,FugaPose.CLAP-1,FugaPose.CLAP+1));
-                dot(v,m,at,.02+.018*hash(i,138),i%3==0?0xFFF4D0:0xFFB040,fade,true);
+                double fade=(gain>0?1:0)*(1-smooth((life-.85)/.15))*(1-FugaCinematic.smooth(age,FugaPose.CLAP-1,FugaPose.CLAP+1));
+                // Never through the palms: sparks fade out where they would pass a hand.
+                fade*=smooth((Math.min(at.distanceTo(a),at.distanceTo(b))-.09)/.08);
+                dot(v,m,at,.011+.01*hash(i,138),i%3==0?0xFFF4D0:0xFFB040,fade,true);
             }
         } else for(int i=0;i<90;i++) {
             // Tight to the ribbon: the curl hugs the flame instead of flying off it.
@@ -435,6 +443,15 @@ public final class FugaRenderer {
             double life=(i*.618034+age*.018)%1,ang=heading+i*2.399963+age*.05;
             puff(v,m,base.add(Math.cos(ang)*(.5+.7*life),.3+life*3.2,Math.sin(ang)*(.5+.7*life)),.35+.7*life,i%3==0?0xFFA040:0xFF5014,ignite*.09*Math.max(.001,Math.sin(Math.PI*life)),true);
         }
+    }
+    /** Electric crackle of the pulled flame around the ball: the old ribbon flashes for a single tick now and then,
+     *  more often as the clap nears, and twice right before the palms meet. 0 between flashes. */
+    static double crackle(double age) {
+        if (age < 40 || age >= FugaPose.CLAP) return 0;
+        int tick = (int)Math.floor(age);
+        if (tick == (int)FugaPose.CLAP - 2 || tick == (int)FugaPose.CLAP - 4) return 1;
+        double chance = .07 + .4 * smooth((age - (FugaPose.CLAP - 22)) / 20);
+        return hash(tick, 211) < chance ? .55 + .45 * hash(tick, 212) : 0;
     }
     /** The palms slam shut on the flame: it bursts out between them for a few ticks. */
     private static void clap(VertexConsumer v,Matrix4f m,Vec3 c,double age) {
@@ -544,17 +561,17 @@ public final class FugaRenderer {
             else ember(v,m,p,tail,.025+.025*(1-life),i%3==0?0xFFF2C8:0xFF9A30,fade);
         }
         // Sparks bursting up from the ground in every direction, chaotic and quick.
-        for(int i=0;i<40;i++) {
+        for(int i=0;i<70;i++) {
             double life=(hash(i,161)+age*(.035+.03*hash(i,162)))%1,a=hash(i,163)*TAU+Math.floor(hash(i,161)+age*(.035+.03*hash(i,162)))*1.7,rr=.4+2.6*hash(i,164);
             double drift=life*(.8+1.6*hash(i,165));
             Vec3 p=base.add(Math.cos(a)*(rr+drift*.4)+Math.sin(age*.7+i)*.08,.05+drift*(1.6+1.6*hash(i,166))-life*life*.6,Math.sin(a)*(rr+drift*.4));
-            dot(v,m,p,.025+.025*(1-life),i%3==0?0xFFF4D0:0xFFB040,gain*Math.sin(Math.PI*life),true);
+            dot(v,m,p,.02+.02*(1-life),i%3==0?0xFFF4D0:0xFFB040,gain*Math.sin(Math.PI*life),true);
         }
         // Embers lifting off and circling the caster as they climb.
-        for(int i=0;i<40;i++) {
+        for(int i=0;i<70;i++) {
             double life=(hash(i,151)+age*(.012+.006*hash(i,152)))%1,a=heading+hash(i,153)*TAU+age*.13+life*5,rr=.6+1.8*life*(.4+.6*hash(i,154));
             Vec3 p=base.add(Math.cos(a)*rr,.2+life*4.4,Math.sin(a)*rr);
-            dot(v,m,p,.03+.03*(1-life),i%3==0?0xFFF2C8:0xFFA040,gain*Math.sin(Math.PI*life),true);
+            dot(v,m,p,.022+.024*(1-life),i%3==0?0xFFF2C8:0xFFA040,gain*Math.sin(Math.PI*life),true);
         }
     }
     private static void storms(VertexConsumer v,Matrix4f m,Vec3 eye) {
@@ -755,7 +772,7 @@ public final class FugaRenderer {
         // Energy is sucked in from the air and squeezed onto the head: converging embers and tightening rings.
         // The longer it is held, the wider the pull and the harder the squeeze.
         double held=smooth((age-190)/110);
-        for(int i=0;i<60;i++) {
+        for(int i=0;i<100;i++) {
             double life=(i*.618034+age*(.05+.03*held))%1,a=i*2.399963+age*(.15+.12*held),rr=(2.4+1.6*held)*(1-life)+.1;
             Vec3 at=tip.subtract(axis.scale(.4)).add(flat.scale(Math.cos(a)*rr)).add(up.scale(Math.sin(a)*rr));
             ember(v,m,at,tip.subtract(at).scale(.15),.02+.02*life,i%3==0?0xFFF4D0:0xFF9A30,gain*Math.sin(Math.PI*life));
@@ -810,12 +827,27 @@ public final class FugaRenderer {
         double age=f.age();
         for(int i=0;i<16;i++) {
             double life=(i*.618034+age*.09)%1,a=i*2.399963;
-            Vec3 out=side(d).scale(Math.cos(a)).add(d.cross(side(d)).normalize().scale(Math.sin(a))).add(0,.5,0);
-            Vec3 root=head.subtract(d.scale(2+life*10)).add(out.scale(1+life*6));
-            licks(v,m,root,root.add(out.scale(1.5)),.9*(1-life)+.3,age*2+i,(1-life),1,i*1.7,out);
+            // Tongues hug the shaft and stream backward, like flame blown off a burning arrow.
+            Vec3 out=side(d).scale(Math.cos(a)).add(d.cross(side(d)).normalize().scale(Math.sin(a))).add(0,.25,0);
+            Vec3 root=head.subtract(d.scale(1.5+life*11)).add(out.scale(.25+life*1.1));
+            licks(v,m,root,root.subtract(d.scale(2.2+life*2)).add(out.scale(.3)),.7*(1-life)+.25,age*2+i,(1-life),1,i*1.7,d.scale(-1));
         }
     }
     /** Release: a ring of compressed air bursts forward from the muzzle, with radial shock streaks. */
+    /** The arrow leaves a burning streak hanging in the air: each point it passed swells, rises and cools to dark red. */
+    private static void lingeringTrail(VertexConsumer v,Matrix4f m,Frame f,Vec3 base) {
+        Vec3 d=direction(f.target().subtract(f.origin()));
+        double span=f.origin().distanceTo(f.target()),age=f.age();
+        for(int k=0;k<28;k++) {
+            double since=k+(age-Math.floor(age)),at=age-since;
+            if(at<0)break;
+            double dist=Math.min(span,FugaSequence.flightDistance(at)),life=since/28.0;
+            Vec3 p=base.add(d.scale(dist)).add(Math.sin(k*1.7+at)*.15*since*.05,.04*since,Math.cos(k*2.3+at)*.15*since*.05);
+            double fade=Math.exp(-since/9)*smooth(since/1.5);
+            puff(v,m,p,.45+.09*since,mixRgb(0xFFB040,0x8A1A06,Math.min(1,life*1.6)),fade*.32,true);
+            puff(v,m,p.add(0,.1*since,0),.6+.12*since,0x2A120C,fade*.18*life,false);
+        }
+    }
     private static void launch(VertexConsumer v,Matrix4f m,Frame f,Vec3 base) {
         double age=f.age();if(age>=18)return;
         Vec3 d=direction(f.target().subtract(f.origin())),u=side(d),w=d.cross(u).normalize();
@@ -824,7 +856,7 @@ public final class FugaRenderer {
         for(int i=0;i<12;i++) {
             double angle=i*TAU/12+.2;Vec3 out=u.scale(Math.cos(angle)).add(w.scale(Math.sin(angle)));
             Vec3 from=muzzle.add(out.scale(.4+age*.5)).subtract(d.scale(age*.2)),to=from.add(out.scale(1+age*.6)).subtract(d.scale(.8+age*.3));
-            line(v,m,from,to,.06*(1-k)+.02,0,0xFFE8C0,true,fade*.8);
+            line(v,m,from,to,.05*(1-k)+.015,0,0xFFE8C0,true,fade*.45);
         }
         Vec3 feet=base.subtract(0,1.6,0);
         // The release blows the wrapping vortex outward and it burns out.
