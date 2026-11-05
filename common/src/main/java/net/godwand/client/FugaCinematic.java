@@ -109,10 +109,11 @@ public final class FugaCinematic {
             var chase = look(arrow.subtract(d.scale(16)).add(side.scale(3)).add(0, 3.5, 0), arrow.add(d.scale(10)));
             double stop = FugaRenderer.hitStop(frame.casterId(), 0);
             if (stop >= 0) {
-                // The arrow hangs in its impact: the camera rises with the beam and tilts up to follow its head.
-                double rise = smooth(stop, .08, 1), top = 6 + 110 * smooth(stop, 0, 1);
-                Vec3 position = chase.position().add(0, 14 * rise, 0).subtract(d.scale(6 * rise));
-                return look(position, arrow.lerp(arrow.add(d.scale(10)), 1 - rise).add(0, top * .8 * rise, 0));
+                // The fire phoenix leads the beam up from the impact; the camera climbs after it, just below and behind.
+                double rise = smooth(stop, 0, .35), top = 6 + 110 * smooth(stop, 0, 1);
+                Vec3 phoenix = arrow.add(0, top - 3, 0);
+                Vec3 position = chase.position().lerp(phoenix.subtract(d.scale(24)).add(side.scale(4)).add(0, -9, 0), rise);
+                return look(position, arrow.add(d.scale(10)).lerp(phoenix, rise));
             }
             return blend(aim, chase, smooth(age, 2, 10));
         }
@@ -129,7 +130,7 @@ public final class FugaCinematic {
             // Starts up close to the full-size mass looking up at it, drops fast to the ground and backs off more slowly,
             // always aimed low at the sphere's lower rim.
             Vec3 position = center.add(away.scale(spline(age, IMPACT_KEYS, IMPACT_OUT))).add(across.scale(spline(age, IMPACT_KEYS, IMPACT_SIDE)))
-                    .add(0, 2.2 + 14 * (1 - smooth(age, 0, 15)), 0);
+                    .add(0, 2.2 + 5 * (1 - smooth(age, 0, 15)), 0);
             impact = look(position, center.add(0, FugaRenderer.orbGap(age) + 3, 0));
         } else if (age < PILLAR_CUT) {
             // Pillar, shot 1: low on the ground at its foot looking up, backing away without rising.
@@ -166,7 +167,7 @@ public final class FugaCinematic {
     // Energy mass only (visual 0-40): low, right under it looking up, then backing away as it comes down.
     // Later keys only keep the spline's ends smooth.
     private static final double[] IMPACT_KEYS = {0, 36, 39, 41, 52, 100, 122, 140, 160};
-    private static final double[] IMPACT_OUT = {14, 30, 36, 48, 48, 48, 48, 48, 48};
+    private static final double[] IMPACT_OUT = {20, 31, 36, 48, 48, 48, 48, 48, 48};
     private static final double[] IMPACT_SIDE = {4, 4, 4, 4, 4, 4, 4, 4, 4};
     private static double spline(double age, double[] keys, double[] values) {
         int i = 0, last = keys.length - 1;

@@ -93,6 +93,18 @@ vec3 fireStrand(vec3 o,vec3 d,vec3 a,vec3 b,float width,float limit,float gain) 
     float glow=exp(-r*r/max(.00001,width*width*5.0));
     return (vec3(2.6,.42,.02)*shell+vec3(4.6,3.6,2.2)*core+vec3(1.0,.08,.004)*glow*.3)*gain;
 }
+// Soft flame along a segment: a glow coloured by temperature, without fireStrand's hard white core.
+vec3 fireColor(float temp);
+vec3 softStrand(vec3 o,vec3 d,vec3 a,vec3 b,float width,float limit,float gain,float temp) {
+    vec3 u=b-a,w=o-a;float c=max(dot(u,u),.00001),h=dot(d,u),v=dot(d,w);
+    float along=clamp((dot(u,w)-h*v)/max(.00001,c-h*h),0.0,1.0);
+    float ray=clamp(h*along-v,0.0,limit);
+    along=clamp(dot(o+d*ray-a,u)/c,0.0,1.0);
+    ray=dot(a+u*along-o,d);
+    if(ray<0.0||ray>limit)return vec3(0);
+    float r=length(o+d*ray-a-u*along)/width;
+    return fireColor(temp)*(exp(-r*r*2.2)*.55+exp(-r*r*9.0)*.45)*gain;
+}
 float fbm(vec3 p) { return noise(p)*.6+noise(p*2.13+vec3(17.1,3.2,8.4))*.28+noise(p*4.31+vec3(2.7,11.9,5.3))*.12; }
 float easeOut(float t) { t=clamp(t,0.0,1.0); return 1.0-(1.0-t)*(1.0-t)*(1.0-t); }
 // Hot core to white, mantle orange, outer red; rim adds the violet/blue accent of the reference column.
@@ -100,11 +112,6 @@ vec3 fireColor(float temp) {
     vec3 c=mix(vec3(1.2,.05,.008),vec3(2.7,.55,.03),smoothstep(0.0,.4,temp));
     c=mix(c,vec3(3.6,2.0,.35),smoothstep(.38,.72,temp));
     return mix(c,vec3(5.2,5.0,4.6),smoothstep(.7,1.0,temp));
-}
-vec3 arrowSpine(float t,float trail,float lane,float clock) {
-    float z=-trail*t,amp=(.08+.9*t)*(1.0+.35*sin(lane*2.1));
-    float a=lane*2.0944+z*.32-clock*.35;
-    return vec3(cos(a)*amp,sin(a)*amp*.8,z);
 }
 // Warm, bright pixels: the mesh fire. Sky and white blocks stay out because they are not saturated warm.
 vec3 fugaHot(vec2 p) {
@@ -143,42 +150,71 @@ void fugaFire() {
     if(arrow) {
         float trail=min(100.0,Age*4.0+10.0);
         vec3 localO=vec3(dot(o,right),dot(o,up),dot(o,d)),localD=vec3(dot(ray,right),dot(ray,up),dot(ray,d));
-        vec2 hit=fireBox(localO,localD,vec3(-5,-5,-trail-2.0),vec3(5,5,3));
+        vec2 hit=fireBox(localO,localD,vec3(-8,-6,-36.0),vec3(8,6,5));
         if(hit.y>hit.x) {
             float limit=sceneDistance;
-            // A chaotic comet: white-hot core with tongues torn backward and outward, re-spawning every few ticks.
-            emission+=fireStrand(localO,localD,vec3(0,0,-1.2),vec3(0,0,2.6),1.0,limit,1.4);
-            emission+=fireStrand(localO,localD,vec3(0,0,-7.0),vec3(0,0,-1.0),.7,limit,1.0);
-            // Swept back like a comet: a tight cone of filaments trailing behind the head, not spokes around it.
-            for(int k=0;k<10;k++) {
-                float a=float(k)*.6283+Age*.2,wob=.6+.4*sin(Age*.7+float(k)*1.9);
-                emission+=fireStrand(localO,localD,vec3(0,0,1.6),vec3(cos(a),sin(a)+.25,0)*(.9*wob)+vec3(0,0,-13.0),.1,limit,.3);
+            // Still Fuga, an arrow made of fire: a white-hot point and core with a long tapering wake.
+            emission+=fireStrand(localO,localD,vec3(0,0,-.6),vec3(0,0,3.2),.55,limit,1.25);
+            emission+=softStrand(localO,localD,vec3(0,0,-2.5),vec3(0,0,3.4),1.3,limit,1.0,.88);
+            emission+=softStrand(localO,localD,vec3(0,0,-5.0),vec3(0,0,3.0),3.2,limit,.38,.55);
+            float shaft=min(32.0,Age*4.0+8.0);
+            for(int i=0;i<6;i++) {
+                float t0=float(i)/6.0,t1=float(i+1)/6.0;
+                emission+=softStrand(localO,localD,vec3(0,0,-1.0-shaft*.95*t0),vec3(0,0,-1.0-shaft*.95*t1),.85-.45*t0,limit,.55*(1.0-t0*.8),.86-.45*t0);
             }
-            for(int k=0;k<9;k++) {
-                float life=fract(float(k)*.618+Age*.13),a=float(k)*2.39996+floor(float(k)*.618+Age*.13)*1.3;
-                vec3 root=vec3(cos(a),sin(a),0)*.3+vec3(0,0,.8-life*2.0);
-                vec3 dir=vec3(cos(a)*(.25+.3*life),sin(a)*(.25+.3*life)+.2,-2.6-life*3.0);
-                emission+=fireStrand(localO,localD,root,root+dir*(1.4+life*2.6),1.0-.6*life,limit,(1.0-life)*.95);
-            }
-            for(int i=0;i<10;i++) {
-                float t=float(i)/10.0,next=float(i+1)/10.0;
-                float flick=.75+.25*sin(t*31.0-Age*1.7);
-                emission+=fireStrand(localO,localD,vec3(0,0,-1.0-t*9.0),vec3(0,0,-1.0-next*9.0),(.42-.2*t)*flick,limit,1.0-t*.35);
-            }
-            for(int lane=0;lane<3;lane++)for(int i=0;i<14;i++) {
-                float t=float(i)/14.0,next=float(i+1)/14.0;
-                float w=(.6+1.9*t)*(.55+.45*noise(vec3(t*9.0-Age*.8,float(lane)*3.1,0)));
-                emission+=fireStrand(localO,localD,arrowSpine(t,trail,float(lane),Age)-vec3(0,0,6),
-                        arrowSpine(next,trail,float(lane),Age)-vec3(0,0,6),w,limit,(1.0-t)*(1.0-t)*.75);
-            }
-            // Secondary streaks peel away from the wake and burn out.
-            for(int k=0;k<7;k++) {
-                float life=fract(float(k)*.618+Age*.09),a=float(k)*2.39996;
-                vec3 root=vec3(cos(a),sin(a),0)*(.3+life*.9)+vec3(0,0,-4.0-life*trail*.6);
-                vec3 tail=root+vec3(cos(a),sin(a)+.4,0)*(.2+life*.5)-vec3(0,0,4.0+life*7.0);
-                emission+=fireStrand(localO,localD,root,tail,.22+.3*life,limit,(1.0-life)*.7);
-            }
-            heat=clamp(length(emission)*.1,0.0,1.0);transmit=exp(-length(emission)*.06);
+            // Four flame ribbons: at the release they coil tight round the shaft (an arrow); over its first ticks they
+            // drift apart into a gliding phoenix (two wings swept back, no beat, and two long tail plumes) that is
+            // only suggested by the flowing fire. Each ribbon splits into two branches that part and rejoin.
+            float morph=smoothstep(3.0,16.0,Age);
+            // A while into the glide the wings fold in and the whole flame body barrel-rolls round the flight line,
+            // then (on a long shot) opens out again.
+            float fold=smoothstep(22.0,30.0,Age)*(1.0-smoothstep(40.0,48.0,Age));
+            float spread=morph*(1.0-.5*fold),roll=fold*fold*(Age-22.0)*.55;
+            float rc=cos(roll),rs=sin(roll);
+            for(int lane=0;lane<4;lane++) {
+                bool wingLane=lane<2;
+                float sgn=lane==0||lane==2?1.0:-1.0,seed=float(lane)*3.17,base=float(lane)*1.5708+.7854;
+                float len=wingLane?13.0:shaft*.9;
+                vec3 lastA=vec3(0,0,1.2),lastB=lastA;
+                for(int i=1;i<=14;i++) {
+                    float t=float(i)/14.0,z=1.2-len*t;
+                    float drift=noise(vec3(t*3.0-Age*1.1,seed,0))-.5;
+                    float a=base+z*.55+Age*1.2;
+                    vec3 coil=vec3(cos(a),sin(a),0)*(.35+.35*t)+vec3(0,0,z);
+                    vec3 shape=wingLane
+                        ? vec3(sgn*(4.0*sin(min(t*1.9,1.0)*1.5708)*(1.0-.3*smoothstep(.55,1.0,t))+drift*.7*t),
+                               .55*sin(t*3.1416)+drift*.5*t,1.2-(1.5+11.0*t)*1.0)
+                        : vec3(sgn*(.3+.9*t)+sin(z*.3+Age*.8+seed)*.5*t,-.35-.5*t+drift*.4*t,z);
+                    vec3 c=mix(coil,shape,spread);
+                    c.xy=vec2(c.x*rc-c.y*rs,c.x*rs+c.y*rc);
+                    vec3 across=normalize(cross(vec3(0,0,1),vec3(c.xy,0)+vec3(.001,0,0)));
+                    float part=.5*max(0.0,sin(t*7.0-Age*.9+seed))*t;
+                    vec3 nextA=c+across*part,nextB=c-across*part;
+                    float burn=(.7+.3*noise(vec3(t*6.0-Age*2.1,seed+5.0,0)))*pow(1.0-t,1.15)*(wingLane?.7:.6);
+                    float w=(wingLane?.42:.32)+(wingLane?.65:.5)*t,temp=.82-.55*t;
+                    // A wide, dim red mantle round each ribbon gives the fire body instead of a thin line.
+                    emission+=softStrand(localO,localD,lastA,nextA,w*2.6,limit,burn*.3,.4-.2*t);
+                    emission+=softStrand(localO,localD,lastA,nextA,w,limit,burn,temp);
+                    emission+=softStrand(localO,localD,lastB,nextB,w*.75,limit,burn*.65,temp-.06);
+                    if(i%4==2) {
+                        float lick=fract(Age*.35+float(i)*.37+seed);
+                        vec3 out2=normalize(vec3(c.xy,0)+vec3(.001,.3,0));
+                        emission+=softStrand(localO,localD,c,c+out2*(.4+.8*lick)-vec3(0,0,1.0+1.8*lick),.25+.2*t,limit,burn*(1.0-lick),temp-.1*lick);
+                    }
+                    lastA=nextA;lastB=nextB;
+                }
+            }            // Wisps peel off the shaft and curl away as they burn out.
+            for(int k=0;k<6;k++) {
+                float life=fract(float(k)*.618+Age*.08),a0=float(k)*2.39996;
+                float z0=-2.0-life*shaft*.8;
+                vec3 last=vec3(cos(a0),sin(a0),0)*.8+vec3(0,0,z0);
+                for(int i=1;i<=6;i++) {
+                    float t=float(i)/6.0,a=a0+t*2.6,r=.8+3.2*t*(.5+.5*life);
+                    vec3 next=vec3(cos(a)*r,sin(a)*r,z0-2.5*t);
+                    emission+=softStrand(localO,localD,last,next,.2+.2*(1.0-t),limit,(1.0-life)*(1.0-t*.6)*.4,.7-.4*t);
+                    last=next;
+                }
+            }            heat=clamp(length(emission)*.1,0.0,1.0);transmit=exp(-length(emission)*.06);
         }
         // Ground and walls along the flight path catch orange light.
         if(!sky) {
@@ -188,11 +224,11 @@ void fugaFire() {
             bounce=exp(-dist/6.0)*(1.0-along*.6)*1.4;
         }
     } else if(!charge) {
-        // Visual beats (mirrored by FugaRenderer.orb*): the energy mass falls from 28 blocks up to the
+        // Visual beats (mirrored by FugaRenderer.orb*): the energy mass falls from 10 blocks up to the
         // ground 0-39 (never resting, swelling from 33), contact at 39, a last swell 38.5-39.6, dark beat, detonation at 40. Air resistance slows it near the ground.
         float fall=clamp(age/39.0,0.0,1.0);
         // The compressed air below resists harder the closer it gets: it slows right down before contact.
-        float gap=28.0*pow(1.0-fall,1.4);
+        float gap=10.0*pow(1.0-fall,1.4);
         float implode=smoothstep(38.5,39.6,age);
         // Full size from its first frame; at the end it swells a little and flashes white instead of collapsing.
         float k=1.0+.1*smoothstep(33.0,39.0,age)+.12*implode;
@@ -212,7 +248,7 @@ void fugaFire() {
         float smoke=smoothstep(56.0,96.0,age)*(1.0-smoothstep(135.0,160.0,age));
         // Sphere, column, halos and outflow are raymarched once at half resolution (VolumePass) and read back here:
         // raymarching them in both full passes cost most of the frame.
-        float nearGround=1.0-smoothstep(0.0,28.0,gap);
+        float nearGround=1.0-smoothstep(0.0,10.0,gap);
         float auraLife=age<40.0?nearGround*nearGround*(1.0-smoothstep(38.0,40.0,age)):smoothstep(40.0,45.0,age)*smoothstep(0.0,.35,retract);
         if(VolumePass<.5) {
             vec4 vol=texture(FugaVolumeSampler,uv);
@@ -318,7 +354,7 @@ void fugaFire() {
             if(sh.y>sh.x&&sh.x/dl<sceneDistance) {
                 vec3 n=normalize(oo+dd*sh.x);
                 float theta=acos(clamp(-n.y,-1.0,1.0)),az=atan(n.z,n.x);
-                float nearG=1.0-smoothstep(0.0,28.0,gap),flow=.02*age+.0016*age*age,halo=0.0;
+                float nearG=1.0-smoothstep(0.0,10.0,gap),flow=.02*age+.0016*age*age,halo=0.0;
                 for(int b=0;b<3;b++) {
                     float life=fract(flow+float(b)/3.0),dk=theta-life*1.3;
                     float spike=pow(noise(vec3(az*60.0,float(b)*7.3,age*.3)),3.0);

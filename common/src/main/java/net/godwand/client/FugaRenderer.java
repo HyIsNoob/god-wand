@@ -891,10 +891,10 @@ public final class FugaRenderer {
     private static void streamers(VertexConsumer v,Matrix4f m,Frame f,Vec3 base) {
         Vec3 d=direction(f.target().subtract(f.origin())),head=base.add(f.arrowPosition().subtract(f.origin()));
         double age=f.age();
-        for(int i=0;i<16;i++) {
-            double life=(i*.618034+age*.09)%1,a=i*2.399963;
-            // Tongues hug the shaft and stream backward, like flame blown off a burning arrow.
-            Vec3 out=side(d).scale(Math.cos(a)).add(d.cross(side(d)).normalize().scale(Math.sin(a))).add(0,.25,0);
+        for(int i=0;i<9;i++) {
+            double life=(i*.618034+age*.12)%1,a=i*2.399963+life*6+age*.9;
+            // Tongues coil round the shaft as they stream backward, matching the shader's spiral ribbons.
+            Vec3 out=side(d).scale(Math.cos(a)).add(d.cross(side(d)).normalize().scale(Math.sin(a)));
             Vec3 root=head.subtract(d.scale(1.5+life*11)).add(out.scale(.25+life*1.1));
             licks(v,m,root,root.subtract(d.scale(2.2+life*2)).add(out.scale(.3)),.7*(1-life)+.25,age*2+i,(1-life),1,i*1.7,d.scale(-1));
         }
@@ -907,13 +907,23 @@ public final class FugaRenderer {
         Vec3 head=base.add(f.arrowPosition().subtract(f.origin()));
         double age=f.age(),speed=smooth((age-2)/8);
         if(speed<=0)return;
-        for(int i=0;i<26;i++) {
-            double life=(hash(i,191)+age*(.22+.12*hash(i,192)))%1,a=hash(i,193)*TAU;
+        for(int i=0;i<10;i++) {
+            double life=(hash(i,191)+age*(.3+.12*hash(i,192)))%1,a=hash(i,193)*TAU;
             Vec3 out=u.scale(Math.cos(a)).add(w.scale(Math.sin(a)));
-            // Hugs the tip, then flares out as it is swept back: a shock cone, not a starburst.
-            Vec3 from=head.add(d.scale(-.15-life*6)).add(out.scale((.35+.4*hash(i,194))*(1+life*1.6)));
-            Vec3 to=from.subtract(d.scale(2.5+3.5*hash(i,195))).add(out.scale(.25*life));
-            line(v,m,from,to,.05+.035*(1-life),.008,i%3==0?0xFFFFFF:0xFFE2B0,true,speed*Math.sin(Math.PI*life)*.8);
+            // Short and close to the tip: air split by the head, not long beams reaching back to the camera.
+            Vec3 from=head.add(d.scale(-.2-life*3)).add(out.scale((.45+.3*hash(i,194))*(1+life*1.2)));
+            Vec3 to=from.subtract(d.scale(1.2+1.6*hash(i,195))).add(out.scale(.2*life));
+            line(v,m,from,to,.04+.03*(1-life),.006,0xFFF2DC,true,speed*Math.sin(Math.PI*life)*.6);
+        }
+        // Shock rings shed by the head every few ticks, widening and fading as they fall behind: sheer speed.
+        for(int r=0;r<3;r++) {
+            double life=(age*.28+r/3.0)%1,radius=.5+2.6*life,alpha=speed*(1-life)*(1-life)*.5;
+            Vec3 c=head.subtract(d.scale(.4+7*life));
+            for(int i=0;i<20;i++) {
+                double a=i*TAU/20,b=(i+1)*TAU/20;
+                line(v,m,c.add(u.scale(Math.cos(a)*radius)).add(w.scale(Math.sin(a)*radius)),
+                        c.add(u.scale(Math.cos(b)*radius)).add(w.scale(Math.sin(b)*radius)),.05*(1-life)+.02,0,0xFFE8C8,true,alpha);
+            }
         }
         // A thin bow-shock rim right at the tip.
         for(int i=0;i<12;i++) {
@@ -949,10 +959,12 @@ public final class FugaRenderer {
             double since=k+(age-Math.floor(age)),at=age-since;
             if(at<0)break;
             double dist=Math.min(span,FugaSequence.flightDistance(at)),life=since/28.0;
-            Vec3 p=base.add(d.scale(dist)).add(Math.sin(k*1.7+at)*.15*since*.05,.04*since,Math.cos(k*2.3+at)*.15*since*.05);
+            // Swirls round the path it burned instead of rising off it.
+            double turn=k*.9+at*.7,spread=.05*since;
+            Vec3 p=base.add(d.scale(dist)).add(Math.cos(turn)*spread,Math.sin(turn)*spread,Math.sin(turn+1.3)*spread);
             double fade=Math.exp(-since/9)*smooth(since/1.5);
             puff(v,m,p,.45+.09*since,mixRgb(0xFFB040,0x8A1A06,Math.min(1,life*1.6)),fade*.32,true);
-            puff(v,m,p.add(0,.1*since,0),.6+.12*since,0x2A120C,fade*.18*life,false);
+            puff(v,m,p,.6+.12*since,0x2A120C,fade*.18*life,false);
         }
     }
     private static void launch(VertexConsumer v,Matrix4f m,Frame f,Vec3 base) {
@@ -976,8 +988,8 @@ public final class FugaRenderer {
     static double orbRadius(double age) {return 44;}
     /** Swells slightly as it settles and again into the white flash of the blast; it never collapses (mirrors the shader). */
     static double orbScale(double age) {return 1+.1*smooth((age-33)/6)+.12*smooth((age-38.5)/1.1);}
-    /** Gap under the energy mass: it falls from 28 blocks and slows right down near the ground (mirrors the shader). */
-    static double orbGap(double age) { return 28*Math.pow(1-Math.max(0,Math.min(1,age/39)),1.4); }
+    /** Gap under the energy mass: it falls from 10 blocks and slows right down near the ground (mirrors the shader). */
+    static double orbGap(double age) { return 10*Math.pow(1-Math.max(0,Math.min(1,age/39)),1.4); }
     static double orbCenter(double age) { return orbGap(age)+orbRadius(age)*orbScale(age); }
     private static void impactVolume(VertexConsumer v, Matrix4f m, double age, Vec3 base, double floor) {
         if(age<40) {
@@ -1036,7 +1048,7 @@ public final class FugaRenderer {
             // Air is driven out from under the falling sphere: dust, lifted debris and heat rings.
             for(int i=0;i<16;i++) {
                 // Pressure escalates along the ground as the mass nears it: the dust is driven out faster and thicker.
-                double near=1-smooth(orbGap(age)/28),a=i*TAU/16+age*(.02+.01*(i%3)),rr=radius*(1+.08*i)+age*.4+near*24;
+                double near=1-smooth(orbGap(age)/10),a=i*TAU/16+age*(.02+.01*(i%3)),rr=radius*(1+.08*i)+age*.4+near*24;
                 Vec3 from=base.add(Math.cos(a)*rr,.6+(i%4)*.7,Math.sin(a)*rr),to=base.add(Math.cos(a+.5)*(rr+6),1.5+(i%3),Math.sin(a+.5)*(rr+6));
                 strand(v,m,new Vec3[]{from,from.lerp(to,.5),to},new double[]{2.4+pressure*3,1.8+pressure*1.5,1.2},new double[]{.3*pressure*(1+1.4*near),.3*pressure*(1+1.4*near),.18*pressure},3,0x6E5E50,false,false);
             }

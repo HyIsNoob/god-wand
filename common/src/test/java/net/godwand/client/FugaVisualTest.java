@@ -64,9 +64,9 @@ class FugaVisualTest {
         FugaRenderer.emit(high,new Matrix4f(),frame(2,1),Vec3.ZERO);
         FugaRenderer.emit(low,new Matrix4f(),frame(2,32),Vec3.ZERO);
         double highTop=high.vertices.stream().mapToDouble(p->p[1]).max().orElseThrow(),lowTop=low.vertices.stream().mapToDouble(p->p[1]).max().orElseThrow();
-        // The energy mass falls from high up and slows until its underside meets the ground.
+        // The energy mass falls from 10 blocks up and slows until its underside meets the ground.
         double gapStart=FugaRenderer.orbCenter(6)-FugaRenderer.orbRadius(6)*FugaRenderer.orbScale(6),gapEnd=FugaRenderer.orbCenter(36)-FugaRenderer.orbRadius(36)*FugaRenderer.orbScale(36);
-        assertTrue(gapStart>15&&gapEnd<1.5,"visible fall that slows to contact "+gapStart+" -> "+gapEnd+" (tops "+highTop+", "+lowTop+")");
+        assertTrue(gapStart>6&&gapEnd<1.5,"visible fall that slows to contact "+gapStart+" -> "+gapEnd+" (tops "+highTop+", "+lowTop+")");
         assertTrue(high.vertices.stream().anyMatch(p->p[5]>p[3]),"Sphere needs its limited violet/blue edge");
         FugaRenderer.emit(column,new Matrix4f(),frame(2,90),Vec3.ZERO);
         FugaRenderer.emit(contract,new Matrix4f(),frame(2,155),Vec3.ZERO);

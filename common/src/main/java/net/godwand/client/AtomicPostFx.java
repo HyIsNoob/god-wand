@@ -59,6 +59,9 @@ public final class AtomicPostFx {
         // during the charge it only adds screen-space light (bloom, shafts, haze) around the mesh flame.
         if(fx==null && fuga.phase()==0 && fuga.age()<4)return;
         var center=fx!=null?fx.center():fuga.phase()==1?fuga.arrowPosition():fuga.center();
+        // During the hit-stop the fire phoenix leads the skyward beam: same head, pointed straight up at its top.
+        double rise=fx==null&&fuga.phase()==1?FugaRenderer.hitStop(fuga.casterId(),context.delta):-1;
+        if(rise>=0) center=center.add(0,6+110*FugaCinematic.smooth(rise,0,1)-3,0);
         if(fx==null && fuga.phase()==0) {
             // Light source: the hands, sliding out to the arrowhead as it forms (projected at center.y+2 below).
             var d=fuga.target().subtract(fuga.origin()).normalize();
@@ -100,8 +103,12 @@ public final class AtomicPostFx {
             chain.setUniform("DepthTrust",shaderPackActive()?0:1);
             if(fx==null) {
                 var aim=FugaRenderer.shaderAxis(fuga);
+                // Rising, it leans a little away from the camera behind it, so its wings spread across the view
+                // instead of being seen edge-on.
+                if(rise>=0) aim=new net.minecraft.world.phys.Vec3(aim.x,0,aim.z).normalize().scale(.3).add(0,1,0).normalize();
                 chain.setUniform("FugaDirX",(float)aim.x);chain.setUniform("FugaDirY",(float)aim.y);chain.setUniform("FugaDirZ",(float)aim.z);
-                chain.setUniform("Age",(float)fuga.age());
+                // The frozen frame would freeze its fire too: rising, it burns on, opening its wings as it climbs.
+                chain.setUniform("Age",(float)(rise>=0?12+8*rise:fuga.age()));
                 chain.setUniform("BloomStrength",GodWandConfig.CLIENT.bloomStrength*.8f);
                 chain.setUniform("BloomBurst",0);
                 chain.setUniform("ImpactFrames",GodWandConfig.CLIENT.impactFrames?1:0);
