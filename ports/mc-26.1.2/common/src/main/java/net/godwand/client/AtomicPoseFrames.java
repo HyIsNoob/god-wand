@@ -11,8 +11,11 @@ public final class AtomicPoseFrames {
     private static final Map<HumanoidRenderState,Pose> POSES = Collections.synchronizedMap(new WeakHashMap<>());
     private static final Map<HumanoidRenderState,Integer> IDS=Collections.synchronizedMap(new WeakHashMap<>());
     public static int entityId(HumanoidRenderState state) {return IDS.getOrDefault(state,-1);}
+    private static final Map<HumanoidRenderState,Float> PARTIALS=Collections.synchronizedMap(new WeakHashMap<>());
+    public static float partial(HumanoidRenderState state) {return PARTIALS.getOrDefault(state,0f);}
     public static void capture(LivingEntity entity,HumanoidRenderState state,float delta) {
         IDS.put(state,entity.getId());
+        PARTIALS.put(state,delta);
         var item = entity.getUseItem();
         var frame = AtomicRenderer.frameFor(entity.getId(),delta);
         boolean charging = item.getItem() instanceof GodWandItem && GodWandItem.getSkillMode(item)==GodWandItem.MODE_ATOMIC;

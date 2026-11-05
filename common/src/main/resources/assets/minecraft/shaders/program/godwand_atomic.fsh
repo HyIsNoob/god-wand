@@ -58,6 +58,11 @@ uniform float FugaPhase;
 uniform float FugaDirX;
 uniform float FugaDirY;
 uniform float FugaDirZ;
+// 1 only in the half-resolution pass that raymarches Fuga's impact volumes; the full passes composite its result.
+uniform float VolumePass;
+// 0 while a shaderpack owns the depth buffer: depth is estimated from the ground plane under the effect.
+uniform float DepthTrust;
+uniform sampler2D FugaVolumeSampler;
 // Depth conventions live only here, so version adapters never need to copy the effect itself.
 float fugaNdcDepth(float depth) { return depth*2.0-1.0; }
 bool fugaSky(float depth) { return depth>.99999; }
@@ -120,6 +125,10 @@ void fugaFire() {
     vec4 sceneView=InvProjMat*vec4(ndc,fugaNdcDepth(depth),1);
     bool sky=fugaSky(depth);
     float sceneDistance=sky?1600.0:length(sceneView.xyz/sceneView.w);
+    if(DepthTrust<.5) {
+        float down=-ray.y,ground=(CameraPos.y-BlastCenter.y)/max(down,.0001);
+        sky=down<=.0001||ground<0.0;sceneDistance=sky?1600.0:min(ground,1600.0);
+    }
     vec3 o=CameraPos-BlastCenter,d=normalize(vec3(FugaDirX,FugaDirY,FugaDirZ));
     vec3 right=normalize(cross(d,abs(d.y)>.98?vec3(1,0,0):vec3(0,1,0))),up=normalize(cross(right,d));
     vec3 surface=o+ray*sceneDistance;
@@ -199,6 +208,14 @@ void fugaFire() {
         float R0=46.0*sqrt(retract)*(.7+.3*smoothstep(40.0,52.0,age)),H=384.0*rise*(1.0-.85*smoothstep(116.0,158.0,age));
         float fireball=70.0*easeOut((age-40.0)/9.0),fireballFade=1.0-smoothstep(44.0,62.0,age);
         float smoke=smoothstep(56.0,96.0,age)*(1.0-smoothstep(135.0,160.0,age));
+        // Sphere, column, halos and outflow are raymarched once at half resolution (VolumePass) and read back here:
+        // raymarching them in both full passes cost most of the frame.
+        float nearGround=1.0-smoothstep(0.0,28.0,gap);
+        float auraLife=age<40.0?nearGround*nearGround*(1.0-smoothstep(37.0,40.0,age)):smoothstep(40.0,45.0,age)*smoothstep(0.0,.35,retract);
+        if(VolumePass<.5) {
+            vec4 vol=texture(FugaVolumeSampler,uv);
+            emission=vol.rgb/max(vec3(.003),1.0-vol.rgb);transmit=vol.a;heat=max(heat,(1.0-vol.a)*1.5);
+        } else {
         vec2 hit;
         if(age<40.0)hit=fireSphere(o,ray,vec3(0,cy,0),orbR*max(sxz,sy)*k*1.55+.5);
         else hit=cylinderHit(o+vec3(0,40,0),ray,max(fireball*fireballFade,R0*2.4+smoke*30.0)+4.0,H+60.0);
@@ -316,14 +333,13 @@ void fugaFire() {
         // Pressure aura (after Atomic's fed outflow, but turbulent and burning): hot air and flame keep pouring out of
         // the pillar along the ground and up its flanks, fed continuously, until the column has faded away.
         // Under the descending mass the same outflow hugs the ground, swelling as the gap closes (pressure escalation).
-        float nearGround=1.0-smoothstep(0.0,28.0,gap);
-        float auraLife=age<40.0?nearGround*nearGround*(1.0-smoothstep(37.0,40.0,age)):smoothstep(40.0,45.0,age)*smoothstep(0.0,.35,retract);
         if(auraLife>0.0) {
-            vec2 ah=cylinderHit(o+vec3(0,6,0),ray,240.0,130.0);
+            // Bounded by how far the outflow has actually spread, so the 18 samples are not spent on empty air.
+            float reach=age<40.0?orbR*.6+nearGround*110.0:R0+10.0+(age-40.0)*7.0;
+            vec2 ah=cylinderHit(o+vec3(0,6,0),ray,min(240.0,reach+2.0),130.0);
             ah.y=min(ah.y,sceneDistance);
             if(ah.y>ah.x) {
                 float st=(ah.y-ah.x)/18.0,at=1.0;vec3 ac=vec3(0);
-                float reach=age<40.0?orbR*.6+nearGround*110.0:R0+10.0+(age-40.0)*7.0;
                 for(int i=0;i<18;i++) {
                     vec3 p=o+ray*(ah.x+(float(i)+dither)*st);
                     float r=length(p.xz),a=atan(p.z,p.x),travel=r-age*(3.4+5.0*nearGround*step(age,40.0));
@@ -344,6 +360,8 @@ void fugaFire() {
                 emission=emission*at+ac;transmit*=at;
             }
         }
+        }
+        if(VolumePass>.5) {fragColor=vec4(emission/(1.0+emission),transmit);return;}
         // Ground plane: pressure rings and dust under the falling sphere, shockwave after detonation.
         if(ray.y<-.0001) {
             float tg=(.3-o.y)/ray.y;
@@ -476,7 +494,7 @@ void fugaFire() {
     }
     // Anime impact frames: release, sphere birth, and the implosion turning into the blast.
     // Cut marks release/sphere birth as seen by this client; the implosion beat follows the shared clock.
-    float impact=ImpactFrames>.5?max(Cut,FugaPhase>1.5?step(39.7,age)*step(age,40.5):0.0):0.0;
+    float impact=ImpactFrames>.5?max(Cut,FugaPhase>1.5?step(39.7,age)*step(age,40.5)*step(.5,ObserverGain):0.0):0.0;
     // The mesh fire feeds the bloom too, so every strand, ring and spark glows instead of reading as flat geometry.
     if(EmissionOnly>.5) {fragColor=vec4((emission+fugaHot(uv)*1.8)*(1.0-impact),1);return;}
     if(impact>.5) {
@@ -506,12 +524,13 @@ void fugaFire() {
     scene*=1.0-.7*suck;
     // Chunks past the caster's view distance never reach this client and show as sky below the horizon; after the
     // blast that is exactly where the burning haze would be, so fill those holes with it.
-    if(!charge&&!arrow&&age>=40.0&&sky&&ray.y<.02) scene=mix(scene,vec3(.32,.11,.04),(1.0-smoothstep(-.04,.02,ray.y))*.92);
+    if(!charge&&!arrow&&age>=40.0&&sky&&ray.y<.02&&DepthTrust>.5) scene=mix(scene,vec3(.32,.11,.04),(1.0-smoothstep(-.04,.02,ray.y))*.92);
     // Smoke and heat haze fill the air around the blast evenly, so loaded terrain and missing chunks read alike.
     if(!charge&&!arrow&&age>=40.0) {
         // By view distance alone: a bounded smoke volume showed its edge as an arc across the frame.
         float L=sky?400.0:sceneDistance;
-        scene=mix(scene,vec3(.32,.11,.04),(1.0-exp(-L/22.0))*smoothstep(40.0,44.0,age)*(1.0-smoothstep(145.0,180.0,age))*.86);
+        // Only near the blast: a distant observer must not see the whole world fogged.
+        scene=mix(scene,vec3(.32,.11,.04),(1.0-smoothstep(180.0,360.0,length(o)))*(1.0-exp(-L/22.0))*smoothstep(40.0,44.0,age)*(1.0-smoothstep(145.0,180.0,age))*.86);
     }
     scene=mix(scene,vec3(.2,.15,.12),clamp(dust,0.0,.85));
     float warmth=clamp(length(emission)*.08+bounce*.35,0.0,.45);
@@ -522,12 +541,14 @@ void fugaFire() {
     float shafts=0.0;
     if(shafts>0.0 && CenterX>-1.0) result+=fugaRays(uv,light,.22)*shafts*vec3(1.0,.72,.42)*.6;
     // The mass's arrival: a soft warm flash as it appears overhead.
-    if(!charge&&!arrow&&age<12.0) result+=vec3(1.0,.62,.32)*.4*exp(-age/1.8);
+    if(!charge&&!arrow&&age<12.0) result+=vec3(1.0,.62,.32)*.4*exp(-age/1.8)*ObserverGain;
     // Charge vignette: the world closes in around the fire.
-    if(charge) result*=1.0-.42*gather*smoothstep(.25,.95,length((uv-.5)*vec2(aspect*.8,1.0)));
+    if(charge) result*=1.0-.42*gather*ObserverGain*smoothstep(.25,.95,length((uv-.5)*vec2(aspect*.8,1.0)));
     fragColor=vec4(clamp(result,0.0,1.0),1);
 }
 void main() {
+    // The volume pass only serves Fuga's impact phase.
+    if(VolumePass>.5&&FugaPhase<1.5) {fragColor=vec4(0,0,0,1);return;}
     if(FugaPhase>=0.0) {fugaFire();return;}
     vec2 uv=texCoord;
     vec3 original=texture(DiffuseSampler,uv).rgb;

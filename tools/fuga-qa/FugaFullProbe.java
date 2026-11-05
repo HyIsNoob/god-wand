@@ -25,6 +25,7 @@ import java.util.*;
 /** Development-only: one complete cast, captured every client tick from the real render target. */
 public final class FugaFullProbe implements ClientModInitializer {
     private int ticks, stage, since, frame, fpsMin = Integer.MAX_VALUE;
+    private final java.util.Map<String,int[]> phaseAvg = new java.util.TreeMap<>();
     private long fpsSum, fpsCount, mspt, impactMspt;
     private boolean released;
     private Vec3 anchor, impact = Vec3.ZERO;
@@ -119,10 +120,11 @@ public final class FugaFullProbe implements ClientModInitializer {
                 stage = 3; since = ticks; c.options.keyUse.setDown(false);
                 System.out.printf(Locale.ROOT, "FUGA_FULL PASS frames=%d fpsAvg=%.1f fpsMin=%d serverMsptAvg=%.2f phaseFpsMin=%s%n",
                         frame, fpsSum / (double)Math.max(1, fpsCount), fpsMin, mspt / 1e6, phaseMin);
+                phaseAvg.forEach((k, v) -> System.out.printf(Locale.ROOT, "FUGA_PHASE_AVG %s=%.1f%n", k, v[0] / (double)Math.max(1, v[1])));
             }
             return;
         }
-        int fps = c.getFps(); if (ticks % 5 == 0 && fps > 0) { fpsSum += fps; fpsCount++; fpsMin = Math.min(fpsMin, fps); phaseMin.merge(f.phase() == 2 ? (f.age() < 80 ? "sphere" : "column") : "phase" + f.phase(), fps, Math::min); }
+        int fps = c.getFps(); if (ticks % 5 == 0 && fps > 0) { fpsSum += fps; fpsCount++; fpsMin = Math.min(fpsMin, fps); phaseMin.merge(f.phase() == 2 ? (f.age() < 80 ? "sphere" : "column") : "phase" + f.phase(), fps, Math::min); phaseAvg.computeIfAbsent(f.phase() == 2 ? (f.age() < 80 ? "sphere" : "column") : "phase" + f.phase(), k -> new int[2]); var acc = phaseAvg.get(f.phase() == 2 ? (f.age() < 80 ? "sphere" : "column") : "phase" + f.phase()); acc[0] += fps; acc[1]++; }
         mspt = Math.max(mspt, server.getAverageTickTimeNanos());
         if (f.phase() == 2) { long[] times = server.getTickTimesNanos(); long last = times[(server.getTickCount() + times.length - 1) % times.length]; impactMspt = Math.max(impactMspt, last); }
         if (f.phase() == 0) {
@@ -146,6 +148,7 @@ public final class FugaFullProbe implements ClientModInitializer {
         if (f.phase() == 2) impact = f.origin();
     }
     private void grab(Minecraft c) {
+        if (Boolean.getBoolean("godwand.fuga.nocapture")) { frame++; return; }
         Screenshot.grab(c.gameDirectory, "fuga-full-" + run + "/f-" + String.format(Locale.ROOT, "%04d", frame++) + ".png", c.getMainRenderTarget(), m -> {});
     }
 }

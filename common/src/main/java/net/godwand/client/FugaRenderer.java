@@ -179,6 +179,23 @@ public final class FugaRenderer {
         var frame = frameFor(player.getId(),partial);
         return frame != null ? frame : afterglow(player.getId(), partial);
     }
+    /** The cast the post shader draws: your own, otherwise the nearest one in view range, so observers see the same
+     *  volumetric fire instead of the mesh stand-ins. */
+    public static Frame shaderFrame(float partial) {
+        Frame own = localFrame(partial);
+        var player = Minecraft.getInstance().player;
+        if (own != null || player == null) return own;
+        Frame best = null; double bestDistance = 512 * 512;
+        for (int caster : ACTIVE.keySet()) {
+            Frame f = frameFor(caster, partial);
+            if (f == null || f.phase() > 2) continue;
+            double d = (f.phase() == 2 ? f.center() : f.origin()).distanceToSqr(player.position());
+            if (d < bestDistance) { best = f; bestDistance = d; }
+        }
+        return best;
+    }
+    /** Caster id the post shader draws this frame; its mesh stand-ins step back for the volume. */
+    private static int shaderCaster = Integer.MIN_VALUE;
     /** After the local cast ends, a frame past END_TICK that only drives the post shader's cooling ground glow;
      *  the director, mesh and HUD all ignore frames that old. */
     private static Frame afterglow(int caster, float partial) {
@@ -234,6 +251,8 @@ public final class FugaRenderer {
         flow = world.getGameTime() + partial;
         try {
             Frame local = localFrame(partial);
+            Frame shaded = shaderFrame(partial);
+            shaderCaster = shaded == null ? Integer.MIN_VALUE : shaded.casterId();
             double darkness = local!=null ? 1-FugaCinematic.environmentGain() : 0;
             if (local != null && local.phase() == 0 && local.age() < 176 && darkness > 0) {
                 BufferBuilder backdrop = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_TEX_COLOR);
@@ -252,7 +271,7 @@ public final class FugaRenderer {
                 if (frame == null && caster != Integer.MIN_VALUE) continue;
                 BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_TEX_COLOR);
                 if(frame==null) storms(buffer,pose.last().pose(),camera.getPosition());
-                else if(frame.phase()!=0 && AtomicPostFx.available() && local!=null && local.casterId()==caster && AtomicRenderer.nearestFrame(partial)==null) accents(buffer,pose.last().pose(),frame,camera.getPosition());
+                else if(frame.phase()!=0 && AtomicPostFx.available() && shaderCaster==caster && AtomicRenderer.nearestFrame(partial)==null) accents(buffer,pose.last().pose(),frame,camera.getPosition());
                 else emit(buffer,pose.last().pose(),frame,camera.getPosition(),world.getMinBuildHeight()-frame.origin().y);
                 var mesh = buffer.build();
                 if (mesh != null) BufferUploader.drawWithShader(mesh);
@@ -346,7 +365,7 @@ public final class FugaRenderer {
         double width=Mth.lerp(draw,(.06+.08*Math.min(1,span/.8))*(1+.35*gather-.3*press),.07);
         double tremble=.035*press*(1-draw)*Math.sin(age*2.3);
         // For the local caster with the post shader the pulled flame is a real volume; its mesh body steps back.
-        boolean volume=pass>=0&&AtomicPostFx.enabled()&&Minecraft.getInstance().player!=null&&Minecraft.getInstance().player.getId()==f.casterId();
+        boolean volume=pass>=0&&AtomicPostFx.enabled()&&shaderCaster==f.casterId()&&AtomicRenderer.nearestFrame(0)==null;
         // With the ball the old pulled-ribbon mesh never shows (it came back between the palms at the clap); it only returns as the drawn shaft.
         double mesh=gain*(volume?PULL_BALL?draw:1-ribbonVolume(age):1);
         fireBody(v,m,a,end,width,(.06+tremble)*(1-draw),age*(1+press),mesh,0);

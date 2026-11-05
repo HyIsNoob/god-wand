@@ -63,7 +63,7 @@ public class PostChainResourceTest {
         for (String name : List.of("godwand_atomic", "godwand_nova", "godwand_impact")) {
             var json = JsonParser.parseString(Files.readString(base.resolve("post_effect/" + name + ".json"))).getAsJsonObject();
             var config = PostChainConfig.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
-            require(config.passes().size() == (name.equals("godwand_impact") ? 2 : 5), "pass count");
+            require(config.passes().size() == (name.equals("godwand_impact") ? 2 : name.equals("godwand_atomic") ? 6 : 5), "pass count");
             require(config.passes().stream().flatMap(PostChainConfig.Pass::referencedTargets).filter(id -> !config.internalTargets().containsKey(id)).collect(java.util.stream.Collectors.toSet()).equals(Set.of(PostChain.MAIN_TARGET_ID)), "external targets");
             for (int i = 0; i < config.passes().size(); i++) {
                 var pass = config.passes().get(i);
@@ -112,7 +112,7 @@ public class PostChainResourceTest {
                     require(next > position, "uniform order " + uniformName);
                     position = next;
                     if (uniformName.equals("EmissionOnly")) {
-                        require(uniform.get("value").getAsFloat() == (i == 1 ? 1 : 0), "emission pass");
+                        require(uniform.get("value").getAsFloat() == (i == (name.equals("godwand_atomic") ? 2 : 1) ? 1 : 0), "emission pass");
                         require(!shader.contains("godwandNdcDepth") && shader.contains("0.99999") || shader.contains("depth>.99999"), "forward depth reconstruction");
                     }
                 }
@@ -125,7 +125,7 @@ public class PostChainResourceTest {
             }
             System.out.println(name + ": CODEC, topology, sampler and std140 layouts passed");
         }
-        require(blocks == 11, "uniform block count");
+        require(blocks == 12, "uniform block count");
         System.out.println(blocks + " uniform blocks verified");
     }
 

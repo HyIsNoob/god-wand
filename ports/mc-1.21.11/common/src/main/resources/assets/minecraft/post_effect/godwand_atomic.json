@@ -1,6 +1,7 @@
 {
   "targets": {
     "atomic_scene": {},
+    "fuga_half_volume": {},
     "atomic_emit": {},
     "atomic_blur_x": {},
     "atomic_blur_y": {}
@@ -20,6 +21,235 @@
           "target": "minecraft:main",
           "use_depth_buffer": true,
           "bilinear": false
+        },
+        {
+          "sampler_name": "FugaVolume",
+          "target": "minecraft:main",
+          "bilinear": false
+        }
+      ],
+      "output": "fuga_half_volume",
+      "uniforms": {
+        "GodWandConfig": [
+          {
+            "name": "InvProjMat",
+            "type": "matrix4x4",
+            "value": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "name": "InvViewMat",
+            "type": "matrix4x4",
+            "value": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "name": "CameraPos",
+            "type": "vec3",
+            "value": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "BlastCenter",
+            "type": "vec3",
+            "value": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "Age",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "SequenceEnd",
+            "type": "float",
+            "value": 834
+          },
+          {
+            "name": "DetonationTick",
+            "type": "float",
+            "value": 414
+          },
+          {
+            "name": "ChargeProgress",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "Compression",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "ReleaseFlash",
+            "type": "float",
+            "value": 0.0
+          },
+          {
+            "name": "FxFade",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "Cut",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "HoloRadius",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "BeamRadius",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "BeamHeight",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "BeamDepth",
+            "type": "float",
+            "value": 30
+          },
+          {
+            "name": "BlastPulse",
+            "type": "float",
+            "value": 1
+          },
+          {
+            "name": "ShockRadius",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "EmissionOnly",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "ObserverGain",
+            "type": "float",
+            "value": 1
+          },
+          {
+            "name": "ImpactFrames",
+            "type": "float",
+            "value": 1
+          },
+          {
+            "name": "ImpactPulse",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "Darken",
+            "type": "float",
+            "value": 1
+          },
+          {
+            "name": "CenterX",
+            "type": "float",
+            "value": 0.5
+          },
+          {
+            "name": "CenterY",
+            "type": "float",
+            "value": 0.5
+          },
+          {
+            "name": "FugaPhase",
+            "type": "float",
+            "value": -1
+          },
+          {
+            "name": "FugaDirX",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "FugaDirY",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "FugaDirZ",
+            "type": "float",
+            "value": 1
+          },
+          {
+            "name": "VolumePass",
+            "type": "float",
+            "value": 1
+          },
+          {
+            "name": "DepthTrust",
+            "type": "float",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "minecraft:program/godwand_atomic",
+      "inputs": [
+        {
+          "sampler_name": "Diffuse",
+          "target": "minecraft:main",
+          "bilinear": false
+        },
+        {
+          "sampler_name": "MainDepth",
+          "target": "minecraft:main",
+          "use_depth_buffer": true,
+          "bilinear": false
+        },
+        {
+          "sampler_name": "FugaVolume",
+          "target": "fuga_half_volume",
+          "bilinear": true
         }
       ],
       "output": "atomic_scene",
@@ -211,6 +441,16 @@
             "name": "FugaDirZ",
             "type": "float",
             "value": 1
+          },
+          {
+            "name": "VolumePass",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "DepthTrust",
+            "type": "float",
+            "value": 1
           }
         ]
       }
@@ -229,6 +469,11 @@
           "target": "minecraft:main",
           "use_depth_buffer": true,
           "bilinear": false
+        },
+        {
+          "sampler_name": "FugaVolume",
+          "target": "fuga_half_volume",
+          "bilinear": true
         }
       ],
       "output": "atomic_emit",
@@ -418,6 +663,16 @@
           },
           {
             "name": "FugaDirZ",
+            "type": "float",
+            "value": 1
+          },
+          {
+            "name": "VolumePass",
+            "type": "float",
+            "value": 0
+          },
+          {
+            "name": "DepthTrust",
             "type": "float",
             "value": 1
           }

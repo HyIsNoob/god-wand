@@ -54,6 +54,12 @@ public final class GodWandPostChain implements AutoCloseable {
                 target.addProperty("width", GodWandPostFxManager.bloomDimension(w));
                 target.addProperty("height", GodWandPostFxManager.bloomDimension(h));
             }
+            // Fuga's impact volumes are raymarched at half resolution and composited in the full passes.
+            else if (entry.getKey().contains("half")) {
+                var target = entry.getValue().getAsJsonObject();
+                target.addProperty("width", Math.max(1, (w + 1) / 2));
+                target.addProperty("height", Math.max(1, (h + 1) / 2));
+            }
         }
         var config = PostChainConfig.CODEC.parse(JsonOps.INSTANCE, definition).getOrThrow();
         projection.setupOrtho(0.1f, 1000, w, h, false);

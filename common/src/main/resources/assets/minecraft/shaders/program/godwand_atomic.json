@@ -15,6 +15,9 @@
     },
     {
       "name": "MainDepthSampler"
+    },
+    {
+      "name": "FugaVolumeSampler"
     }
   ],
   "uniforms": [
@@ -310,6 +313,22 @@
     },
     {
       "name": "FugaDirZ",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1
+      ]
+    },
+    {
+      "name": "VolumePass",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0
+      ]
+    },
+    {
+      "name": "DepthTrust",
       "type": "float",
       "count": 1,
       "values": [

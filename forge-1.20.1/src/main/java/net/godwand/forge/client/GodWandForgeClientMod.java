@@ -82,7 +82,13 @@ public class GodWandForgeClientMod {
     public static class GameBusEvents {
         @SubscribeEvent
         public static void onGuiOverlay(net.minecraftforge.client.event.RenderGuiOverlayEvent.Pre event) {
-            if(net.godwand.client.AtomicCinematic.active() && event.getOverlay().id().getNamespace().equals("minecraft"))event.setCanceled(true);
+            if((net.godwand.client.AtomicCinematic.active()||net.godwand.client.FugaCinematic.active()) && event.getOverlay().id().getNamespace().equals("minecraft"))event.setCanceled(true);
+        }
+
+        // The cinematic camera owns the view: no first-person hand, as on the other loaders.
+        @SubscribeEvent
+        public static void onRenderHand(net.minecraftforge.client.event.RenderHandEvent event) {
+            if(net.godwand.client.AtomicCinematic.active()||net.godwand.client.FugaCinematic.active())event.setCanceled(true);
         }
 
         @SubscribeEvent

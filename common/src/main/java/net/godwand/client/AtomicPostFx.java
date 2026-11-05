@@ -31,11 +31,26 @@ public final class AtomicPostFx {
     /** Whether the post shader is meant to draw this frame (configured and not failed), regardless of whether the chain
      *  has been built yet: mesh stand-ins keyed to it must not flicker on and off between frames. */
     public static boolean enabled() { return GodWandConfig.CLIENT.postEffects&&!failed; }
+    private static java.lang.reflect.Method irisInUse;
+    private static Object iris;
+    private static boolean irisChecked;
+    /** Iris/Oculus with a shaderpack loaded may leave the main depth buffer empty; probed through its public API. */
+    static boolean shaderPackActive() {
+        try {
+            if (!irisChecked) {
+                irisChecked = true;
+                var api = Class.forName("net.irisshaders.iris.api.v0.IrisApi");
+                iris = api.getMethod("getInstance").invoke(null);
+                irisInUse = api.getMethod("isShaderPackInUse");
+            }
+            return irisInUse != null && (boolean) irisInUse.invoke(iris);
+        } catch (ReflectiveOperationException | LinkageError absent) { irisInUse = null; return false; }
+    }
     public static void renderAfterWorld() {
         Frame context = pending; pending = null;
         if (context == null || failed) return;
         var fx = AtomicRenderer.nearestFrame(context.delta);
-        var fuga=FugaRenderer.localFrame(context.delta);
+        var fuga=FugaRenderer.shaderFrame(context.delta);
         var client = Minecraft.getInstance();
         if ((fx == null && fuga == null) || client.level == null) return;
         // The chain is built behind the static opening shot, so the release frame never stalls on shader linking;
@@ -59,6 +74,7 @@ public final class AtomicPostFx {
                 chain.resize(w,h);
                 for(String name:new String[]{"atomic_emit","atomic_blur_x","atomic_blur_y"})
                     chain.getTempTarget(name).resize(GodWandPostFxManager.bloomDimension(w),GodWandPostFxManager.bloomDimension(h),false);
+                chain.getTempTarget("fuga_half_volume").resize((w+1)/2,(h+1)/2,false);
                 for(var pass:((PostEffectProcessorAccessor)chain).getPasses())
                     pass.setOrthoMatrix(new Matrix4f().setOrtho(0,pass.outTarget.width,0,pass.outTarget.height,.1f,1000));
                 width=w; height=h; downsample=GodWandConfig.CLIENT.bloomDownsample;
@@ -72,13 +88,14 @@ public final class AtomicPostFx {
             int index=0;
             for(var pass:((PostEffectProcessorAccessor)chain).getPasses()) {
                 var effect=pass.getEffect();
-                effect.safeGetUniform("EmissionOnly").set(index++==1?1f:0f);
+                effect.safeGetUniform("EmissionOnly").set(index++==2?1f:0f);
                 effect.safeGetUniform("InvProjMat").set(inverseProjection);
                 effect.safeGetUniform("InvViewMat").set(inverseView);
                 effect.safeGetUniform("CameraPos").set((float)camera.x,(float)camera.y,(float)camera.z);
                 effect.safeGetUniform("BlastCenter").set((float)center.x,(float)center.y,(float)center.z);
             }
             chain.setUniform("FugaPhase",fx==null?fuga.phase():-1);
+            chain.setUniform("DepthTrust",shaderPackActive()?0:1);
             if(fx==null) {
                 var aim=FugaRenderer.shaderAxis(fuga);
                 chain.setUniform("FugaDirX",(float)aim.x);chain.setUniform("FugaDirY",(float)aim.y);chain.setUniform("FugaDirZ",(float)aim.z);
@@ -87,7 +104,10 @@ public final class AtomicPostFx {
                 chain.setUniform("BloomBurst",0);
                 chain.setUniform("ImpactFrames",GodWandConfig.CLIENT.impactFrames?1:0);
                 // Impact frame on release and on the sphere's birth, timed from local receipt of that phase.
-                chain.setUniform("Cut",fuga.phase()>0&&FugaRenderer.phaseSeen(fuga.casterId(),context.delta)<3?1:0);
+                // Screen-wide beats (impact frames, flashes, vignette) belong to the caster; observers see the world effect.
+                boolean own=client.player!=null&&fuga.casterId()==client.player.getId();
+                chain.setUniform("ObserverGain",own?1:0);
+                chain.setUniform("Cut",own&&fuga.phase()>0&&FugaRenderer.phaseSeen(fuga.casterId(),context.delta)<3?1:0);
                 // Off-screen detonations move the screen flare out of view instead of centring it.
                 chain.setUniform("CenterX",clip.w>.001?centerX:-10); chain.setUniform("CenterY",centerY);
             } else {
