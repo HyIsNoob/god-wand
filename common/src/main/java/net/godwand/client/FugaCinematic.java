@@ -53,10 +53,13 @@ public final class FugaCinematic {
     }
     public static void skip() { skipped = true; }
     public static void reset() { cast = Long.MIN_VALUE; world = null; skipped = false; renderedFov = 70; }
+    /** Partial tick of the frame being framed, so shots driven by client-side timers (the hit-stop rise) move smoothly. */
+    private static float cameraPartial;
     public static AtomicCinematic.Pose camera(float delta, Vec3 vanilla, float yaw, float pitch) {
         if (!active()) return null;
         var client = Minecraft.getInstance();
         var frame = FugaRenderer.localFrame(delta);
+        cameraPartial = delta;
         var shot = cameraFor(frame, vanilla, yaw, pitch, client.player.getPosition(delta),
                 client.player.getViewYRot(delta), client.player.getViewXRot(delta),
                 GodWandConfig.CLIENT.fugaCutscene && !skipped);
@@ -107,13 +110,12 @@ public final class FugaCinematic {
             side = side.lengthSqr() < 1e-6 ? right : side.normalize();
             Vec3 arrow = frame.arrowPosition();
             var chase = look(arrow.subtract(d.scale(16)).add(side.scale(3)).add(0, 3.5, 0), arrow.add(d.scale(10)));
-            double stop = FugaRenderer.hitStop(frame.casterId(), 0);
+            double stop = FugaRenderer.hitStop(frame.casterId(), cameraPartial);
             if (stop >= 0) {
-                // The fire phoenix leads the beam up from the impact; the camera climbs after it, just below and behind.
-                double rise = smooth(stop, 0, .35), top = 6 + 110 * smooth(stop, 0, 1);
-                Vec3 phoenix = arrow.add(0, top - 3, 0);
-                Vec3 position = chase.position().lerp(phoenix.subtract(d.scale(24)).add(side.scale(4)).add(0, -9, 0), rise);
-                return look(position, arrow.add(d.scale(10)).lerp(phoenix, rise));
+                // The arrow hangs in its impact: the camera rises with the beam and tilts up to follow its head.
+                double rise = smooth(stop, .08, 1), top = 6 + 110 * smooth(stop, 0, 1);
+                Vec3 position = chase.position().add(0, 14 * rise, 0).subtract(d.scale(6 * rise));
+                return look(position, arrow.lerp(arrow.add(d.scale(10)), 1 - rise).add(0, top * .8 * rise, 0));
             }
             return blend(aim, chase, smooth(age, 2, 10));
         }

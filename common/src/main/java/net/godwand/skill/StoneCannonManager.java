@@ -249,7 +249,7 @@ public class StoneCannonManager {
         sw.playSound(null, player.getX(), player.getY(), player.getZ(),
                 SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.65f, 1.4f);
 
-        player.displayClientMessage(Component.literal("Fired."), true);
+        player.displayClientMessage(Component.translatable("message.godwand.cannon_fired"), true);
     }
 
     /**

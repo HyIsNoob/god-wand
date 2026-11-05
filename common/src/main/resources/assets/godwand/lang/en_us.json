@@ -1,6 +1,6 @@
 {
   "item.godwand.god_wand": "God Wand",
-  "item.godwand.god_wand.desc": "Spatial Path | Singularity | Earth Drill | Supernova | Stone Cannon",
+  "item.godwand.god_wand.desc": "Spatial Path | Singularity | Earth Drill | Supernova | Stone Cannon | I am Atomic | Fuga",
   "entity.godwand.stone_cannon": "Stone Cannon",
   "itemGroup.godwand.tab": "God Wand",
   "key.godwand.skill_wheel": "Skill wheel",
@@ -40,5 +40,8 @@
   "message.godwand.skill_locked": "Locked skill: %s",
   "command.godwand.hold_wand": "Hold a God Wand in your main hand.",
   "command.godwand.stop_casting": "Finish or cancel your current cast first.",
-  "command.godwand.unlocked": "Wand unlocked. Hold V to choose a skill."
+  "command.godwand.unlocked": "Wand unlocked. Hold V to choose a skill.",
+  "message.godwand.path_disabled": "Path disabled.",
+  "message.godwand.path_enabled": "Path enabled.",
+  "message.godwand.cannon_fired": "Fired."
 }

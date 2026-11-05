@@ -56,7 +56,7 @@ public class SpatialPathWalker {
             CURRENT_FORWARD_LEAD.remove(player.getUUID());
             CURRENT_PLAYER_SPEED.remove(player.getUUID());
             LAST_SHIELD_SOUND.remove(player.getUUID());
-            player.displayClientMessage(Component.literal("Path disabled."), true);
+            player.displayClientMessage(Component.translatable("message.godwand.path_disabled"), true);
 
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.PLAYERS, 0.45f, 0.9f);
@@ -87,7 +87,7 @@ public class SpatialPathWalker {
             ACTIVE_PLAYERS.add(player.getUUID());
             repelMobs(player);
             deflectProjectiles(player);
-            player.displayClientMessage(Component.literal("Path enabled."), true);
+            player.displayClientMessage(Component.translatable("message.godwand.path_enabled"), true);
 
             // Audio kích hoạt uy lực
             world.playSound(null, player.getX(), player.getY(), player.getZ(),

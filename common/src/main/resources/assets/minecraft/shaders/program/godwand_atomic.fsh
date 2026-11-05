@@ -150,7 +150,12 @@ void fugaFire() {
     if(arrow) {
         float trail=min(100.0,Age*4.0+10.0);
         vec3 localO=vec3(dot(o,right),dot(o,up),dot(o,d)),localD=vec3(dot(ray,right),dot(ray,up),dot(ray,d));
-        vec2 hit=fireBox(localO,localD,vec3(-8,-6,-36.0),vec3(8,6,5));
+        // The fire is evaluated once at half resolution (VolumePass) and read back by the full-size passes.
+        if(VolumePass<.5) {
+            vec4 vol=texture(FugaVolumeSampler,uv);
+            emission=vol.rgb/max(vec3(.003),1.0-vol.rgb);
+        } else {
+        vec2 hit=fireBox(localO,localD,vec3(-10,-7,-36.0),vec3(10,8,5));
         if(hit.y>hit.x) {
             float limit=sceneDistance;
             // Still Fuga, an arrow made of fire: a white-hot point and core with a long tapering wake.
@@ -163,13 +168,15 @@ void fugaFire() {
                 emission+=softStrand(localO,localD,vec3(0,0,-1.0-shaft*.95*t0),vec3(0,0,-1.0-shaft*.95*t1),.85-.45*t0,limit,.55*(1.0-t0*.8),.86-.45*t0);
             }
             // Four flame ribbons: at the release they coil tight round the shaft (an arrow); over its first ticks they
-            // drift apart into a gliding phoenix (two wings swept back, no beat, and two long tail plumes) that is
+            // drift apart into a gliding phoenix (two wings swept back and two long tail plumes) that is
             // only suggested by the flowing fire. Each ribbon splits into two branches that part and rejoin.
-            float morph=smoothstep(3.0,16.0,Age);
-            // A while into the glide the wings fold in and the whole flame body barrel-rolls round the flight line,
-            // then (on a long shot) opens out again.
-            float fold=smoothstep(22.0,30.0,Age)*(1.0-smoothstep(40.0,48.0,Age));
-            float spread=morph*(1.0-.5*fold),roll=fold*fold*(Age-22.0)*.55;
+            float morph=smoothstep(3.0,14.0,Age);
+            // Glide, then two strong wing beats, then the wings tuck in part way and the whole flame body rolls once
+            // round the flight line, always the same way (the coil's own direction); a long shot opens out again.
+            // Each beat drives down fast and recovers slowly; `down` is how hard it is driving right now.
+            float beats=smoothstep(14.0,15.5,Age)*(1.0-smoothstep(26.0,27.5,Age));
+            float fold=smoothstep(27.0,31.5,Age)*(1.0-smoothstep(44.0,52.0,Age));
+            float spread=morph*(1.0-.7*fold),roll=6.2832*smoothstep(28.0,41.0,Age);
             float rc=cos(roll),rs=sin(roll);
             for(int lane=0;lane<4;lane++) {
                 bool wingLane=lane<2;
@@ -181,17 +188,29 @@ void fugaFire() {
                     float drift=noise(vec3(t*3.0-Age*1.1,seed,0))-.5;
                     float a=base+z*.55+Age*1.2;
                     vec3 coil=vec3(cos(a),sin(a),0)*(.35+.35*t)+vec3(0,0,z);
+                    // The wingtip lags the shoulder, so the wing bends through each stroke.
+                    float p=fract((Age-15.0-1.2*t)/6.0),stroke=p<.3?mix(1.0,-1.0,smoothstep(0.0,.3,p)):mix(-1.0,1.0,smoothstep(.3,1.0,p));
+                    float flap=beats*stroke,down=beats*(p<.3?sin(p/.3*3.1416):0.0);
+                    // Wings held long and level (a slight upward dihedral, little sweep); each beat swings the whole
+                    // wing about the shoulder, the tip bending a little behind it.
+                    float span=8.0*(t*.85+.15*sin(t*1.5708)),swing=flap*.55;
                     vec3 shape=wingLane
-                        ? vec3(sgn*(4.0*sin(min(t*1.9,1.0)*1.5708)*(1.0-.3*smoothstep(.55,1.0,t))+drift*.7*t),
-                               .55*sin(t*3.1416)+drift*.5*t,1.2-(1.5+11.0*t)*1.0)
+                        ? vec3(sgn*(span*cos(swing)+drift*.8*t),
+                               span*sin(swing)+.35*span*.12+drift*.5*t+flap*.9*t*t,1.2-(1.0+5.5*t)+down*1.0*t)
                         : vec3(sgn*(.3+.9*t)+sin(z*.3+Age*.8+seed)*.5*t,-.35-.5*t+drift*.4*t,z);
                     vec3 c=mix(coil,shape,spread);
                     c.xy=vec2(c.x*rc-c.y*rs,c.x*rs+c.y*rc);
                     vec3 across=normalize(cross(vec3(0,0,1),vec3(c.xy,0)+vec3(.001,0,0)));
                     float part=.5*max(0.0,sin(t*7.0-Age*.9+seed))*t;
                     vec3 nextA=c+across*part,nextB=c-across*part;
-                    float burn=(.7+.3*noise(vec3(t*6.0-Age*2.1,seed+5.0,0)))*pow(1.0-t,1.15)*(wingLane?.7:.6);
-                    float w=(wingLane?.42:.32)+(wingLane?.65:.5)*t,temp=.82-.55*t;
+                    float burn=(.7+.3*noise(vec3(t*6.0-Age*2.1,seed+5.0,0)))*pow(1.0-t,wingLane?.8:1.15)*(wingLane?.85+.5*down:.6);
+                    float w=(wingLane?.55:.32)+(wingLane?.8:.5)*t,temp=.84-.5*t+(wingLane?.12*down:0.0);
+                    // Flight feathers: long flame plumes swept back off the wing's trailing edge, always re-lighting.
+                    if(wingLane&&i%2==0&&t>.2) {
+                        float lick=fract(Age*.3+float(i)*.41+seed);
+                        vec3 tip=c+vec3(sgn*(.5+.6*t),-.25-.5*lick,-(2.6+3.6*t)*(.7+.6*lick));
+                        emission+=softStrand(localO,localD,c,tip,.45+.45*t,limit,burn*(1.1-.7*lick),temp-.2-.15*lick);
+                    }
                     // A wide, dim red mantle round each ribbon gives the fire body instead of a thin line.
                     emission+=softStrand(localO,localD,lastA,nextA,w*2.6,limit,burn*.3,.4-.2*t);
                     emission+=softStrand(localO,localD,lastA,nextA,w,limit,burn,temp);
@@ -203,7 +222,20 @@ void fugaFire() {
                     }
                     lastA=nextA;lastB=nextB;
                 }
-            }            // Wisps peel off the shaft and curl away as they burn out.
+            }
+            // Curling trails wind round the tail, widening as they stream back (turning with the body's roll).
+            for(int k=0;k<2;k++) {
+                vec3 last=vec3(0,-.5,-5.0);
+                for(int i=1;i<=12;i++) {
+                    float t=float(i)/12.0,z=-5.0-shaft*.75*t;
+                    float a=float(k)*3.1416+z*.7+Age*1.4,r=.4+1.5*t;
+                    vec3 next=vec3(cos(a)*r+sin(z*.3+Age*.8)*.3*t,sin(a)*r-.35-.5*t,z);
+                    next.xy=vec2(next.x*rc-next.y*rs,next.x*rs+next.y*rc);
+                    emission+=softStrand(localO,localD,last,next,.2+.35*t,limit,(1.0-t)*.4*morph,.72-.45*t);
+                    last=next;
+                }
+            }
+            // Wisps peel off the shaft and curl away as they burn out.
             for(int k=0;k<6;k++) {
                 float life=fract(float(k)*.618+Age*.08),a0=float(k)*2.39996;
                 float z0=-2.0-life*shaft*.8;
@@ -214,8 +246,11 @@ void fugaFire() {
                     emission+=softStrand(localO,localD,last,next,.2+.2*(1.0-t),limit,(1.0-life)*(1.0-t*.6)*.4,.7-.4*t);
                     last=next;
                 }
-            }            heat=clamp(length(emission)*.1,0.0,1.0);transmit=exp(-length(emission)*.06);
+            }
         }
+        }
+        heat=clamp(length(emission)*.1,0.0,1.0);transmit=exp(-length(emission)*.06);
+        if(VolumePass>.5) {fragColor=vec4(emission/(1.0+emission),transmit);return;}
         // Ground and walls along the flight path catch orange light.
         if(!sky) {
             vec3 s=surface,a=vec3(0),b=-d*trail*.55;
@@ -610,8 +645,8 @@ void fugaFire() {
     fragColor=vec4(clamp(result,0.0,1.0),1);
 }
 void main() {
-    // The volume pass only serves Fuga's impact phase.
-    if(VolumePass>.5&&FugaPhase<1.5) {fragColor=vec4(0,0,0,1);return;}
+    // The volume pass serves Fuga's flight and impact phases.
+    if(VolumePass>.5&&FugaPhase<.5) {fragColor=vec4(0,0,0,1);return;}
     if(FugaPhase>=0.0) {fugaFire();return;}
     vec2 uv=texCoord;
     vec3 original=texture(DiffuseSampler,uv).rgb;
