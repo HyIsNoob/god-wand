@@ -253,6 +253,8 @@ public final class FugaCinematic {
             // Wide under the mass; wide to the end: no lens zoom into the pillar.
             return age < 40 ? 80 : Mth.lerp(smooth(age, 138, 156), 105, vanilla);
         }
+        // Chasing the arrow: the lens widens as it accelerates, so the ground rushes past; the hit-stop holds it.
+        if (frame.phase() == 1) return vanilla + 14 * smooth(frame.age(), 2, 12);
         return vanilla;
     }
     public static float shake(float delta) {
@@ -274,6 +276,8 @@ public final class FugaCinematic {
         if (frame.phase() == 1 && stop >= 0)
             return (2.6f * (1 - smooth(stop, 0, .25)) + .45f) * GodWandConfig.CLIENT.cameraShake;
         float strength = frame.phase() == 1 ? (1 - smooth(age, 0, 8)) * 1.6f
+                // In flight: a fast, steady tremble while the camera chases the arrow.
+                + smooth(age, 3, 10) * (.38f + .12f * (float)Math.sin(age * 2.3))
                 // The mass arrives with a heavy jolt and a rumble that never quite settles before the descent.
                 : frame.phase() == 2 ? (1 - smooth(age, 0, 10)) * 1.5f
                 // The closer the mass gets to the ground, the heavier the pressure rumble.

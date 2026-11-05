@@ -134,7 +134,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             ArcaneOrbChargeRenderer.render(matrices, camera, tickDelta);
             SupernovaAccretionRenderer.render(matrices, camera, tickDelta);
             AtomicRenderer.render(matrices, camera, tickDelta);
-            net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
+            if (!net.godwand.client.FugaRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
         });
 
         WorldRenderEvents.BEFORE_BLOCK_OUTLINE.register((context, hitResult) -> {

@@ -326,6 +326,28 @@ public final class FugaRenderer {
             RenderSystem.defaultBlendFunc(); RenderSystem.disableBlend();
         }
     }
+    private record Deferred(Matrix4f pose, Matrix4f modelView, Matrix4f projection, Camera camera, float partial) {}
+    private static Deferred deferred;
+    /** With an Iris/Oculus shaderpack active the level pass repaints immediate geometry with the pack's programs (no
+     *  blending, alpha cut), so the mesh is recorded here and drawn by flushDeferred after the level pass. */
+    public static boolean deferForShaderPack(PoseStack pose, Camera camera, float partial) {
+        if (!AtomicPostFx.enabled() || !(AtomicPostFx.shaderPackActive() || Boolean.getBoolean("godwand.fuga.qa.defer"))) return false;
+        deferred = new Deferred(new Matrix4f(pose.last().pose()), new Matrix4f(RenderSystem.getModelViewMatrix()),
+                new Matrix4f(RenderSystem.getProjectionMatrix()), camera, partial);
+        return true;
+    }
+    public static void flushDeferred() {
+        var d = deferred; deferred = null;
+        if (d == null) return;
+        Minecraft.getInstance().getMainRenderTarget().bindWrite(false);
+        var stack = RenderSystem.getModelViewStack();
+        stack.pushMatrix(); stack.set(d.modelView()); RenderSystem.applyModelViewMatrix();
+        RenderSystem.backupProjectionMatrix();
+        RenderSystem.setProjectionMatrix(d.projection(), com.mojang.blaze3d.vertex.VertexSorting.DISTANCE_TO_ORIGIN);
+        var pose = new PoseStack(); pose.last().pose().set(d.pose());
+        try { render(pose, d.camera(), d.partial()); }
+        finally { RenderSystem.restoreProjectionMatrix(); stack.popMatrix(); RenderSystem.applyModelViewMatrix(); }
+    }
     private static boolean valid(Frame f, Vec3 eye) {
         return Double.isFinite(f.age()) && finite(f.origin().x,f.origin().y,f.origin().z,f.target().x,f.target().y,f.target().z,eye.x,eye.y,eye.z)
                 && f.age() >= 0 && f.phase() >= 0 && f.phase() <= 2 && !(f.phase() == 2 && f.age() >= FugaSequence.END_TICK);
@@ -334,7 +356,7 @@ public final class FugaRenderer {
     private static void accents(VertexConsumer v,Matrix4f m,Frame f,Vec3 eye) {
         if(!valid(f,eye))return;
         Vec3 base=f.origin().subtract(eye);
-        if(f.phase()==1) { launch(v,m,f,base); streamers(v,m,f,base); lingeringTrail(v,m,f,base); impactPoint(v,m,f,base); }
+        if(f.phase()==1) { launch(v,m,f,base); streamers(v,m,f,base); lingeringTrail(v,m,f,base); airRush(v,m,f,base); impactPoint(v,m,f,base); }
         else if(f.phase()==2) impactAccents(v,m,FugaSequence.visualAge(f.age()),base);
     }
     /** The plane stays behind the subject, leaving their existing depth buffer visible. */
@@ -366,7 +388,7 @@ public final class FugaRenderer {
         if (!valid(f,eye) || !Double.isFinite(floor)) return;
         Vec3 base = f.origin().subtract(eye);
         if (f.phase() == 0) ritualRibbon(v,matrix,f,base);
-        else if (f.phase() == 1) { flight(v,matrix,f,base); launch(v,matrix,f,base); streamers(v,matrix,f,base); lingeringTrail(v,matrix,f,base); impactPoint(v,matrix,f,base); }
+        else if (f.phase() == 1) { flight(v,matrix,f,base); launch(v,matrix,f,base); streamers(v,matrix,f,base); lingeringTrail(v,matrix,f,base); airRush(v,matrix,f,base); impactPoint(v,matrix,f,base); }
         else {
             double age=FugaSequence.visualAge(f.age());
             impactVolume(v,matrix,age,base,Math.min(0,floor)); impactAccents(v,matrix,age,base);
@@ -877,6 +899,29 @@ public final class FugaRenderer {
         }
     }
     /** Release: a ring of compressed air bursts forward from the muzzle, with radial shock streaks. */
+    /** Air torn open by the arrow: a cone of thin white streaks slides back off its tip, faster as it accelerates. */
+    private static void airRush(VertexConsumer v,Matrix4f m,Frame f,Vec3 base) {
+        if(hitStop(f.casterId())>=0)return;
+        Vec3 d=direction(f.target().subtract(f.origin())),u=side(d),w=d.cross(u).normalize();
+        Vec3 head=base.add(f.arrowPosition().subtract(f.origin()));
+        double age=f.age(),speed=smooth((age-2)/8);
+        if(speed<=0)return;
+        for(int i=0;i<26;i++) {
+            double life=(hash(i,191)+age*(.22+.12*hash(i,192)))%1,a=hash(i,193)*TAU;
+            Vec3 out=u.scale(Math.cos(a)).add(w.scale(Math.sin(a)));
+            // Hugs the tip, then flares out as it is swept back: a shock cone, not a starburst.
+            Vec3 from=head.add(d.scale(-.15-life*6)).add(out.scale((.35+.4*hash(i,194))*(1+life*1.6)));
+            Vec3 to=from.subtract(d.scale(2.5+3.5*hash(i,195))).add(out.scale(.25*life));
+            line(v,m,from,to,.05+.035*(1-life),.008,i%3==0?0xFFFFFF:0xFFE2B0,true,speed*Math.sin(Math.PI*life)*.8);
+        }
+        // A thin bow-shock rim right at the tip.
+        for(int i=0;i<12;i++) {
+            double a=i*TAU/12,b=(i+1)*TAU/12;
+            Vec3 pa=head.add(d.scale(-.2)).add(u.scale(Math.cos(a)*.55)).add(w.scale(Math.sin(a)*.55));
+            Vec3 pb=head.add(d.scale(-.2)).add(u.scale(Math.cos(b)*.55)).add(w.scale(Math.sin(b)*.55));
+            line(v,m,pa,pb.subtract(d.scale(.5)),.05,.02,0xFFF6E0,true,speed*.3*(.7+.3*Math.sin(age*3+i)));
+        }
+    }
     /** During the hit-stop the point of impact swells white-hot and a beam shoots up to where the meteor will form. */
     private static void impactPoint(VertexConsumer v,Matrix4f m,Frame f,Vec3 base) {
         double stop=hitStop(f.casterId());

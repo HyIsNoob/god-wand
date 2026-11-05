@@ -563,6 +563,8 @@ void fugaFire() {
     // Radial smear shafts read as straight vertical lines once fire is everywhere; the charge relies on haze instead.
     float shafts=0.0;
     if(shafts>0.0 && CenterX>-1.0) result+=fugaRays(uv,light,.22)*shafts*vec3(1.0,.72,.42)*.6;
+    // The shot: a soft warm flash as the arrow tears off the bow.
+    if(arrow) result+=vec3(1.0,.7,.42)*.22*exp(-Age/3.0)*ObserverGain;
     // The mass's arrival: a soft warm flash as it appears overhead.
     if(!charge&&!arrow&&age<12.0) result+=vec3(1.0,.62,.32)*.4*exp(-age/1.8)*ObserverGain;
     result+=vec3(1.0,.55,.25)*shockGlow;

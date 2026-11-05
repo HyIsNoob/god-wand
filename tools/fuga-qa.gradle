@@ -17,6 +17,7 @@ gradle.projectsEvaluated {
         args '--quickPlaySingleplayer',qaWorld,'--width','1280','--height','720'
         jvmArgs '-Dgodwand.fuga.poseOnly='+(p.findProperty('fugaPoseOnly') ?: 'false')
         jvmArgs '-Dgodwand.fuga.nocapture='+(p.findProperty('fugaNoCapture') ?: 'false')
+        jvmArgs '-Dgodwand.fuga.qa.defer='+(p.findProperty('fugaDefer') ?: 'false')
         maxHeapSize='3G'
     }
 }

@@ -19,7 +19,7 @@ public final class AtomicPostFx {
     private static boolean failed;
 
     public static void capture(Matrix4f view, Matrix4f projection, float delta) {
-        pending = GodWandConfig.CLIENT.postEffects && (AtomicRenderer.nearestFrame(delta) != null || FugaRenderer.localFrame(delta) != null)
+        pending = GodWandConfig.CLIENT.postEffects && (AtomicRenderer.nearestFrame(delta) != null || FugaRenderer.shaderFrame(delta) != null)
                 ? new Frame(new Matrix4f(view), new Matrix4f(projection), delta) : null;
     }
     public static boolean available() { return GodWandConfig.CLIENT.postEffects&&chain!=null&&!failed; }
@@ -51,6 +51,8 @@ public final class AtomicPostFx {
         if (context == null || failed) return;
         var fx = AtomicRenderer.nearestFrame(context.delta);
         var fuga=FugaRenderer.shaderFrame(context.delta);
+        // Under a shaderpack the fire mesh is drawn here, after the level pass, so the pack cannot repaint it.
+        FugaRenderer.flushDeferred();
         var client = Minecraft.getInstance();
         if ((fx == null && fuga == null) || client.level == null) return;
         // The chain is built behind the static opening shot, so the release frame never stalls on shader linking;
