@@ -107,7 +107,7 @@ public final class AtomicPostFx {
                 // Screen-wide beats (impact frames, flashes, vignette) belong to the caster; observers see the world effect.
                 boolean own=client.player!=null&&fuga.casterId()==client.player.getId();
                 chain.setUniform("ObserverGain",own?1:0);
-                chain.setUniform("Cut",own&&fuga.phase()>0&&FugaRenderer.phaseSeen(fuga.casterId(),context.delta)<3?1:0);
+                chain.setUniform("Cut",own?FugaRenderer.impactBeat(fuga.casterId(),context.delta):0);
                 // Off-screen detonations move the screen flare out of view instead of centring it.
                 chain.setUniform("CenterX",clip.w>.001?centerX:-10); chain.setUniform("CenterY",centerY);
             } else {

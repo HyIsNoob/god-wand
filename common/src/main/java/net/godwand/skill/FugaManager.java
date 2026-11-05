@@ -160,7 +160,7 @@ public final class FugaManager {
                 int surface=ground.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE,net.minecraft.util.Mth.floor(end.x)&15,net.minecraft.util.Mth.floor(end.z)&15)+1;
                 end=new Vec3(end.x,Math.max(task.world.getMinBuildHeight(),surface),end.z);task.position=end;
             }
-            task.origin=end;task.phase=FugaFxPayload.IMPACT;task.phaseAt=task.world.getGameTime();
+            task.origin=end;task.phase=FugaFxPayload.IMPACT;task.phaseAt=task.world.getGameTime()+FugaSequence.TRANSITION_TICKS;
             task.crater=new FugaCrater(BlockPos.containing(end),GodWandConfig.SERVER.fugaTerrainRadius);
             // The shot lands far from the caster, often past their loaded area: keep the whole crater and blast ring
             // loaded while it is carved, or it is left full of missing chunks.

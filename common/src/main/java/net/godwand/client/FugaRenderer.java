@@ -60,11 +60,14 @@ public final class FugaRenderer {
         var previous = ACTIVE.get(p.casterId());
         if (previous == null || previous.startedAt() != p.startedAt()) RECEIVED.put(p.casterId(),world.getGameTime());
         if (previous == null || previous.startedAt() != p.startedAt() || previous.phase() != p.phase()) PHASE_SEEN.put(p.casterId(),clientTicks);
+        // Where the arrow left the bow, so the hit-stop can freeze it exactly on the path it flew.
+        if (previous != null && previous.phase() == 1 && p.phase() == 2 && previous.startedAt() == p.startedAt())
+            LAUNCH.put(p.casterId(), new Vec3(previous.x(), previous.y(), previous.z()));
         ACTIVE.put(p.casterId(), p);
         if (ACTIVE.size() > 16) ACTIVE.remove(ACTIVE.keySet().iterator().next());
         RECEIVED.keySet().retainAll(ACTIVE.keySet()); PHASE_SEEN.keySet().retainAll(ACTIVE.keySet());
     }
-    public static void reset() { ACTIVE.clear(); RECEIVED.clear(); PHASE_SEEN.clear(); LATEST.clear(); AFTERMATH.clear(); glow = null; world = null; }
+    public static void reset() { LAUNCH.clear(); ACTIVE.clear(); RECEIVED.clear(); PHASE_SEEN.clear(); LATEST.clear(); AFTERMATH.clear(); glow = null; world = null; }
     /** The local caster's last impact, so its smouldering ground can keep cooling after the cast has ended. */
     private record Glow(int caster,long token,long phaseAt,Vec3 center) {}
     private static Glow glow;
@@ -171,7 +174,46 @@ public final class FugaRenderer {
                 target = origin.add(caster.getViewVector(partial).scale(160));
             }
         }
+        if (p.phase() == 2 && phaseSeen(casterId, partial) < HIT_STOP) {
+            // Hit-stop: for a few ticks the arrow hangs frozen in its impact before the meteor shot, on the path it flew.
+            Vec3 launch = LAUNCH.get(casterId);
+            if (launch == null) {
+                Vec3 dir = target.subtract(origin);
+                dir = dir.lengthSqr() < 1e-6 ? new Vec3(0, 0, 1) : dir.normalize();
+                launch = origin.subtract(dir.scale(FugaSequence.flightDistance(FREEZE_AGE)));
+            }
+            return new Frame(casterId, p.startedAt(), 1, flightTime(launch.distanceTo(origin)), launch, origin);
+        }
         return new Frame(casterId,p.startedAt(),p.phase(),Math.max(0,world.getGameTime()+partial-p.phaseAt()),origin,target);
+    }
+    /** Client ticks of hit-stop after the arrow lands, then one tick per impact-frame beat before the sphere shot. */
+    static final double IMPACT_BEATS = 4, HIT_STOP = net.godwand.skill.FugaSequence.TRANSITION_TICKS - IMPACT_BEATS, FREEZE_AGE = 30;
+    /** 0..1 through the hit-stop of this caster's landing; -1 outside it. */
+    static double hitStop(int casterId) { return hitStop(casterId, renderPartial); }
+    static double hitStop(int casterId, float partial) {
+        FugaFxPayload p = ACTIVE.get(casterId);
+        if (p == null || p.phase() != 2) return -1;
+        double seen = phaseSeen(casterId, partial);
+        return seen < HIT_STOP ? seen / HIT_STOP : -1;
+    }
+    /** Impact-frame beat for the post shader: the release flash, then four distinct beats after the hit-stop. */
+    public static float impactBeat(int casterId, float partial) {
+        FugaFxPayload p = ACTIVE.get(casterId);
+        if (p == null) return 0;
+        double seen = phaseSeen(casterId, partial);
+        if (p.phase() == 1) return seen < 3 ? 1 : 0;
+        // The hit itself lands on one plain beat; after the hold the four beats lead into the sphere.
+        if (p.phase() == 2 && seen < 1) return 1;
+        if (p.phase() == 2 && seen >= HIT_STOP && seen < HIT_STOP + IMPACT_BEATS) return 1 + (int)(seen - HIT_STOP);
+        return 0;
+    }
+    private static float renderPartial;
+    private static final Map<Integer, Vec3> LAUNCH = new java.util.HashMap<>();
+    /** Ticks the arrow takes to fly this far (inverse of FugaSequence.flightDistance). */
+    static double flightTime(double distance) {
+        double lo = 0, hi = 400;
+        for (int i = 0; i < 40; i++) { double mid = (lo + hi) / 2; if (FugaSequence.flightDistance(mid) < distance) lo = mid; else hi = mid; }
+        return hi;
     }
     public static Frame localFrame(float partial) {
         var player = Minecraft.getInstance().player;
@@ -249,6 +291,7 @@ public final class FugaRenderer {
         RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         RenderSystem.setShaderTexture(0,FLAME_TEXTURE);
         flow = world.getGameTime() + partial;
+        renderPartial = partial;
         try {
             Frame local = localFrame(partial);
             Frame shaded = shaderFrame(partial);
@@ -291,7 +334,7 @@ public final class FugaRenderer {
     private static void accents(VertexConsumer v,Matrix4f m,Frame f,Vec3 eye) {
         if(!valid(f,eye))return;
         Vec3 base=f.origin().subtract(eye);
-        if(f.phase()==1) { launch(v,m,f,base); streamers(v,m,f,base); lingeringTrail(v,m,f,base); }
+        if(f.phase()==1) { launch(v,m,f,base); streamers(v,m,f,base); lingeringTrail(v,m,f,base); impactPoint(v,m,f,base); }
         else if(f.phase()==2) impactAccents(v,m,FugaSequence.visualAge(f.age()),base);
     }
     /** The plane stays behind the subject, leaving their existing depth buffer visible. */
@@ -323,7 +366,7 @@ public final class FugaRenderer {
         if (!valid(f,eye) || !Double.isFinite(floor)) return;
         Vec3 base = f.origin().subtract(eye);
         if (f.phase() == 0) ritualRibbon(v,matrix,f,base);
-        else if (f.phase() == 1) { flight(v,matrix,f,base); launch(v,matrix,f,base); streamers(v,matrix,f,base); lingeringTrail(v,matrix,f,base); }
+        else if (f.phase() == 1) { flight(v,matrix,f,base); launch(v,matrix,f,base); streamers(v,matrix,f,base); lingeringTrail(v,matrix,f,base); impactPoint(v,matrix,f,base); }
         else {
             double age=FugaSequence.visualAge(f.age());
             impactVolume(v,matrix,age,base,Math.min(0,floor)); impactAccents(v,matrix,age,base);
@@ -834,6 +877,24 @@ public final class FugaRenderer {
         }
     }
     /** Release: a ring of compressed air bursts forward from the muzzle, with radial shock streaks. */
+    /** During the hit-stop the point of impact swells white-hot and a beam shoots up to where the meteor will form. */
+    private static void impactPoint(VertexConsumer v,Matrix4f m,Frame f,Vec3 base) {
+        double stop=hitStop(f.casterId());
+        if(stop<0)return;
+        Vec3 head=base.add(f.arrowPosition().subtract(f.origin()));
+        double k=smooth(stop);
+        puff(v,m,head,.6+3.4*k,0xFFFFFF,.9,true);
+        puff(v,m,head,2+7*k,0xFFA040,.45,true);
+        skyBeam(v,m,head,k,1);
+    }
+    /** A white-hot column punching straight up from the impact; `rise` 0..1 grows it, `gain` fades it. */
+    static void skyBeam(VertexConsumer v,Matrix4f m,Vec3 foot,double rise,double gain) {
+        if(gain<=0)return;
+        double top=6+110*rise;
+        line(v,m,foot,foot.add(0,top,0),.35+.9*rise,.2+.5*rise,0xFFF6E0,true,gain*.95);
+        line(v,m,foot,foot.add(0,top*.8,0),1.2+2.4*rise,.6,0xFF8A30,true,gain*.4);
+        for(int i=0;i<6;i++) puff(v,m,foot.add(0,top*(i+.5)/6,0),.8+1.6*rise,0xFFD080,gain*.25,true);
+    }
     /** The arrow leaves a burning streak hanging in the air: each point it passed swells, rises and cools to dark red. */
     private static void lingeringTrail(VertexConsumer v,Matrix4f m,Frame f,Vec3 base) {
         Vec3 d=direction(f.target().subtract(f.origin()));
@@ -978,6 +1039,9 @@ public final class FugaRenderer {
                 Vec3 p=base.add(Math.cos(a)*(rr+life*4),.3+life*(3+9*hash(i,65))*pressure,Math.sin(a)*(rr+life*4));
                 dot(v,m,p,.25+.45*hash(i,66),i%4==0?0x5A2410:0x1E1612,Math.sin(Math.PI*life)*pressure*live,false);
             }
+            // The beam from the arrow's impact still stands through the impact-frame beats, then burns out under the mass.
+            double beam=1-smooth(age/2.5);
+            if(beam>0)skyBeam(v,m,base,1,beam);
             // No collapse: the blast announces itself as a white flare swelling out of the underside.
             double flare=smooth((age-37)/3);
             if(flare>0) {

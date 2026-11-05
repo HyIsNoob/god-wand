@@ -27,7 +27,9 @@ class FugaSequenceTest {
  @Test void straightFlightClampsToEndpointAndNeverExtrapolates() {
   Vec3 origin=new Vec3(5,8,9), target=origin.add(160,0,0);
   assertEquals(origin,FugaSequence.arrowPosition(origin,target,-2));
-  assertEquals(origin.add(4,0,0),FugaSequence.arrowPosition(origin,target,1));
+  assertEquals(origin.add(FugaSequence.flightDistance(1),0,0),FugaSequence.arrowPosition(origin,target,1));
+  assertEquals(1,FugaSequence.flightDistance(.001)/.001,.01,"leaves the bow in slow motion");
+  assertEquals(FugaSequence.SPEED,FugaSequence.flightDistance(40)-FugaSequence.flightDistance(39),.05,"then flies at full speed");
   assertEquals(target,FugaSequence.arrowPosition(origin,target,100));
  }
 }

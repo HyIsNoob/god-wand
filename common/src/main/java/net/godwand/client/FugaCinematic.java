@@ -107,6 +107,13 @@ public final class FugaCinematic {
             side = side.lengthSqr() < 1e-6 ? right : side.normalize();
             Vec3 arrow = frame.arrowPosition();
             var chase = look(arrow.subtract(d.scale(16)).add(side.scale(3)).add(0, 3.5, 0), arrow.add(d.scale(10)));
+            double stop = FugaRenderer.hitStop(frame.casterId(), 0);
+            if (stop >= 0) {
+                // The arrow hangs in its impact: the camera rises with the beam and tilts up to follow its head.
+                double rise = smooth(stop, .08, 1), top = 6 + 110 * smooth(stop, 0, 1);
+                Vec3 position = chase.position().add(0, 14 * rise, 0).subtract(d.scale(6 * rise));
+                return look(position, arrow.lerp(arrow.add(d.scale(10)), 1 - rise).add(0, top * .8 * rise, 0));
+            }
             return blend(aim, chase, smooth(age, 2, 10));
         }
         if (age >= 160) return null;
@@ -262,6 +269,10 @@ public final class FugaCinematic {
                     // Held: a tight, throbbing rumble as the energy is compressed onto the arrow.
                     + .22f * smooth(frame.age(), 186, 200) * (1 + smooth(frame.age(), 190, 300)) * (.7f + .3f * (float)Math.sin(frame.age() * .9))) * GodWandConfig.CLIENT.cameraShake;
         }
+        double stop = FugaRenderer.hitStop(frame.casterId(), delta);
+        // The landing hits hard, then the ground keeps trembling as the beam climbs.
+        if (frame.phase() == 1 && stop >= 0)
+            return (2.6f * (1 - smooth(stop, 0, .25)) + .45f) * GodWandConfig.CLIENT.cameraShake;
         float strength = frame.phase() == 1 ? (1 - smooth(age, 0, 8)) * 1.6f
                 // The mass arrives with a heavy jolt and a rumble that never quite settles before the descent.
                 : frame.phase() == 2 ? (1 - smooth(age, 0, 10)) * 1.5f

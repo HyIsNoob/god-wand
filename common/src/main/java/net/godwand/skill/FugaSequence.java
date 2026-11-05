@@ -8,6 +8,9 @@ public final class FugaSequence {
     public static final int CHARGE_TICKS=200, ORB_TICKS=80, RETRACT_TICK=225, END_TICK=305;
     public static final int COLUMN_HEIGHT=384, SETTLE_TICKS=240;
     public static final double SPEED=4, MAX_RANGE=160, RADIUS=48;
+    /** Ticks between the arrow's landing and the meteor's first frame (hit, hit-stop with the skyward beam, impact
+     *  beats). The impact clock starts after it, so the sphere appears at its full height and the blast stays in sync. */
+    public static final int TRANSITION_TICKS=14;
     private FugaSequence() {}
     public static double chargeAge(double age) { return age*120/CHARGE_TICKS; }
     /** Meteor at half speed, the blast at near real time, then the column at half speed. */

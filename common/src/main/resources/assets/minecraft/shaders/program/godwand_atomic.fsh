@@ -501,9 +501,20 @@ void fugaFire() {
     if(impact>.5) {
         vec3 base=texture(DiffuseSampler,uv).rgb;
         float lum=dot(1.0-(1.0-base)*exp(-emission*.85),vec3(.3,.59,.11));
-        bool flip=fract(Age*.5)>.5;
+        // Cut carries the beat after the arrow lands: 1 white on black, 2 inverted, 3 blood red, 4 white with speed
+        // lines bursting from the impact. The release and the detonation use the plain beat.
+        float beat=max(Cut,1.0);
+        bool flip=beat<1.5?fract(Age*.5)>.5:beat<2.5;
         vec3 ink=vec3(.06,.0,.0),paper=vec3(1.0,.95,.88);
-        fragColor=vec4((lum>.42)!=flip?paper:ink,1);return;
+        if(beat>2.5&&beat<3.5){ink=vec3(.3,.01,0);paper=vec3(1.0,.36,.1);}
+        bool lit=(lum>.42)!=flip;
+        vec3 frame=lit?paper:ink;
+        if(beat>3.5) {
+            vec2 dv=(uv-light)*vec2(aspect,1.0);
+            float spoke=step(.8,fract(sin(floor(atan(dv.y,dv.x)*30.0)*91.7)*437.3));
+            frame=mix(frame,lit?ink:paper,spoke*smoothstep(.12,.45,length(dv)));
+        }
+        fragColor=vec4(frame,1);return;
     }
     // Sample the scene through animated heat refraction, attenuated by the visible fire volume.
     // Charge: heat haze wobbles the air around the fire, stronger as the pressure builds.

@@ -84,4 +84,12 @@ class FugaCraterTest {
   when(chunks.getChunkNow(anyInt(),anyInt())).thenReturn(null);
   crater.carve(world,100,Long.MAX_VALUE,81);verify(chunk,never()).getBlockState(any());verify(world,never()).setBlock(any(),any(),anyInt());
  }
+    @Test void pressureSinksABowlUnderTheSphereAndRaisesALip() {
+        assertEquals(0,FugaCrater.pressShape(0,20,0));
+        assertEquals(FugaCrater.PRESS_SINK,FugaCrater.pressShape(1,20,0),"deepest at the contact point");
+        assertTrue(FugaCrater.pressShape(1,20,10)>0&&FugaCrater.pressShape(1,20,10)<FugaCrater.PRESS_SINK);
+        assertTrue(FugaCrater.pressShape(1,20,21)<0,"displaced earth piles up just outside");
+        assertEquals(0,FugaCrater.pressShape(1,20,20+FugaCrater.PRESS_LIP+1));
+        for(double r=0;r<30;r+=.5) assertTrue(FugaCrater.pressShape(.5,20,r)<=FugaCrater.pressShape(1,20,r)||r>=20,"sinks deeper as it presses");
+    }
 }

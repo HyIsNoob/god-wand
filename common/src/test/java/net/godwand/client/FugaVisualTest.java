@@ -229,4 +229,7 @@ class FugaVisualTest {
         assertTrue(early>0,"occasional flashes while pulling");
         assertTrue(late/22.0>early/Math.max(1.0,FugaPose.CLAP-62),"denser as the clap nears");
     }
+    @Test void hitStopFreezesTheArrowAtTheDistanceItFlew() {
+        for(double d:new double[]{.5,12,80,160}) assertEquals(d,net.godwand.skill.FugaSequence.flightDistance(FugaRenderer.flightTime(d)),1e-6);
+    }
 }
