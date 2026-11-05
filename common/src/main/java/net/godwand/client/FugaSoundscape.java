@@ -18,15 +18,16 @@ import java.util.Map;
 
 /** Fuga audio in two authored parts plus a loop: part 1 (fuga_charge) from the start of the hold, cut on cancel;
  *  the hold loop (fuga_hold) once the bow is ready until the shot; part 2 (fuga_release) from the shot, always
- *  played to its end. While a part is still the shipped silent placeholder, vanilla cues stand in for it. */
+ *  played to its end; the closing part (fuga_end) from the impact, when the phoenix rises. While a part is still a silent
+ *  placeholder, vanilla cues stand in for it. */
 public final class FugaSoundscape {
-    static final String CHARGE = "fuga_charge", HOLD = "fuga_hold", RELEASE = "fuga_release";
+    static final String CHARGE = "fuga_charge", HOLD = "fuga_hold", RELEASE = "fuga_release", END = "fuga_end";
     /** SHA-256 of the silent placeholder shipped as fuga_charge.ogg and fuga_release.ogg. */
     static final String PLACEHOLDER_SHA = "9dfd4844812c24144949e8743103d18ff27928717aab16c69fabbc7225934eeb";
     private static final class Cast {
         final long token;
         int phase = -1;
-        SimpleSoundInstance charge, release;
+        SimpleSoundInstance charge, release, end;
         Hold hold;
         boolean readyCue, exploded;
         Vec3 impact;
@@ -76,7 +77,7 @@ public final class FugaSoundscape {
                 }
                 if (p.phase() == FugaFxPayload.IMPACT && !cast.exploded && now - p.phaseAt() >= FugaSequence.ORB_TICKS) {
                     cast.exploded = true;
-                    if (!custom(client, RELEASE)) cue(client, "entity.generic.explode", p, 6, .55f);
+                    if (!custom(client, END)) cue(client, "entity.generic.explode", p, 6, .55f);
                 }
                 continue;
             }
@@ -92,7 +93,9 @@ public final class FugaSoundscape {
                 else cue(client, "item.firecharge.use", p, 3, .6f);
             } else if (p.phase() == FugaFxPayload.IMPACT) {
                 fadeHold(cast);
-                if (previous == FugaFxPayload.FIRE && !custom(client, RELEASE)) cue(client, "entity.blaze.shoot", p, 3, .5f);
+                // The phoenix rises from the impact: the closing part starts now, over whatever of the shot is left.
+                if (custom(client, END)) cast.end = play(client, END, gain(client, p, false));
+                else if (previous == FugaFxPayload.FIRE) cue(client, "entity.blaze.shoot", p, 3, .5f);
             }
         }
         // A cast FugaRenderer dropped: a charge that never fired was cancelled; a fired one keeps its audio running.
@@ -101,7 +104,7 @@ public final class FugaSoundscape {
             Cast cast = entry.getValue();
             if (cast.phase <= FugaFxPayload.CHARGE) { fadeHold(cast); stop(cast, true); return true; }
             fadeHold(cast);
-            return cast.release == null || !sounds.isActive(cast.release);
+            return (cast.release == null || !sounds.isActive(cast.release)) && (cast.end == null || !sounds.isActive(cast.end));
         });
     }
 

@@ -7,6 +7,9 @@
   },
   "fuga_release": {
     "sounds": [{"name":"godwand:fuga_release","stream":true}]
+  },
+  "fuga_end": {
+    "sounds": [{"name":"godwand:fuga_end","stream":true}]
   },  "atomic_charge": {
     "subtitle": "subtitles.godwand.atomic_charge",
     "sounds": [{"name":"godwand:atomic_charge","stream":true}]

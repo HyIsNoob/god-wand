@@ -7,7 +7,7 @@
 - Fuga, the seventh skill: gather fire between your palms, draw a burning arrow and release it. In flight the arrow unfolds into a gliding fire phoenix, which leads a skyward beam at impact before a blazing meteor and a pillar of fire follow.
 - Simplified Chinese translation (`zh_cn`).
 - Optional Fuga cutscene, with configurable damage, cooldown and terrain destruction.
-- Fuga audio in three parts: the charge (cut if you let go early), a looping hum while the bow is drawn and ready, and the shot through to the end. Packs can replace `fuga_charge.ogg`, `fuga_hold.ogg` and `fuga_release.ogg`.
+- Fuga audio in four parts: the charge (cut if you let go early), a looping hum while the bow is drawn and ready, the phoenix's flight from the shot, and the finale from the moment it rises from the impact. Packs can replace `fuga_charge.ogg`, `fuga_hold.ogg`, `fuga_release.ogg` and `fuga_end.ogg`.
 - Fabric and NeoForge builds for Minecraft 26.1.2.
 - Bundled mod icon for all loaders.
 

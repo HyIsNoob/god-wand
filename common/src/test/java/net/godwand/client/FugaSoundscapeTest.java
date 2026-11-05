@@ -11,11 +11,10 @@ class FugaSoundscapeTest {
             return in.readAllBytes();
         }
     }
-    @Test void shippedPartsArePlaceholdersAndTheLoopIsReal() throws IOException {
-        // A mismatched hash would mute the vanilla stand-ins (or play them over real audio).
-        assertFalse(FugaSoundscape.isCustomAudio(sound(FugaSoundscape.CHARGE)));
-        assertFalse(FugaSoundscape.isCustomAudio(sound(FugaSoundscape.RELEASE)));
-        assertTrue(FugaSoundscape.isCustomAudio(sound(FugaSoundscape.HOLD)));
+    @Test void everyShippedPartIsRealAudio() throws IOException {
+        // A part read as a placeholder would play the vanilla stand-in cues over it.
+        for (String part : new String[]{FugaSoundscape.CHARGE, FugaSoundscape.HOLD, FugaSoundscape.RELEASE, FugaSoundscape.END})
+            assertTrue(FugaSoundscape.isCustomAudio(sound(part)), part);
         assertFalse(FugaSoundscape.isCustomAudio(new byte[]{1, 2, 3, 4}));
     }
 }
