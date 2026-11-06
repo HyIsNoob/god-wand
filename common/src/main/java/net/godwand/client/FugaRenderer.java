@@ -682,15 +682,23 @@ public final class FugaRenderer {
         }
     }
     /** Soft camera-facing billow: dense centre fading to a ragged transparent rim. */
+    private static final double[] PUFF_COS=new double[14],PUFF_SIN=new double[14];
+    static { for(int i=0;i<14;i++){PUFF_COS[i]=Math.cos(i*TAU/14);PUFF_SIN[i]=Math.sin(i*TAU/14);} }
     private static void puff(VertexConsumer v,Matrix4f m,Vec3 c,double size,int color,double alpha,boolean glow) {
         if(!layer(glow)||alpha<=0||size<=0)return;
-        Vec3 r=side(c).scale(size),u=direction(c.cross(side(c))).scale(size);
+        Vec3 s=side(c),r=s.scale(size),u=direction(c.cross(s)).scale(size);
         // 14 segments: soft radial gradients read just as round, and puffs are the most numerous primitive here.
+        // The rim is built once (15 points) instead of twice per segment.
+        Vec3[] rim=new Vec3[15];
         for(int i=0;i<14;i++) {
-            double a0=i*TAU/14,a1=(i+1)*TAU/14,w0=1+.12*Math.sin(a0*3+size)+.06*Math.sin(a0*7+size*2),w1=1+.12*Math.sin(a1*3+size)+.06*Math.sin(a1*7+size*2);
+            double a=i*TAU/14,w=1+.12*Math.sin(a*3+size)+.06*Math.sin(a*7+size*2);
+            rim[i]=c.add(r.scale(PUFF_COS[i]*w)).add(u.scale(PUFF_SIN[i]*w));
+        }
+        rim[14]=rim[0];
+        for(int i=0;i<14;i++) {
             vertex(v,m,c,color,alpha);
-            vertex(v,m,c.add(r.scale(Math.cos(a0)*w0)).add(u.scale(Math.sin(a0)*w0)),color,0);
-            vertex(v,m,c.add(r.scale(Math.cos(a1)*w1)).add(u.scale(Math.sin(a1)*w1)),color,0);
+            vertex(v,m,rim[i],color,0);
+            vertex(v,m,rim[i+1],color,0);
             vertex(v,m,c,color,alpha);
         }
     }

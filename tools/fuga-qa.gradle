@@ -14,7 +14,7 @@ gradle.projectsEvaluated {
     p.project(':fabric').tasks.named('runClient') {
         workingDir p.file('build/fuga-qa/run')
         jvmArgs '-Dgodwand.fuga.qa=true', '-Dfabric.addMods='+p.file('build/fuga-qa/probe.jar').absolutePath
-        args '--quickPlaySingleplayer',qaWorld,'--width','1280','--height','720'
+        args '--quickPlaySingleplayer',qaWorld,'--width',(p.findProperty('fugaWidth') ?: '1280'),'--height',(p.findProperty('fugaHeight') ?: '720')
         jvmArgs '-Dgodwand.fuga.poseOnly='+(p.findProperty('fugaPoseOnly') ?: 'false')
         jvmArgs '-Dgodwand.fuga.nocapture='+(p.findProperty('fugaNoCapture') ?: 'false')
         jvmArgs '-Dgodwand.fuga.qa.defer='+(p.findProperty('fugaDefer') ?: 'false')

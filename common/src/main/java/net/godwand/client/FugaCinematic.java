@@ -169,7 +169,7 @@ public final class FugaCinematic {
     // Energy mass only (visual 0-40): low, right under it looking up, then backing away as it comes down.
     // Later keys only keep the spline's ends smooth.
     private static final double[] IMPACT_KEYS = {0, 36, 39, 41, 52, 100, 122, 140, 160};
-    private static final double[] IMPACT_OUT = {20, 31, 36, 48, 48, 48, 48, 48, 48};
+    private static final double[] IMPACT_OUT = {30, 44, 52, 60, 48, 48, 48, 48, 48};
     private static final double[] IMPACT_SIDE = {4, 4, 4, 4, 4, 4, 4, 4, 4};
     private static double spline(double age, double[] keys, double[] values) {
         int i = 0, last = keys.length - 1;
@@ -236,7 +236,11 @@ public final class FugaCinematic {
     }
     public static float environmentGain() {
         var frame = FugaRenderer.localFrame(0);
-        return active() && GodWandConfig.CLIENT.fugaCutscene && !skipped && frame.phase() == 0 ? .015f + .985f * (1 - darkness(frame.age())) : 1;
+        if (!active() || !GodWandConfig.CLIENT.fugaCutscene || skipped) return 1;
+        if (frame.phase() == 0) return .015f + .985f * (1 - darkness(frame.age()));
+        // Dozens of mobs burning and dying in the blast at once clip into noise over the finale: duck them, then restore.
+        if (frame.phase() == 2) return .35f + .65f * smooth(frame.age(), 250, 300);
+        return 1;
     }
     /** 0..1 how far the world (light and sound) is taken away: black from the opening through the pull and the clap;
      *  it lifts after the silence while the vortex keeps burning, so the same fire is seen first on black, then in the world. */

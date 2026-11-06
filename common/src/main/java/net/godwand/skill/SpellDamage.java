@@ -34,8 +34,9 @@ public final class SpellDamage {
             if(!(living.level() instanceof ServerLevel world))return false;
             var type=world.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(TYPE);
             var source=new DamageSource(type,original.getDirectEntity(),original.getEntity());
-            if(living instanceof EnderDragon dragon)return dragon.hurt(dragon.head,source,amount);
-            return living.hurt(source,amount);
+            boolean hit=living instanceof EnderDragon dragon?dragon.hurt(dragon.head,source,amount):living.hurt(source,amount);
+            if(hit&&living.isDeadOrDying())noteKill(world,living);
+            return hit;
         }
         Entity owner=wormOwner(target);
         if(owner==null)return false;
@@ -49,6 +50,35 @@ public final class SpellDamage {
         }
     }
 
+    /** 32-block columns where spells killed something recently: {kill height, last kill tick}. */
+    private static final Map<ServerLevel,Map<Long,double[]>> KILLS=new WeakHashMap<>();
+    private static void noteKill(ServerLevel world,Entity dead) {
+        long key=(long)Math.floor(dead.getX()/32)<<32^((long)Math.floor(dead.getZ()/32)&0xFFFFFFFFL);
+        KILLS.computeIfAbsent(world,w->new HashMap<>()).put(key,new double[]{dead.getY(),world.getGameTime()});
+    }
+    /** Mass spell kills leave thousands of experience orbs, each scanning block collisions and its neighbours every
+     *  tick on every client (most of the frame on large packs). Once a second, where spells killed recently, pool them
+     *  per 8-block cell into vanilla's few large orbs, keeping every point and roughly where it fell. */
+    public static void poolExperience(ServerLevel world) {
+        var spots=KILLS.get(world);
+        long now=world.getGameTime();
+        if(spots==null||spots.isEmpty()||now%20!=10)return;
+        spots.values().removeIf(s->now-(long)s[1]>200);
+        for(var spot:spots.entrySet()) {
+            double x=(int)(spot.getKey()>>32)*32+16,z=(int)(long)spot.getKey()*32+16,y=spot.getValue()[0];
+            var orbs=world.getEntitiesOfClass(net.minecraft.world.entity.ExperienceOrb.class,new AABB(x-40,y-48,z-40,x+40,y+48,z+40),Entity::isAlive);
+            if(orbs.size()<24)continue;
+            Map<Long,long[]> cells=new LinkedHashMap<>();
+            Map<Long,net.minecraft.world.phys.Vec3> at=new HashMap<>();
+            for(var orb:orbs) {
+                long cell=(long)Math.floor(orb.getX()/8)<<32^((long)Math.floor(orb.getZ()/8)&0xFFFFFFFFL);
+                cells.computeIfAbsent(cell,c->new long[1])[0]+=(long)orb.getValue()*((net.godwand.mixin.ExperienceOrbAccessor)orb).godwand$getCount();
+                at.putIfAbsent(cell,orb.position());
+                orb.discard();
+            }
+            cells.forEach((cell,total)->net.minecraft.world.entity.ExperienceOrb.award(world,at.get(cell),(int)Math.min(Integer.MAX_VALUE,total[0])));
+        }
+    }
     private static boolean wormPart(Entity target) {
         // Also match subclasses used by proxies, without linking the optional mod at startup.
         for(Class<?> type=target.getClass();type!=null;type=type.getSuperclass())

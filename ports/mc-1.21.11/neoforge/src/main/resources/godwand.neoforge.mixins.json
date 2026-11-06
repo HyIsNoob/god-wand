@@ -6,7 +6,8 @@
     "EntityMixin",
     "FlowableFluidMixin",
     "AtomicMovementMixin",
-    "DisplayLifecycleMixin"
+    "DisplayLifecycleMixin",
+    "ExperienceOrbAccessor"
   ],
   "client": [
     "AtomicCameraMixin",

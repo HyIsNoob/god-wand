@@ -82,6 +82,8 @@ public final class FugaManager {
                 || GodWandItem.getSkillMode(task.wand)!=GodWandItem.MODE_FUGA;
     }
     public static void tick(ServerLevel world) {
+        // Every loader calls this world tick after all other skills, so it also pools what any skill's kills dropped.
+        SpellDamage.poolExperience(world);
         int budget=32768;long deadline=System.nanoTime()+8_000_000L;
         for(var iterator=TASKS.values().iterator();iterator.hasNext();) {
             Task task=iterator.next();if(task.world!=world)continue;

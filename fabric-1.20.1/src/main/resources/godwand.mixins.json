@@ -9,7 +9,8 @@
     "DisplayAccessor",
     "BlockDisplayAccessor",
     "AtomicMovementMixin",
-    "DisplayLifecycleMixin"
+    "DisplayLifecycleMixin",
+    "ExperienceOrbAccessor"
   ],
   "client": [
     "GameRendererMixin",
