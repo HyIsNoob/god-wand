@@ -24,10 +24,4 @@ public abstract class AtomicLocalMovementMixin {
     @Inject(method="turn",at=@At("HEAD"),cancellable=true)
     private void godwand$fugaFacing(double yaw,double pitch,CallbackInfo ci) {
         if((Object)this instanceof LocalPlayer && net.godwand.client.FugaCinematic.rotationLocked())ci.cancel();
-    }
-    // Fuga is fired level: while it is held the caster keeps turning left and right but cannot tilt the view.
-    @Inject(method="turn",at=@At("RETURN"))
-    private void godwand$fugaLevel(double yaw,double pitch,CallbackInfo ci) {
-        if((Object)this instanceof LocalPlayer player && net.godwand.client.FugaCinematic.aimLevel()) { player.setXRot(0); player.xRotO=0; }
-    }
-}
+    }}

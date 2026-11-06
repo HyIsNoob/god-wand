@@ -42,7 +42,7 @@ public final class FugaManager {
         Task(ServerPlayer player,InteractionHand hand) {
             caster=player;world=player.serverLevel();this.hand=hand;wand=player.getItemInHand(hand);
             started=phaseAt=world.getGameTime();anchor=origin=position=player.position();
-            target=FugaSequence.launchTarget(player.getEyePosition(),level(player));
+            target=FugaSequence.launchTarget(player.getEyePosition(),player.getLookAngle());
         }
     }
     private FugaManager() {}
@@ -70,14 +70,12 @@ public final class FugaManager {
         if(task==null || task.phase!=FugaFxPayload.CHARGE)return;
         if(invalid(task) || !FugaSequence.ready(task.world.getGameTime(),task.started)) {cancelCharge(player);return;}
         task.origin=task.position=player.getEyePosition();
-        task.target=FugaSequence.launchTarget(task.origin,level(player));
+        task.target=FugaSequence.launchTarget(task.origin,player.getLookAngle());
         task.phase=FugaFxPayload.FIRE;task.phaseAt=task.world.getGameTime();broadcast(task,FugaFxPayload.FIRE);
         // Recoil: a short shove back along the shot line, never stronger than a knockback hit.
         Vec3 kick=player.getLookAngle().scale(-.55);
         player.setDeltaMovement(kick.x,Math.max(.12,kick.y*.3),kick.z);player.hurtMarked=true;
     }
-    /** Fuga flies level along the caster's facing, whatever the pitch (the client also keeps the view level). */
-    private static Vec3 level(Player player) { return Vec3.directionFromRotation(0,player.getYRot()); }
     private static boolean invalid(Task task) {
         return !task.caster.isAlive() || task.caster.hasDisconnected() || task.caster.isSpectator()
                 || task.caster.serverLevel()!=task.world || task.caster.getItemInHand(task.hand)!=task.wand
