@@ -67,7 +67,7 @@ public final class FugaRenderer {
         if (ACTIVE.size() > 16) ACTIVE.remove(ACTIVE.keySet().iterator().next());
         RECEIVED.keySet().retainAll(ACTIVE.keySet()); PHASE_SEEN.keySet().retainAll(ACTIVE.keySet());
     }
-    public static void reset() { FugaSoundscape.reset(); LAUNCH.clear(); ACTIVE.clear(); RECEIVED.clear(); PHASE_SEEN.clear(); LATEST.clear(); AFTERMATH.clear(); glow = null; world = null; }
+    public static void reset() { FugaSoundscape.reset(); CLOCKS.clear(); LAUNCH.clear(); ACTIVE.clear(); RECEIVED.clear(); PHASE_SEEN.clear(); LATEST.clear(); AFTERMATH.clear(); glow = null; world = null; }
     /** The local caster's last impact, so its smouldering ground can keep cooling after the cast has ended. */
     private record Glow(int caster,long token,long phaseAt,Vec3 center) {}
     private static Glow glow;
@@ -106,6 +106,7 @@ public final class FugaRenderer {
                     || p.phase() == 2 && age >= net.godwand.skill.FugaSequence.END_TICK;
         });
         RECEIVED.keySet().retainAll(ACTIVE.keySet());
+        CLOCKS.keySet().retainAll(ACTIVE.keySet());
         FugaSoundscape.tick(client, world, ACTIVE);
         long now = world.getGameTime();
         for (var p : ACTIVE.values()) {
@@ -185,7 +186,18 @@ public final class FugaRenderer {
             }
             return new Frame(casterId, p.startedAt(), 1, flightTime(launch.distanceTo(origin)), launch, origin);
         }
-        return new Frame(casterId,p.startedAt(),p.phase(),Math.max(0,world.getGameTime()+partial-p.phaseAt()),origin,target);
+        return new Frame(casterId,p.startedAt(),p.phase(),Math.max(0,steadyAge(casterId,p,world.getGameTime()+partial-p.phaseAt(),partial)),origin,target);
+    }
+    private record Clock(long token,int phase,double age,double at) {}
+    private static final Map<Integer, Clock> CLOCKS = new LinkedHashMap<>();
+    /** After a server stall its time packets set the game time back; the cutscene keeps running on the client's own
+     *  ticks instead of replaying the last half second, and catches up when the server time jumps ahead again. */
+    static double steadyAge(int casterId, FugaFxPayload p, double gameAge, float partial) {
+        double now = clientTicks + partial;
+        Clock c = CLOCKS.get(casterId);
+        double age = c != null && c.token() == p.startedAt() && c.phase() == p.phase() ? Math.max(gameAge, c.age() + now - c.at()) : gameAge;
+        CLOCKS.put(casterId, new Clock(p.startedAt(), p.phase(), age, now));
+        return age;
     }
     /** Client ticks of hit-stop after the arrow lands, then one tick per impact-frame beat before the sphere shot. */
     static final double IMPACT_BEATS = 4, HIT_STOP = net.godwand.skill.FugaSequence.TRANSITION_TICKS - IMPACT_BEATS, FREEZE_AGE = 30;
