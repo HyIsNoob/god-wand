@@ -1009,7 +1009,7 @@ public final class FugaRenderer {
     /** Swells slightly as it settles and again into the white flash of the blast; it never collapses (mirrors the shader). */
     static double orbScale(double age) {return 1+.1*smooth((age-33)/6)+.12*smooth((age-38.5)/1.1);}
     /** Gap under the energy mass: it falls from 10 blocks and slows right down near the ground (mirrors the shader). */
-    static double orbGap(double age) { return 10*Math.pow(1-Math.max(0,Math.min(1,age/39)),1.4); }
+    static double orbGap(double age) { return 10*Math.pow(1-Math.pow(Math.max(0,Math.min(1,age/39)),1.25),1.2); }
     static double orbCenter(double age) { return orbGap(age)+orbRadius(age)*orbScale(age); }
     private static void impactVolume(VertexConsumer v, Matrix4f m, double age, Vec3 base, double floor) {
         if(age<40) {

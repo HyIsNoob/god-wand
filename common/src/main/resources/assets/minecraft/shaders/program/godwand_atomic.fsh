@@ -265,7 +265,8 @@ void fugaFire() {
         // ground 0-39 (never resting, swelling from 33), contact at 39, a last swell 38.5-39.6, dark beat, detonation at 40. Air resistance slows it near the ground.
         float fall=clamp(age/39.0,0.0,1.0);
         // The compressed air below resists harder the closer it gets: it slows right down before contact.
-        float gap=10.0*pow(1.0-fall,1.4);
+        // Eases in from its first frame (a slower start) and spends less time creeping just above the ground.
+        float gap=10.0*pow(1.0-pow(fall,1.25),1.2);
         float implode=smoothstep(38.5,39.6,age);
         // Full size from its first frame; at the end it swells a little and flashes white instead of collapsing.
         float k=1.0+.1*smoothstep(33.0,39.0,age)+.12*implode;
@@ -437,13 +438,14 @@ void fugaFire() {
         }
         }
         if(VolumePass>.5) {fragColor=vec4(emission/(1.0+emission),transmit);return;}
-        // Ground plane: pressure rings and dust under the falling sphere, shockwave after detonation.
-        if(ray.y<-.0001) {
-            float tg=(.3-o.y)/ray.y;
-            if(tg>0.0&&tg<sceneDistance+1.5) {
-                vec3 g=o+ray*tg;float rg=length(g.xz);
+        // Pressure rings and dust under the falling sphere, shockwave after detonation. They ride the terrain the view
+        // actually hits (hills, walls, the crater) instead of a flat plane through the air, fading far above or below.
+        if(!sky&&abs(surface.y)<70.0) {
+            float relief=1.0-smoothstep(35.0,70.0,abs(surface.y));
+            {
+                vec3 g=surface;float rg=length(g.xz);
                 float bottom=cy-orbR*sy*k;
-                float pressure=age<40.0?(1.0-smoothstep(0.0,48.0,bottom))*(1.0-suck*.5):0.0;
+                float pressure=age<40.0?(1.0-smoothstep(0.0,48.0,bottom))*(1.0-suck*.5)*relief:0.0;
                 for(int i=0;i<3;i++) {
                     // Same torn, buckled pressure rings as the pillar's, squeezed out from under the falling mass.
                     float f=fract(age*(.06+.16*nearGround)+float(i)/3.0),ringR=orbR*(.55+f*(1.9+1.6*nearGround));
@@ -454,7 +456,7 @@ void fugaFire() {
                 emission+=vec3(1.6,.4,.06)*exp(-rg/(orbR*.7))*pressure*.7;
                 float churn=fbm(vec3(g.xz*.045,age*.06)+vec3(0,0,atan(g.z,g.x)));
                 dust=smoothstep(orbR*.4,orbR*1.2,rg)*(1.0-smoothstep(orbR*1.5,orbR*3.0+pressure*30.0,rg))*smoothstep(.35,.7,churn)*pressure*.75;
-                float wave=4.0+230.0*easeOut((age-40.0)/30.0),waveFade=blast*(1.0-smoothstep(42.0,78.0,age));
+                float wave=4.0+230.0*easeOut((age-40.0)/30.0),waveFade=blast*(1.0-smoothstep(42.0,78.0,age))*relief;
                 emission+=vec3(3.2,1.7,.8)*exp(-pow((rg-wave)/(1.6+wave*.02),2.0))*waveFade*.9;
                 dust=max(dust,smoothstep(wave-30.0,wave-2.0,rg)*(1.0-smoothstep(wave,wave+6.0,rg))*churn*waveFade*.8);
                 // Pressure keeps peeling off the pillar as torn, buckled hot rings rolling out over the ground.
@@ -462,7 +464,7 @@ void fugaFire() {
                     float cyc=fract((age-40.0)/10.0+float(i)/3.0);
                     float ga=atan(g.z,g.x),buckle=(noise(vec3(ga*4.0,cyc*5.0+float(i)*3.1,age*.05))-.5)*(6.0+26.0*cyc);
                     float torn=smoothstep(.25,.65,noise(vec3(ga*7.0+float(i),rg*.03,age*.08)));
-                    float peel=exp(-pow((rg+buckle-(R0+4.0+cyc*110.0))/(3.0+cyc*9.0),2.0))*(1.0-cyc)*auraLife*torn;
+                    float peel=exp(-pow((rg+buckle-(R0+4.0+cyc*110.0))/(3.0+cyc*9.0),2.0))*(1.0-cyc)*auraLife*torn*relief;
                     emission+=vec3(3.0,1.1,.3)*peel*.9;
                     dust=max(dust,peel*.45);
                 }

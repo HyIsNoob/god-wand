@@ -19,6 +19,9 @@
 - Improved Atomic terrain coverage on normal worlds, with a shallower crater. Visual effects are unchanged.
 - Atomic now levels high terrain first instead of leaving tall ridges across its crater when terrain work stops.
 - Spatial Path and Stone Cannon status messages and the wand tooltip (now listing all seven skills) are translatable.
+- Experience orbs dropped by mass spell kills are pooled into a few larger orbs (same total experience), which removes a large frame-time cost on busy packs.
+- Fuga's shockwave and pressure rings follow the terrain instead of a flat plane, mobs under the meteor are slowed until it detonates, and world sounds are ducked during the blast.
+- Redrawn Fuga skill icon.
 
 ### Fixed
 
