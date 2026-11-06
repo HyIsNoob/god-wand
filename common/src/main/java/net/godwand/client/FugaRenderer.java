@@ -328,7 +328,7 @@ public final class FugaRenderer {
                 if (frame == null && caster != Integer.MIN_VALUE) continue;
                 BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_TEX_COLOR);
                 // A shaderpack leaves no depth to hide the smoke ceiling behind terrain: drawn anyway it covered the whole view.
-            if(frame==null && !AtomicPostFx.shaderPackActive()) storms(buffer,pose.last().pose(),camera.getPosition());
+                if(frame==null) { if(!AtomicPostFx.shaderPackActive()) storms(buffer,pose.last().pose(),camera.getPosition()); }
                 else if(frame.phase()!=0 && AtomicPostFx.available() && shaderCaster==caster && AtomicRenderer.nearestFrame(partial)==null) accents(buffer,pose.last().pose(),frame,camera.getPosition());
                 else emit(buffer,pose.last().pose(),frame,camera.getPosition(),world.getMinBuildHeight()-frame.origin().y);
                 var mesh = buffer.build();
