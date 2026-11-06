@@ -37,6 +37,10 @@ public final class FugaCinematic {
         var frame = FugaRenderer.localFrame(0);
         return present(client, frame) && (frame.phase() == 0 || GodWandConfig.CLIENT.fugaCutscene && !skipped);
     }
+    /** While the local caster holds Fuga the view stays level: the shot always flies parallel to the ground. */
+    public static boolean aimLevel() {
+        return movementLocked() && FugaRenderer.localFrame(0).phase() == 0;
+    }
     /** Facing is frozen through the directed build-up; it returns for the hold so the player can aim. */
     public static boolean rotationLocked() {
         var frame = FugaRenderer.localFrame(0);

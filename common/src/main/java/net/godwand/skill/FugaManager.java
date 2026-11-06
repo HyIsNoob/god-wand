@@ -42,7 +42,7 @@ public final class FugaManager {
         Task(ServerPlayer player,InteractionHand hand) {
             caster=player;world=player.serverLevel();this.hand=hand;wand=player.getItemInHand(hand);
             started=phaseAt=world.getGameTime();anchor=origin=position=player.position();
-            target=FugaSequence.launchTarget(player.getEyePosition(),player.getLookAngle());
+            target=FugaSequence.launchTarget(player.getEyePosition(),level(player));
         }
     }
     private FugaManager() {}
@@ -70,12 +70,14 @@ public final class FugaManager {
         if(task==null || task.phase!=FugaFxPayload.CHARGE)return;
         if(invalid(task) || !FugaSequence.ready(task.world.getGameTime(),task.started)) {cancelCharge(player);return;}
         task.origin=task.position=player.getEyePosition();
-        task.target=FugaSequence.launchTarget(task.origin,player.getLookAngle());
+        task.target=FugaSequence.launchTarget(task.origin,level(player));
         task.phase=FugaFxPayload.FIRE;task.phaseAt=task.world.getGameTime();broadcast(task,FugaFxPayload.FIRE);
         // Recoil: a short shove back along the shot line, never stronger than a knockback hit.
         Vec3 kick=player.getLookAngle().scale(-.55);
         player.setDeltaMovement(kick.x,Math.max(.12,kick.y*.3),kick.z);player.hurtMarked=true;
     }
+    /** Fuga flies level along the caster's facing, whatever the pitch (the client also keeps the view level). */
+    private static Vec3 level(Player player) { return Vec3.directionFromRotation(0,player.getYRot()); }
     private static boolean invalid(Task task) {
         return !task.caster.isAlive() || task.caster.hasDisconnected() || task.caster.isSpectator()
                 || task.caster.serverLevel()!=task.world || task.caster.getItemInHand(task.hand)!=task.wand
@@ -99,6 +101,7 @@ public final class FugaManager {
             if(task.phase!=FugaFxPayload.IMPACT)continue;
             forceSome(world,task.toForce,task.forced,FORCE_PER_TICK);
             long age=world.getGameTime()-task.phaseAt;
+            if(age<FugaSequence.ORB_TICKS && world.getGameTime()%10==0)slow(task);
             if(age>=FugaSequence.END_TICK) {
                 broadcast(task,FugaFxPayload.END);iterator.remove();
                 if(task.crater!=null && !task.crater.finished() && GodWandConfig.SERVER.fugaTerrainDamage)SETTLING.add(new Settling(world,task.crater,task.phaseAt,task.forced));
@@ -194,6 +197,14 @@ public final class FugaManager {
         for(var entity:task.world.getEntitiesOfClass(LivingEntity.class,area,e->e!=task.caster && e.isAlive()
                 && !(e instanceof Player player && (player.isCreative() || player.isSpectator()))))hit(task,entity,radius);
         for(var entity:SpellDamage.extraTargets(task.world,area))hit(task,entity,radius);
+    }
+    /** The damage only lands with the blast: from the hit until then, whatever stands under the sphere is slowed so it
+     *  is still there when it detonates. Refreshed every half second, so anything walking in is caught too. */
+    private static void slow(Task task) {
+        double r=FugaSequence.RADIUS*1.2;var p=task.position;
+        for(var entity:task.world.getEntitiesOfClass(LivingEntity.class,new AABB(p.x-r,p.y-16,p.z-r,p.x+r,p.y+48,p.z+r),e->e!=task.caster && e.isAlive()
+                && !(e instanceof Player player && (player.isCreative() || player.isSpectator()))))
+            entity.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN,30,3,false,false));
     }
     private static void hit(Task task,net.minecraft.world.entity.Entity entity,double radius) {
         UUID id=SpellDamage.identity(entity);

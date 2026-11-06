@@ -193,10 +193,12 @@ void fugaFire() {
                     float flap=beats*stroke,down=beats*(p<.3?sin(p/.3*3.1416):0.0);
                     // Wings held long and level (a slight upward dihedral, little sweep); each beat swings the whole
                     // wing about the shoulder, the tip bending a little behind it.
-                    float span=8.0*(t*.85+.15*sin(t*1.5708)),swing=flap*.55;
+                    // The arrow flies about a block and a half up: the upstroke rises high, the downstroke only dips
+                    // just below level so the wingtips never cut into the ground.
+                    float span=8.0*(t*.85+.15*sin(t*1.5708)),swing=flap>0.0?flap*.55:flap*.1;
                     vec3 shape=wingLane
                         ? vec3(sgn*(span*cos(swing)+drift*.8*t),
-                               span*sin(swing)+.35*span*.12+drift*.5*t+flap*.9*t*t,1.2-(1.0+5.5*t)+down*1.0*t)
+                               span*sin(swing)+.35*span*.12+drift*.5*t+max(flap,-.15)*.9*t*t,1.2-(1.0+5.5*t)+down*1.0*t)
                         : vec3(sgn*(.3+.9*t)+sin(z*.3+Age*.8+seed)*.5*t,-.35-.5*t+drift*.4*t,z);
                     vec3 c=mix(coil,shape,spread);
                     c.xy=vec2(c.x*rc-c.y*rs,c.x*rs+c.y*rc);
