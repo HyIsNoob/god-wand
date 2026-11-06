@@ -68,15 +68,19 @@ public final class SpellDamage {
             double x=(int)(spot.getKey()>>32)*32+16,z=(int)(long)spot.getKey()*32+16,y=spot.getValue()[0];
             var orbs=world.getEntitiesOfClass(net.minecraft.world.entity.ExperienceOrb.class,new AABB(x-40,y-48,z-40,x+40,y+48,z+40),Entity::isAlive);
             if(orbs.size()<24)continue;
-            Map<Long,long[]> cells=new LinkedHashMap<>();
-            Map<Long,net.minecraft.world.phys.Vec3> at=new HashMap<>();
-            for(var orb:orbs) {
-                long cell=(long)Math.floor(orb.getX()/8)<<32^((long)Math.floor(orb.getZ()/8)&0xFFFFFFFFL);
-                cells.computeIfAbsent(cell,c->new long[1])[0]+=(long)orb.getValue()*((net.godwand.mixin.ExperienceOrbAccessor)orb).godwand$getCount();
-                at.putIfAbsent(cell,orb.position());
-                orb.discard();
+            Map<Long,List<net.minecraft.world.entity.ExperienceOrb>> cells=new LinkedHashMap<>();
+            for(var orb:orbs)
+                cells.computeIfAbsent((long)Math.floor(orb.getX()/8)<<32^((long)Math.floor(orb.getZ()/8)&0xFFFFFFFFL),c->new ArrayList<>()).add(orb);
+            for(var cell:cells.values()) {
+                // A cell already pooled holds one orb: leave it be, or it would be re-spawned (and bounce) every second.
+                if(cell.size()<2)continue;
+                long total=0;
+                for(var orb:cell) { total+=(long)orb.getValue()*((net.godwand.mixin.ExperienceOrbAccessor)orb).godwand$getCount(); orb.discard(); }
+                var first=cell.get(0);
+                var pooled=new net.minecraft.world.entity.ExperienceOrb(world,first.getX(),first.getY(),first.getZ(),(int)Math.min(Integer.MAX_VALUE,total));
+                pooled.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
+                world.addFreshEntity(pooled);
             }
-            cells.forEach((cell,total)->net.minecraft.world.entity.ExperienceOrb.award(world,at.get(cell),(int)Math.min(Integer.MAX_VALUE,total[0])));
         }
     }
     private static boolean wormPart(Entity target) {

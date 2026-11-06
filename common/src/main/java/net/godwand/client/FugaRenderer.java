@@ -107,6 +107,7 @@ public final class FugaRenderer {
         });
         RECEIVED.keySet().retainAll(ACTIVE.keySet());
         CLOCKS.keySet().retainAll(ACTIVE.keySet());
+        AtomicPostFx.prewarm();
         FugaSoundscape.tick(client, world, ACTIVE);
         long now = world.getGameTime();
         for (var p : ACTIVE.values()) {

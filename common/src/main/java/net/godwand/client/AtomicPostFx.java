@@ -46,6 +46,20 @@ public final class AtomicPostFx {
             return irisInUse != null && (boolean) irisInUse.invoke(iris);
         } catch (ReflectiveOperationException | LinkageError absent) { irisInUse = null; return false; }
     }
+    private static void create(Minecraft client) throws Exception {
+        chain=new PostChain(client.getTextureManager(),client.getResourceManager(),client.getMainRenderTarget(),
+                ResourceLocation.withDefaultNamespace("shaders/post/godwand_atomic.json"));
+    }
+    /** Builds the chain (compiling its shaders) as soon as a world is open, so the first cast does not stall on it. */
+    public static void prewarm() {
+        var client=Minecraft.getInstance();
+        if(chain!=null||failed||!GodWandConfig.CLIENT.postEffects||client.level==null)return;
+        try { create(client); }
+        catch(Exception error) {
+            failed=true;
+            GodWandMod.LOGGER.error("Atomic post effect disabled until resource reload; world geometry remains available",error);
+        }
+    }
     public static void renderAfterWorld() {
         Frame context = pending; pending = null;
         if (context == null || failed) return;
@@ -73,8 +87,7 @@ public final class AtomicPostFx {
         int w=client.getWindow().getWidth(), h=client.getWindow().getHeight();
         if(w<=0||h<=0)return;
         try {
-            if(chain==null) chain=new PostChain(client.getTextureManager(),client.getResourceManager(),client.getMainRenderTarget(),
-                    ResourceLocation.withDefaultNamespace("shaders/post/godwand_atomic.json"));
+            if(chain==null) create(client);
             if(w!=width||h!=height||downsample!=GodWandConfig.CLIENT.bloomDownsample) {
                 chain.resize(w,h);
                 for(String name:new String[]{"atomic_emit","atomic_blur_x","atomic_blur_y"})
