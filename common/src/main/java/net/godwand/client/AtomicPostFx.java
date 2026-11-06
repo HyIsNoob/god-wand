@@ -58,15 +58,36 @@ public final class AtomicPostFx {
         catch(Exception error) {
             failed=true;
             GodWandMod.LOGGER.error("Atomic post effect disabled until resource reload; world geometry remains available",error);
+            return;
         }
+        // A failed warm-up only costs the stall it was meant to avoid.
+        try { warm(); }
+        catch(Exception error) { GodWandMod.LOGGER.warn("God Wand post effect warm-up skipped",error); }
+    }
+    /** Many drivers (notably AMD's) compile a program only on its first draw, which froze the first cast: run the new
+     *  chain once now as a pass-through (no effect, no bloom) so that happens while the world opens. */
+    private static void warm() {
+        var client=Minecraft.getInstance();
+        int w=client.getWindow().getWidth(),h=client.getWindow().getHeight();
+        if(w<=0||h<=0)return;
+        // The passes need their size and projection before they can run (the first real frame sizes them again).
+        chain.resize(w,h);
+        for(var pass:((PostEffectProcessorAccessor)chain).getPasses())
+            pass.setOrthoMatrix(new Matrix4f().setOrtho(0,pass.outTarget.width,0,pass.outTarget.height,.1f,1000));
+        chain.setUniform("FugaPhase",-1);chain.setUniform("Age",-1);chain.setUniform("BloomStrength",0);chain.setUniform("BloomBurst",0);
+        RenderSystem.disableBlend(); RenderSystem.disableDepthTest();
+        chain.process(0);
+        Minecraft.getInstance().getMainRenderTarget().bindWrite(true);
+        RenderSystem.enableDepthTest(); RenderSystem.depthMask(true);
     }
     public static void renderAfterWorld() {
+        // Under a shaderpack the fire mesh is drawn here, after the level pass, so the pack cannot repaint it; every frame
+        // that deferred it, even when the post effect has nothing to do or failed, or the fire would drop out of frames.
+        FugaRenderer.flushDeferred();
         Frame context = pending; pending = null;
         if (context == null || failed) return;
         var fx = AtomicRenderer.nearestFrame(context.delta);
         var fuga=FugaRenderer.shaderFrame(context.delta);
-        // Under a shaderpack the fire mesh is drawn here, after the level pass, so the pack cannot repaint it.
-        FugaRenderer.flushDeferred();
         var client = Minecraft.getInstance();
         if ((fx == null && fuga == null) || client.level == null) return;
         // The chain is built behind the static opening shot, so the release frame never stalls on shader linking;

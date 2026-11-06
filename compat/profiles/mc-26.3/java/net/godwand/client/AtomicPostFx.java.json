@@ -20,6 +20,10 @@
     {
       "before": "        chain=new PostChain(client.getTextureManager(),client.getResourceManager(),client.getMainRenderTarget(),\n                ResourceLocation.withDefaultNamespace(\"shaders/post/godwand_atomic.json\"));\n",
       "after": "        chain=new GodWandPostChain(\"godwand_atomic\");\n"
+    },
+    {
+      "before": "        var client=Minecraft.getInstance();\n        int w=client.getWindow().getWidth(),h=client.getWindow().getHeight();\n        if(w<=0||h<=0)return;\n        // The passes need their size and projection before they can run (the first real frame sizes them again).\n        chain.resize(w,h);\n        for(var pass:((PostEffectProcessorAccessor)chain).getPasses())\n            pass.setOrthoMatrix(new Matrix4f().setOrtho(0,pass.outTarget.width,0,pass.outTarget.height,.1f,1000));\n        chain.setUniform(\"FugaPhase\",-1);chain.setUniform(\"Age\",-1);chain.setUniform(\"BloomStrength\",0);chain.setUniform(\"BloomBurst\",0);\n        RenderSystem.disableBlend(); RenderSystem.disableDepthTest();\n        chain.process(0);\n        Minecraft.getInstance().getMainRenderTarget().bindWrite(true);\n        RenderSystem.enableDepthTest(); RenderSystem.depthMask(true);\n",
+      "after": "        // The port compiles its pipelines through the render device when they are created; nothing to warm.\n"
     }
   ]
 }

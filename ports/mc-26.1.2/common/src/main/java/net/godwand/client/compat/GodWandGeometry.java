@@ -72,7 +72,10 @@ public final class GodWandGeometry {
             for (int style = 0; style < 3; style++)
                 for (boolean writing : new boolean[]{false,true})
                     pipeline(new Key(topology,false,style != 0,style == 2,true,writing,false));
-        pipeline(new Key(VertexFormat.Mode.QUADS,true,true,true,true,false,false));
+        // Textured quads in every blend style Fuga uses: its normal-blend layer and backdrop need these as much as the glow.
+        for (int style = 0; style < 3; style++)
+            for (boolean writing : new boolean[]{false,true})
+                pipeline(new Key(VertexFormat.Mode.QUADS,true,style != 0,style == 2,true,writing,false));
         PIPELINES.values().forEach(register);
     }
 
