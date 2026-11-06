@@ -53,7 +53,8 @@ def changelog(current):
 
 def targets(current):
     for mc, loaders in [("1.20.1", ("fabric", "forge")), ("1.21.1", ("fabric", "neoforge")),
-                        ("1.21.11", ("fabric", "neoforge")), ("26.3", ("fabric", "neoforge"))]:
+                        ("1.21.11", ("fabric", "neoforge")), ("26.1.2", ("fabric", "neoforge")),
+                        ("26.3", ("fabric", "neoforge"))]:
         for loader in loaders:
             stem = loader if mc == "1.21.1" else f"{loader}-{mc}"
             yield mc, loader, f"godwand-{stem}-{current}.jar"
@@ -163,7 +164,7 @@ def main():
     action.add_argument("--upload", action="store_true")
     action.add_argument("--dry-run", action="store_true", help="Offline preview (default)")
     action.add_argument("--check-token", action="store_true", help="Read CurseForge game versions; uploads nothing")
-    parser.add_argument("--build", action="store_true", help="Build all eight targets first")
+    parser.add_argument("--build", action="store_true", help="Build all ten targets first")
     parser.add_argument("--release-type", choices=("alpha", "beta", "release"), default="release")
     args = parser.parse_args()
     project, token = settings()

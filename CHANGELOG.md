@@ -4,24 +4,35 @@
 
 ### Added
 
-- Fuga, the seventh skill: gather fire between your palms, draw a burning arrow and release it. In flight the arrow unfolds into a gliding fire phoenix, which leads a skyward beam at impact before a blazing meteor and a pillar of fire follow.
-- Simplified Chinese translation (`zh_cn`).
-- Optional Fuga cutscene, with configurable damage, cooldown and terrain destruction.
-- Fuga audio in four parts: the charge (cut if you let go early), a looping hum while the bow is drawn and ready, the phoenix's flight from the shot, and the finale from the moment it rises from the impact. Packs can replace `fuga_charge.ogg`, `fuga_hold.ogg`, `fuga_release.ogg` and `fuga_end.ogg`.
-- Fabric and NeoForge builds for Minecraft 26.1.2.
-- Bundled mod icon for all loaders.
+- Fuga, the seventh skill: gather fire between your palms, draw a burning bow and release a fire arrow that turns into a gliding phoenix. When it hits, the phoenix rises into the sky, a blazing meteor falls and a pillar of fire erupts.
+- Fuga has its own cutscene (you can turn it off in the settings) and its own soundtrack. Server owners can change its damage, cooldown and terrain destruction.
+- Enemies caught under the falling meteor are slowed until it explodes.
+- Simplified Chinese language.
+- Builds for Minecraft 26.1.2 on Fabric and NeoForge.
+- God Wand now shows its icon in the mod list.
 
 ### Changed
 
-- Improved Iris shaderpack compatibility on modern Minecraft versions.
+- Better compatibility with Iris and Oculus shaderpacks.
+- Better performance when skills wipe out large groups of mobs: their experience drops are merged into fewer, larger orbs, and you still get the same amount of experience.
+- Fuga's shockwaves now follow the ground over hills, walls and craters.
+- Other sounds are quieter during Fuga's explosion, so the finale stays clear.
+- Spatial Path and Stone Cannon messages are now translated, and the wand tooltip lists all seven skills.
+
+### Fixed
+
+- Spatial Path no longer destroys cushions and attached decorations.
+- Fixed a camera glitch after visual effects reset on Minecraft 26.1.2.
+
+## [1.3.5]
+
+### Changed
+
 - Replaced Atomic, Earth Drill and Supernova SFX with the owner-provided CC0-only mixes.
 - Updated the second impact frame with the owner-created Filmora image.
-- Improved Atomic terrain coverage on normal worlds, with a shallower crater. Visual effects are unchanged.
+- Improved Atomic terrain coverage on normal worlds.
+- Reduced Atomic crater depth to prioritize wider terrain coverage. Visual effects are unchanged.
 - Atomic now levels high terrain first instead of leaving tall ridges across its crater when terrain work stops.
-- Spatial Path and Stone Cannon status messages and the wand tooltip (now listing all seven skills) are translatable.
-- Experience orbs dropped by mass spell kills are pooled into a few larger orbs (same total experience), which removes a large frame-time cost on busy packs.
-- Fuga's shockwave and pressure rings follow the terrain instead of a flat plane, mobs under the meteor are slowed until it detonates, and world sounds are ducked during the blast.
-- Redrawn Fuga skill icon.
 
 ### Fixed
 
@@ -32,8 +43,6 @@
 - Fixed displaced spell blocks remaining in the air after dying and reloading their area.
 - Ongoing spells no longer pull in or damage their caster after respawning.
 - Supernova no longer leaves displaced blocks that can return inside its blast.
-- Spatial Path no longer destroys cushions and attached decorations.
-- Fixed stale deferred camera state after a visual reset on 26.1.2.
 
 ## [1.3.4]
 
