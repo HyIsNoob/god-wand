@@ -157,7 +157,9 @@ void fugaFire() {
         } else {
         vec2 hit=fireBox(localO,localD,vec3(-10,-7,-36.0),vec3(10,8,5));
         if(hit.y>hit.x) {
-            float limit=sceneDistance;
+            // Under a shaderpack the depth is only a plane estimate through the arrow itself: clipping by it cut the
+            // wings off, so the fire is drawn whole there.
+            float limit=DepthTrust>.5?sceneDistance:1600.0;
             // Still Fuga, an arrow made of fire: a white-hot point and core with a long tapering wake.
             emission+=fireStrand(localO,localD,vec3(0,0,-.6),vec3(0,0,3.2),.55,limit,1.25);
             emission+=softStrand(localO,localD,vec3(0,0,-2.5),vec3(0,0,3.4),1.3,limit,1.0,.88);
@@ -440,7 +442,8 @@ void fugaFire() {
         if(VolumePass>.5) {fragColor=vec4(emission/(1.0+emission),transmit);return;}
         // Pressure rings and dust under the falling sphere, shockwave after detonation. They ride the terrain the view
         // actually hits (hills, walls, the crater) instead of a flat plane through the air, fading far above or below.
-        if(!sky&&abs(surface.y)<70.0) {
+        // Under a shaderpack there is no real depth to ride on: FugaRenderer.groundRings draws them over the heightmap instead.
+        if(!sky&&abs(surface.y)<70.0&&DepthTrust>.5) {
             float relief=1.0-smoothstep(35.0,70.0,abs(surface.y));
             {
                 vec3 g=surface;float rg=length(g.xz);

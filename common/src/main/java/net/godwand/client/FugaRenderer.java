@@ -327,7 +327,8 @@ public final class FugaRenderer {
                 Frame frame = caster == Integer.MIN_VALUE ? null : frameFor(caster,partial);
                 if (frame == null && caster != Integer.MIN_VALUE) continue;
                 BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS,DefaultVertexFormat.POSITION_TEX_COLOR);
-                if(frame==null) storms(buffer,pose.last().pose(),camera.getPosition());
+                // A shaderpack leaves no depth to hide the smoke ceiling behind terrain: drawn anyway it covered the whole view.
+            if(frame==null && !AtomicPostFx.shaderPackActive()) storms(buffer,pose.last().pose(),camera.getPosition());
                 else if(frame.phase()!=0 && AtomicPostFx.available() && shaderCaster==caster && AtomicRenderer.nearestFrame(partial)==null) accents(buffer,pose.last().pose(),frame,camera.getPosition());
                 else emit(buffer,pose.last().pose(),frame,camera.getPosition(),world.getMinBuildHeight()-frame.origin().y);
                 var mesh = buffer.build();
@@ -371,7 +372,44 @@ public final class FugaRenderer {
         if(!valid(f,eye))return;
         Vec3 base=f.origin().subtract(eye);
         if(f.phase()==1) { launch(v,m,f,base); streamers(v,m,f,base); lingeringTrail(v,m,f,base); airRush(v,m,f,base); impactPoint(v,m,f,base); }
-        else if(f.phase()==2) impactAccents(v,m,FugaSequence.visualAge(f.age()),base);
+        else if(f.phase()==2) {
+            impactAccents(v,m,FugaSequence.visualAge(f.age()),base);
+            if(AtomicPostFx.shaderPackActive()) groundRings(v,m,FugaSequence.visualAge(f.age()),base,f.origin());
+        }
+    }
+    /** Under a shaderpack the post shader has no depth to lay its pressure rings and shockwave on (they floated on a
+     *  flat plane), so they are drawn here over the client heightmap instead, every point on the top block below it. */
+    private static void groundRings(VertexConsumer v,Matrix4f m,double age,Vec3 base,Vec3 origin) {
+        double near=1-smooth(orbGap(age)/10);
+        if(age<40) {
+            double pressure=1-smooth((orbCenter(age)-orbRadius(age)*orbScale(age))/48);
+            for(int i=0;i<3;i++) {
+                double f=(age*(.06+.16*near)+i/3.0)%1;
+                groundRing(v,m,base,origin,orbRadius(age)*(.55+f*(1.9+1.6*near)),.6+f*1.8,0xFFB060,(1-f)*pressure*(.5+.8*near));
+            }
+            return;
+        }
+        double wave=4+230*easeOut((age-40)/30),fade=1-smooth((age-42)/36);
+        groundRing(v,m,base,origin,wave,1.4+wave*.012,0xFFE0B0,fade*.85);
+        double retract=1-smooth((age-120)/40),column=46*Math.sqrt(retract)*(.7+.3*smooth((age-40)/12)),life=smooth((age-40)/5)*smooth(retract/.35);
+        for(int i=0;i<3;i++) {
+            double cyc=((age-40)/10+i/3.0)%1;
+            groundRing(v,m,base,origin,column+4+cyc*110,.8+cyc*2.4,0xFF8A30,(1-cyc)*life*.7);
+        }
+    }
+    private static void groundRing(VertexConsumer v,Matrix4f m,Vec3 base,Vec3 origin,double radius,double width,int color,double alpha) {
+        if(alpha<=0||radius<=0||world==null)return;
+        int n=(int)Math.min(160,Math.max(32,radius*1.2));
+        Vec3 prev=null;
+        for(int i=0;i<=n;i++) {
+            double a=i*TAU/n,x=origin.x+Math.cos(a)*radius,z=origin.z+Math.sin(a)*radius;
+            int top=world.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING,net.minecraft.util.Mth.floor(x),net.minecraft.util.Mth.floor(z));
+            // Unloaded columns report the bottom of the world: keep those at the impact's height.
+            double y=top<origin.y-64?origin.y:top+.15;
+            Vec3 p=base.add(x-origin.x,y-origin.y,z-origin.z);
+            if(prev!=null)line(v,m,prev,p,width,width,color,true,alpha);
+            prev=p;
+        }
     }
     /** The plane stays behind the subject, leaving their existing depth buffer visible. */
     public static void emitBackdrop(VertexConsumer v, Matrix4f m, Frame frame, Vec3 eye, double alpha) {
