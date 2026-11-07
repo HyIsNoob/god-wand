@@ -17,8 +17,6 @@ One wand with seven skills: walk through mountains, pull enemies into a gravity 
 | 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.4.0.jar` |
 | 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.4.0.jar` |
 
-The 26.1.2 port is available in source; check CurseForge Files for published downloads. Source support does not mean a release JAR has been uploaded.
-
 Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server. For multiplayer, update God Wand on both the server and every player’s client.
 
 ## Skills and controls
@@ -31,7 +29,6 @@ Hold **V** with the wand to select a skill. Press **K** for client graphics and 
 4. **Supernova:** hold right-click for seven seconds to release a black hole and explosion.
 5. **Stone Cannon:** charge and release a piercing stone projectile.
 6. **I am Atomic:** hold through the buildup, ATOMIC pose and compression. The dark pause waits for you to release right-click, triggering the blast. Movement is locked and incoming damage is blocked during the cast. Esc/F5 skips its camera; skipping after detonation also restores movement.
-
 7. **Fuga:** hold to form a fire arrow, aim while standing still, then release to fire. Releasing before the arrow is ready cancels. Toggle its camera in **K**.
 
 AUTO selects Aqua Heartia for skills 3/5, Shadow Blade for skill 6, and Eclipse for the others. K also supports a manual model choice.
