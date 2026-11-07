@@ -45,7 +45,7 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
   
-  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
   
   --sidebar-width: 250px;
@@ -122,9 +122,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Bilingual switcher */
-body[data-lang="vi"] .lang-en { display: none !important; }
-body[data-lang="en"] .lang-vi { display: none !important; }
+/* Trilingual switcher (EN / VI / ZH) */
+body[data-lang="en"] .lang-vi,
+body[data-lang="en"] .lang-zh { display: none !important; }
+
+body[data-lang="vi"] .lang-en,
+body[data-lang="vi"] .lang-zh { display: none !important; }
+
+body[data-lang="zh"] .lang-en,
+body[data-lang="zh"] .lang-vi { display: none !important; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -204,6 +210,11 @@ header.top-header {
 
 .search-input:focus {
   border-color: var(--accent-gold);
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
 }
 
 .search-shortcut {
@@ -383,7 +394,8 @@ main.content-area {
 
 /* Constrain text reading measure for paragraphs without cramping cards and tables */
 p, .section-lead, .callout p {
-  max-width: 72ch;
+  max-width: 70ch;
+  text-wrap: pretty;
 }
 
 /* Hero */
@@ -572,16 +584,18 @@ section.doc-section {
   font-size: 0.92rem;
   color: var(--text-secondary);
   margin-bottom: 0.85rem;
+  text-wrap: pretty;
+  max-width: 68ch;
 }
 
 .skill-specs {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 0.75rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  padding: 0.75rem 1.1rem;
-  border-radius: var(--radius-sm);
+  background: transparent;
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.85rem;
+  margin-top: 0.85rem;
   font-size: 0.86rem;
 }
 
@@ -634,6 +648,9 @@ table.data-table {
 }
 
 table.data-table th {
+  position: sticky;
+  top: var(--header-height);
+  z-index: 10;
   background: var(--bg-tertiary);
   color: var(--text-muted);
   padding: 0.8rem 1.1rem;
@@ -761,9 +778,54 @@ footer.doc-footer {
   transform: translateY(0);
 }
 
+/* Sidebar Backdrop for Mobile */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 85;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.sidebar-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Search Empty State */
+.search-empty {
+  text-align: center;
+  padding: 3.5rem 1rem;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  margin: 1.5rem 0 2rem 0;
+}
+
+.search-empty svg {
+  margin-bottom: 0.75rem;
+  stroke: var(--text-muted);
+}
+
+.search-empty p {
+  font-size: 0.95rem;
+  margin: 0;
+  max-width: none;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .menu-toggle { display: block; }
+  .sidebar-backdrop { display: block; }
   aside.sidebar {
     transform: translateX(-100%);
     transition: transform 0.2s ease;
@@ -778,4 +840,41 @@ footer.doc-footer {
   }
   .header-search { flex: 0 1 180px; }
   .search-shortcut { display: none; }
+}
+
+@media (max-width: 640px) {
+  header.top-header {
+    padding: 0 0.85rem;
+    gap: 0.5rem;
+  }
+  .header-search {
+    flex: 1 1 110px;
+    max-width: 170px;
+  }
+  .search-input {
+    padding: 0.38rem 0.5rem 0.38rem 0.65rem;
+    font-size: 0.8rem;
+  }
+  .theme-label,
+  .lang-btn span,
+  .nav-link-btn span {
+    display: none;
+  }
+  .theme-btn,
+  .lang-btn,
+  .nav-link-btn {
+    padding: 0.38rem 0.55rem;
+  }
+  .header-actions {
+    gap: 0.35rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-badge {
+    display: none;
+  }
+  .brand-title {
+    font-size: 0.95rem;
+  }
 }

@@ -1,33 +1,34 @@
-# God Wand 1.3.2 Wiki — Vercel Deployment Guide
+# God Wand 1.4.0 Wiki — Deployment Guide
 
-Trang wiki tĩnh chính thức cho mod **God Wand**. Được xây dựng hoàn toàn bằng **HTML5 / CSS3 / Vanilla JS**, không cần Node.js build step, tải siêu tốc và hỗ trợ song ngữ (Tiếng Việt & English).
+Trang wiki kỹ thuật chính thức cho mod **God Wand**. Được xây dựng bằng **HTML5 / CSS3 / Vanilla JS**, không cần Node.js build step, tải siêu tốc và hỗ trợ 3 ngôn ngữ (Tiếng Anh / Tiếng Việt / Tiếng Trung - EN / VI / ZH).
 
 ---
 
-## 🚀 Cách Deploy lên Vercel trong 1 phút
+## Huong Dan Deploy Len Vercel
 
-### Cách 1: Kết nối trực tiếp qua Vercel Dashboard (Khuyên dùng)
-1. Đăng nhập vào [Vercel](https://vercel.com).
-2. Bấm **"Add New Project"** và chọn kho lưu trữ GitHub `HyIsNoob/god-wand`.
-3. Trong phần **Root Directory**, bấm `Edit` và chọn thư mục: `wiki`.
-4. Bấm **"Deploy"**. Trang web sẽ được xuất bản ngay lập tức mà không cần bất kỳ lệnh build nào!
+### Cach 1: Ket noi truc tiep qua Vercel Dashboard (Khuyen dung)
+1. Dang nhap vao [Vercel](https://vercel.com).
+2. Bam **"Add New Project"** va chon kho luu tru GitHub `HyIsNoob/god-wand`.
+3. Trong phan **Root Directory**, bam `Edit` va chon thu muc: `wiki`.
+4. Bam **"Deploy"**. Trang web se duoc xuat ban ngay lap tuc ma khong can bat ky lenh build nao.
 
-### Cách 2: Deploy qua Vercel CLI
-Nếu bạn đã cài Vercel CLI trên máy tính:
+### Cach 2: Deploy qua Vercel CLI
+Neu ban da cai Vercel CLI tren may tinh:
 ```powershell
-cd D:\fileluu\Tools\god-wand-1.3.0\wiki
+cd D:\fileluu\Tools\god-wand-1.4.0\wiki
 vercel
 ```
-Làm theo hướng dẫn trên màn hình và chọn deploy production:
+Lam theo huong dan tren man hinh va chon deploy production:
 ```powershell
 vercel --prod
 ```
 
 ---
 
-## 📁 Cấu trúc thư mục
+## Cau Truc Thu Muc
 
-- `index.html`: Giao diện chính, cấu trúc tài liệu song ngữ (VI/EN).
-- `style.css`: Hệ màu Dark-Fantasy, responsive và trau chuốt UX/UI.
-- `script.js`: Xử lý chuyển đổi ngôn ngữ (i18n), tìm kiếm nhanh, công cụ quy đổi tick và sao chép config.
-- `vercel.json`: Cấu hình routing tĩnh chuẩn hóa cho Vercel.
+- `index.html`: Giao dien chinh, cau truc tai lieu da ngon ngu (EN / VI / ZH).
+- `style.css`: He mau Dark-Fantasy/Light, responsive va trau chuot UX/UI.
+- `script.js`: Xu ly chuyen doi ngon ngu (i18n), tim kiem nhanh theo danh muc va sao chep config.
+- `vercel.json`: Cau hinh routing tinh chuan hoa cho Vercel.
+- `assets/`: Hinh anh avatar va tai nguyen mo rong.
