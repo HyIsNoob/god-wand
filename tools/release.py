@@ -21,6 +21,11 @@ API = "https://minecraft.curseforge.com/api"
 def settings():
     values = {}
     env = ROOT / ".env"
+    if not env.exists():  # a linked worktree reuses the main checkout's ignored .env
+        common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                                cwd=ROOT, capture_output=True, text=True).stdout.strip()
+        if common:
+            env = Path(common).parent / ".env"
     if env.exists():
         for line in env.read_text(encoding="utf-8-sig").splitlines():
             key, sep, value = line.strip().partition("=")

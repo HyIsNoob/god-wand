@@ -16,7 +16,7 @@ Run `release.bat` for the menu, or from the repository root:
 To build and upload in one command, use `.\release.bat --build --upload`.
 For a beta, append `--release-type beta`.
 
-The tool reads the current version and its changelog, validates the eight JARs
+The tool reads the current version and its changelog, validates the ten JARs
 against `SHA256SUMS.txt` and embedded mod metadata, and assigns exact
 Minecraft/loader tags plus both Client and Server environments. Fabric uploads declare Fabric API as required.
 Preview is offline. Upload uses the [official CurseForge Upload API](https://support.curseforge.com/support/solutions/articles/9000197321).
@@ -30,3 +30,29 @@ Remote uploads made outside this tool are not recorded in the local journal.
 CurseForge moderation still applies after upload.
 
 Changelogs are sent as compact HTML lists, avoiding paragraph wrappers inside each bullet. Previously uploaded files can be edited under CurseForge Manage File. The documented update-file API returned HTTP 500 during verification, so this tool does not automate editing existing files.
+
+## Branches and folders
+
+One Git repo, one folder per line of work, all under `GodWand\`:
+
+| Folder | Branch | Purpose |
+| --- | --- | --- |
+| `repo\` | `main` | Latest released code. Do not develop here; use it to release and to create worktrees. |
+| `work\1.4.x\` | `1.4.x` | Fixes for the released 1.4 line (1.4.1, 1.4.2 ...). |
+| `work\1.5.0\` | `1.5.0` | New skills and features for the next minor version. |
+
+Create a worktree only when you need it, and remove it when the line is done:
+
+```powershell
+git worktree add ..\work\1.4.x 1.4.x                 # the branch already exists
+git worktree add ..\work\1.5.0 -b 1.5.0 main         # a new line of work
+git worktree remove ..\work\1.5.0                    # when finished
+```
+
+Release a version from its own folder: bump `mod_version` in `gradle.properties`, add the
+`CHANGELOG.md` section, then run `release.bat` there. `.env` is shared automatically from `repo\`.
+JARs are built into that folder's `build\release\<version>\`; copy them to `GodWand\releases\<version>`
+as the permanent local copy.
+
+After a 1.4.x release, merge `1.4.x` into `1.5.0` so the fixes are not lost (`git merge 1.4.x`).
+When 1.5.0 is released, merge it into `main`. Create `1.5.x` from `main` at that point.

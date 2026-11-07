@@ -37,8 +37,8 @@ class ReleaseTest(unittest.TestCase):
 
     def test_exact_tags_dependencies_and_current_changelog(self):
         _, entries = release.prepare("1.3.5", "release")
-        self.assertEqual(8, len(entries))
-        self.assertEqual(8, len({tuple(metadata["gameVersionNames"]) for _, _, metadata in entries}))
+        self.assertEqual(10, len(entries))
+        self.assertEqual(10, len({tuple(metadata["gameVersionNames"]) for _, _, metadata in entries}))
         for path, _, metadata in entries:
             self.assertTrue({"Client", "Server"}.issubset(metadata["gameVersionNames"]))
             self.assertIn("New fix", metadata["changelog"])
@@ -82,14 +82,14 @@ class ReleaseTest(unittest.TestCase):
             self.assertNotIn("test-token", str(caught.exception))
 
     def test_upload_journal_skips_successful_files_on_second_run(self):
-        versions = [{"name": n} for n in ["Fabric", "Forge", "NeoForge", "1.20.1", "1.21.1", "1.21.11", "26.3", "Client", "Server"]]
+        versions = [{"name": n} for n in ["Fabric", "Forge", "NeoForge", "1.20.1", "1.21.1", "1.21.11", "26.1.2", "26.3", "Client", "Server"]]
         def response(route, *_):
             return versions if route == "/game/versions" else {"id": 42}
         with patch("sys.argv", ["release.py", "--upload"]), patch.object(release, "settings", return_value=("1760928", "test-token")), patch.object(release, "request", side_effect=response) as api, patch("builtins.print"):
             release.main()
-            self.assertEqual(9, api.call_count)
+            self.assertEqual(11, api.call_count)
             release.main()
-            self.assertEqual(10, api.call_count)
+            self.assertEqual(12, api.call_count)
 
 
 if __name__ == "__main__":
