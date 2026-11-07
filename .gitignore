@@ -34,3 +34,7 @@ fuga-references/
 /AGENTS.md
 /BAT_DAU_O_DAY.md
 /ports/**/PORT_STATUS.md
+
+# JVM crash dumps
+hs_err_pid*.log
+replay_pid*.log
