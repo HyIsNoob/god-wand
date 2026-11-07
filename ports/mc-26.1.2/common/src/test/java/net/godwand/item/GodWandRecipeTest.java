@@ -18,6 +18,6 @@ class GodWandRecipeTest {
         var ops=RegistryOps.create(JsonOps.INSTANCE,net.minecraft.core.RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY));
         assertNotNull(ShapedRecipe.MAP_CODEC.codec().parse(ops,recipe).getOrThrow());
         var unlock=JsonParser.parseString(Files.readString(data.resolve("advancement/recipes/combat/god_wand.json"))).getAsJsonObject();
-        assertEquals("godwand:god_wand",unlock.getAsJsonObject("criteria").getAsJsonObject("has_the_recipe").getAsJsonObject("conditions").get("recipes").getAsString());
+        assertEquals("godwand:god_wand",unlock.getAsJsonObject("criteria").getAsJsonObject("has_the_recipe").getAsJsonObject("conditions").get("recipe").getAsString());
     }
 }

@@ -11,6 +11,8 @@
 - `/godwand lock fuga` now works: a wand can be locked to Fuga like the other skills.
 - Fuga's cutscene, phoenix and meteor no longer vanish for players on servers with higher ping or a lagging server; the blast still happened, but the visuals were dropped.
 - Mobs burning and dying in Fuga's blast are quieter, and stay quieter even when the cutscene is turned off or skipped.
+- Fixed Fuga's arrow, phoenix, meteor and other mesh effects being invisible on Fabric for Minecraft 1.21.11.
+- The God Wand recipe now unlocks in the recipe book on Minecraft 1.21.11 and 26.1.2 (its advancement failed to load and logged an error).
 
 ## [1.4.0]
 
