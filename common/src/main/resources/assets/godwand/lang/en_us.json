@@ -40,6 +40,7 @@
   "message.godwand.skill_locked": "Locked skill: %s",
   "command.godwand.hold_wand": "Hold a God Wand in your main hand.",
   "command.godwand.stop_casting": "Finish or cancel your current cast first.",
+  "command.godwand.cooldowns_reset": "Reset God Wand skill cooldowns for %s player(s).",
   "command.godwand.unlocked": "Wand unlocked. Hold V to choose a skill.",
   "message.godwand.path_disabled": "Path disabled.",
   "message.godwand.path_enabled": "Path enabled.",

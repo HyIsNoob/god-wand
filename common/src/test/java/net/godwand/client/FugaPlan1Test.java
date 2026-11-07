@@ -66,6 +66,18 @@ class FugaPlan1Test {
             frames.when(()->FugaRenderer.localFrame(0)).thenReturn(null);assertFalse(FugaCinematic.active());assertFalse(FugaCinematic.movementLocked());assertEquals(1,FugaCinematic.environmentGain());
         } finally {FugaCinematic.reset();GodWandConfig.CLIENT=config;}
     }
+    @Test void blastDucksWorldSoundWithTheCutsceneOffAndRestoresBeforeTheFrameEnds() {
+        var client=mock(Minecraft.class);client.player=mock(LocalPlayer.class);client.level=mock(ClientLevel.class);
+        when(client.player.isAlive()).thenReturn(true);when(client.isWindowActive()).thenReturn(false);
+        var config=GodWandConfig.CLIENT;GodWandConfig.CLIENT=new GodWandConfig.Client();GodWandConfig.CLIENT.fugaCutscene=false;
+        try(var minecraft=mockStatic(Minecraft.class);var frames=mockStatic(FugaRenderer.class)) {
+            minecraft.when(Minecraft::getInstance).thenReturn(client);
+            frames.when(()->FugaRenderer.localFrame(0)).thenReturn(new FugaRenderer.Frame(1,100,2,120,Vec3.ZERO,new Vec3(0,0,160)));
+            assertEquals(.25f,FugaCinematic.environmentGain(),1e-6,"mob cries are ducked while the blast sweeps");
+            frames.when(()->FugaRenderer.localFrame(0)).thenReturn(new FugaRenderer.Frame(1,100,2,299,Vec3.ZERO,new Vec3(0,0,160)));
+            assertTrue(FugaCinematic.environmentGain()>.99f,"restored before the frame ends");
+        } finally {FugaCinematic.reset();GodWandConfig.CLIENT=config;}
+    }
     @Test void cinematicOffKeepsOnlyRequiredAimAndNeverDarkensOrZoomsTheScene() {
         var client=mock(Minecraft.class);client.player=mock(LocalPlayer.class);client.level=mock(ClientLevel.class);
         when(client.player.isAlive()).thenReturn(true);when(client.isWindowActive()).thenReturn(true);

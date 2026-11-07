@@ -236,10 +236,11 @@ public final class FugaCinematic {
     }
     public static float environmentGain() {
         var frame = FugaRenderer.localFrame(0);
+        // Dozens of mobs burning and dying in the blast at once clip into noise over the finale: duck them, then restore.
+        // That noise is there with the cutscene off, skipped or the window unfocused too, so it does not depend on them.
+        if (frame != null && frame.phase() == 2 && present(Minecraft.getInstance(), frame)) return .25f + .75f * smooth(frame.age(), 260, 300);
         if (!active() || !GodWandConfig.CLIENT.fugaCutscene || skipped) return 1;
         if (frame.phase() == 0) return .015f + .985f * (1 - darkness(frame.age()));
-        // Dozens of mobs burning and dying in the blast at once clip into noise over the finale: duck them, then restore.
-        if (frame.phase() == 2) return .35f + .65f * smooth(frame.age(), 250, 300);
         return 1;
     }
     /** 0..1 how far the world (light and sound) is taken away: black from the opening through the pull and the clap;

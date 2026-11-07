@@ -136,6 +136,26 @@ class FugaVisualTest {
             assertNull(FugaRenderer.localFrame(0)); assertNull(FugaRenderer.frameFor(19,0));
         } finally { FugaRenderer.reset(); }
     }
+    @Test void impactStampedAheadSurvivesAClientClockThatTrailsTheServer() {
+        Minecraft client=mock(Minecraft.class); client.level=mock(ClientLevel.class); client.player=mock(LocalPlayer.class);
+        when(client.player.getId()).thenReturn(20);
+        when(client.player.isAlive()).thenReturn(true);
+        when(client.player.getPosition(anyFloat())).thenReturn(Vec3.ZERO);
+        when(client.player.getViewVector(anyFloat())).thenReturn(new Vec3(0,0,1));
+        when(client.level.getEntity(20)).thenReturn(client.player);
+        try(var minecraft=mockStatic(Minecraft.class)) {
+            minecraft.when(Minecraft::getInstance).thenReturn(client);
+            FugaRenderer.reset();
+            // Server time 300 stamps the impact 314; the client's clock trails it by 40 ticks (latency + server catch-up).
+            when(client.level.getGameTime()).thenReturn(260L);
+            FugaRenderer.receive(new FugaFxPayload(20,100,0,0,0,0,0,160,FugaFxPayload.IMPACT,314));
+            FugaRenderer.tick(client);
+            assertNotNull(FugaRenderer.localFrame(0),"A delayed clock must not drop the impact");
+            when(client.level.getGameTime()).thenReturn(-40L);
+            FugaRenderer.tick(client);
+            assertNull(FugaRenderer.localFrame(0),"A frame stamped far in the future is still discarded");
+        } finally { FugaRenderer.reset(); }
+    }
     @Test void missingOrReleasedCastersExpireAfterReceiptGraceButValidHoldHasNoTimeout() {
         Minecraft client=mock(Minecraft.class); client.level=mock(ClientLevel.class); client.player=mock(LocalPlayer.class);
         when(client.player.getId()).thenReturn(20);

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.1]
+
+### Added
+
+- New admin command `/godwand reset_cooldowns [players]` (operator level 4) clears every skill cooldown instantly.
+
+### Fixed
+
+- `/godwand lock fuga` now works: a wand can be locked to Fuga like the other skills.
+- Fuga's cutscene, phoenix and meteor no longer vanish for players on servers with higher ping or a lagging server; the blast still happened, but the visuals were dropped.
+- Mobs burning and dying in Fuga's blast are quieter, and stay quieter even when the cutscene is turned off or skipped.
+
 ## [1.4.0]
 
 ### Added

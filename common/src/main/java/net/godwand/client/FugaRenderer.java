@@ -91,13 +91,18 @@ public final class FugaRenderer {
     }
     // Local tick count: server time packets rewind the game time after a server stall, which held the impact frame on screen.
     private static long clientTicks;
+    /** The impact is stamped 14 ticks ahead of the server's time, and a client's game clock trails the server's by the
+     *  connection's latency, plus whatever a lagging server has not yet caught up on: on a real server that easily
+     *  passed the old 20-tick bound, so the cast's impact (cutscene, phoenix, meteor) was dropped on arrival while the
+     *  server still killed everything. Only a frame from the far future is discarded now. */
+    static final long FUTURE_TOLERANCE = 200;
     public static void tick(Minecraft client) {
         clientTicks++;
         if (client.level != world || client.player == null) { reset(); return; }
         ACTIVE.values().removeIf(p -> {
             var caster = world.getEntity(p.casterId());
             long age = world.getGameTime() - p.phaseAt();
-            return caster != null && !caster.isAlive() || age < -20
+            return caster != null && !caster.isAlive() || age < -FUTURE_TOLERANCE
                     || p.phase() == 0 && world.getGameTime()-RECEIVED.getOrDefault(p.casterId(),0L)>20
                     && (!(caster instanceof LivingEntity living) || !living.isUsingItem()
                     || !(living.getUseItem().getItem() instanceof GodWandItem)
