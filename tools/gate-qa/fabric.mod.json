@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"godwand_gate_qa","version":"1.0.0","name":"Silent Gate QA (development only)","environment":"client","entrypoints":{"client":["net.godwand.qa.SilentGateProbe"]},"mixins":["gate-qa.mixins.json"],"depends":{"fabricloader":">=0.16.0","fabric-api":"*","godwand":"*"}}

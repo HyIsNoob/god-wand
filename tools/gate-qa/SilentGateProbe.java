@@ -1,0 +1,167 @@
+package net.godwand.qa;
+
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.godwand.GodWandMod;
+import net.godwand.client.SilentGateRenderer;
+import net.godwand.config.GodWandConfig;
+import net.godwand.item.GodWandItem;
+import net.godwand.skill.SilentGateManager;
+import net.minecraft.client.CameraType;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.Screenshot;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.levelgen.Heightmap;
+import java.nio.file.*;
+import java.util.*;
+
+/** Development-only: one complete Silent Gate cast (click, build, wait, click, barrage, ending), captured from the real render target. */
+public final class SilentGateProbe implements ClientModInitializer {
+    private static final String[] PHASES = {"BUILD", "WAIT", "BARRAGE", "END"};
+    private static final int FIELD_X0 = -60, FIELD_X1 = 60, FIELD_Z0 = 8, FIELD_Z1 = 70;
+    private int ticks, stage, since, clickAt, frame;
+    private final long[] fpsSum = new long[4], fpsN = new long[4];
+    private final int[] fpsMin = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE},
+            firstFrame = {-1, -1, -1, -1}, lastFrame = {-1, -1, -1, -1};
+    private long msptPeak;
+    private boolean click2, sawFrame, sawBarrage;
+    private int ground, solidBefore, solidAfter, total;
+    private final List<UUID> targets = new ArrayList<>();
+    private final String run = Long.toString(System.currentTimeMillis());
+    private final Set<String> marks = new HashSet<>();
+
+    public void onInitializeClient() {
+        if (!Boolean.getBoolean("godwand.fuga.qa")) throw new IllegalStateException("QA flag required");
+        ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+    }
+
+    private int solid(net.minecraft.server.level.ServerLevel level) {
+        int n = 0;
+        for (int x = FIELD_X0; x <= FIELD_X1; x++) for (int z = FIELD_Z0; z <= FIELD_Z1; z++)
+            for (int y = ground - 12; y < ground; y++) if (!level.getBlockState(new BlockPos(x, y, z)).isAir()) n++;
+        return n;
+    }
+
+    private void tick(Minecraft c) {
+        var server = c.getSingleplayerServer();
+        if (c.player == null || c.level == null || server == null
+                || !c.gameDirectory.toPath().toAbsolutePath().normalize().endsWith(Path.of("build", "fuga-qa", "run"))) return;
+        c.options.pauseOnLostFocus = false;
+        if (Files.exists(c.gameDirectory.toPath().getParent().resolve("stop"))) { c.stop(); return; }
+        ticks++;
+        if (stage == 0 && ticks > 80 && c.screen == null) {
+            c.getWindow().setWindowed(1280, 720);
+            c.getWindow().setTitle("God Wand 1.5.0 - Silent Gate QA");
+            c.options.framerateLimit().set(60); c.options.renderDistance().set(16);
+            c.options.guiScale().set(2); c.options.setCameraType(CameraType.FIRST_PERSON); c.options.broadcastOptions();
+            GodWandConfig.CLIENT.gateCutscene = true;
+            server.submit(() -> {
+                var p = server.getPlayerList().getPlayer(c.player.getUUID());
+                var level = p.serverLevel();
+                p.setGameMode(GameType.CREATIVE);
+                level.getGameRules().getRule(net.minecraft.world.level.GameRules.RULE_DOMOBSPAWNING).set(false, server);
+                level.setDayTime(13000); level.setWeatherParameters(60000, 0, false, false);
+                ground = level.getHeight(Heightmap.Types.WORLD_SURFACE, 0, 0);
+                var rnd = new Random(7);
+                for (int i = 0; i < 14; i++) {
+                    // 12 zombies + 2 skeletons, 15-55 blocks ahead (+Z), spread to the sides.
+                    double z = 15 + rnd.nextDouble() * 40, x = (rnd.nextDouble() * 2 - 1) * (10 + z * 0.8);
+                    Mob m = (Mob) (i < 12 ? EntityType.ZOMBIE : EntityType.SKELETON).create(level);
+                    int gy = level.getHeight(Heightmap.Types.WORLD_SURFACE, (int) Math.floor(x), (int) Math.floor(z));
+                    m.setPos(x, gy, z); m.setNoAi(true); m.setPersistenceRequired();
+                    level.addFreshEntity(m); targets.add(m.getUUID());
+                }
+                total = targets.size();
+                solidBefore = solid(level);
+                var wand = new ItemStack(GodWandMod.GOD_WAND_ITEM); GodWandItem.setSkillMode(wand, GodWandItem.MODE_SILENT_GATE);
+                p.getInventory().setItem(0, wand); p.getInventory().selected = 0;
+                p.getInventory().setItem(40, ItemStack.EMPTY);
+                p.getCooldowns().removeCooldown(GodWandMod.GOD_WAND_ITEM);
+                p.connection.teleport(.5, ground, .5, 0, 0); p.inventoryMenu.broadcastChanges();
+            }).join();
+            c.player.getInventory().selected = 0; c.player.connection.send(new ServerboundSetCarriedItemPacket(0));
+            try { Files.createDirectories(c.gameDirectory.toPath().resolve("screenshots/gate-" + run)); }
+            catch (java.io.IOException e) { throw new RuntimeException(e); }
+            stage = 1; since = ticks;
+            System.out.println("GATE_QA SETUP run=" + run + " Java=" + System.getProperty("java.version") + " ground=" + ground + " targets=" + total + " solidBefore=" + solidBefore);
+        }
+        if (stage == 1 && ticks - since > 80 && GodWandItem.getSkillMode(c.player.getMainHandItem()) == GodWandItem.MODE_SILENT_GATE) {
+            stage = 2; since = ticks; clickAt = ticks;
+            c.player.setYRot(0); c.player.setXRot(0);
+            c.gameMode.useItem(c.player, InteractionHand.MAIN_HAND);
+            System.out.println("GATE_QA CLICK1");
+        }
+        if (stage == 3) { aftermath(c, server); return; }
+        if (stage != 2) return;
+        int age = ticks - clickAt;
+        if (age > 1200) throw new AssertionError("Gate QA timeout");
+        var f = SilentGateRenderer.localFrame(0);
+        if (f != null) sawFrame = true;
+        if (f == null && !sawFrame) return;
+        if (age % 2 == 0) grab(c);
+        if (f == null) {
+            if (click2 && sawBarrage) {
+                stage = 3; since = ticks;
+                System.out.printf(Locale.ROOT, "GATE_QA PASS frames=%d serverMsptPeak=%.2f%n", frame, msptPeak / 1e6);
+                for (int i = 0; i < 4; i++) if (firstFrame[i] >= 0)
+                    System.out.printf(Locale.ROOT, "GATE_QA FPS %s avg=%.1f min=%d frames=%d..%d%n", PHASES[i],
+                            fpsSum[i] / (double) Math.max(1, fpsN[i]), fpsMin[i], firstFrame[i], lastFrame[i]);
+            }
+            return;
+        }
+        int ph = Math.min(3, f.phase());
+        if (firstFrame[ph] < 0) { firstFrame[ph] = frame; System.out.println("GATE_QA PHASE " + ph + " " + PHASES[ph] + " age=" + age + " frame=" + frame); }
+        lastFrame[ph] = frame;
+        int fps = c.getFps();
+        if (ticks % 5 == 0 && fps > 0) { fpsSum[ph] += fps; fpsN[ph]++; fpsMin[ph] = Math.min(fpsMin[ph], fps); }
+        long[] times = server.getTickTimesNanos();
+        msptPeak = Math.max(msptPeak, times[(server.getTickCount() + times.length - 1) % times.length]);
+        if (ph == 2) sawBarrage = true;
+        if ((ph == 0 && age == 100 || ph == 1 && age == 330) && marks.add("lock" + ph)) {
+            server.submit(() -> {
+                var p = server.getPlayerList().getPlayer(c.player.getUUID());
+                if (!SilentGateManager.movementLocked(p) || !SilentGateManager.invulnerable(p))
+                    throw new AssertionError("Gate server lock/invulnerability missing in " + PHASES[ph]);
+            }).join();
+            System.out.println("GATE_QA PASS lock+invulnerable in " + PHASES[ph]);
+        }
+        if (age >= 340 && !click2 && ph == 1) {
+            click2 = true;
+            c.gameMode.useItem(c.player, InteractionHand.MAIN_HAND);
+            System.out.println("GATE_QA CLICK2 age=" + age);
+        }
+    }
+
+    private void aftermath(Minecraft c, net.minecraft.server.MinecraftServer server) {
+        int t = ticks - since;
+        if (t == 5) server.submit(() -> {
+            var level = server.getPlayerList().getPlayer(c.player.getUUID()).serverLevel();
+            solidAfter = solid(level);
+            int dead = 0;
+            for (UUID u : targets) { var e = level.getEntity(u); if (e == null || !e.isAlive()) dead++; }
+            System.out.println("GATE_QA RESULT killed=" + dead + "/" + total + " blocksRemoved=" + (solidBefore - solidAfter)
+                    + " (field x" + FIELD_X0 + ".." + FIELD_X1 + " z" + FIELD_Z0 + ".." + FIELD_Z1 + ")");
+        }).join();
+        if (t == 10 || t == 60) {
+            boolean top = t == 10;
+            server.submit(() -> {
+                var p = server.getPlayerList().getPlayer(c.player.getUUID());
+                p.setGameMode(GameType.SPECTATOR);
+                p.connection.teleport(top ? 0 : -60, ground + (top ? 110 : 40), top ? 40 : -25, top ? 0 : -45, top ? 90 : 28);
+            }).join();
+        }
+        if (t == 40 || t == 90)
+            Screenshot.grab(c.gameDirectory, "gate-" + run + "/aftermath-" + (t == 40 ? "top" : "oblique") + ".png", c.getMainRenderTarget(), m -> {});
+        if (t > 100) { System.out.println("GATE_QA DONE"); c.stop(); }
+    }
+
+    private void grab(Minecraft c) {
+        Screenshot.grab(c.gameDirectory, "gate-" + run + "/f-" + String.format(Locale.ROOT, "%04d", frame++) + ".png", c.getMainRenderTarget(), m -> {});
+    }
+}
