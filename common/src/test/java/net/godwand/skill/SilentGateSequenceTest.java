@@ -29,7 +29,11 @@ class SilentGateSequenceTest {
         for (int i = 0; i < 8; i++) {
             assertEquals(i % 2 == 0, SilentGateSequence.groundCircleGold(i));
             Vec3 p = SilentGateSequence.groundCircle(ANCHOR, 123f, i);
-            assertEquals(7, Math.hypot(p.x - ANCHOR.x, p.z - ANCHOR.z), 0.01);
+            assertEquals(6, Math.hypot(p.x - ANCHOR.x, p.z - ANCHOR.z), 0.01);
+            assertEquals(ANCHOR.y + 3, p.y, 0.01);
+            // Behind the caster: opposite the cast direction (yaw 123 forward = (-sin, cos)).
+            double fx = -Math.sin(Math.toRadians(123)), fz = Math.cos(Math.toRadians(123));
+            assertTrue((p.x - ANCHOR.x) * fx + (p.z - ANCHOR.z) * fz < 0.01, "behind " + i);
         }
     }
 

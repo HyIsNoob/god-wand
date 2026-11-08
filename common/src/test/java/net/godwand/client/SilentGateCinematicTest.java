@@ -59,6 +59,17 @@ class SilentGateCinematicTest {
         assertNotEquals(barrage(60, 200).position(), barrage(60, 400).position());
     }
 
+    @Test void closeUpsStayAboveTheLiveGround() {
+        var shots = List.of(new SilentGateRenderer.Shot(3, new Vec3(5, 70, 40), 100));
+        int s50 = SilentGateSequence.shotTick(50, 200), s80 = SilentGateSequence.shotTick(80, 200);
+        for (double c = s50 + 1; c < s80; c += 5) {
+            var f = frame(2, 300 + c, c, 200);
+            // A crater: the surface under the camera is 20 blocks above the planned shot.
+            var pose = SilentGateCinematic.cameraFor(f, PLAYER, 0f, 0f, true, shots, (x, z) -> PLAYER.y + 20);
+            assertTrue(pose.position().y >= PLAYER.y + 21.5 - 1e-6, "above ground at " + c);
+        }
+    }
+
     @Test void returnSlidesIntoTheFirstPersonView() {
         var end = SilentGateSequence.endTick(200);
         var last = SilentGateCinematic.cameraFor(frame(3, 0, end + 14.99, 200), PLAYER, 20f, 10f, true, List.of());

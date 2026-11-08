@@ -51,14 +51,14 @@ class SilentGateVisualTest {
         double target = SilentGateSequence.CIRCLE_ALTITUDE;
         assertTrue(mesh.vertices.stream().anyMatch(p -> Math.abs(p[1] - (ANCHOR.y + target)) <= 3));
     }
-    @Test void groundRingDiscsStandUprightAtHeadHeight() {
+    @Test void groundRingDiscsStandUprightBehindTheCaster() {
         Mesh mesh = new Mesh();
         emit(mesh, frame(300, -1, 0), List.of());
         double minY = Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
-        for (float[] p : mesh.vertices) if (p[1] < ANCHOR.y + 10) { minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
-        // Gold disc (r 2.4) centred 2.5 above ground: spans about 0.1..4.9 above the anchor.
-        assertEquals(ANCHOR.y + 2.5 - 2.4, minY, .01);
-        assertEquals(ANCHOR.y + 2.5 + 2.4, maxY, .01);
+        for (float[] p : mesh.vertices) if (p[1] < ANCHOR.y + 8) { minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
+        // Gold disc (r 2.4) centred 3 above the anchor: spans 0.6..5.4.
+        assertEquals(ANCHOR.y + 3 - 2.4, minY, .01);
+        assertEquals(ANCHOR.y + 3 + 2.4, maxY, .01);
     }
     @Test void beamsLastSixTicksAndTheEndingFadesToNothing() {
         var shot = new SilentGateRenderer.Shot(3, new Vec3(5, 70, 40), 100 + 320);

@@ -36,10 +36,10 @@ public final class SilentGateSequence {
         return new Vec3(c.x + r * Math.cos(a), anchor.y + 30 + 40 * rng(seed, index).nextDouble(), c.z + r * Math.sin(a));
     }
 
-    /** Front half ring of radius 7 around the player. */
+    /** Disc centres: half ring of radius 6 BEHIND the caster, 3 blocks above the anchor (reference image 10). */
     public static Vec3 groundCircle(Vec3 anchor, float yaw, int index) {
-        double[] d = dir(yaw, Math.toRadians(-90 + 180.0 * index / (GROUND_RING - 1)));
-        return new Vec3(anchor.x + 7 * d[0], anchor.y, anchor.z + 7 * d[1]);
+        double[] d = dir(yaw, Math.toRadians(90 + 180.0 * index / (GROUND_RING - 1)));
+        return new Vec3(anchor.x + 6 * d[0], anchor.y + 3, anchor.z + 6 * d[1]);
     }
 
     public static boolean groundCircleGold(int index) { return index % 2 == 0; }

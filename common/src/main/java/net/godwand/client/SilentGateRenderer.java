@@ -203,7 +203,7 @@ public final class SilentGateRenderer {
             disc(c, SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), i, f.skyCircles()), 3,
                     WHITE_BLUE, smooth((age - 140 - 60.0 * i / sky) / 20));
         for (int i = 0; i < SilentGateSequence.GROUND_RING; i++)
-            uprightDisc(c, SilentGateSequence.groundCircle(anchor, f.yaw(), i).add(0, 2.5, 0), anchor,
+            uprightDisc(c, SilentGateSequence.groundCircle(anchor, f.yaw(), i), anchor,
                     SilentGateSequence.groundCircleGold(i) ? 2.4 : 1.5,
                     SilentGateSequence.groundCircleGold(i) ? GOLD : JADE, smooth((age - 200 - 4.0 * i) / 20));
         gate(c, gate, f.yaw(), age);
@@ -217,8 +217,11 @@ public final class SilentGateRenderer {
                     : SilentGateSequence.groundCircle(anchor, f.yaw(), s.circle() - f.skyCircles());
             beam(c, from, s.hit(), 1 - life / BEAM_TICKS);
         }
+        lastQuads = c.quads;
         return c.quads;
     }
+    /** Quads of the last emitted cast (dev statistic read by the QA probe). */
+    public static volatile int lastQuads;
 
     /** Three stacked flat discs, narrowing upwards. */
     private static void disc(Ctx c, Vec3 at, double radius, int color, double alpha) {

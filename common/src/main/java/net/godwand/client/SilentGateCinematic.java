@@ -16,6 +16,7 @@ import net.minecraft.world.phys.Vec3;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
+import java.util.function.ToDoubleBiFunction;
 
 import static net.godwand.client.FugaCinematic.blend;
 import static net.godwand.client.FugaCinematic.look;
@@ -24,6 +25,8 @@ import static net.godwand.client.FugaCinematic.smooth;
 
 /** Directed camera, input locks, ESC/F5 handling and the crude eyelid/hint overlay of Silent Gate. */
 public final class SilentGateCinematic {
+    /** No ground clamp (pure tests / unknown terrain). */
+    private static final ToDoubleBiFunction<Double, Double> NO_GROUND = (x, z) -> Double.NEGATIVE_INFINITY;
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final int WAIT = Phase.WAIT.ordinal();
     private static long cast = Long.MIN_VALUE, cancelSent = Long.MIN_VALUE;
@@ -81,7 +84,9 @@ public final class SilentGateCinematic {
         var player = client.player;
         Vec3 feet = player.getPosition(delta);
         float yaw = player.getViewYRot(delta), pitch = player.getViewXRot(delta);
-        var shot = cameraFor(frame, feet, yaw, pitch, directing(), SilentGateRenderer.shots(frame.casterId()));
+        var level = client.level;
+        var shot = cameraFor(frame, feet, yaw, pitch, directing(), SilentGateRenderer.shots(frame.casterId()),
+                (x, z) -> level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, Mth.floor(x), Mth.floor(z)));
         if (shot == null) return null;
         // Never move a detached shot into an unloaded chunk.
         if (!FugaCinematic.hasChunk(client, shot.position()))
@@ -98,6 +103,12 @@ public final class SilentGateCinematic {
 
     /** Pure shot list. {@code yaw}/{@code pitch} are the player's own view; {@code shots} are recent hits for the close-ups. */
     public static AtomicCinematic.Pose cameraFor(Frame frame, Vec3 player, float yaw, float pitch, boolean director, List<Shot> shots) {
+        return cameraFor(frame, player, yaw, pitch, director, shots, NO_GROUND);
+    }
+
+    /** As above; {@code ground} gives the live surface height at (x, z) so close-ups stay out of fresh craters. */
+    public static AtomicCinematic.Pose cameraFor(Frame frame, Vec3 player, float yaw, float pitch, boolean director, List<Shot> shots,
+            ToDoubleBiFunction<Double, Double> ground) {
         if (frame == null) return null;
         if (!director) return frame.phase() <= WAIT ? shoulder(player, yaw, pitch) : null;
         if (frame.phase() <= WAIT) {
@@ -113,7 +124,7 @@ public final class SilentGateCinematic {
         int end = SilentGateSequence.endTick(frame.barrageTicks());
         if (c >= end + SilentGateSequence.RETURN_TICKS) return null;
         if (c < 0) return buildShot(frame, SilentGateSequence.BUILD_TICKS);
-        var shot = barrageShot(frame, Math.min(c, end), shots);
+        var shot = barrageShot(frame, Math.min(c, end), shots, ground);
         // Slide from the last framing into the player's own eyes, then the camera is released.
         return c <= end ? shot : blend(shot, new AtomicCinematic.Pose(player.add(0, 1.62, 0), yaw, pitch), smooth(c, end, end + SilentGateSequence.RETURN_TICKS));
     }
@@ -159,7 +170,7 @@ public final class SilentGateCinematic {
         return look(start.lerp(end, e), gate.lerp(a.add(f.scale(10)).add(0, 26, 0), e));
     }
 
-    private static AtomicCinematic.Pose barrageShot(Frame frame, double c, List<Shot> shots) {
+    private static AtomicCinematic.Pose barrageShot(Frame frame, double c, List<Shot> shots, ToDoubleBiFunction<Double, Double> ground) {
         int b = frame.barrageTicks();
         int s12 = SilentGateSequence.shotTick(12, b), s50 = SilentGateSequence.shotTick(50, b), s80 = SilentGateSequence.shotTick(80, b),
                 s110 = SilentGateSequence.shotTick(110, b), s140 = SilentGateSequence.shotTick(140, b), end = SilentGateSequence.endTick(b);
@@ -169,26 +180,29 @@ public final class SilentGateCinematic {
             double t = smooth(c, s12, s50);
             return look(a.add(f.scale(-11 + 3 * t)).add(r.scale(7 - 4 * t)).add(0, 1.8 + .8 * t, 0), a.add(f.scale(22)).add(0, 26 + 8 * t, 0));
         }
-        if (c < s80) return closeUp(a, f, shots.isEmpty() ? a.add(f.scale(7)) : shots.get(shots.size() - 1).hit(), 0, smooth(c, s50, s80));
+        if (c < s80) return closeUp(a, f, shots.isEmpty() ? a.add(f.scale(7)) : shots.get(shots.size() - 1).hit(), 0, smooth(c, s50, s80), ground);
         if (c < s110) {
             double t = smooth(c, s80, s110);
             // Above the great circle (anchor + 100) so no circle geometry sits around the lens.
             Vec3 center = a.add(f.scale(32));
             return look(center.add(f.scale(-5)).add(0, 125 + 15 * t, 0), center);
         }
-        if (c < s140) return closeUp(a, f, shots.isEmpty() ? a.add(r.scale(8)).add(f.scale(10)) : shots.get(0).hit(), 1.9, smooth(c, s110, s140));
+        if (c < s140) return closeUp(a, f, shots.isEmpty() ? a.add(r.scale(8)).add(f.scale(10)) : shots.get(0).hit(), 1.9, smooth(c, s110, s140), ground);
         double t = smooth(c, s140, end);
         return look(a.add(f.scale(-9 - 3 * t)).add(r.scale(1.5)).add(0, 3.2 + 1.5 * t, 0), a.add(f.scale(30)).add(0, 35, 0));
     }
 
     /** Close view of a hit from the caster's side, optionally swung round the target by {@code swing} radians. */
-    private static AtomicCinematic.Pose closeUp(Vec3 caster, Vec3 forward, Vec3 hit, double swing, double t) {
+    private static AtomicCinematic.Pose closeUp(Vec3 caster, Vec3 forward, Vec3 hit, double swing, double t, ToDoubleBiFunction<Double, Double> ground) {
         Vec3 toward = new Vec3(caster.x - hit.x, 0, caster.z - hit.z);
         toward = toward.lengthSqr() < 1 ? forward.scale(-1) : toward.normalize();
         Vec3 side = toward.cross(UP);
         Vec3 offset = toward.scale(13 - 4 * t).add(side.scale(3)).add(0, 4.5 - 1.5 * t, 0);
         if (swing != 0) offset = offset.yRot((float)swing);
-        return look(hit.add(offset), hit.add(0, 1, 0));
+        Vec3 at = hit.add(offset);
+        // Stay above the live surface: the hit's crater may already be dug out under the camera.
+        double floor = ground.applyAsDouble(at.x, at.z) + 1.5;
+        return look(at.y < floor ? new Vec3(at.x, floor, at.z) : at, hit.add(0, 1, 0));
     }
 
     /** Crude eyelids (two black bars that retract over the first 20 ticks) and the command hint in WAIT. */
