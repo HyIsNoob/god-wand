@@ -189,6 +189,8 @@ public final class SilentGateRenderer {
         Vec3 anchor = f.anchor();
         Vec3 gate = SilentGateSequence.gateCenter(anchor, f.yaw());
         double endK = f.commandAge() >= endStart ? clamp01((f.commandAge() - endStart) / SilentGateSequence.ENDING_TICKS) : 0;
+        GateSky.dome(c, gate, age);
+        GateSky.clouds(c, GateCircles.center(anchor, gate), age, endK);
         GateCircles.great(c, anchor, gate, age, endK);
         int sky = Math.max(0, Math.min(f.skyCircles(), 96));
         for (int i = 0; i < sky; i++)
@@ -287,6 +289,19 @@ public final class SilentGateRenderer {
             return gone;
         });
         CASTS.values().forEach(c -> trim(c, now));
+        vanillaClouds(client, CASTS.values().stream().anyMatch(c -> c.anchor != null && c.anchor.distanceToSqr(client.player.position()) < RENDER_RANGE * RENDER_RANGE));
     }
-    public static void reset() { CASTS.clear(); LATEST.clear(); CLOSED.clear(); world = null; }
+
+    /** The cast replaces the sky with its own vortex, so vanilla clouds are switched off while one is in range and put back after. */
+    private static final double RENDER_RANGE = 300;
+    private static net.minecraft.client.CloudStatus savedClouds;
+    static void vanillaClouds(Minecraft client, boolean cast) {
+        var option = client.options.cloudStatus();
+        if (cast && savedClouds == null) { savedClouds = option.get(); option.set(net.minecraft.client.CloudStatus.OFF); }
+        else if (!cast && savedClouds != null) { option.set(savedClouds); savedClouds = null; }
+    }
+    public static void reset() {
+        CASTS.clear(); LATEST.clear(); CLOSED.clear(); world = null;
+        if (savedClouds != null) vanillaClouds(Minecraft.getInstance(), false);
+    }
 }

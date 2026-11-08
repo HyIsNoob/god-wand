@@ -20,7 +20,7 @@ final class GateCircles {
     // Inner to outer; speed in degrees per tick, sign alternates so neighbours turn against each other.
     private static final Tier[] TIERS = {
             new Tier(GateAtlas.RUNES, null, 12, 16, .8, 3, 88, -.15, WHITE_BLUE),
-            new Tier(GateAtlas.SWIRL, null, 20, 30, 1.8, 2, 96, .10, WHITE_BLUE),
+            new Tier(GateAtlas.SWIRL, null, 20, 30, 1.8, 1, 96, .10, WHITE_BLUE),
             new Tier(GateAtlas.RUNES, null, 34, 42, 2.6, 4, 104, -.07, TEAL),
             new Tier(GateAtlas.DASH, GateAtlas.RIM, 50, 56, 3.2, 12, 112, .05, WHITE_BLUE)};
     private static final int SEAL_START = 80, WRITE_TICKS = 32;
@@ -39,12 +39,7 @@ final class GateCircles {
         if (c.glow()) {
             // Wide faint disc of light above the circle, and the shafts it throws down once the gate arrives.
             fan(c, ctr.add(0, 6, 0), 70 * shrink, GLOW_BLUE, .15 * smooth((age - SEAL_START) / 40) * breath);
-            double shaft = smooth((age - SilentGateSequence.BEAT_GATE) / 30);
-            if (shaft > 0) {
-                cone(c, ctr, 56 * shrink, 50 * shrink, 90, GLOW_BLUE, .06 * shaft);
-                cone(c, ctr, 30 * shrink, 24 * shrink, 90, GLOW_BLUE, .08 * shaft);
-                cone(c, ctr, 12 * shrink, 9 * shrink, 90, HOT, .11 * shaft);
-            }
+            shafts(c, ctr, age, shrink);
         }
         if (c.body()) underlay(c, ctr, 58 * shrink, smooth((age - SEAL_START) / 60));
         flash(c, ctr, endK);
@@ -84,7 +79,7 @@ final class GateCircles {
         if (reveal <= 0) return 0;
         double head = reveal * (TAU + EDGE), live = 1 - smooth((reveal - .92) / .08);
         double spin = Math.toRadians(t.speed() * age), step = TAU / SEGMENTS;
-        double r0 = t.r0() * shrink, r1 = t.r1() * shrink, mid = (r0 + r1) / 2, hw = (r1 - r0) * .8 + 1.2;
+        double r0 = t.r0() * shrink, r1 = t.r1() * shrink, mid = (r0 + r1) / 2, hw = (r1 - r0) * .8 + 1.2, haloGain = index == 3 ? 1.7 : 1;
         Vec3 o = ctr.add(0, t.lift(), 0);
         int per = SEGMENTS / t.repeats();
         double split = t.second() == null ? r1 : r0 + (r1 - r0) * .55;
@@ -104,7 +99,7 @@ final class GateCircles {
                 band(c, o, r0, split, w0, w1, t.region(), p0, p1, 0, 1, GLOW_BLUE, g0, g1);
                 if (t.second() != null) band(c, o, split, r1, w0, w1, t.second(), p0, p1, 0, 1, GLOW_BLUE, g0, g1);
                 // Soft halo: light that spills past both edges of the band.
-                double m0 = Math.min(.4, .17 * k0 * (1 + .8 * (h0 - 1))), m1 = Math.min(.4, .17 * k1 * (1 + .8 * (h1 - 1)));
+                double m0 = Math.min(.5, .17 * haloGain * k0 * (1 + .8 * (h0 - 1))), m1 = Math.min(.5, .17 * haloGain * k1 * (1 + .8 * (h1 - 1)));
                 GateDraw.gradient(c, pt(o, r0 - hw, w0), pt(o, r0 - hw, w1), pt(o, mid, w1), pt(o, mid, w0), GLOW_BLUE, 0, 0, m1, m0);
                 GateDraw.gradient(c, pt(o, mid, w0), pt(o, mid, w1), pt(o, r1 + hw, w1), pt(o, r1 + hw, w0), GLOW_BLUE, m0, m1, 0, 0);
             }
@@ -125,15 +120,36 @@ final class GateCircles {
         GateDraw.tex(c, pt(o, r0, a0), pt(o, r0, a1), pt(o, r1, a1), pt(o, r1, a0), region, p0, p1, v0, v1, color, k0, k1, k1, k0);
     }
 
-    /** Faint pale plate beneath the lines, with a feathered rim; the lines carry the picture. */
+    /** Pale luminous plate behind the tiers (ref 1): white-cyan, brightest at the centre and gone at the rim. */
     private static void underlay(Ctx c, Vec3 ctr, double radius, double k) {
         if (k <= 0) return;
-        int n = 48;
         Vec3 o = ctr.add(0, -.3, 0);
+        int n = 48, rings = 3;
         for (int i = 0; i < n; i++) {
             double a0 = i * TAU / n, a1 = (i + 1) * TAU / n;
-            GateDraw.gradient(c, o, o, pt(o, radius, a1), pt(o, radius, a0), WHITE_BLUE, .17 * k, .17 * k, .07 * k, .07 * k);
-            GateDraw.gradient(c, pt(o, radius, a0), pt(o, radius, a1), pt(o, radius + 4, a1), pt(o, radius + 4, a0), WHITE_BLUE, .07 * k, .07 * k, 0, 0);
+            for (int j = 0; j < rings; j++) {
+                double r0 = radius * j / rings, r1 = radius * (j + 1) / rings;
+                double f0 = .18 * (1 - (double) j / rings), f1 = .18 * (1 - (double) (j + 1) / rings);
+                GateDraw.gradient(c, pt(o, r0, a0), pt(o, r0, a1), pt(o, r1, a1), pt(o, r1, a0), WHITE_BLUE, f0 * k, f0 * k, f1 * k, f1 * k);
+            }
+        }
+    }
+    /** Slowly turning shafts of light hanging from the circle: tapered crossed ribbons, soft at the edges and gone at the bottom. */
+    private static void shafts(Ctx c, Vec3 ctr, double age, double shrink) {
+        double on = smooth((age - SilentGateSequence.BEAT_GATE) / 30);
+        if (on <= 0) return;
+        for (int i = 0; i < 7; i++) {
+            double r = (8 + i * 7) * shrink, a = i * 2.4 + age * .004 * (i % 2 == 0 ? 1 : -1);
+            double al = (.08 + .04 * ((i * 5) % 3) / 2.0) * on * (1 + .15 * Math.sin(age * .05 + i));
+            Vec3 top = pt(ctr, r, a), bottom = top.add(0, -90, 0);
+            for (int cross = 0; cross < 2; cross++) {
+                double d = a + cross * Math.PI / 2;
+                Vec3 w = new Vec3(Math.cos(d), 0, Math.sin(d));
+                for (int side = -1; side <= 1; side += 2) {
+                    // Half ribbon from the centre line (full alpha) to an edge (zero alpha), tapering 4.5 -> 1.2 blocks.
+                    GateDraw.gradient(c, top, top.add(w.scale(4.5 * side)), bottom.add(w.scale(1.2 * side)), bottom, GLOW_BLUE, al, 0, 0, 0);
+                }
+            }
         }
     }
     private static void fan(Ctx c, Vec3 o, double radius, int color, double alpha) {
@@ -141,15 +157,6 @@ final class GateCircles {
         for (int i = 0; i < 32; i++) {
             double a0 = i * TAU / 32, a1 = (i + 1) * TAU / 32;
             GateDraw.gradient(c, o, o, pt(o, radius, a1), pt(o, radius, a0), color, alpha, alpha, 0, 0);
-        }
-    }
-    /** Open frustum of light from the circle's plane down {@code drop} blocks, strong at the top and gone at the bottom. */
-    private static void cone(Ctx c, Vec3 ctr, double top, double bottom, double drop, int color, double alpha) {
-        if (alpha <= 0 || top <= 0) return;
-        Vec3 low = ctr.add(0, -drop, 0);
-        for (int i = 0; i < 16; i++) {
-            double a0 = i * TAU / 16, a1 = (i + 1) * TAU / 16;
-            GateDraw.gradient(c, pt(ctr, top, a0), pt(ctr, top, a1), pt(low, bottom, a1), pt(low, bottom, a0), color, alpha, alpha, 0, 0);
         }
     }
     /** The circle closes in on itself and blazes once: a short additive flash that outlives the fade. */

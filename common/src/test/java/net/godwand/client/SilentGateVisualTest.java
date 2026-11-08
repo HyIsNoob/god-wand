@@ -64,7 +64,7 @@ class SilentGateVisualTest {
         SilentGateRenderer.emitScene(far, new Matrix4f(), frame(300, -1, 0), List.of(), Vec3.ZERO);
         // Vertices are camera relative: the camera sits on the first gold disc, so everything within 2.5 blocks of it must be invisible.
         double nearAlpha = near.vertices.stream().filter(p -> Math.hypot(Math.hypot(p[0], p[1]), p[2]) < 2.5).mapToDouble(p -> p[3]).max().orElse(-1);
-        double farAlpha = far.vertices.stream().filter(p -> p[1] < ANCHOR.y + 8).mapToDouble(p -> p[3]).max().orElseThrow();
+        double farAlpha = far.vertices.stream().filter(p -> p[1] > ANCHOR.y - 1 && p[1] < ANCHOR.y + 8).mapToDouble(p -> p[3]).max().orElseThrow();
         assertEquals(0, nearAlpha, "disc vanishes around the camera");
         assertTrue(farAlpha > 40, "same disc is visible from afar: " + farAlpha);
     }
@@ -80,7 +80,7 @@ class SilentGateVisualTest {
         Mesh mesh = new Mesh();
         emit(mesh, frame(300, -1, 0), List.of());
         double minY = Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
-        for (float[] p : mesh.vertices) if (p[1] < ANCHOR.y + 8) { minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
+        for (float[] p : mesh.vertices) if (p[1] > ANCHOR.y - 1 && p[1] < ANCHOR.y + 8) { minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
         // Gold disc (r 2.4) centred 3 above the anchor: spans 0.6..5.4.
         assertEquals(ANCHOR.y + 3 - 2.4, minY, .01);
         assertEquals(ANCHOR.y + 3 + 2.4, maxY, .01);

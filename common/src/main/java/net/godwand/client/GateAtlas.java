@@ -19,7 +19,7 @@ final class GateAtlas {
     static final int SIZE = 512;
     static final Region SWIRL = new Region(0, 0, 512, 64), RUNES = new Region(0, 64, 512, 64), DASH = new Region(0, 128, 512, 64),
             RIM = new Region(0, 192, 512, 64), SEAL = new Region(0, 256, 256, 256), FILIGREE = new Region(256, 256, 256, 64),
-            GLOW = new Region(256, 320, 64, 64), SOLID = new Region(504, 504, 8, 8);
+            GLOW = new Region(256, 320, 64, 64), CLOUD = new Region(320, 320, 64, 64), SOLID = new Region(504, 504, 8, 8);
     static final Region[] STRIPS = {SWIRL, RUNES, DASH, RIM, FILIGREE};
     static final float SOLID_U = SOLID.u(.5), SOLID_V = SOLID.v(.5);
     private static final double TAU = Math.PI * 2;
@@ -32,7 +32,7 @@ final class GateAtlas {
     static byte[] alpha() {
         if (cache != null) return cache;
         Canvas c = new Canvas();
-        swirl(c); runes(c); dash(c); rim(c); filigree(c); seal(c); glow(c);
+        swirl(c); runes(c); dash(c); rim(c); filigree(c); seal(c); glow(c); cloud(c);
         for (int y = 0; y < SOLID.h; y++) for (int x = 0; x < SOLID.w; x++) c.a[(SOLID.y + y) * SIZE + SOLID.x + x] = 1;
         byte[] out = new byte[SIZE * SIZE];
         for (int i = 0; i < out.length; i++) out[i] = (byte) Math.round(Math.min(1, c.a[i]) * 255);
@@ -54,22 +54,19 @@ final class GateAtlas {
 
     // ---- strips -----------------------------------------------------------------------------------------------
 
-    /** Wave scroll: a carrier sine with a curl rolled up at every crest and trough, alternating hand, plus a little echo curl. */
+    /** Frieze of big scrolls: pairs of mirrored volutes hang from a top rail, each as tall as the strip, strokes tapering into curled tips. */
     private static void swirl(Canvas c) {
         c.clip(SWIRL, true);
-        double w = 3.2;
-        for (int k = 0; k < 4; k++) {
-            double x0 = 128 * k;
-            polyline(c, x -> 32 + 5.5 * Math.sin(TAU * x / 128), x0, x0 + 128, w);
-            // Crest (bottom) at x0+32, trough (top) at x0+96: curl on the outer side, tangent to the carrier.
-            curl(c, x0 + 32, 37.5 + 11, 11, -Math.PI / 2, 1, 2.1, w);
-            curl(c, x0 + 96, 26.5 - 11, 11, Math.PI / 2, -1, 2.1, w);
-            // Small echo curls on the zero crossings, opposite side.
-            curl(c, x0 + 64, 32 - 4.5, 4.5, Math.PI / 2, 1, 1.6, 2.4);
-            curl(c, x0 + 0, 32 + 4.5, 4.5, -Math.PI / 2, -1, 1.6, 2.4);
-            c.dot(x0 + 32, 37.5 + 11, 2.4); c.dot(x0 + 96, 26.5 - 11, 2.4);
+        double pitch = 512 / 6.0;
+        for (int k = 0; k < 6; k++) {
+            double px = pitch * k + pitch / 2;
+            spiral(c, px - 21, 34, 19, 25, -Math.PI / 2, 1, 1.45, 6.4, 2.4);
+            spiral(c, px + 21, 34, 19, 25, -Math.PI / 2, -1, 1.45, 6.4, 2.4);
+            c.dot(px - 21, 34, 2.6); c.dot(px + 21, 34, 2.6);
+            // Small counter-curl tucked under the arch between the pair.
+            spiral(c, px, 47, 5, 6, Math.PI / 2, 1, 1.3, 3.4, 1.8);
         }
-        c.line(0, 3.5, 512, 3.5, 1.4); c.line(0, 60.5, 512, 60.5, 1.4);
+        c.line(0, 9, 512, 9, 4.2); c.line(0, 60, 512, 60, 1.6);
     }
 
     /** Abstract glyph row: 16 cells of 32 px, three to five strokes each from a seeded set of lines, arcs, dots and rings. */
@@ -180,6 +177,24 @@ final class GateAtlas {
         for (int i = 0; i < pts.length / 2; i++) { double x = Math.min(xb, xa + 2 * i); pts[2 * i] = x; pts[2 * i + 1] = f.at(x); }
         c.poly(pts, w);
     }
+    /** Elliptical spiral whose stroke tapers from w0 to w1; starts on the outer ellipse at angle {@code a0}. */
+    private static void spiral(Canvas c, double cx, double cy, double rx, double ry, double a0, int dir, double turns, double w0, double w1) {
+        int n = (int) (turns * 64);
+        double[] pts = new double[2 * (n + 1)];
+        for (int i = 0; i <= n; i++) {
+            double t = i / (double) n, k = 1 - .84 * t * t * (1.25 - .25 * t), a = a0 + dir * turns * TAU * t;
+            pts[2 * i] = cx + rx * k * Math.cos(a); pts[2 * i + 1] = cy + ry * k * Math.sin(a);
+        }
+        c.poly(pts, w0, w1);
+    }
+    private static void cloud(Canvas c) {
+        for (int y = 0; y < CLOUD.h; y++) for (int x = 0; x < CLOUD.w; x++) {
+            double dx = x + .5 - 32, dy = y + .5 - 32, d = Math.hypot(dx, dy) / 31, a = Math.atan2(dy, dx);
+            double rim = 1 - d * (1 + .12 * Math.sin(a * 3 + 1) + .08 * Math.sin(a * 5 + 2));
+            double f = Math.max(0, Math.min(1, rim * 2.2));
+            c.a[(CLOUD.y + y) * SIZE + CLOUD.x + x] = (float) (f * f * (3 - 2 * f));
+        }
+    }
     /** Spiral that starts on the circle of radius {@code r} around (cx,cy) at angle {@code a0} and winds inward {@code turns} turns. */
     private static void curl(Canvas c, double cx, double cy, double r, double a0, int dir, double turns, double w) {
         int n = (int) (turns * 48);
@@ -204,22 +219,27 @@ final class GateAtlas {
             for (int i = 0; i <= n; i++) { double t = a0 + (a1 - a0) * i / n; p[2 * i] = cx + r * Math.cos(t); p[2 * i + 1] = cy + r * Math.sin(t); }
             poly(p, w);
         }
-        void poly(double[] p, double w) {
+        void poly(double[] p, double w) { poly(p, w, w); }
+        void poly(double[] p, double w, double wEnd) {
             for (int off = wrap ? -1 : 0; off <= (wrap ? 1 : 0); off++) {
-                double dx = off * period, reach = w / 2 + 4;
+                double dx = off * period, reach = Math.max(w, wEnd) / 2 + 4;
                 double minX = Double.MAX_VALUE, maxX = -Double.MAX_VALUE, minY = Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
                 for (int i = 0; i < p.length; i += 2) {
                     minX = Math.min(minX, p[i] + dx); maxX = Math.max(maxX, p[i] + dx);
                     minY = Math.min(minY, p[i + 1]); maxY = Math.max(maxY, p[i + 1]);
                 }
-                int xa = Math.max(cx0, (int) Math.floor(minX - w - 4)), xb = Math.min(cx1 - 1, (int) Math.ceil(maxX + w + 4));
-                int ya = Math.max(cy0, (int) Math.floor(minY - w - 4)), yb = Math.min(cy1 - 1, (int) Math.ceil(maxY + w + 4));
+                int xa = Math.max(cx0, (int) Math.floor(minX - reach - 4)), xb = Math.min(cx1 - 1, (int) Math.ceil(maxX + reach + 4));
+                int ya = Math.max(cy0, (int) Math.floor(minY - reach - 4)), yb = Math.min(cy1 - 1, (int) Math.ceil(maxY + reach + 4));
                 if (xa > xb || ya > yb) continue;
                 for (int y = ya; y <= yb; y++) for (int x = xa; x <= xb; x++) {
-                    double d = Double.MAX_VALUE;
+                    double d = Double.MAX_VALUE; // signed distance to the stroke edge
+                    int segs = p.length / 2 - 1;
                     for (int i = 0; i + 3 < p.length; i += 2) if (Math.min(p[i], p[i + 2]) + dx - reach <= x + .5 && Math.max(p[i], p[i + 2]) + dx + reach >= x + .5
-                            && Math.min(p[i + 1], p[i + 3]) - reach <= y + .5 && Math.max(p[i + 1], p[i + 3]) + reach >= y + .5) d = Math.min(d, distance(x + .5, y + .5, p[i] + dx, p[i + 1], p[i + 2] + dx, p[i + 3]));
-                    double core = Math.max(0, Math.min(1, w / 2 + .6 - d)), out = Math.max(0, d - w / 2);
+                            && Math.min(p[i + 1], p[i + 3]) - reach <= y + .5 && Math.max(p[i + 1], p[i + 3]) + reach >= y + .5) {
+                        double wi = segs <= 1 ? w : w + (wEnd - w) * (i / 2) / (segs - 1);
+                        d = Math.min(d, distance(x + .5, y + .5, p[i] + dx, p[i + 1], p[i + 2] + dx, p[i + 3]) - wi / 2);
+                    }
+                    double core = Math.max(0, Math.min(1, .6 - d)), out = Math.max(0, d);
                     float v = (float) Math.max(core, .3 * Math.exp(-out * out / 4.5));
                     if (v > a[y * SIZE + x]) a[y * SIZE + x] = v;
                 }
