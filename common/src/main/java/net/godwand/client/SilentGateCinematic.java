@@ -172,8 +172,9 @@ public final class SilentGateCinematic {
         if (c < s80) return closeUp(a, f, shots.isEmpty() ? a.add(f.scale(7)) : shots.get(shots.size() - 1).hit(), 0, smooth(c, s50, s80));
         if (c < s110) {
             double t = smooth(c, s80, s110);
-            Vec3 center = a.add(f.scale(12));
-            return look(center.add(f.scale(-5)).add(0, 52 + 14 * t, 0), center);
+            // Above the great circle (anchor + 100) so no circle geometry sits around the lens.
+            Vec3 center = a.add(f.scale(32));
+            return look(center.add(f.scale(-5)).add(0, 125 + 15 * t, 0), center);
         }
         if (c < s140) return closeUp(a, f, shots.isEmpty() ? a.add(r.scale(8)).add(f.scale(10)) : shots.get(0).hit(), 1.9, smooth(c, s110, s140));
         double t = smooth(c, s140, end);

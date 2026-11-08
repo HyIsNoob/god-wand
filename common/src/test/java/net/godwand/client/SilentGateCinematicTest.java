@@ -46,6 +46,10 @@ class SilentGateCinematicTest {
 
     @Test void barrageShotsScaleAndReturn() {
         assertTrue(barrage(30, 200).position().y < PLAYER.y + 6, "low wide shot");
+        // Top-down shot stays above the great circle (altitude 100) and its lift.
+        int s80 = SilentGateSequence.shotTick(80, 200), s110 = SilentGateSequence.shotTick(110, 200);
+        for (double c = s80 + 1; c < s110; c += 5)
+            assertTrue(barrage(c, 200).position().y > PLAYER.y + SilentGateSequence.CIRCLE_ALTITUDE + 10, "above the circle layer at " + c);
         assertNotNull(barrage(272 + 15 - .01, 200));
         assertNull(barrage(272 + 15, 200));
         int end = SilentGateSequence.endTick(400);
