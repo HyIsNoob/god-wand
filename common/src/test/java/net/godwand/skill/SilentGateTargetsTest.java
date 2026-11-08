@@ -66,4 +66,13 @@ class SilentGateTargetsTest {
         assertEquals(List.of(boss), SilentGateTargets.pick(List.of(a, boss), Vec3.ZERO, 1, 1));
         assertTrue(SilentGateTargets.pick(List.of(), Vec3.ZERO, 5, 1).isEmpty());
     }
+
+    @Test void deadCandidatesAreNeverPicked() {
+        var alive = live(Monster.class);
+        var dead = live(Monster.class); when(dead.isAlive()).thenReturn(false);
+        var picks = SilentGateTargets.pick(List.of(dead, alive), Vec3.ZERO, 4, 1L);
+        assertEquals(4, picks.size());
+        assertTrue(picks.stream().allMatch(e -> e == alive));
+        assertTrue(SilentGateTargets.pick(List.of(dead), Vec3.ZERO, 4, 1L).isEmpty());
+    }
 }

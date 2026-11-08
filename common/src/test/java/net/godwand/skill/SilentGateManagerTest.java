@@ -171,4 +171,18 @@ class SilentGateManagerTest {
         assertEquals(6, SilentGateManager.budget(5), "a second world in the same tick sees what is left");
         assertEquals(96, SilentGateManager.budget(6));
     }
+
+    @Test void craterQueueDedupesOverlapsAndScansAtMost768PerTick() {
+        when(world.isInWorldBounds(any(net.minecraft.core.BlockPos.class))).thenReturn(true);
+        // hasChunkAt stays false: every entry is skipped for free, which used to let one tick walk the whole queue
+        var at = new Vec3(0, 64, 0);
+        for (int i = 0; i < 4; i++) SilentGateManager.queueCrater(world, player(), at.add(i * 9, 0, 0), 4); // 4 disjoint spheres
+        int once = SilentGateManager.pendingCraters(world);
+        for (int i = 0; i < 4; i++) SilentGateManager.queueCrater(world, player(), at.add(i * 9, 0, 0), 4);
+        assertEquals(once, SilentGateManager.pendingCraters(world), "overlapping craters are not queued twice");
+        assertTrue(once > 768);
+        SilentGateManager.budget(77);
+        SilentGateManager.drain(world);
+        assertEquals(once - 768, SilentGateManager.pendingCraters(world));
+    }
 }

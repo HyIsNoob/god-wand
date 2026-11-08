@@ -23,8 +23,8 @@ public final class SilentGateTargets {
     /** One target per shot: biggest max health first (bosses), then nearest. Every candidate is hit once when there are
      *  enough shots; the rest are shared out by rank (largest remainder), then shuffled by the seed. */
     public static List<LivingEntity> pick(List<LivingEntity> candidates, Vec3 from, int count, long seed) {
-        if (candidates.isEmpty() || count <= 0) return List.of();
-        var ranked = new ArrayList<>(candidates);
+        var ranked = new ArrayList<>(candidates.stream().filter(LivingEntity::isAlive).toList()); // refreshed only every 10 ticks
+        if (ranked.isEmpty() || count <= 0) return List.of();
         ranked.sort(Comparator.<LivingEntity>comparingDouble(e -> -e.getMaxHealth())
                 .thenComparingDouble(e -> e.position().distanceToSqr(from)));
         int n = Math.min(ranked.size(), count);

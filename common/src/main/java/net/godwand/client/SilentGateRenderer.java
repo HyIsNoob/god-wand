@@ -25,6 +25,8 @@ public final class SilentGateRenderer {
     public record Shot(int circle, Vec3 hit, long tick) {}
 
     static final int SHOT_MEMORY_TICKS = 10;
+    /** Server config maximum of gateWaitTicks. */
+    static final int MAX_WAIT_TICKS = 1200;
     private static final class Cast {
         long startedAt, phaseAt, commandAt = -1;
         int phase, skyCircles, barrageTicks;
@@ -77,6 +79,9 @@ public final class SilentGateRenderer {
     private static boolean over(Cast cast, double now) {
         int release = SilentGateSequence.endTick(cast.barrageTicks) + SilentGateSequence.RETURN_TICKS;
         if (cast.commandAt >= 0) return now - cast.commandAt >= release;
+        // No barrage packet ever came (viewer left the 256-block range): the server's longest wait plus slack.
+        if (cast.phase <= SilentGateSequence.Phase.WAIT.ordinal()
+                && now - cast.startedAt > SilentGateSequence.BUILD_TICKS + MAX_WAIT_TICKS + 20) return true;
         return cast.phase == SilentGateSequence.Phase.END.ordinal()
                 && now - cast.phaseAt >= SilentGateSequence.ENDING_TICKS + SilentGateSequence.RETURN_TICKS;
     }

@@ -43,7 +43,7 @@ public final class SkillWheelScreen extends Screen {
         while (OPEN.consumeClick()) {
             if (client.screen != null || client.player == null || client.level == null
                     || !client.isWindowActive() || !client.player.isAlive()
-                    || client.player.isSpectator() || client.player.isUsingItem()) continue;
+                    || client.player.isSpectator() || client.player.isUsingItem() || SilentGateCinematic.movementLocked()) continue;
             InteractionHand hand = client.player.getMainHandItem().getItem() instanceof GodWandItem
                     ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
             ItemStack stack = client.player.getItemInHand(hand);

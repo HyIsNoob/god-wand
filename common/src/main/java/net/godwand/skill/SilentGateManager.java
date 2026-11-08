@@ -29,8 +29,15 @@ public final class SilentGateManager {
 
     private static final int CRATER_BLOCKS_PER_TICK = 96;
     private static final Map<UUID, Task> TASKS = new LinkedHashMap<>();
-    private record Crater(ServerPlayer caster, BlockPos pos) {}
-    private static final Map<ServerLevel, ArrayDeque<Crater>> PENDING = new IdentityHashMap<>();
+    /** Max queue entries looked at per world per tick, skipped ones included. */
+    private static final int CRATER_SCAN_PER_TICK = 8 * CRATER_BLOCKS_PER_TICK;
+    /** Pending block positions of one world, deduplicated (overlapping craters), dug in insertion order. */
+    private static final class CraterQueue {
+        final ServerPlayer breaker;
+        final LinkedHashSet<Long> pending = new LinkedHashSet<>();
+        CraterQueue(ServerPlayer breaker) { this.breaker = breaker; }
+    }
+    private static final Map<ServerLevel, CraterQueue> PENDING = new IdentityHashMap<>();
 
     private static final class Task {
         final ServerPlayer caster;
@@ -42,6 +49,8 @@ public final class SilentGateManager {
         long phaseAt, commandedAt = -1;
         boolean commanded;
         List<LivingEntity> candidates = List.of();
+        /** Config snapshot taken at click 1: server tick and client payload must keep agreeing after a reload. */
+        final int skyCircles = GodWandConfig.SERVER.gateSkyCircles, barrageTicks = GodWandConfig.SERVER.gateBarrageTicks;
         Task(ServerPlayer player) {
             caster = player; world = player.serverLevel(); started = phaseAt = world.getGameTime();
             anchor = player.position(); yaw = player.getYRot();
@@ -144,7 +153,7 @@ public final class SilentGateManager {
         long at = phase == SilentGatePayload.CANCEL ? task.world.getGameTime() : task.phaseAt;
         sender.send(task.world, task.anchor, new SilentGatePayload(task.caster.getId(), task.started, at, phase,
                 task.anchor.x, task.anchor.y, task.anchor.z, task.yaw, task.seed,
-                GodWandConfig.SERVER.gateSkyCircles, GodWandConfig.SERVER.gateBarrageTicks, shots, hits));
+                task.skyCircles, task.barrageTicks, shots, hits));
     }
 
     public static void tick(ServerLevel world) {
@@ -166,7 +175,7 @@ public final class SilentGateManager {
                     fx(task, CinematicFxPayload.EVENT_FOV_PUNCH, .9f, 8);
                 }
             } else if (task.phase == Phase.BARRAGE) barrage(task, age);
-            Phase next = next(task.phase, age, task.commanded, GodWandConfig.SERVER.gateWaitTicks, GodWandConfig.SERVER.gateBarrageTicks);
+            Phase next = next(task.phase, age, task.commanded, GodWandConfig.SERVER.gateWaitTicks, task.barrageTicks);
             if (next == null) { it.remove(); cooldown(task); }
             else if (next != task.phase) {
                 if (next == Phase.BARRAGE) task.commanded = true; // wait ran out: same as a command
@@ -178,7 +187,7 @@ public final class SilentGateManager {
 
     private static void barrage(Task task, long age) {
         var cfg = GodWandConfig.SERVER;
-        int sky = cfg.gateSkyCircles, barrageAge = (int) age - SilentGateSequence.ACTIVATE_TICKS;
+        int sky = task.skyCircles, barrageAge = (int) age - SilentGateSequence.ACTIVATE_TICKS;
         if (barrageAge < 0) return;
         if (barrageAge % 10 == 0) {
             var box = new AABB(task.anchor, task.anchor).inflate(cfg.gateTargetRadius);
@@ -187,7 +196,7 @@ public final class SilentGateManager {
         }
         var firing = new ArrayList<Integer>();
         for (int i = 0; i < sky + SilentGateSequence.GROUND_RING; i++)
-            if (SilentGateSequence.fires(i, barrageAge, cfg.gateBarrageTicks, task.seed)) firing.add(i);
+            if (SilentGateSequence.fires(i, barrageAge, task.barrageTicks, task.seed)) firing.add(i);
         if (firing.isEmpty()) return;
         var picks = SilentGateTargets.pick(task.candidates, task.anchor, firing.size(), task.seed + barrageAge);
         var shots = new ArrayList<Integer>();
@@ -229,10 +238,19 @@ public final class SilentGateManager {
     private static void crater(Task task, Vec3 at) {
         int r = GodWandConfig.SERVER.gateCraterRadius;
         if (!GodWandConfig.SERVER.gateTerrainDamage || r <= 0) return;
-        var queue = PENDING.computeIfAbsent(task.world, w -> new ArrayDeque<>());
+        queueCrater(task.world, task.caster, at, r);
+    }
+
+    static void queueCrater(ServerLevel world, ServerPlayer caster, Vec3 at, int r) {
+        var queue = PENDING.computeIfAbsent(world, w -> new CraterQueue(caster));
         var c = BlockPos.containing(at);
         for (int x = -r; x <= r; x++) for (int y = -r; y <= r; y++) for (int z = -r; z <= r; z++)
-            if (x * x + y * y + z * z <= r * r) queue.add(new Crater(task.caster, c.offset(x, y, z)));
+            if (x * x + y * y + z * z <= r * r) queue.pending.add(c.offset(x, y, z).asLong());
+    }
+
+    static int pendingCraters(ServerLevel world) {
+        var queue = PENDING.get(world);
+        return queue == null ? 0 : queue.pending.size();
     }
 
     private static long budgetTick = Long.MIN_VALUE;
@@ -247,14 +265,14 @@ public final class SilentGateManager {
     static void spendBudget(int blocks) { budgetLeft -= blocks; }
 
     /** Digs queued blocks while the shared budget lasts; the rest wait for later ticks. */
-    private static void drain(ServerLevel world) {
+    static void drain(ServerLevel world) {
         var queue = PENDING.get(world);
         if (queue == null) return;
-        int budget = budget(world.getGameTime());
+        int budget = budget(world.getGameTime()), scan = CRATER_SCAN_PER_TICK;
         boolean removedDisplacement = false;
-        while (budget > 0 && !queue.isEmpty()) {
-            var crater = queue.poll();
-            BlockPos pos = crater.pos();
+        for (var it = queue.pending.iterator(); budget > 0 && scan-- > 0 && it.hasNext();) {
+            BlockPos pos = BlockPos.of(it.next());
+            it.remove();
             if (!world.isInWorldBounds(pos) || !world.hasChunkAt(pos)) continue;
             var state = world.getBlockState(pos);
             if (state.isAir() || state.getDestroySpeed(world, pos) < 0) continue;
@@ -262,11 +280,11 @@ public final class SilentGateManager {
                 SpatialDisplacementManager.removeActiveRecord(world.dimension(), pos);
                 removedDisplacement = true;
             }
-            world.destroyBlock(pos, false, crater.caster());
+            world.destroyBlock(pos, false, queue.breaker);
             budget--;
             spendBudget(1);
         }
-        if (queue.isEmpty()) PENDING.remove(world);
+        if (queue.pending.isEmpty()) PENDING.remove(world);
         if (removedDisplacement) DisplacementPersistentState.getServerState(world).setDirty();
     }
 }

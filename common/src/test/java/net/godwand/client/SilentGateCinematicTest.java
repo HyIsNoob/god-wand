@@ -102,4 +102,11 @@ class SilentGateCinematicTest {
         assertNotNull(SilentGateRenderer.frameAt(1, 500 + SilentGateSequence.endTick(200) + 14));
         assertNull(SilentGateRenderer.frameAt(1, 500 + SilentGateSequence.endTick(200) + 15));
     }
+
+    @Test void castNeverCommandedExpiresClientSide() {
+        SilentGateRenderer.accept(payload(100, 1, new int[0], new double[0]), 400);
+        long limit = 100 + SilentGateSequence.BUILD_TICKS + 1200 + 20;
+        assertNotNull(SilentGateRenderer.frameAt(1, limit));
+        assertNull(SilentGateRenderer.frameAt(1, limit + 1));
+    }
 }
