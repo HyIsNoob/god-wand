@@ -146,7 +146,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             float tickDelta = context.tickDelta();
             net.godwand.client.AtomicRenderer.render(matrices,camera,tickDelta);
             if (!net.godwand.client.FugaRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
-            net.godwand.client.SilentGateRenderer.render(matrices, camera, tickDelta);
+            if (!net.godwand.client.SilentGateRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.SilentGateRenderer.render(matrices, camera, tickDelta);
             CannonPressureRenderer.render(matrices, camera, tickDelta);
             DrillWindRenderer.render(matrices, camera, tickDelta);
             ImpactDebrisRenderer.render(matrices, camera, tickDelta);

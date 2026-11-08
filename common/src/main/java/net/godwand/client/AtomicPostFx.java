@@ -84,6 +84,7 @@ public final class AtomicPostFx {
         // Under a shaderpack the fire mesh is drawn here, after the level pass, so the pack cannot repaint it; every frame
         // that deferred it, even when the post effect has nothing to do or failed, or the fire would drop out of frames.
         FugaRenderer.flushDeferred();
+        SilentGateRenderer.flushDeferred();
         Frame context = pending; pending = null;
         if (context == null || failed) return;
         var fx = AtomicRenderer.nearestFrame(context.delta);

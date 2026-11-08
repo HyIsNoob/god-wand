@@ -296,6 +296,10 @@ public final class FugaRenderer {
         double a=hash(x0,iy),b=hash(x1,iy),c=hash(x0,iy+1),d=hash(x1,iy+1);
         return a+(b-a)*fx+(c-a)*fy+(a-b-c+d)*fx*fy;
     }
+    /** Fuga's shaderpack test, shared with Silent Gate's own deferral. */
+    static boolean shaderPackDefers() {
+        return AtomicPostFx.enabled() && (AtomicPostFx.shaderPackActive() || Boolean.getBoolean("godwand.fuga.qa.defer"));
+    }
     /** Binds the flame texture so other skills (Silent Gate) can fill geometry from its solid texel. */
     static void bindFlameTexture() { ensureFlameTexture(); RenderSystem.setShaderTexture(0,FLAME_TEXTURE); }
     public static void render(PoseStack pose, Camera camera, float partial) {

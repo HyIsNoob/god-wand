@@ -188,7 +188,7 @@ public class GodWandNeoForgeClientMod {
                 SupernovaAccretionRenderer.render(matrices, camera, tickDelta);
                 AtomicRenderer.render(matrices, camera, tickDelta);
                 if (!net.godwand.client.FugaRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
-                net.godwand.client.SilentGateRenderer.render(matrices, camera, tickDelta);
+                if (!net.godwand.client.SilentGateRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.SilentGateRenderer.render(matrices, camera, tickDelta);
             } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
                 float tickDelta = event.getPartialTick().getGameTimeDeltaPartialTick(false);
                 GodWandPostFxManager.onWorldRender(event.getModelViewMatrix(), event.getProjectionMatrix(), tickDelta);

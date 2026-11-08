@@ -133,6 +133,27 @@ public final class SilentGateRenderer {
             }
         } finally { gain = 1; teardown(); }
     }
+    private record Deferred(Matrix4f pose, Matrix4f modelView, Matrix4f projection, Camera camera, float partial) {}
+    private static Deferred deferred;
+    /** Same rule as Fuga: with a shaderpack the level pass repaints immediate geometry, so draw after it in flushDeferred. */
+    public static boolean deferForShaderPack(PoseStack pose, Camera camera, float partial) {
+        if (!FugaRenderer.shaderPackDefers()) return false;
+        deferred = new Deferred(new Matrix4f(pose.last().pose()), new Matrix4f(RenderSystem.getModelViewMatrix()),
+                new Matrix4f(RenderSystem.getProjectionMatrix()), camera, partial);
+        return true;
+    }
+    public static void flushDeferred() {
+        var d = deferred; deferred = null;
+        if (d == null) return;
+        Minecraft.getInstance().getMainRenderTarget().bindWrite(false);
+        var stack = RenderSystem.getModelViewStack();
+        stack.pushMatrix(); stack.set(d.modelView()); RenderSystem.applyModelViewMatrix();
+        RenderSystem.backupProjectionMatrix();
+        RenderSystem.setProjectionMatrix(d.projection(), com.mojang.blaze3d.vertex.VertexSorting.DISTANCE_TO_ORIGIN);
+        var pose = new PoseStack(); pose.last().pose().set(d.pose());
+        try { render(pose, d.camera(), d.partial()); }
+        finally { RenderSystem.restoreProjectionMatrix(); stack.popMatrix(); RenderSystem.applyModelViewMatrix(); }
+    }
     private static void setup() {
         RenderSystem.enableBlend(); RenderSystem.defaultBlendFunc(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
         FugaRenderer.bindFlameTexture(); RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
