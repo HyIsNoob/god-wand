@@ -1,0 +1,17 @@
+{
+  "reason": "Minecraft 1.20.1 vertex API adapter: the Silent Gate mesh is built and drawn through RenderHelper and written in the 1.20.1 vertex order",
+  "changes": [
+    {
+      "before": "Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)",
+      "after": "RenderHelper.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)"
+    },
+    {
+      "before": "        var mesh = buffer.build();\n        if (mesh != null) BufferUploader.drawWithShader(mesh);\n",
+      "after": "        RenderHelper.draw(buffer);\n"
+    },
+    {
+      "before": "        c.v.addVertex(c.m, (float) q.x, (float) q.y, (float) q.z).setColor((color >> 16) & 255, (color >> 8) & 255, color & 255, opacity)\n                .setUv(FugaRenderer.SOLID_U, FugaRenderer.SOLID_V);\n",
+      "after": "        c.v.vertex(c.m, (float) q.x, (float) q.y, (float) q.z).uv(FugaRenderer.SOLID_U, FugaRenderer.SOLID_V)\n                .color((color >> 16) & 255, (color >> 8) & 255, color & 255, opacity).endVertex();\n"
+    }
+  ]
+}

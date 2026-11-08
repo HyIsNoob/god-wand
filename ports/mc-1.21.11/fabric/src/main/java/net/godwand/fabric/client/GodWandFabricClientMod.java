@@ -136,6 +136,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             SupernovaAccretionRenderer.render(matrices, camera, tickDelta);
             AtomicRenderer.render(matrices, camera, tickDelta);
             net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
+            net.godwand.client.SilentGateRenderer.render(matrices, camera, tickDelta);
             net.godwand.client.compat.GodWandGeometry.deferFlush();
         });
 

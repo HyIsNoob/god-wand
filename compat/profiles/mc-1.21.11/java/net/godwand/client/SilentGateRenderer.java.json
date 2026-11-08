@@ -1,0 +1,37 @@
+{
+  "reason": "Native GPU geometry adapter: Silent Gate state, blend and draw go through GodWandGeometry like Fuga, and the camera exposes position()",
+  "changes": [
+    {
+      "before": "import com.mojang.blaze3d.platform.GlStateManager;\n",
+      "after": "import net.godwand.client.compat.GodWandGeometry;\n"
+    },
+    {
+      "before": "if (pass == 1) additiveBlend(); else RenderSystem.defaultBlendFunc();",
+      "after": "if (pass == 1) additiveBlend(); else GodWandGeometry.defaultBlendFunc();"
+    },
+    {
+      "before": "emitScene(buffer, pose.last().pose(), f, shots(f.casterId()), camera.getPosition());",
+      "after": "emitScene(buffer, pose.last().pose(), f, shots(f.casterId()), camera.position());"
+    },
+    {
+      "before": "        RenderSystem.enableBlend(); RenderSystem.defaultBlendFunc(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();\n        FugaRenderer.bindFlameTexture(); RenderSystem.setShader(GameRenderer::getPositionTexColorShader);\n",
+      "after": "        GodWandGeometry.enableBlend(); GodWandGeometry.defaultBlendFunc(); GodWandGeometry.enableDepthTest(); GodWandGeometry.depthMask(false); GodWandGeometry.disableCull();\n        GodWandGeometry.textured(); FugaRenderer.bindFlameTexture();\n"
+    },
+    {
+      "before": "    private static void additiveBlend() { RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE); }\n",
+      "after": "    private static void additiveBlend() { GodWandGeometry.additiveBlend(); }\n"
+    },
+    {
+      "before": "        RenderSystem.depthMask(true); RenderSystem.enableCull(); RenderSystem.defaultBlendFunc(); RenderSystem.disableBlend();\n",
+      "after": "        GodWandGeometry.depthMask(true); GodWandGeometry.enableCull(); GodWandGeometry.defaultBlendFunc(); GodWandGeometry.disableBlend();\n"
+    },
+    {
+      "before": "Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)",
+      "after": "GodWandGeometry.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)"
+    },
+    {
+      "before": "        var mesh = buffer.build();\n        if (mesh != null) BufferUploader.drawWithShader(mesh);\n",
+      "after": "        GodWandGeometry.draw(buffer.build());\n"
+    }
+  ]
+}

@@ -172,6 +172,7 @@ public class GodWandNeoForgeClientMod {
             SupernovaAccretionRenderer.render(matrices,camera,tickDelta);
             AtomicRenderer.render(matrices,camera,tickDelta);
             net.godwand.client.FugaRenderer.render(matrices,camera,tickDelta);
+            net.godwand.client.SilentGateRenderer.render(matrices,camera,tickDelta);
             net.godwand.client.compat.GodWandGeometry.flush(event.getModelViewMatrix());
         }
 
