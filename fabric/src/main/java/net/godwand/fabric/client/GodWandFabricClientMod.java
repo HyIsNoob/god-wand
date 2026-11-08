@@ -162,13 +162,16 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         HudRenderCallback.EVENT.register(CustomImpactFrameOverlay::render);
         HudRenderCallback.EVENT.register(AtomicCinematic::render);
         HudRenderCallback.EVENT.register(net.godwand.client.FugaCinematic::render);
+        HudRenderCallback.EVENT.register(net.godwand.client.SilentGateCinematic::render);
         HudRenderCallback.EVENT.register((graphics,timer)->net.godwand.client.SkillCooldownClient.render(graphics));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             SkillWheelScreen.handleKeyInput(client);
             AtomicRenderer.tick(client);
             net.godwand.client.FugaRenderer.tick(client);
+            net.godwand.client.SilentGateRenderer.tick(client);
             net.godwand.client.FugaCinematic.tick(client);
+            net.godwand.client.SilentGateCinematic.tick(client);
             net.godwand.client.SkillCooldownClient.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
@@ -182,7 +185,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             AtomicRenderer.reset();
             net.godwand.client.FugaRenderer.reset();
+            net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
+            net.godwand.client.SilentGateCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();
@@ -199,7 +204,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             AtomicRenderer.reset();
             net.godwand.client.FugaRenderer.reset();
+            net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
+            net.godwand.client.SilentGateCinematic.reset();
             StoneCannonWindSound.reset();
             EarthDrillSoundscape.reset();
             SupernovaAccretionRenderer.reset();

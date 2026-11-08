@@ -50,6 +50,6 @@ public abstract class GameRendererMixin {
 
     @Inject(method = "renderItemInHand", at = @At("HEAD"), cancellable = true)
     private void godwand$atomicHideHand(Camera camera, float delta, org.joml.Matrix4f matrix, CallbackInfo ci) {
-        if (net.godwand.client.AtomicCinematic.active()||net.godwand.client.FugaCinematic.active()) ci.cancel();
+        if (net.godwand.client.AtomicCinematic.active()||net.godwand.client.FugaCinematic.active()||net.godwand.client.SilentGateCinematic.active()) ci.cancel();
     }
 }

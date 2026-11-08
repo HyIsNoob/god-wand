@@ -73,6 +73,7 @@ public class GodWandForgeClientMod {
         public static void onRegisterGuiOverlays(RegisterGuiOverlaysEvent event) {
             event.registerAboveAll("atomic_cinematic", (gui, graphics, partialTick, width, height) -> {net.godwand.client.AtomicCinematic.render(graphics, partialTick);net.godwand.client.SkillCooldownClient.render(graphics);});
             event.registerAboveAll("fuga_cinematic", (gui, graphics, partialTick, width, height) -> net.godwand.client.FugaCinematic.render(graphics, partialTick));
+            event.registerAboveAll("silent_gate_cinematic", (gui, graphics, partialTick, width, height) -> net.godwand.client.SilentGateCinematic.render(graphics, partialTick));
             event.registerAbove(VanillaGuiOverlay.VIGNETTE.id(), "impact_frame",
                     (gui, guiGraphics, partialTick, screenWidth, screenHeight) ->
                             CustomImpactFrameOverlay.render(guiGraphics, partialTick));
@@ -82,13 +83,13 @@ public class GodWandForgeClientMod {
     public static class GameBusEvents {
         @SubscribeEvent
         public static void onGuiOverlay(net.minecraftforge.client.event.RenderGuiOverlayEvent.Pre event) {
-            if((net.godwand.client.AtomicCinematic.active()||net.godwand.client.FugaCinematic.active()) && event.getOverlay().id().getNamespace().equals("minecraft"))event.setCanceled(true);
+            if((net.godwand.client.AtomicCinematic.active()||net.godwand.client.FugaCinematic.active()||net.godwand.client.SilentGateCinematic.active()) && event.getOverlay().id().getNamespace().equals("minecraft"))event.setCanceled(true);
         }
 
         // The cinematic camera owns the view: no first-person hand, as on the other loaders.
         @SubscribeEvent
         public static void onRenderHand(net.minecraftforge.client.event.RenderHandEvent event) {
-            if(net.godwand.client.AtomicCinematic.active()||net.godwand.client.FugaCinematic.active())event.setCanceled(true);
+            if(net.godwand.client.AtomicCinematic.active()||net.godwand.client.FugaCinematic.active()||net.godwand.client.SilentGateCinematic.active())event.setCanceled(true);
         }
 
         @SubscribeEvent
@@ -121,7 +122,9 @@ public class GodWandForgeClientMod {
             Minecraft client = Minecraft.getInstance();
             net.godwand.client.AtomicRenderer.tick(client);
             net.godwand.client.FugaRenderer.tick(client);
+            net.godwand.client.SilentGateRenderer.tick(client);
             net.godwand.client.FugaCinematic.tick(client);
+            net.godwand.client.SilentGateCinematic.tick(client);
             net.godwand.client.SkillCooldownClient.tick(client);
             SkillWheelScreen.handleKeyInput(client);
             SupernovaAccretionRenderer.tickCharge(client);
@@ -137,7 +140,9 @@ public class GodWandForgeClientMod {
         public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
             net.godwand.client.AtomicRenderer.reset();
             net.godwand.client.FugaRenderer.reset();
+            net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
+            net.godwand.client.SilentGateCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();

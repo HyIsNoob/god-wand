@@ -180,11 +180,14 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         HudRenderCallback.EVENT.register(net.godwand.client.AtomicCinematic::render);
         HudRenderCallback.EVENT.register((graphics,timer)->net.godwand.client.SkillCooldownClient.render(graphics));
         HudRenderCallback.EVENT.register(net.godwand.client.FugaCinematic::render);
+        HudRenderCallback.EVENT.register(net.godwand.client.SilentGateCinematic::render);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             net.godwand.client.AtomicRenderer.tick(client);
             net.godwand.client.FugaRenderer.tick(client);
+            net.godwand.client.SilentGateRenderer.tick(client);
             net.godwand.client.FugaCinematic.tick(client);
+            net.godwand.client.SilentGateCinematic.tick(client);
             net.godwand.client.SkillCooldownClient.tick(client);
             SkillWheelScreen.handleKeyInput(client);
             SupernovaAccretionRenderer.tickCharge(client);
@@ -199,7 +202,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             net.godwand.client.AtomicRenderer.reset();
             net.godwand.client.FugaRenderer.reset();
+            net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
+            net.godwand.client.SilentGateCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();
@@ -216,7 +221,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             net.godwand.client.AtomicRenderer.reset();
             net.godwand.client.FugaRenderer.reset();
+            net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
+            net.godwand.client.SilentGateCinematic.reset();
             StoneCannonWindSound.reset();
             EarthDrillSoundscape.reset();
             SupernovaAccretionRenderer.reset();

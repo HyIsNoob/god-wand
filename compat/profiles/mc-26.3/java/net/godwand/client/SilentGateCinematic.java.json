@@ -1,0 +1,29 @@
+{
+  "reason": "Minecraft 26.3 draws HUD through GuiGraphicsExtractor, reads keys globally and keeps the open screen on Gui",
+  "changes": [
+    {
+      "before": "import org.lwjgl.glfw.GLFW;",
+      "after": "import com.mojang.blaze3d.platform.InputConstants;"
+    },
+    {
+      "before": "if (!menuOpen(client) && GLFW.glfwGetKey(client.getWindow().getWindow(), GLFW.GLFW_KEY_F5) == GLFW.GLFW_PRESS) skip();",
+      "after": "if (!menuOpen(client) && InputConstants.isKeyDown(InputConstants.KEY_F5)) skip();"
+    },
+    {
+      "before": "return client.screen != null || !client.isWindowActive();",
+      "after": "return client.gui.screen() != null || !client.isWindowActive();"
+    },
+    {
+      "before": "import net.minecraft.client.gui.GuiGraphics;",
+      "after": "import net.minecraft.client.gui.GuiGraphicsExtractor;"
+    },
+    {
+      "before": "public static void render(GuiGraphics graphics, DeltaTracker timer)",
+      "after": "public static void render(GuiGraphicsExtractor graphics, DeltaTracker timer)"
+    },
+    {
+      "before": "graphics.drawString(client.font, hint,",
+      "after": "graphics.text(client.font, hint,"
+    }
+  ]
+}

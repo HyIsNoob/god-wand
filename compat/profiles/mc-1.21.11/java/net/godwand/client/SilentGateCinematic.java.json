@@ -1,0 +1,13 @@
+{
+  "reason": "Minecraft 1.21.11 reads keys through InputConstants with the Window object",
+  "changes": [
+    {
+      "before": "import org.lwjgl.glfw.GLFW;",
+      "after": "import com.mojang.blaze3d.platform.InputConstants;"
+    },
+    {
+      "before": "if (!menuOpen(client) && GLFW.glfwGetKey(client.getWindow().getWindow(), GLFW.GLFW_KEY_F5) == GLFW.GLFW_PRESS) skip();",
+      "after": "if (!menuOpen(client) && InputConstants.isKeyDown(client.getWindow(), InputConstants.KEY_F5)) skip();"
+    }
+  ]
+}

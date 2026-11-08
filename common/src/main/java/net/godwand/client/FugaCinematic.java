@@ -161,7 +161,7 @@ public final class FugaCinematic {
     }
     /** Visual age of the hard cut back to the caster for the closing pull-back. */
     static final double END_CUT = 120;
-    private static AtomicCinematic.Pose blend(AtomicCinematic.Pose a, AtomicCinematic.Pose b, float t) {
+    static AtomicCinematic.Pose blend(AtomicCinematic.Pose a, AtomicCinematic.Pose b, float t) {
         return new AtomicCinematic.Pose(a.position().lerp(b.position(), t), Mth.rotLerp(t, a.yaw(), b.yaw()), Mth.lerp(t, a.pitch(), b.pitch()));
     }
     /** Visual age of the hard cut from the pillar's ground shot to the drone shot. */
@@ -218,14 +218,14 @@ public final class FugaCinematic {
         return (2*t*t*t-3*t*t+1)*a+(t*t*t-2*t*t+t)*span*m0
                 +(-2*t*t*t+3*t*t)*b+(t*t*t-t*t)*span*m1;
     }
-    private static AtomicCinematic.Pose shoulder(Vec3 player, float yaw, float pitch) {
+    static AtomicCinematic.Pose shoulder(Vec3 player, float yaw, float pitch) {
         Vec3 forward = Vec3.directionFromRotation(pitch, yaw);
         Vec3 right = Vec3.directionFromRotation(0, yaw).cross(new Vec3(0, 1, 0));
         Vec3 eye = player.add(0, 1.62, 0);
         // Behind, above and clearly to the left: the head no longer hides the huge arrow over the bow shoulder.
         return look(eye.subtract(forward.scale(3.4)).add(right.scale(-1.15)).add(0, 1.05, 0), eye.add(forward.scale(80)));
     }
-    private static AtomicCinematic.Pose look(Vec3 position, Vec3 target) {
+    static AtomicCinematic.Pose look(Vec3 position, Vec3 target) {
         Vec3 d = target.subtract(position);
         return new AtomicCinematic.Pose(position, (float)Math.toDegrees(Math.atan2(-d.x, d.z)),
                 (float)-Math.toDegrees(Math.atan2(d.y, Math.hypot(d.x, d.z))));

@@ -15,9 +15,10 @@ public abstract class AtomicKeyboardMixin {
     private void godwand$skipAtomic(long window,int key,int scan,int action,int modifiers,CallbackInfo ci) {
         var client=Minecraft.getInstance();
         if(window==client.getWindow().getWindow()&&key==GLFW.GLFW_KEY_ESCAPE&&action==GLFW.GLFW_PRESS
-                &&client.screen==null&&(AtomicCinematic.active()||net.godwand.client.FugaCinematic.active())) {
+                &&client.screen==null&&(AtomicCinematic.active()||net.godwand.client.FugaCinematic.active()||net.godwand.client.SilentGateCinematic.active())) {
             AtomicCinematic.skip();
             net.godwand.client.FugaCinematic.skip();
+            net.godwand.client.SilentGateCinematic.escape();
             ci.cancel();
         }
     }

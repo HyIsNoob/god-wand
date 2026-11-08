@@ -24,6 +24,7 @@ public abstract class AtomicCameraMixin {
     private void godwand$atomicCamera(BlockGetter level, Entity entity, boolean detached, boolean mirrored, float delta, CallbackInfo ci) {
         var pose=AtomicCinematic.camera(delta,getPosition(),getYRot(),getXRot());
         if(pose==null)pose=net.godwand.client.FugaCinematic.camera(delta,getPosition(),getYRot(),getXRot());
+        if(pose==null)pose=net.godwand.client.SilentGateCinematic.camera(delta,getPosition(),getYRot(),getXRot());
         if(pose==null)return;
         // Hide the local model before the shoulder blend enters its head.
         this.detached=detached || net.godwand.client.FugaCinematic.showCaster(delta) || pose.position().distanceToSqr(entity.getEyePosition(delta))>1;

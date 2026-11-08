@@ -201,6 +201,7 @@ public class GodWandNeoForgeClientMod {
                 CustomImpactFrameOverlay.render(event.getGuiGraphics(), event.getPartialTick());
                 AtomicCinematic.render(event.getGuiGraphics(), event.getPartialTick());
                 net.godwand.client.FugaCinematic.render(event.getGuiGraphics(), event.getPartialTick());
+                net.godwand.client.SilentGateCinematic.render(event.getGuiGraphics(), event.getPartialTick());
                 net.godwand.client.SkillCooldownClient.render(event.getGuiGraphics());
             }
         }
@@ -211,7 +212,9 @@ public class GodWandNeoForgeClientMod {
             SkillWheelScreen.handleKeyInput(client);
             AtomicRenderer.tick(client);
             net.godwand.client.FugaRenderer.tick(client);
+            net.godwand.client.SilentGateRenderer.tick(client);
             net.godwand.client.FugaCinematic.tick(client);
+            net.godwand.client.SilentGateCinematic.tick(client);
             net.godwand.client.SkillCooldownClient.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
@@ -226,7 +229,9 @@ public class GodWandNeoForgeClientMod {
         public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
             AtomicRenderer.reset();
             net.godwand.client.FugaRenderer.reset();
+            net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
+            net.godwand.client.SilentGateCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();

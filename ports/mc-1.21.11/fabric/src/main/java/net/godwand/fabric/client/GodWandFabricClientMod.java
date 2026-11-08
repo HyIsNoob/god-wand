@@ -155,6 +155,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","impact"),CustomImpactFrameOverlay::render);
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","atomic"),AtomicCinematic::render);
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","fuga"),net.godwand.client.FugaCinematic::render);
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","silent_gate"),net.godwand.client.SilentGateCinematic::render);
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","cooldown"),(graphics,timer) -> net.godwand.client.SkillCooldownClient.render(graphics));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -162,7 +163,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             SkillWheelScreen.handleKeyInput(client);
             AtomicRenderer.tick(client);
             net.godwand.client.FugaRenderer.tick(client);
+            net.godwand.client.SilentGateRenderer.tick(client);
             net.godwand.client.FugaCinematic.tick(client);
+            net.godwand.client.SilentGateCinematic.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
             EarthDrillSoundscape.tick(client);
@@ -176,7 +179,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.compat.GodWandGeometry.reset();
             AtomicRenderer.reset();
             net.godwand.client.FugaRenderer.reset();
+            net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
+            net.godwand.client.SilentGateCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();
@@ -194,7 +199,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.compat.GodWandGeometry.reset();
             AtomicRenderer.reset();
             net.godwand.client.FugaRenderer.reset();
+            net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
+            net.godwand.client.SilentGateCinematic.reset();
             StoneCannonWindSound.reset();
             EarthDrillSoundscape.reset();
             SupernovaAccretionRenderer.reset();

@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class AtomicLocalMovementMixin {
     @Inject(method="move",at=@At("HEAD"),cancellable=true)
     private void godwand$atomicStill(MoverType type,Vec3 movement,CallbackInfo ci) {
-        if((Object)this instanceof LocalPlayer player && (AtomicCinematic.movementLocked()||net.godwand.client.FugaCinematic.movementLocked())) {
+        if((Object)this instanceof LocalPlayer player && (AtomicCinematic.movementLocked()||net.godwand.client.FugaCinematic.movementLocked()||net.godwand.client.SilentGateCinematic.movementLocked())) {
             player.setDeltaMovement(Vec3.ZERO);
             player.fallDistance=0;
             ci.cancel();
@@ -23,5 +23,5 @@ public abstract class AtomicLocalMovementMixin {
     // The Fuga build-up is a directed shot: mouse look must not swing the caster or the frame.
     @Inject(method="turn",at=@At("HEAD"),cancellable=true)
     private void godwand$fugaFacing(double yaw,double pitch,CallbackInfo ci) {
-        if((Object)this instanceof LocalPlayer && net.godwand.client.FugaCinematic.rotationLocked())ci.cancel();
+        if((Object)this instanceof LocalPlayer && (net.godwand.client.FugaCinematic.rotationLocked()||net.godwand.client.SilentGateCinematic.rotationLocked()))ci.cancel();
     }}

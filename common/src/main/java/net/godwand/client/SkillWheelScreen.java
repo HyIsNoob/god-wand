@@ -35,7 +35,7 @@ public final class SkillWheelScreen extends Screen {
 
     public static void handleKeyInput(Minecraft client) {
         while (OPEN_CONFIG.consumeClick()) {
-            if (client.player != null && !client.player.isUsingItem() && !AtomicCinematic.movementLocked() && !FugaCinematic.movementLocked()
+            if (client.player != null && !client.player.isUsingItem() && !AtomicCinematic.movementLocked() && !FugaCinematic.movementLocked() && !SilentGateCinematic.movementLocked()
                     && client.screen == null) {
                 client.setScreen(new net.godwand.client.gui.GodWandConfigScreen(client.screen));
             }
