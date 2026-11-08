@@ -1,5 +1,5 @@
 {
-  "reason": "Explicit version/loader API adapter",
+  "reason": "1.20.1 has no CustomPacketPayload: the network sender seam takes GodWandPacket",
   "changes": [
     {
       "before": "import net.godwand.spatial.DisplacementPersistentState;\nimport net.godwand.spatial.SpatialDisplacementManager;\nimport net.minecraft.core.BlockPos;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.server.level.ServerLevel;\nimport net.minecraft.server.level.ServerPlayer;\nimport net.minecraft.world.InteractionHand;\n",

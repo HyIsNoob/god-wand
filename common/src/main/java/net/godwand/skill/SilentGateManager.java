@@ -99,7 +99,7 @@ public final class SilentGateManager {
         if (task != null && task.started == startedAt && (task.phase == Phase.BUILD || task.phase == Phase.WAIT)) cancel(task);
     }
 
-    public static void clearAllTasks() { TASKS.clear(); PENDING.clear(); }
+    public static void clearAllTasks() { TASKS.clear(); PENDING.clear(); budgetTick = Long.MIN_VALUE; }
 
     private static boolean holding(ServerPlayer player) {
         for (var hand : InteractionHand.values()) {
@@ -235,11 +235,22 @@ public final class SilentGateManager {
             if (x * x + y * y + z * z <= r * r) queue.add(new Crater(task.caster, c.offset(x, y, z)));
     }
 
-    /** Digs at most 96 queued blocks per world tick; the rest wait for later ticks. */
+    private static long budgetTick = Long.MIN_VALUE;
+    private static int budgetLeft;
+
+    /** One shared budget of 96 blocks per server tick across all worlds and tasks (every world ticks at the same game time). */
+    static int budget(long gameTime) {
+        if (gameTime != budgetTick) { budgetTick = gameTime; budgetLeft = CRATER_BLOCKS_PER_TICK; }
+        return budgetLeft;
+    }
+
+    static void spendBudget(int blocks) { budgetLeft -= blocks; }
+
+    /** Digs queued blocks while the shared budget lasts; the rest wait for later ticks. */
     private static void drain(ServerLevel world) {
         var queue = PENDING.get(world);
         if (queue == null) return;
-        int budget = CRATER_BLOCKS_PER_TICK;
+        int budget = budget(world.getGameTime());
         boolean removedDisplacement = false;
         while (budget > 0 && !queue.isEmpty()) {
             var crater = queue.poll();
@@ -253,6 +264,7 @@ public final class SilentGateManager {
             }
             world.destroyBlock(pos, false, crater.caster());
             budget--;
+            spendBudget(1);
         }
         if (queue.isEmpty()) PENDING.remove(world);
         if (removedDisplacement) DisplacementPersistentState.getServerState(world).setDirty();

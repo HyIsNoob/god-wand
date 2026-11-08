@@ -1,5 +1,5 @@
 {
-  "reason": "Explicit version/loader API adapter",
+  "reason": "mc-1.21.11 API: ServerPlayer.level() is the ServerLevel (no serverLevel()), Level.getMinY() replaces getMinBuildHeight(), dimension().identifier() replaces location()",
   "changes": [
     {
       "before": "        boolean commanded;\n        List<LivingEntity> candidates = List.of();\n        Task(ServerPlayer player) {\n            caster = player; world = player.serverLevel(); started = phaseAt = world.getGameTime();\n            anchor = player.position(); yaw = player.getYRot();\n            seed = started * 0x9E3779B97F4A7C15L ^ player.getUUID().getLeastSignificantBits();\n        }\n",

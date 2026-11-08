@@ -162,4 +162,13 @@ class SilentGateManagerTest {
         SilentGateManager.cancelFromClient(p, 1000);
         assertTrue(SilentGateManager.invulnerable(p), "barrage cannot be cancelled by the client");
     }
+
+    @Test void craterBudgetIsSharedWithinATickAndResetsNextTick() {
+        SilentGateManager.clearAllTasks();
+        assertEquals(96, SilentGateManager.budget(5));
+        assertEquals(96, SilentGateManager.budget(5), "same tick, nothing spent yet");
+        SilentGateManager.spendBudget(90);
+        assertEquals(6, SilentGateManager.budget(5), "a second world in the same tick sees what is left");
+        assertEquals(96, SilentGateManager.budget(6));
+    }
 }
