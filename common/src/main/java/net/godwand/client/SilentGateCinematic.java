@@ -84,14 +84,12 @@ public final class SilentGateCinematic {
         var shot = cameraFor(frame, feet, yaw, pitch, directing(), SilentGateRenderer.shots(frame.casterId()));
         if (shot == null) return null;
         // Never move a detached shot into an unloaded chunk.
-        if (!client.level.getChunkSource().hasChunk(Mth.floor(shot.position().x) >> 4, Mth.floor(shot.position().z) >> 4))
+        if (!FugaCinematic.hasChunk(client, shot.position()))
             return frame.phase() <= WAIT ? shoulder(feet, yaw, pitch) : null;
         Vec3 eye = player.getEyePosition(delta);
         if (shot.position().distanceToSqr(eye) < 1) return shot;
-        var hit = client.level.clip(new net.minecraft.world.level.ClipContext(eye, shot.position(),
-                net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, player));
-        if (hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) return shot;
-        return new AtomicCinematic.Pose(hit.getLocation().add(eye.subtract(hit.getLocation()).normalize().scale(.15)), shot.yaw(), shot.pitch());
+        Vec3 safe = FugaCinematic.clipTowards(client, eye, shot.position());
+        return safe == null ? shot : new AtomicCinematic.Pose(safe, shot.yaw(), shot.pitch());
     }
 
     public static AtomicCinematic.Pose cameraFor(Frame frame, Vec3 player, float yaw, boolean director) {

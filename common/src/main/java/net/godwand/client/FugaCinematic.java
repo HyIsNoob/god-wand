@@ -64,28 +64,34 @@ public final class FugaCinematic {
                 client.player.getViewYRot(delta), client.player.getViewXRot(delta),
                 GodWandConfig.CLIENT.fugaCutscene && !skipped);
         // Never move a detached shot into an unloaded chunk. Keep the shoulder/vanilla fallback local.
-        if (shot != null && !client.level.getChunkSource().hasChunk(Mth.floor(shot.position().x) >> 4, Mth.floor(shot.position().z) >> 4))
+        if (shot != null && !hasChunk(client, shot.position()))
             return frame.phase() == 0 ? shoulder(client.player.getPosition(delta), client.player.getViewYRot(delta), client.player.getViewXRot(delta)) : null;
         if (shot != null && frame.phase()==0 && frame.age()>=24 && frame.age()<144) {
             Vec3 subject=client.player.getPosition(delta).add(0,1.3,0);
-            var hit=client.level.clip(new net.minecraft.world.level.ClipContext(subject,shot.position(),
-                    net.minecraft.world.level.ClipContext.Block.COLLIDER,net.minecraft.world.level.ClipContext.Fluid.NONE,client.player));
-            if(hit.getType()!=net.minecraft.world.phys.HitResult.Type.MISS) {
-                Vec3 safe=hit.getLocation().add(subject.subtract(hit.getLocation()).normalize().scale(.15));
+            Vec3 safe=clipTowards(client,subject,shot.position());
+            if(safe!=null) {
                 if(safe.distanceTo(subject)<.65) return shoulder(client.player.getPosition(delta),client.player.getViewYRot(delta),client.player.getViewXRot(delta));
                 shot=look(safe,subject);
             }
         }
         if (shot != null && frame.phase() == 0 && (!GodWandConfig.CLIENT.fugaCutscene || skipped || frame.age() >= net.godwand.skill.FugaSequence.CHARGE_TICKS)) {
             Vec3 eye = client.player.getEyePosition(delta);
-            var hit = client.level.clip(new net.minecraft.world.level.ClipContext(eye, shot.position(),
-                    net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, client.player));
-            if (hit.getType() != net.minecraft.world.phys.HitResult.Type.MISS) {
-                Vec3 safe = hit.getLocation().add(eye.subtract(hit.getLocation()).normalize().scale(.15));
-                shot = look(safe, eye.add(client.player.getViewVector(delta).scale(80)));
-            }
+            Vec3 safe = clipTowards(client, eye, shot.position());
+            if (safe != null) shot = look(safe, eye.add(client.player.getViewVector(delta).scale(80)));
         }
         return shot;
+    }
+    /** True when the chunk under {@code position} is loaded; a detached camera must never sit in an unloaded one. */
+    static boolean hasChunk(Minecraft client, Vec3 position) {
+        return client.level.getChunkSource().hasChunk(Mth.floor(position.x) >> 4, Mth.floor(position.z) >> 4);
+    }
+    /** Where a camera at {@code position} must sit to stay out of blocks between it and {@code subject}
+     *  (just in front of the first collider), or null when the line is clear. */
+    static Vec3 clipTowards(Minecraft client, Vec3 subject, Vec3 position) {
+        var hit = client.level.clip(new net.minecraft.world.level.ClipContext(subject, position,
+                net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, client.player));
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS ? null
+                : hit.getLocation().add(subject.subtract(hit.getLocation()).normalize().scale(.15));
     }
 
     public static AtomicCinematic.Pose cameraFor(FugaRenderer.Frame frame, Vec3 vanilla, float vanillaYaw,
