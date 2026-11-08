@@ -48,25 +48,37 @@ final class GateBeams {
         Vec3 look = from.add(to).scale(.5).subtract(c.eye);
         Vec3 side = n.cross(look);
         side = side.lengthSqr() < 1e-8 ? n.cross(new Vec3(0, 1, 0)).normalize() : side.normalize();
+        // Near the lens a beam must not whiten the frame: its additive light is scaled by how close the beam passes, and every ribbon
+        // is tapered to the width allowed at each end's distance (core thinner, sheath at most CLOSE_WIDTH wide within CLOSE_RADIUS blocks).
+        double pass = from.add(n.scale(along)).distanceTo(c.eye), dim = CLOSE_DIM + (1 - CLOSE_DIM) * smooth((pass - CLOSE_RADIUS) / CLOSE_RADIUS);
         if (c.body()) {
-            Vec3 w = side.scale(.2 * B);
-            GateDraw.quad(c, from.subtract(w), from.add(w), to.add(w), to.subtract(w), GateCircles.HOT, .95 * env);
+            Vec3 wa = side.scale(allowed(c, from, .2 * B, CLOSE_CORE)), wb = side.scale(allowed(c, to, .2 * B, CLOSE_CORE));
+            GateDraw.quad(c, from.subtract(wa), from.add(wa), to.add(wb), to.subtract(wb), GateCircles.HOT, .95 * env * (.5 + .5 * dim));
         }
         if (!c.glow()) return;
-        Vec3 half = side.scale(1.1 * B);
+        env *= dim;
         // Fibre sheath: energy runs from the circle to the target; each piece spans whole texture periods so nothing wraps inside a quad.
         double scroll = (now * .22) % 1, t0 = 0;
         for (int guard = 0; guard < 40 && t0 < len - 1e-6; guard++) {
             double ph0 = (((t0 / FIBRE_LENGTH - scroll) % 1) + 1) % 1, t1 = Math.min(len, t0 + (1 - ph0) * FIBRE_LENGTH), ph1 = ph0 + (t1 - t0) / FIBRE_LENGTH;
             Vec3 a = from.add(n.scale(t0)), b = from.add(n.scale(t1));
-            GateDraw.tex(c, a.subtract(half), b.subtract(half), b.add(half), a.add(half), GateAtlas.FIBRE, ph0, Math.min(1, ph1), 0, 1, color, .55 * env, .55 * env, .55 * env, .55 * env);
+            Vec3 ha = side.scale(allowed(c, a, 1.1 * B, CLOSE_SHEATH)), hb = side.scale(allowed(c, b, 1.1 * B, CLOSE_SHEATH));
+            GateDraw.tex(c, a.subtract(ha), b.subtract(hb), b.add(hb), a.add(ha), GateAtlas.FIBRE, ph0, Math.min(1, ph1), 0, 1, color, .55 * env, .55 * env, .55 * env, .55 * env);
             t0 = t1;
         }
         // Soft outer glow, brightest on the axis.
-        Vec3 wide = side.scale(2.2 * B);
+        Vec3 wf = side.scale(allowed(c, from, 2.2 * B, CLOSE_SHEATH)), wt = side.scale(allowed(c, to, 2.2 * B, CLOSE_SHEATH));
         double g = .16 * env;
-        GateDraw.gradient(c, from.subtract(wide), from, to, to.subtract(wide), color, 0, g, g, 0);
-        GateDraw.gradient(c, from, from.add(wide), to.add(wide), to, color, g, 0, 0, g);
+        GateDraw.gradient(c, from.subtract(wf), from, to, to.subtract(wt), color, 0, g, g, 0);
+        GateDraw.gradient(c, from, from.add(wf), to.add(wt), to, color, g, 0, 0, g);
+    }
+
+    /** Within {@value #CLOSE_RADIUS} blocks of the camera a ribbon is at most 2 * these half widths across (sheath 1.5 blocks); it grows back to full size over the next {@value #CLOSE_RADIUS}. */
+    static final double CLOSE_RADIUS = 20, CLOSE_SHEATH = .75, CLOSE_CORE = .1, CLOSE_DIM = .3;
+
+    /** Half width of a ribbon of nominal half width {@code full} at {@code p}, limited near the camera to {@code close}. */
+    static double allowed(Ctx c, Vec3 p, double full, double close) {
+        return Math.min(full, close + (full - close) * smooth((p.distanceTo(c.eye) - CLOSE_RADIUS) / CLOSE_RADIUS));
     }
 
     private static void muzzle(Ctx c, Vec3 at, double life, int color) {
@@ -82,13 +94,15 @@ final class GateBeams {
     /** {@code crowd}: 1 for a lone hit, less when many hits stack on one spot (a boss under the whole barrage), so the sum stays readable instead of white. */
     private static void impact(Ctx c, Vec3 hit, double life, int color, long seed, double crowd) {
         double k = life / LIFE, fade = (1 - k * k) * crowd;
+        // An impact filling the lens (close-up) keeps its flash but its wide additive pieces shrink and dim.
+        double near = .35 + .65 * smooth((hit.distanceTo(c.eye) - 4) / 24);
         Vec3 o = hit.add(0, .12, 0);
-        fan(c, o, (3 + 4 * smooth(life / 2)) * I, color, .35 * fade, 12);
+        fan(c, o, (3 + 4 * smooth(life / 2)) * I * near, color, .35 * fade * near, 12);
         // Short bright flash on the first ticks, and a column of light where the beam lands.
-        if (life < 2.5) GateDraw.sprite(c, hit.add(0, 1.5, 0), (1 + 2 * (1 - life / 2.5)) * B, .7 * crowd * (1 - life / 2.5), GateCircles.HOT);
-        GateDraw.sprite(c, hit.add(0, 1.2, 0), (.9 + .7 * (1 - k)) * I, .7 * fade, GateCircles.HOT);
-        column(c, hit, .8 * B * (1 - .5 * k), 18 * B, color, .3 * fade);
-        ring(c, o, (.8 + 8 * smooth(life / LIFE)) * I, 1.3 * I, .6 * fade, GateCircles.HOT, 12);
+        if (life < 2.5) GateDraw.sprite(c, hit.add(0, 1.5, 0), (1 + 2 * (1 - life / 2.5)) * B * (.5 + .5 * near), .7 * crowd * (1 - life / 2.5), GateCircles.HOT);
+        GateDraw.sprite(c, hit.add(0, 1.2, 0), (.9 + .7 * (1 - k)) * I * near, .7 * fade * near, GateCircles.HOT);
+        column(c, hit, .8 * B * (1 - .5 * k) * near, 18 * B, color, .3 * fade * near);
+        ring(c, o, (.8 + 8 * smooth(life / LIFE)) * I * near, 1.3 * I * near, .6 * fade * near, GateCircles.HOT, 12);
         int sparks = 16 + (int) (hash(seed, 99) * 8);
         for (int i = 0; i < sparks; i++) {
             double az = hash(seed, i) * TAU, speed = 3 + 5 * hash(seed, i + 100), up = 4 + 6 * hash(seed, i + 200);

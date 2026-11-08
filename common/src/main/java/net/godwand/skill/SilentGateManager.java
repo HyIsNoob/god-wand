@@ -50,6 +50,9 @@ public final class SilentGateManager {
         long phaseAt, commandedAt = -1;
         boolean commanded;
         List<LivingEntity> candidates = List.of();
+        /** The one target the beams spare until the kill-shot volley; picked on the first barrage tick. */
+        LivingEntity featured;
+        boolean featuredPicked;
         /** Config snapshot taken at click 1: server tick and client payload must keep agreeing after a reload. */
         final int skyCircles = GodWandConfig.SERVER.gateSkyCircles, barrageTicks = GodWandConfig.SERVER.gateBarrageTicks;
         Task(ServerPlayer player) {
@@ -154,7 +157,7 @@ public final class SilentGateManager {
         long at = phase == SilentGatePayload.CANCEL ? task.world.getGameTime() : task.phaseAt;
         sender.send(task.world, task.anchor, new SilentGatePayload(task.caster.getId(), task.started, at, phase,
                 task.anchor.x, task.anchor.y, task.anchor.z, task.yaw, task.seed,
-                task.skyCircles, task.barrageTicks, shots, hits));
+                task.skyCircles, task.barrageTicks, shots, hits, task.featured == null ? SilentGatePayload.NO_FEATURED : task.featured.getId()));
     }
 
     public static void tick(ServerLevel world) {
@@ -195,36 +198,55 @@ public final class SilentGateManager {
             task.candidates = task.world.getEntitiesOfClass(LivingEntity.class, box,
                     e -> SilentGateTargets.eligible(e, task.caster, cfg.gateTargetMode));
         }
-        var firing = new ArrayList<Integer>();
+        boolean fresh = false;
+        if (!task.featuredPicked && !task.candidates.isEmpty()) {
+            task.featuredPicked = fresh = true;
+            task.featured = SilentGateTargets.featured(task.candidates, e -> e.getMaxHealth(), e -> e.position().distanceToSqr(task.anchor),
+                    e -> task.world.canSeeSky(e.blockPosition()));
+        }
+        int killAge = SilentGateSequence.killBarrageAge(task.barrageTicks);
+        LivingEntity featured = task.featured != null && task.featured.isAlive() ? task.featured : null;
+        var forced = featured == null ? new int[0] : SilentGateSequence.volley(barrageAge, killAge, task.seed, sky);
+        var firing = new LinkedHashSet<Integer>();
         for (int i = 0; i < sky + SilentGateSequence.GROUND_RING; i++)
             if (SilentGateSequence.fires(i, barrageAge, task.barrageTicks, task.seed)) firing.add(i);
-        if (firing.isEmpty()) return;
-        var picks = SilentGateTargets.pick(task.candidates, task.anchor, firing.size(), task.seed + barrageAge);
+        for (int i : forced) firing.remove(i);
+        var pool = featured != null && SilentGateSequence.withheld(barrageAge, killAge)
+                ? task.candidates.stream().filter(e -> e != featured).toList() : task.candidates;
+        var picks = SilentGateTargets.pick(pool, task.anchor, firing.size(), task.seed + barrageAge);
         var shots = new ArrayList<Integer>();
         var hits = new ArrayList<Double>();
         float damage = cfg.gateBeamDamage * cfg.damageMultiplier;
-        for (int k = 0; k < firing.size() && shots.size() < SilentGatePayload.MAX_SHOTS; k++) {
-            int index = firing.get(k);
-            Vec3 from = index < sky ? SilentGateSequence.skyCircle(task.anchor, task.yaw, task.seed, index, sky)
-                    : SilentGateSequence.groundCircle(task.anchor, task.yaw, index - sky);
-            LivingEntity target = k < picks.size() && picks.get(k).isAlive() ? picks.get(k) : null;
-            Vec3 hit, ground;
-            if (target != null) {
-                hit = target.getBoundingBox().getCenter();
-                SpellDamage.hurt(target, task.world.damageSources().indirectMagic(task.caster, task.caster), damage);
-                ground = groundBelow(task.world, task.caster, target.position().add(0, 1, 0));
-                if (ground != null && ground.y < target.getY() - 8) ground = null;
-            } else {
-                ground = hit = groundBelow(task.world, task.caster, from);
-                if (hit == null) continue;
-            }
-            shots.add(index);
-            hits.add(hit.x); hits.add(hit.y); hits.add(hit.z);
-            if (ground != null) crater(task, ground);
+        for (int i : forced) shoot(task, i, featured, damage, shots, hits);
+        int k = 0;
+        for (int index : firing) {
+            if (shots.size() >= SilentGatePayload.MAX_SHOTS) break;
+            shoot(task, index, k < picks.size() && picks.get(k).isAlive() ? picks.get(k) : null, damage, shots, hits);
+            k++;
         }
-        if (shots.isEmpty()) return;
+        if (shots.isEmpty() && !fresh) return;
         broadcast(task, Phase.BARRAGE.ordinal(), shots.stream().mapToInt(Integer::intValue).toArray(),
                 hits.stream().mapToDouble(Double::doubleValue).toArray());
+    }
+
+    /** One beam from circle {@code index} onto {@code target} (the ground below the circle when null); records the hit. */
+    private static void shoot(Task task, int index, LivingEntity target, float damage, List<Integer> shots, List<Double> hits) {
+        int sky = task.skyCircles;
+        Vec3 from = index < sky ? SilentGateSequence.skyCircle(task.anchor, task.yaw, task.seed, index, sky)
+                : SilentGateSequence.groundCircle(task.anchor, task.yaw, index - sky);
+        Vec3 hit, ground;
+        if (target != null) {
+            hit = target.getBoundingBox().getCenter();
+            SpellDamage.hurt(target, task.world.damageSources().indirectMagic(task.caster, task.caster), damage);
+            ground = groundBelow(task.world, task.caster, target.position().add(0, 1, 0));
+            if (ground != null && ground.y < target.getY() - 8) ground = null;
+        } else {
+            ground = hit = groundBelow(task.world, task.caster, from);
+            if (hit == null) return;
+        }
+        shots.add(index);
+        hits.add(hit.x); hits.add(hit.y); hits.add(hit.z);
+        if (ground != null) crater(task, ground);
     }
 
     /** First collidable block straight below, only inside an already loaded chunk; null otherwise. */

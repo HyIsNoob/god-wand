@@ -25,7 +25,7 @@ import static net.godwand.client.GateDraw.smooth;
 public final class SilentGateRenderer {
     /** {@code age}: ticks since the first click; {@code commandAge}: ticks since the second click (-1 before it). */
     public record Frame(int casterId, long startedAt, int phase, double age, double commandAge,
-            Vec3 anchor, float yaw, long seed, int skyCircles, int barrageTicks) {}
+            Vec3 anchor, float yaw, long seed, int skyCircles, int barrageTicks, int featured) {}
     public record Shot(int circle, Vec3 hit, long tick) {}
 
     static final int SHOT_MEMORY_TICKS = 10;
@@ -33,7 +33,7 @@ public final class SilentGateRenderer {
     static final int MAX_WAIT_TICKS = 1200;
     private static final class Cast {
         long startedAt, phaseAt, commandAt = -1;
-        int phase, skyCircles, barrageTicks;
+        int phase, skyCircles, barrageTicks, featured = SilentGatePayload.NO_FEATURED;
         Vec3 anchor;
         float yaw;
         long seed;
@@ -71,6 +71,7 @@ public final class SilentGateRenderer {
         if (p.phase() == SilentGateSequence.Phase.BARRAGE.ordinal() && cast.commandAt < 0) cast.commandAt = p.phaseAt();
         cast.anchor = new Vec3(p.x(), p.y(), p.z());
         cast.yaw = p.yaw(); cast.seed = p.seed(); cast.skyCircles = p.skyCircles(); cast.barrageTicks = p.barrageTicks();
+        if (p.featured() >= 0) cast.featured = p.featured();
         for (int i = 0; i < p.shots().length; i++)
             cast.shots.add(new Shot(p.shots()[i], new Vec3(p.hits()[3 * i], p.hits()[3 * i + 1], p.hits()[3 * i + 2]), now));
         trim(cast, now);
@@ -95,7 +96,7 @@ public final class SilentGateRenderer {
         if (c == null || over(c, now)) return null;
         now = SilentGateCinematic.warp(c.startedAt, now);
         return new Frame(casterId, c.startedAt, c.phase, now - c.startedAt, c.commandAt < 0 ? -1 : now - c.commandAt,
-                c.anchor, c.yaw, c.seed, c.skyCircles, c.barrageTicks);
+                c.anchor, c.yaw, c.seed, c.skyCircles, c.barrageTicks, c.featured);
     }
     public static Frame frame(int casterId, float partial) {
         return world == null ? null : frameAt(casterId, world.getGameTime() + partial);

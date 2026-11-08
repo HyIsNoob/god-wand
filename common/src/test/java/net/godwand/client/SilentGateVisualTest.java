@@ -28,7 +28,7 @@ class SilentGateVisualTest {
         public VertexConsumer setNormal(float x, float y, float z) { return this; }
     }
     private static SilentGateRenderer.Frame frame(double age, double commandAge, int circles) {
-        return new SilentGateRenderer.Frame(1, 100, 2, age, commandAge, ANCHOR, 0f, 7L, circles, 200);
+        return new SilentGateRenderer.Frame(1, 100, 2, age, commandAge, ANCHOR, 0f, 7L, circles, 200, -1);
     }
     private static int emit(Mesh mesh, SilentGateRenderer.Frame f, List<SilentGateRenderer.Shot> shots) {
         return SilentGateRenderer.emitScene(mesh, new Matrix4f(), f, shots, Vec3.ZERO);

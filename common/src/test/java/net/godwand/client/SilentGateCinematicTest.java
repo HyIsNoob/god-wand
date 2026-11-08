@@ -15,7 +15,7 @@ class SilentGateCinematicTest {
     private static final Vec3 EYE = PLAYER.add(0, 1.62, 0);
 
     private static SilentGateRenderer.Frame frame(int phase, double age, double commandAge, int barrage) {
-        return new SilentGateRenderer.Frame(1, 100, phase, age, commandAge, PLAYER, 0f, 7L, 48, barrage);
+        return new SilentGateRenderer.Frame(1, 100, phase, age, commandAge, PLAYER, 0f, 7L, 48, barrage, -1);
     }
     private static AtomicCinematic.Pose build(int phase, double age) {
         return SilentGateCinematic.cameraFor(frame(phase, age, -1, 200), PLAYER, 0f, true);
@@ -120,6 +120,19 @@ class SilentGateCinematicTest {
         var impacts = List.of(new SilentGateRenderer.Shot(1, new Vec3(0, 70, 90), 1), new SilentGateRenderer.Shot(2, new Vec3(3, 70, 91), 2),
                 new SilentGateRenderer.Shot(3, new Vec3(-4, 70, 88), 3), new SilentGateRenderer.Shot(4, new Vec3(80, 70, 10), 4));
         assertTrue(SilentGateCinematic.densest(impacts, Vec3.ZERO).z > 85, "cluster beats the stray hit");
+    }
+
+    @Test void killLockPrefersTheServersFeaturedTargetAndFallsBackWhenItIsGone() {
+        var zombie = new SilentGateCinematic.Candidate(1, 20, new Vec3(0, 70, 30));
+        var warden = new SilentGateCinematic.Candidate(2, 500, new Vec3(10, 70, 40));
+        var ravager = new SilentGateCinematic.Candidate(3, 100, new Vec3(-5, 70, 50));
+        var lock = new SilentGateCinematic.KillLock();
+        assertNull(lock.update(100, 59, 60, List.of(zombie, warden, ravager), PLAYER, 3), "not before the kill shot");
+        assertEquals(ravager.position(), lock.update(100, 60, 60, List.of(zombie, warden, ravager), PLAYER, 3), "featured beats higher max health");
+        assertEquals(3, lock.id());
+        var gone = new SilentGateCinematic.KillLock();
+        assertEquals(warden.position(), gone.update(100, 60, 60, List.of(zombie, warden), PLAYER, 3), "vanished featured: highest max health");
+        assertEquals(warden.position(), new SilentGateCinematic.KillLock().update(100, 60, 60, List.of(zombie, warden), PLAYER, -1));
     }
 
     @Test void hitStopSlowsTheRenderClockForAboutThreeTicks() {

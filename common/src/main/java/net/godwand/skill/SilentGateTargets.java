@@ -49,4 +49,12 @@ public final class SilentGateTargets {
         Collections.shuffle(out, new Random(seed));
         return out;
     }
+
+    /** The featured kill target: highest max health, ties nearest to {@code from}; candidates with sky access win over buried ones. Null when empty. */
+    public static <T> T featured(List<T> candidates, java.util.function.ToDoubleFunction<T> maxHealth,
+            java.util.function.ToDoubleFunction<T> distanceSq, java.util.function.Predicate<T> skyAccess) {
+        var open = candidates.stream().filter(skyAccess).toList();
+        return (open.isEmpty() ? candidates : open).stream()
+                .min(Comparator.<T>comparingDouble(e -> -maxHealth.applyAsDouble(e)).thenComparingDouble(distanceSq)).orElse(null);
+    }
 }

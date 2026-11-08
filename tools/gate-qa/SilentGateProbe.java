@@ -93,9 +93,9 @@ public final class SilentGateProbe implements ClientModInitializer {
                     // 12 zombies + 2 skeletons, 20-130 blocks ahead (+Z), spread to the sides (scaled Silent Gate, target radius 160).
                     double z = 20 + rnd.nextDouble() * 110, x = (rnd.nextDouble() * 2 - 1) * (10 + z * 0.8);
                     x += OX; z += OZ;
-                    // Target 0 is a tank (a ravager with 20000 HP) so a living target is still there when the kill shot starts; the rest die on their first hit.
+                    // Target 0 is a vanilla ravager (100 HP): the server features it (highest max health) and spares it until the kill-shot volley.
                     Mob m = (Mob) (i == 0 ? EntityType.RAVAGER : i < 12 ? EntityType.ZOMBIE : EntityType.SKELETON).create(level);
-                    if (i == 0) { m.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(20000); m.setHealth(20000); x = OX + 8; z = OZ + 60; }
+                    if (i == 0) { x = OX + 8; z = OZ + 60; }
                     int gy = level.getHeight(Heightmap.Types.WORLD_SURFACE, (int) Math.floor(x), (int) Math.floor(z));
                     m.setPos(x, gy, z); m.setNoAi(true); m.setPersistenceRequired();
                     level.addFreshEntity(m); targets.add(m.getUUID());
@@ -131,7 +131,7 @@ public final class SilentGateProbe implements ClientModInitializer {
         // Full-size frames by command age: every tick around the first hits (56..84), plus the requested reference ticks.
         if (f != null && f.phase() == 2 && f.commandAge() >= 0) {
             int cmd = (int) f.commandAge();
-            if (cmd != lastCmd && (cmd >= 56 && cmd <= 84 || cmd % 10 == 0)) {
+            if (cmd != lastCmd && (cmd >= 56 && cmd <= 96 || cmd % 10 == 0)) {
                 lastCmd = cmd;
                 Screenshot.grab(c.gameDirectory, "gate-" + run + "/c-" + String.format(Locale.ROOT, "%03d", cmd) + ".png", c.getMainRenderTarget(), m -> {});
             }

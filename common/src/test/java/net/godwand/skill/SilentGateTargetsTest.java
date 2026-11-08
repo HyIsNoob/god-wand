@@ -75,4 +75,15 @@ class SilentGateTargetsTest {
         assertTrue(picks.stream().allMatch(e -> e == alive));
         assertTrue(SilentGateTargets.pick(List.of(dead), Vec3.ZERO, 4, 1L).isEmpty());
     }
+
+    @Test void featuredIsTankiestThenNearestAndPrefersSkyAccess() {
+        record E(String n, double hp, double d, boolean sky) {}
+        var zombie = new E("zombie", 20, 4, true); var ravager = new E("ravager", 100, 50, true);
+        var farRavager = new E("far", 100, 90, true); var cave = new E("cave golem", 300, 10, false);
+        java.util.function.Function<List<E>, E> pick = l -> SilentGateTargets.featured(l, E::hp, E::d, E::sky);
+        assertEquals(ravager, pick.apply(List.of(zombie, farRavager, ravager)), "highest max health, tie nearest");
+        assertEquals(ravager, pick.apply(List.of(cave, zombie, ravager)), "sky access beats a tankier buried mob");
+        assertEquals(cave, pick.apply(List.of(cave)), "nothing open: fall back to all");
+        assertNull(pick.apply(List.of()));
+    }
 }

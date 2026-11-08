@@ -87,4 +87,23 @@ class SilentGateSequenceTest {
         assertEquals(268, SilentGateSequence.shotTick(140, 400));
         assertEquals(272, SilentGateSequence.endTick(200));
     }
+
+    @Test
+    void featuredTargetIsWithheldThenSixBeamsLandWithinThreeTicks() {
+        for (int barrage : new int[]{200, 400}) {
+            int kill = SilentGateSequence.killBarrageAge(barrage);
+            assertEquals(SilentGateSequence.shotTick(75, barrage), kill + SilentGateSequence.ACTIVATE_TICKS);
+            assertTrue(SilentGateSequence.withheld(0, kill) && SilentGateSequence.withheld(kill + 2, kill));
+            assertFalse(SilentGateSequence.withheld(kill + 3, kill));
+            var all = new java.util.HashSet<Integer>();
+            for (int a = kill - 2; a < kill + 6; a++) {
+                int[] v = SilentGateSequence.volley(a, kill, 12345L, 48);
+                assertEquals(a >= kill && a < kill + 3 ? 2 : 0, v.length, "age " + a);
+                for (int i : v) all.add(i);
+            }
+            assertEquals(6, all.size(), "six distinct sky circles");
+            assertTrue(all.stream().allMatch(i -> i >= 0 && i < 48));
+        }
+        assertEquals(75 - SilentGateSequence.ACTIVATE_TICKS, SilentGateSequence.killBarrageAge(200));
+    }
 }

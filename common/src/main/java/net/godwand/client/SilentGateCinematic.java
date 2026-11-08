@@ -241,16 +241,18 @@ public final class SilentGateCinematic {
     /** A living entity the client can see. */
     record Candidate(int id, double maxHealth, Vec3 position) {}
 
-    /** Picks the highest max-health candidate once, when the kill shot starts, and then follows that entity (its last position once it is gone). */
+    /** Picks the server's featured target (else the highest max-health candidate) once, when the kill shot starts, and then follows that entity (its last position once it is gone). */
     static final class KillLock {
         private long cast = Long.MIN_VALUE; private boolean locked; private int id; private Vec3 last;
         int id() { return id; }
-        Vec3 update(long castId, double commandAge, int lockAt, List<Candidate> candidates, Vec3 caster) {
+        Vec3 update(long castId, double commandAge, int lockAt, List<Candidate> candidates, Vec3 caster) { return update(castId, commandAge, lockAt, candidates, caster, -1); }
+        Vec3 update(long castId, double commandAge, int lockAt, List<Candidate> candidates, Vec3 caster, int featured) {
             if (cast != castId) { cast = castId; locked = false; last = null; }
             if (!locked && commandAge >= lockAt) {
                 Candidate best = null;
                 for (Candidate k : candidates) if (best == null || k.maxHealth() > best.maxHealth()
                         || k.maxHealth() == best.maxHealth() && k.position().distanceToSqr(caster) < best.position().distanceToSqr(caster)) best = k;
+                for (Candidate k : candidates) if (k.id() == featured) best = k; // the server's featured target wins when it is still around
                 if (best != null) { id = best.id(); locked = true; }
             }
             if (locked) for (Candidate k : candidates) if (k.id() == id) last = k.position();
@@ -268,7 +270,7 @@ public final class SilentGateCinematic {
         for (var e : client.level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
                 new net.minecraft.world.phys.AABB(anchor, anchor).inflate(160), x -> x != client.player && x.isAlive()))
             list.add(new Candidate(e.getId(), e.getMaxHealth(), e.position()));
-        Vec3 at = LOCK.update(frame.startedAt(), frame.commandAge(), lockAt, list, anchor);
+        Vec3 at = LOCK.update(frame.startedAt(), frame.commandAge(), lockAt, list, anchor, frame.featured());
         if (hitCast != frame.startedAt()) { hitCast = frame.startedAt(); hitAt = -1; }
         if (hitAt < 0 && at != null) for (Shot s : shots) if (s.hit().distanceToSqr(at) < 36) { hitAt = s.tick(); break; }
         return at;

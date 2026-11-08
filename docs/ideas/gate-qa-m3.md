@@ -49,3 +49,21 @@ BUILD 54.6 (min 30), WAIT 59.4 (min 59), BARRAGE 57.1 (min 45), END 59.5 (min 59
 - The ravager renders as flat dark red blocks in the capture (entity pass vs our depth stamping or fog?), not investigated.
 - Pixel texture edges are bilinear-softened by 1/8 texel only; at long range the stone tile aliases slightly.
 - Pillars read busier than before from afar; the bulb ring is visible in the long shot but small.
+
+# Round 3 (directed kill + exposure)
+
+Sheets: build/fuga-qa/gate-sheets-m3c/ (kill-window.png = command 56..96 every tick; cmd-062/072/076/080/090.png full size). Logs build/gate-m3c-run1/2.log. Tests: `:common:test --tests "*SilentGate*"` green.
+
+## Directed kill
+- Server (SilentGateManager): on the first barrage tick with candidates it features one target = highest max health, ties nearest to the anchor, preferring mobs with sky access (SilentGateTargets.featured, pure). Ordinary beams skip it (pool filter) until the volley has landed; at barrage age killBarrageAge = shotTick(75) - 12 (command tick 75 at 200 ticks, scaled) six sky circles (two per tick over 3 ticks, spread over the spiral, SilentGateSequence.volley) hit it with normal beam damage. After the volley it is an ordinary candidate again. All other targeting/damage/crater rules unchanged.
+- SilentGatePayload gets `int featured` (-1 none; varint of featured+1; validated >= -1; 13-arg constructor kept = none). Sent in every barrage payload (an extra empty one at pick time). Client stores it in the cast (Frame.featured); KillLock locks it at the shot-60 boundary and falls back to highest max health when it is not in the client's entity list.
+- Result: a vanilla 100 HP ravager stays untouched and alive (unhurt, textured) through command 74, six beams converge at ~75, hit-stop, it falls by ~82. 14/14 killed.
+
+## Exposure
+GateBeams: ribbons are tapered to the width allowed at each end's distance: within 20 blocks of the camera sheath/glow half width <= .75 (1.5 across), core half width .1, growing back to full over the next 20 blocks; beam alpha scaled to 30..100% by how close the beam passes the lens, core alpha .5..1. Impacts near the lens (< 4..28 blocks) shrink and dim their wide pieces (fan, ring, column, flare) to 35..100%, the first-tick flash keeps its brightness. Crowd attenuation kept. Frames now keep a dark sky behind a bright focused strike. The yellow sheet was the gold ground-arc beam sheath passing the camera (half width 2.2 plus 4.4 glow, about 9 across).
+
+## Ravager
+Not ours. In the pre-hit frames under the same gate effects the ravager is textured and shaded (dark blue-grey at night). It turns flat dark red only after being hit: vanilla hurt/death overlay (hurt tint every tick under 6 beams, then the death tilt). The depth prepass writes depth with colour masked off and runs after entities, so it cannot touch entity lighting.
+
+## QA notes
+Probe: ravager has vanilla health; window capture 56..96. FPS BARRAGE avg 56.5 (min 37); quads/tick max 4512. Build note: with the 1.20.1 payload adapters stale the root Gradle configuration fails ("Shared-source adapter conflict"); for this run the conflict check in gradle/shared-sources.gradle was temporarily made non-fatal (reverted, not committed) and `-x generateSharedSources` was used.

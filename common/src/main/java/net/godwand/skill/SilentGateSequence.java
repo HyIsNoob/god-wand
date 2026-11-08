@@ -90,5 +90,24 @@ public final class SilentGateSequence {
         return ACTIVATE_TICKS + Math.round((baseTick - ACTIVATE_TICKS) * barrageTicks / 200f);
     }
 
+    /** The featured target is withheld from the beams until this barrage age, then {@link #VOLLEY_BEAMS} beams land within {@link #VOLLEY_TICKS} ticks
+     *  (authored as command tick 75 of a 200-tick barrage). */
+    public static final int VOLLEY_TICKS = 3, VOLLEY_BEAMS = 6;
+    public static int killBarrageAge(int barrageTicks) { return shotTick(75, barrageTicks) - ACTIVATE_TICKS; }
+
+    /** The featured target is spared by the ordinary beams until the volley has landed. */
+    public static boolean withheld(int barrageAge, int killAge) { return barrageAge < killAge + VOLLEY_TICKS; }
+
+    /** Sky circles that fire at the featured target on this barrage age (two per tick, spread over the spiral); empty outside the volley. */
+    public static int[] volley(int barrageAge, int killAge, long seed, int skyCircles) {
+        int o = barrageAge - killAge;
+        if (o < 0 || o >= VOLLEY_TICKS) return new int[0];
+        int slot = skyCircles / VOLLEY_BEAMS, shift = (int) Math.floorMod(seed, (long) Math.max(1, slot));
+        int per = VOLLEY_BEAMS / VOLLEY_TICKS;
+        int[] out = new int[per];
+        for (int j = 0; j < per; j++) out[j] = Math.min(skyCircles - 1, (o * per + j) * slot + shift);
+        return out;
+    }
+
     public static int endTick(int barrageTicks) { return ACTIVATE_TICKS + barrageTicks + ENDING_TICKS; }
 }
