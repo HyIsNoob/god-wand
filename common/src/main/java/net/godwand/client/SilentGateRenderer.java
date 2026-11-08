@@ -120,7 +120,7 @@ public final class SilentGateRenderer {
     // ---- geometry: great circle in GateCircles; sky discs, ground ring, gate and beams are still milestone-1 placeholders ----
     static final int QUAD_BUDGET = 20000;
     static final int WHITE_BLUE = 0xCFE6FF, JADE = 0x2FD6A0, GOLD = 0xFFC83A;
-    static final double BEAM_TICKS = 6, GATE_DROP = 60;
+    static final double BEAM_TICKS = GateBeams.LIFE, GATE_DROP = 60;
     /** Opacity of the legacy flat geometry in the additive pass: it only adds a soft glow over the body. */
     private static final double GLOW_GAIN = .35;
 
@@ -208,7 +208,8 @@ public final class SilentGateRenderer {
             Vec3 from = s.circle() < f.skyCircles()
                     ? SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), s.circle(), f.skyCircles())
                     : SilentGateSequence.groundCircle(anchor, f.yaw(), s.circle() - f.skyCircles());
-            beam(c, from, s.hit(), 1 - life / BEAM_TICKS);
+            GateBeams.shot(c, from, s.hit(), life, s.circle() < f.skyCircles() ? (s.circle() % 2 == 0 ? GateMinor.JADE : GateCircles.GLOW_BLUE)
+                    : SilentGateSequence.groundCircleGold(s.circle() - f.skyCircles()) ? GateMinor.GOLD : GateMinor.GREEN, s.tick() * 31L + s.circle(), now);
         }
         lastQuads = c.quads;
         return c.quads;
@@ -240,15 +241,6 @@ public final class SilentGateRenderer {
             Vec3 face = mid.add(a[2].scale(sign));
             quad(c, face.subtract(a[0]).subtract(a[1]), face.add(a[0]).subtract(a[1]), face.add(a[0]).add(a[1]), face.subtract(a[0]).add(a[1]), color, alpha);
         }
-    }
-    /** Two crossed quads from the circle to the hit. */
-    private static void beam(Ctx c, Vec3 from, Vec3 to, double alpha) {
-        Vec3 dir = to.subtract(from);
-        if (dir.lengthSqr() < 1e-6) return;
-        dir = dir.normalize();
-        Vec3 s = dir.cross(Math.abs(dir.y) > .98 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0)).normalize().scale(.4), t = dir.cross(s).normalize().scale(.4);
-        quad(c, from.subtract(s), from.add(s), to.add(s), to.subtract(s), WHITE_BLUE, alpha);
-        quad(c, from.subtract(t), from.add(t), to.add(t), to.subtract(t), WHITE_BLUE, alpha);
     }
     private static void quad(Ctx c, Vec3 a, Vec3 b, Vec3 d, Vec3 e, int color, double alpha) { GateDraw.quad(c, a, b, d, e, color, alpha); }
 

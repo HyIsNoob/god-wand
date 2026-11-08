@@ -32,46 +32,62 @@ final class GateMinor {
     static void sky(Ctx c, Vec3 at, int index, double age, double born, Vec3 gate, double wave) {
         double t = (age - born) / BLOOM_TICKS, k = bloom(t);
         if (k <= 0) return;
-        double flare = flare(gate, at, wave), s = k * (1 + .1 * flare), alpha = smooth(t * 2) * (1 + .3 * flare);
-        int color = index % 2 == 0 ? JADE : GateCircles.WHITE_BLUE;
+        double flare = flare(gate, at, wave), s = k * (1 + .1 * flare), alpha = smooth(t * 2) * (1 + .6 * flare);
+        int tint = index % 2 == 0 ? JADE : GateCircles.WHITE_BLUE, color = mix(tint, 0xFFFFFF, .7 * flare);
         double spin = age * .012 * (index % 2 == 0 ? 1 : -1) + index;
         double dist = c.eye.distanceTo(at);
         if (c.body()) {
-            if (dist > FAR) ring(c, at, 2.4 * s, 3.2 * s, 0, spin, GateAtlas.RIM, 1, .9 * alpha, color);
+            if (dist > FAR) {
+                disc(c, at, 3.6 * s, .22 * alpha, tint);
+                ring(c, at, 2.4 * s, 3.2 * s, 0, spin, GateAtlas.RIM, 1, 12, .9 * alpha, color);
+            }
             else {
+                // Soft luminous fill under every tier, tinted by the circle.
+                disc(c, at.add(0, -.05, 0), 4.2 * s, .27 * alpha, tint);
+                disc(c, at.add(0, 1.6 * s, 0), 2.8 * s, .22 * alpha, tint);
+                disc(c, at.add(0, 2.4 * s, 0), 1.7 * s, .25 * alpha, tint);
                 seal(c, at.add(0, -.1, 0), 3.2 * s, spin, color, .85 * alpha);
-                ring(c, at.add(0, .8 * s, 0), 2.4 * s, 3.2 * s, 0, spin, GateAtlas.RUNES, 2, .9 * alpha, color);
-                ring(c, at.add(0, 1.6 * s, 0), 1.5 * s, 2.2 * s, 0, -spin * 1.3, GateAtlas.RUNES, 2, .9 * alpha, color);
-                ring(c, at.add(0, 2.4 * s, 0), .6 * s, 1.2 * s, 0, spin * 1.6, GateAtlas.RUNES, 1, .9 * alpha, color);
+                ring(c, at.add(0, .8 * s, 0), 2.4 * s, 3.2 * s, 0, spin, GateAtlas.RUNES, 2, 12, .9 * alpha, color);
+                ring(c, at.add(0, 1.6 * s, 0), 1.5 * s, 2.2 * s, 0, -spin * 1.3, GateAtlas.RUNES, 2, 10, .9 * alpha, color);
+                ring(c, at.add(0, 2.4 * s, 0), .6 * s, 1.2 * s, 0, spin * 1.6, GateAtlas.RUNES, 1, 8, .9 * alpha, color);
             }
         }
         if (c.glow()) {
             double since = age - born, flash = since < 14 ? Math.sin(Math.PI * since / 14) : 0;
-            GateDraw.sprite(c, at.add(0, 1.2 * s, 0), 4.6 * s, .11 * alpha, color == JADE ? JADE : GateCircles.GLOW_BLUE);
+            GateDraw.sprite(c, at.add(0, 1.2 * s, 0), 4.6 * s, .16 * alpha, tint == JADE ? JADE : GateCircles.GLOW_BLUE);
+            GateDraw.sprite(c, at.add(0, 2.6 * s, 0), .9 * s + .4, .75 * Math.min(1, alpha), GateCircles.HOT);
             if (flash > 0) GateDraw.sprite(c, at.add(0, 1.2, 0), 3 + 4 * since / 14, .5 * flash, GateCircles.HOT);
-            if (flare > 0) GateDraw.sprite(c, at.add(0, 1.2, 0), 6, .55 * flare, GateCircles.HOT);
+            if (flare > 0) { GateDraw.sprite(c, at.add(0, 1.2, 0), 7, .6 * flare, GateCircles.HOT); GateDraw.sprite(c, at.add(0, 2.4, 0), 2.6, .95 * flare, 0xFFFFFF); }
         }
     }
 
+    private static int mix(int a, int b, double t) {
+        t = clamp01(t);
+        int r = (int) (((a >> 16) & 255) * (1 - t) + ((b >> 16) & 255) * t), g = (int) (((a >> 8) & 255) * (1 - t) + ((b >> 8) & 255) * t), bl = (int) ((a & 255) * (1 - t) + (b & 255) * t);
+        return r << 16 | g << 8 | bl;
+    }
+    /** Flat soft glow disc from the glow tile: a luminous fill under line art. */
+    private static void disc(Ctx c, Vec3 at, double radius, double alpha, int color) {
+        GateDraw.tex(c, at.add(-radius, 0, -radius), at.add(radius, 0, -radius), at.add(radius, 0, radius), at.add(-radius, 0, radius),
+                GateAtlas.GLOW, 0, 1, 0, 1, color, alpha, alpha, alpha, alpha);
+    }
+
     /** Horizontal textured annulus of {@value #SEGS} segments. */
-    private static void ring(Ctx c, Vec3 o, double r0, double r1, double v0, double spin, GateAtlas.Region region, int repeats, double alpha, int color) {
-        int per = SEGS / repeats;
-        double step = TAU / SEGS;
-        for (int s = 0; s < SEGS; s++) {
+    private static void ring(Ctx c, Vec3 o, double r0, double r1, double v0, double spin, GateAtlas.Region region, int repeats, int segs, double alpha, int color) {
+        int per = segs / repeats;
+        double step = TAU / segs;
+        for (int s = 0; s < segs; s++) {
             double a0 = spin + s * step, a1 = a0 + step, p0 = (double) (s % per) / per, p1 = (double) (s % per + 1) / per;
             GateDraw.tex(c, pt(o, r0, a0), pt(o, r0, a1), pt(o, r1, a1), pt(o, r1, a0), region, p0, p1, 0, 1, color, alpha, alpha, alpha, alpha);
         }
     }
     private static Vec3 pt(Vec3 o, double r, double a) { return o.add(Math.cos(a) * r, 0, Math.sin(a) * r); }
 
-    /** Flat seal disc as a 2x2 grid of the seal tile (so near parts can fade on their own). */
+    /** Flat seal disc: one quad of the seal tile. */
     private static void seal(Ctx c, Vec3 o, double radius, double spin, int color, double alpha) {
         double h = radius * 128 / 122.0, cs = Math.cos(spin), sn = Math.sin(spin);
-        for (int gx = 0; gx < 2; gx++) for (int gz = 0; gz < 2; gz++) {
-            double x0 = -1 + gx, x1 = x0 + 1, z0 = -1 + gz, z1 = z0 + 1;
-            GateDraw.tex(c, rot(o, h, x0, z0, cs, sn), rot(o, h, x1, z0, cs, sn), rot(o, h, x1, z1, cs, sn), rot(o, h, x0, z1, cs, sn),
-                    GateAtlas.SEAL, gx / 2.0, (gx + 1) / 2.0, gz / 2.0, (gz + 1) / 2.0, color, alpha, alpha, alpha, alpha);
-        }
+        GateDraw.tex(c, rot(o, h, -1, -1, cs, sn), rot(o, h, 1, -1, cs, sn), rot(o, h, 1, 1, cs, sn), rot(o, h, -1, 1, cs, sn),
+                GateAtlas.SEAL, 0, 1, 0, 1, color, alpha, alpha, alpha, alpha);
     }
     private static Vec3 rot(Vec3 o, double h, double x, double z, double cs, double sn) { return o.add(h * (x * cs - z * sn), 0, h * (x * sn + z * cs)); }
 
@@ -116,20 +132,20 @@ final class GateMinor {
         return o.add(side.scale(h * (x * cs - y * sn))).add(up.scale(h * (x * sn + y * cs)));
     }
 
-    /** Ring of light travelling out from the gate: one flat, one standing across the view direction. */
+    /** Luminous cyan-white band travelling out from the gate (one flat, one upright), bright at the front with a soft trailing afterglow. */
     static void wave(Ctx c, Vec3 gate, float yaw, double radius) {
         if (radius <= 0 || radius > WAVE_REACH || !c.glow()) return;
-        double fall = 1 - radius / WAVE_REACH, rad = Math.toRadians(yaw);
+        double fall = 1 - .6 * radius / WAVE_REACH, rad = Math.toRadians(yaw);
         Vec3 right = new Vec3(Math.cos(rad), 0, Math.sin(rad)), fwd = new Vec3(-Math.sin(rad), 0, Math.cos(rad)), up = new Vec3(0, 1, 0);
-        int n = 48;
-        double al = .4 * fall;
+        int n = 40;
+        double front = .9 * fall, trail = .3 * fall;
         for (int plane = 0; plane < 2; plane++) for (int i = 0; i < n; i++) {
             double a0 = i * TAU / n, a1 = (i + 1) * TAU / n;
             Vec3 d0 = dir(plane, right, fwd, up, a0), d1 = dir(plane, right, fwd, up, a1);
-            Vec3 in0 = gate.add(d0.scale(radius - 2.5)), in1 = gate.add(d1.scale(radius - 2.5)), m0 = gate.add(d0.scale(radius)), m1 = gate.add(d1.scale(radius));
-            Vec3 o0 = gate.add(d0.scale(radius + 1)), o1 = gate.add(d1.scale(radius + 1));
-            GateDraw.gradient(c, in0, in1, m1, m0, GateCircles.HOT, 0, 0, al, al);
-            GateDraw.gradient(c, m0, m1, o1, o0, GateCircles.HOT, al, al, 0, 0);
+            double[] r = {radius - 8, radius - 1.8, radius, radius + 1.5}, al = {0, trail, front, 0};
+            for (int k = 0; k < 3; k++)
+                GateDraw.gradient(c, gate.add(d0.scale(r[k])), gate.add(d1.scale(r[k])), gate.add(d1.scale(r[k + 1])), gate.add(d0.scale(r[k + 1])),
+                        0xC8F8FF, al[k], al[k], al[k + 1], al[k + 1]);
         }
     }
     private static Vec3 dir(int plane, Vec3 right, Vec3 fwd, Vec3 up, double a) {

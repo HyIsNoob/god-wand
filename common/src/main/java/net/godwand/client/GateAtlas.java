@@ -19,7 +19,7 @@ final class GateAtlas {
     static final int SIZE = 512;
     static final Region SWIRL = new Region(0, 0, 512, 64), RUNES = new Region(0, 64, 512, 64), DASH = new Region(0, 128, 512, 64),
             RIM = new Region(0, 192, 512, 64), SEAL = new Region(0, 256, 256, 256), FILIGREE = new Region(256, 256, 256, 64),
-            GLOW = new Region(256, 320, 64, 64), CLOUD = new Region(384, 320, 128, 128), SOLID = new Region(504, 504, 8, 8);
+            GLOW = new Region(256, 320, 64, 64), CLOUD = new Region(384, 320, 128, 128), FIBRE = new Region(256, 448, 256, 56), SOLID = new Region(504, 504, 8, 8);
     static final Region[] STRIPS = {SWIRL, RUNES, DASH, RIM, FILIGREE};
     static final float SOLID_U = SOLID.u(.5), SOLID_V = SOLID.v(.5);
     private static final double TAU = Math.PI * 2;
@@ -33,6 +33,7 @@ final class GateAtlas {
         if (cache != null) return cache;
         Canvas c = new Canvas();
         swirl(c); runes(c); dash(c); rim(c); filigree(c); seal(c); glow(c); cloud(c);
+        for (int y = 0; y < FIBRE.h; y++) for (int x = 0; x < FIBRE.w; x++) c.a[(FIBRE.y + y) * SIZE + FIBRE.x + x] = FugaRenderer.flameAlpha(x, y) / 255f;
         for (int y = 0; y < SOLID.h; y++) for (int x = 0; x < SOLID.w; x++) c.a[(SOLID.y + y) * SIZE + SOLID.x + x] = 1;
         byte[] out = new byte[SIZE * SIZE];
         for (int i = 0; i < out.length; i++) out[i] = (byte) Math.round(Math.min(1, c.a[i]) * 255);

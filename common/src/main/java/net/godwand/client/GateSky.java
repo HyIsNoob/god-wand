@@ -50,9 +50,9 @@ final class GateSky {
                 double ox = (hash(i * 7 + k, 5) - .5) * size * 1.3, oy = (hash(i * 7 + k, 6) - .5) * size * .6, oz = (hash(i * 7 + k, 7) - .5) * size * 1.3;
                 double sz = size * (.6 + .5 * hash(i * 7 + k, 8)), roll = hash(i * 7 + k, 9) * TAU + age * .002 * (k % 2 == 0 ? 1 : -1);
                 Vec3 q = p.add(ox, oy, oz);
-                if (c.body()) GateDraw.sprite(c, q, sz, .16 * envelope, i % 3 == 0 ? CLOUD_BODY : CLOUD_DARK, GateAtlas.CLOUD, roll);
+                if (c.body()) GateDraw.sprite(c, q, sz, .24 * envelope, i % 3 == 0 ? CLOUD_BODY : CLOUD_DARK, GateAtlas.CLOUD, roll);
                 // Light from the circle: the side facing it glows cyan-white.
-                if (c.glow() && k < 3) GateDraw.sprite(c, q.add(toward.scale(sz * .5)), sz * .75, .075 * envelope, k == 0 ? CLOUD_LIT : CLOUD_RIM, GateAtlas.CLOUD, roll + 1.7);
+                if (c.glow() && k < 3) GateDraw.sprite(c, q.add(toward.scale(sz * .5)), sz * .75, .13 * envelope, k == 0 ? CLOUD_LIT : CLOUD_RIM, GateAtlas.CLOUD, roll + 1.7);
             }
         }
     }
