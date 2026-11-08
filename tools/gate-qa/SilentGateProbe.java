@@ -24,12 +24,16 @@ import java.util.*;
 /** Development-only: one complete Silent Gate cast (click, build, wait, click, barrage, ending), captured from the real render target. */
 public final class SilentGateProbe implements ClientModInitializer {
     private static final String[] PHASES = {"BUILD", "WAIT", "BARRAGE", "END"};
-    private static final int FIELD_X0 = -60, FIELD_X1 = 60, FIELD_Z0 = 8, FIELD_Z1 = 70;
+    // Clean spot on the flat QA world (the copied world has an old Fuga crater next to spawn).
+    private static final int OX = 4000, OZ = 4000;
+    private static final int FIELD_X0 = OX - 60, FIELD_X1 = OX + 60, FIELD_Z0 = OZ + 8, FIELD_Z1 = OZ + 70;
     private int ticks, stage, since, clickAt, frame;
     private final long[] fpsSum = new long[4], fpsN = new long[4];
     private final int[] fpsMin = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE},
             firstFrame = {-1, -1, -1, -1}, lastFrame = {-1, -1, -1, -1};
-    private long msptPeak;
+    private long msptPeak, msptSeen = -1, setupPeak;
+    private String msptAt = "-";
+    private boolean moved;
     private boolean click2, sawFrame, sawBarrage;
     private int ground, solidBefore, solidAfter, total;
     private final List<UUID> targets = new ArrayList<>();
@@ -55,7 +59,16 @@ public final class SilentGateProbe implements ClientModInitializer {
         c.options.pauseOnLostFocus = false;
         if (Files.exists(c.gameDirectory.toPath().getParent().resolve("stop"))) { c.stop(); return; }
         ticks++;
-        if (stage == 0 && ticks > 80 && c.screen == null) {
+        if (stage == 0 && !moved && ticks > 80 && c.screen == null) {
+            moved = true; since = ticks;
+            server.submit(() -> {
+                var p = server.getPlayerList().getPlayer(c.player.getUUID());
+                p.setGameMode(GameType.CREATIVE);
+                p.connection.teleport(OX + .5, 100, OZ + .5, 0, 0);
+            }).join();
+        }
+        if (moved && stage <= 1) sampleMspt(server, "SETUP");
+        if (stage == 0 && moved && ticks - since > 200) {
             c.getWindow().setWindowed(1280, 720);
             c.getWindow().setTitle("God Wand 1.5.0 - Silent Gate QA");
             c.options.framerateLimit().set(60); c.options.renderDistance().set(16);
@@ -67,11 +80,12 @@ public final class SilentGateProbe implements ClientModInitializer {
                 p.setGameMode(GameType.CREATIVE);
                 level.getGameRules().getRule(net.minecraft.world.level.GameRules.RULE_DOMOBSPAWNING).set(false, server);
                 level.setDayTime(13000); level.setWeatherParameters(60000, 0, false, false);
-                ground = level.getHeight(Heightmap.Types.WORLD_SURFACE, 0, 0);
+                ground = level.getHeight(Heightmap.Types.WORLD_SURFACE, OX, OZ);
                 var rnd = new Random(7);
                 for (int i = 0; i < 14; i++) {
                     // 12 zombies + 2 skeletons, 15-55 blocks ahead (+Z), spread to the sides.
                     double z = 15 + rnd.nextDouble() * 40, x = (rnd.nextDouble() * 2 - 1) * (10 + z * 0.8);
+                    x += OX; z += OZ;
                     Mob m = (Mob) (i < 12 ? EntityType.ZOMBIE : EntityType.SKELETON).create(level);
                     int gy = level.getHeight(Heightmap.Types.WORLD_SURFACE, (int) Math.floor(x), (int) Math.floor(z));
                     m.setPos(x, gy, z); m.setNoAi(true); m.setPersistenceRequired();
@@ -83,7 +97,7 @@ public final class SilentGateProbe implements ClientModInitializer {
                 p.getInventory().setItem(0, wand); p.getInventory().selected = 0;
                 p.getInventory().setItem(40, ItemStack.EMPTY);
                 p.getCooldowns().removeCooldown(GodWandMod.GOD_WAND_ITEM);
-                p.connection.teleport(.5, ground, .5, 0, 0); p.inventoryMenu.broadcastChanges();
+                p.connection.teleport(OX + .5, ground, OZ + .5, 0, 0); p.inventoryMenu.broadcastChanges();
             }).join();
             c.player.getInventory().selected = 0; c.player.connection.send(new ServerboundSetCarriedItemPacket(0));
             try { Files.createDirectories(c.gameDirectory.toPath().resolve("screenshots/gate-" + run)); }
@@ -108,7 +122,7 @@ public final class SilentGateProbe implements ClientModInitializer {
         if (f == null) {
             if (click2 && sawBarrage) {
                 stage = 3; since = ticks;
-                System.out.printf(Locale.ROOT, "GATE_QA PASS frames=%d serverMsptPeak=%.2f%n", frame, msptPeak / 1e6);
+                System.out.printf(Locale.ROOT, "GATE_QA PASS frames=%d serverMsptPeak=%.2f ms at [%s] setupPeak=%.2f ms%n", frame, msptPeak / 1e6, msptAt, setupPeak / 1e6);
                 for (int i = 0; i < 4; i++) if (firstFrame[i] >= 0)
                     System.out.printf(Locale.ROOT, "GATE_QA FPS %s avg=%.1f min=%d frames=%d..%d%n", PHASES[i],
                             fpsSum[i] / (double) Math.max(1, fpsN[i]), fpsMin[i], firstFrame[i], lastFrame[i]);
@@ -120,8 +134,7 @@ public final class SilentGateProbe implements ClientModInitializer {
         lastFrame[ph] = frame;
         int fps = c.getFps();
         if (ticks % 5 == 0 && fps > 0) { fpsSum[ph] += fps; fpsN[ph]++; fpsMin[ph] = Math.min(fpsMin[ph], fps); }
-        long[] times = server.getTickTimesNanos();
-        msptPeak = Math.max(msptPeak, times[(server.getTickCount() + times.length - 1) % times.length]);
+        sampleMspt(server, PHASES[ph] + " age=" + age);
         if (ph == 2) sawBarrage = true;
         if ((ph == 0 && age == 100 || ph == 1 && age == 330) && marks.add("lock" + ph)) {
             server.submit(() -> {
@@ -136,6 +149,21 @@ public final class SilentGateProbe implements ClientModInitializer {
             c.gameMode.useItem(c.player, InteractionHand.MAIN_HAND);
             System.out.println("GATE_QA CLICK2 age=" + age);
         }
+    }
+
+    /** Reads every server tick time since the last call; logs ticks over 50 ms with the Silent Gate phase/age. */
+    private void sampleMspt(net.minecraft.server.MinecraftServer server, String label) {
+        long[] times = server.getTickTimesNanos();
+        int now = server.getTickCount();
+        if (msptSeen < 0) msptSeen = now - 1;
+        for (long t = Math.max(msptSeen + 1, now - times.length + 1); t < now; t++) {
+            long ns = times[(int) (t % times.length)];
+            boolean setup = label.startsWith("SETUP");
+            if (setup) setupPeak = Math.max(setupPeak, ns);
+            else if (ns > msptPeak) { msptPeak = ns; msptAt = label; }
+            if (ns > 50_000_000L) System.out.printf(Locale.ROOT, "GATE_QA SLOWTICK %.1f ms server tick %d [%s]%n", ns / 1e6, t, label);
+        }
+        msptSeen = Math.max(msptSeen, now - 1);
     }
 
     private void aftermath(Minecraft c, net.minecraft.server.MinecraftServer server) {
@@ -153,7 +181,7 @@ public final class SilentGateProbe implements ClientModInitializer {
             server.submit(() -> {
                 var p = server.getPlayerList().getPlayer(c.player.getUUID());
                 p.setGameMode(GameType.SPECTATOR);
-                p.connection.teleport(top ? 0 : -60, ground + (top ? 110 : 40), top ? 40 : -25, top ? 0 : -45, top ? 90 : 28);
+                p.connection.teleport(OX + (top ? 0 : -60), ground + (top ? 110 : 40), OZ + (top ? 40 : -25), top ? 0 : -45, top ? 90 : 28);
             }).join();
         }
         if (t == 40 || t == 90)
