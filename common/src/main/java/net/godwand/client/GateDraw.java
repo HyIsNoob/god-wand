@@ -10,7 +10,7 @@ final class GateDraw {
 
     /** {@code layer}: -1 emits both layers (tests), 0 the alpha-blended body, 1 the additive glow. */
     static final class Ctx {
-        VertexConsumer v; Matrix4f m; Vec3 eye; double fade = 1, gain = 1; int layer = -1, quads;
+        VertexConsumer v; Matrix4f m; Vec3 eye; double fade = 1, gain = 1, nearMin = NEAR_MIN, nearMax = NEAR_MAX; int layer = -1, quads;
         /** Only the opaque gate body: drawn into the depth buffer alone so additive light behind it cannot shine through. */
         boolean solidOnly;
         boolean body() { return layer <= 0; }
@@ -26,8 +26,8 @@ final class GateDraw {
     static double proximity(Ctx c, Vec3 a, Vec3 b, Vec3 d, Vec3 e) {
         double lo = Math.min(Math.min(a.distanceToSqr(c.eye), b.distanceToSqr(c.eye)), Math.min(d.distanceToSqr(c.eye), e.distanceToSqr(c.eye)));
         lo = Math.min(lo, a.add(b).add(d).add(e).scale(.25).distanceToSqr(c.eye));
-        if (lo >= NEAR_MAX * NEAR_MAX) return 1;
-        return smooth((Math.sqrt(lo) - NEAR_MIN) / (NEAR_MAX - NEAR_MIN));
+        if (lo >= c.nearMax * c.nearMax) return 1;
+        return smooth((Math.sqrt(lo) - c.nearMin) / (c.nearMax - c.nearMin));
     }
 
     /** Flat-colour quad (solid atlas texel). */
@@ -84,13 +84,18 @@ final class GateDraw {
      * Corners a (u0,v0), b (u1,v0), d (u1,v1), e (u0,v1).
      */
     static void shaded(Ctx c, Vec3[] p, int[] color, double[] alpha, GateAtlas.Region r, double u0, double u1, double v0, double v1) {
+        float[] uv = r == null ? new float[]{SOLID_U, SOLID_V, SOLID_U, SOLID_V, SOLID_U, SOLID_V, SOLID_U, SOLID_V}
+                : new float[]{r.u(u0), r.v(v0), r.u(u1), r.v(v0), r.u(u1), r.v(v1), r.u(u0), r.v(v1)};
+        shaded(c, p, color, alpha, uv);
+    }
+
+    /** As above with explicit texture coordinates (u, v per corner): the pixel-art tiles of the gate. */
+    static void shaded(Ctx c, Vec3[] p, int[] color, double[] alpha, float[] uv) {
         if (!room(c)) return;
         double lo = Double.MAX_VALUE;
         for (Vec3 q : p) lo = Math.min(lo, q.distanceToSqr(c.eye));
         double k = c.fade * (lo >= SOLID_NEAR_MAX * SOLID_NEAR_MAX ? 1 : smooth((Math.sqrt(lo) - SOLID_NEAR_MIN) / (SOLID_NEAR_MAX - SOLID_NEAR_MIN)));
         if (k <= 0) return;
-        float[] uv = r == null ? new float[]{SOLID_U, SOLID_V, SOLID_U, SOLID_V, SOLID_U, SOLID_V, SOLID_U, SOLID_V}
-                : new float[]{r.u(u0), r.v(v0), r.u(u1), r.v(v0), r.u(u1), r.v(v1), r.u(u0), r.v(v1)};
         for (int i = 0; i < 4; i++) vertex(c, p[i], color[i], alpha[i] * k, uv[2 * i], uv[2 * i + 1]);
         c.quads++;
     }

@@ -25,3 +25,27 @@ killed 7/14 (rest of the mobs lie beyond the 160 target radius from the anchor o
 - Sky circles can lie inside the gate volume (min radius 24 < half width 54).
 - Kill shot: target is small (12 blocks); beams arrive from far above and are thin lines.
 - Network range still 256 blocks, so far viewers lose the outer circles (SilentGateManager adapters would need regenerating to raise it).
+
+# Round 2 (camera/FX polish + pixel gate)
+
+Sheets: build/fuga-qa/gate-sheets-m3b/ (barrage-step2.png, kill-window.png = every tick of command 56..84; before-pixel/ = smooth gate, after-pixel/ = pixel gate: cmd-062/070/075/080/100/140 and build f107 (tick 215), f120 (240), f150 (300)). Logs build/gate-m3b-run1..3.log.
+Tests: `:common:test --tests "*SilentGate*" --tests "*GateAtlas*"` green (quad caps kept).
+
+## Changes
+- Kill shot (60..125): 5.5 blocks from the target, camera 0.6 above its feet (below its eye), looking at +2.6 (about 20 degrees up), 20 degree orbit, floor = live ground + 0.5. Beams/impacts whose hit is within 14 blocks of the camera use a proximity fade of 0.4..2 blocks instead of 3..12 (GateBeams.CLOSE_*). Impact FX about 2x (fan, ring, sparks, flash sprite, light column); hits stacked on one spot are attenuated by 1/(0.6 n) so a boss under the whole barrage does not turn the frame white.
+- High shot (125..165): 125 back, 140 -> 100 above the caster, 25 to the side, pitch about 10 down: caster and gold/green arc at the bottom, craters/beams across the middle, gate and circle above the horizon.
+- Door light: wide cyan plane that falls to ~0 at the jambs, soft white core (<= .45), 30 fanning shimmer rays, 16 drifting motes.
+- Pillars: deeper collars at the three bands, fluting depth 8.5% with darker groove faces, glowing ring + halo at each bulb.
+- Pixel gate (owner request): atlas is now 1024x1024; PIX_STONE (16x16 texel ashlar tile, own grey tones) and PIX_VEIN (1 texel line with teeth), 8 atlas px per texel, repeated 3x3, 1 texel = 1 block at SCALE 3. Faces are flat-shaded Minecraft style (top 100, N/S 80, E/W 60, bottom 50 percent, 3 height bands). Lathe profiles snapped to whole blocks with flat steps, 12/10/8 sides, hooks are 4-sided 14-segment tubes. Circles, beams, clouds unchanged.
+
+## Kill count: 14/14 (7/14 before)
+Cause: not the mod. build/fuga-qa/run/config/godwand-server.json was a stale file from an older round with gateTargetRadius 64 (and crater radius 2), so the half of the field beyond 64 blocks was never a candidate. Fixed the file to the 160/3 defaults and the probe now prints the effective config. (Config files are not migrated when defaults change; irrelevant for a first release.) Second finding: ordinary mobs die on their first 80-damage beam (about 2 shots per tick), so by command tick 60 nothing is alive to lock onto and the kill shot falls back to the densest impact, with no figure in frame. The probe therefore spawns one 20000 HP ravager as the lock target.
+
+## FPS (1280x720, render 16; machine was quieter than round 1)
+BUILD 54.6 (min 30), WAIT 59.4 (min 59), BARRAGE 57.1 (min 45), END 59.5 (min 59). Quads/tick max: BUILD 2439, WAIT 2397, BARRAGE 4146, END 3130.
+
+## Honest notes
+- Kill shot now reads (figure, converging beams from above, flash), but the beam bundle near the target is very bright and wide; the sheath is still near-white at the centre. A third pass should thin beam widths when close.
+- The ravager renders as flat dark red blocks in the capture (entity pass vs our depth stamping or fog?), not investigated.
+- Pixel texture edges are bilinear-softened by 1/8 texel only; at long range the stone tile aliases slightly.
+- Pillars read busier than before from afar; the bulb ring is visible in the long shot but small.

@@ -27,7 +27,7 @@ public final class SilentGateProbe implements ClientModInitializer {
     // Clean spot on the flat QA world (the copied world has an old Fuga crater next to spawn).
     private static final int OX = 4000, OZ = 4000;
     private static final int FIELD_X0 = OX - 130, FIELD_X1 = OX + 130, FIELD_Z0 = OZ + 8, FIELD_Z1 = OZ + 150;
-    private int ticks, stage, since, clickAt, frame;
+    private int ticks, stage, since, clickAt, frame, lastCmd = -1;
     private final long[] fpsSum = new long[4], fpsN = new long[4];
     private final int[] fpsMin = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE},
             firstFrame = {-1, -1, -1, -1}, lastFrame = {-1, -1, -1, -1};
@@ -93,7 +93,9 @@ public final class SilentGateProbe implements ClientModInitializer {
                     // 12 zombies + 2 skeletons, 20-130 blocks ahead (+Z), spread to the sides (scaled Silent Gate, target radius 160).
                     double z = 20 + rnd.nextDouble() * 110, x = (rnd.nextDouble() * 2 - 1) * (10 + z * 0.8);
                     x += OX; z += OZ;
-                    Mob m = (Mob) (i < 12 ? EntityType.ZOMBIE : EntityType.SKELETON).create(level);
+                    // Target 0 is a tank (a ravager with 20000 HP) so a living target is still there when the kill shot starts; the rest die on their first hit.
+                    Mob m = (Mob) (i == 0 ? EntityType.RAVAGER : i < 12 ? EntityType.ZOMBIE : EntityType.SKELETON).create(level);
+                    if (i == 0) { m.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(20000); m.setHealth(20000); x = OX + 8; z = OZ + 60; }
                     int gy = level.getHeight(Heightmap.Types.WORLD_SURFACE, (int) Math.floor(x), (int) Math.floor(z));
                     m.setPos(x, gy, z); m.setNoAi(true); m.setPersistenceRequired();
                     level.addFreshEntity(m); targets.add(m.getUUID());
@@ -126,6 +128,14 @@ public final class SilentGateProbe implements ClientModInitializer {
         if (f != null) sawFrame = true;
         if (f == null && !sawFrame) return;
         if (age % 2 == 0) grab(c);
+        // Full-size frames by command age: every tick around the first hits (56..84), plus the requested reference ticks.
+        if (f != null && f.phase() == 2 && f.commandAge() >= 0) {
+            int cmd = (int) f.commandAge();
+            if (cmd != lastCmd && (cmd >= 56 && cmd <= 84 || cmd % 10 == 0)) {
+                lastCmd = cmd;
+                Screenshot.grab(c.gameDirectory, "gate-" + run + "/c-" + String.format(Locale.ROOT, "%03d", cmd) + ".png", c.getMainRenderTarget(), m -> {});
+            }
+        }
         if (f == null) {
             if (click2 && sawBarrage) {
                 stage = 3; since = ticks;
@@ -187,7 +197,15 @@ public final class SilentGateProbe implements ClientModInitializer {
             var level = server.getPlayerList().getPlayer(c.player.getUUID()).serverLevel();
             solidAfter = solid(level);
             int dead = 0;
-            for (UUID u : targets) { var e = level.getEntity(u); if (e == null || !e.isAlive()) dead++; }
+            var anchorPos = new net.minecraft.world.phys.Vec3(OX + .5, ground, OZ + .5);
+            for (UUID u : targets) {
+                var e = level.getEntity(u);
+                if (e == null || !e.isAlive()) dead++;
+                if (e != null && e.isAlive()) System.out.printf(Locale.ROOT, "GATE_QA ALIVE %s dist=%.0f health=%s pos=%.0f,%.0f chunkLoaded=%b%n", e.getType(), e.position().distanceTo(anchorPos),
+                        e instanceof net.minecraft.world.entity.LivingEntity l ? l.getHealth() : "-", e.getX() - OX, e.getZ() - OZ, level.hasChunkAt(e.blockPosition()));
+                else if (e == null) System.out.println("GATE_QA GONE (entity unloaded) " + u);
+            }
+            System.out.println("GATE_QA CONFIG gateTargetRadius=" + GodWandConfig.SERVER.gateTargetRadius + " beamDamage=" + GodWandConfig.SERVER.gateBeamDamage + " craterRadius=" + GodWandConfig.SERVER.gateCraterRadius);
             System.out.println("GATE_QA RESULT killed=" + dead + "/" + total + " blocksRemoved=" + (solidBefore - solidAfter)
                     + " (field x" + FIELD_X0 + ".." + FIELD_X1 + " z" + FIELD_Z0 + ".." + FIELD_Z1 + ")");
         }).join();

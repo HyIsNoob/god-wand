@@ -19,11 +19,21 @@ final class GateBeams {
     }
     private static double hash(long seed, int i) { double x = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5453; return x - Math.floor(x); }
 
-    static void shot(Ctx c, Vec3 from, Vec3 hit, double life, int color, long seed, double now) {
+    /** A hit this close to the camera is the subject of a close-up: its beam and impact only dissolve within {@value #CLOSE_NEAR_MAX} blocks of the lens. */
+    static final double CLOSE_RANGE = 14, CLOSE_NEAR_MIN = .4, CLOSE_NEAR_MAX = 2;
+
+    static void shot(Ctx c, Vec3 from, Vec3 hit, double life, int color, long seed, double now, double crowd) {
         double env = envelope(life);
         if (env <= 0) return;
+        boolean close = hit.distanceTo(c.eye) < CLOSE_RANGE;
+        if (close) { c.nearMin = CLOSE_NEAR_MIN; c.nearMax = CLOSE_NEAR_MAX; }
+        try { draw(c, from, hit, life, env, color, seed, now, crowd); }
+        finally { c.nearMin = GateDraw.NEAR_MIN; c.nearMax = GateDraw.NEAR_MAX; }
+    }
+
+    private static void draw(Ctx c, Vec3 from, Vec3 hit, double life, double env, int color, long seed, double now, double crowd) {
         beam(c, from, hit, env, color, now);
-        if (c.glow()) { muzzle(c, from, life, color); impact(c, hit, life, color, seed); }
+        if (c.glow()) { muzzle(c, from, life, color); impact(c, hit, life, color, seed, crowd); }
     }
 
     private static void beam(Ctx c, Vec3 from, Vec3 to, double env, int color, double now) {
@@ -33,17 +43,17 @@ final class GateBeams {
         Vec3 n = d.scale(1 / len);
         // A beam passing close to the camera dissolves, like every other circle element.
         double along = Math.max(0, Math.min(len, c.eye.subtract(from).dot(n)));
-        env *= smooth((from.add(n.scale(along)).distanceTo(c.eye) - GateDraw.NEAR_MIN) / (GateDraw.NEAR_MAX - GateDraw.NEAR_MIN));
+        env *= smooth((from.add(n.scale(along)).distanceTo(c.eye) - c.nearMin) / (c.nearMax - c.nearMin));
         if (env <= 0) return;
         Vec3 look = from.add(to).scale(.5).subtract(c.eye);
         Vec3 side = n.cross(look);
         side = side.lengthSqr() < 1e-8 ? n.cross(new Vec3(0, 1, 0)).normalize() : side.normalize();
         if (c.body()) {
-            Vec3 w = side.scale(.125 * B);
+            Vec3 w = side.scale(.2 * B);
             GateDraw.quad(c, from.subtract(w), from.add(w), to.add(w), to.subtract(w), GateCircles.HOT, .95 * env);
         }
         if (!c.glow()) return;
-        Vec3 half = side.scale(.8 * B);
+        Vec3 half = side.scale(1.1 * B);
         // Fibre sheath: energy runs from the circle to the target; each piece spans whole texture periods so nothing wraps inside a quad.
         double scroll = (now * .22) % 1, t0 = 0;
         for (int guard = 0; guard < 40 && t0 < len - 1e-6; guard++) {
@@ -53,7 +63,7 @@ final class GateBeams {
             t0 = t1;
         }
         // Soft outer glow, brightest on the axis.
-        Vec3 wide = side.scale(1.8 * B);
+        Vec3 wide = side.scale(2.2 * B);
         double g = .16 * env;
         GateDraw.gradient(c, from.subtract(wide), from, to, to.subtract(wide), color, 0, g, g, 0);
         GateDraw.gradient(c, from, from.add(wide), to.add(wide), to, color, g, 0, 0, g);
@@ -66,18 +76,35 @@ final class GateBeams {
         ring(c, at, (1 + 7 * k) * B, 1.1 * B, .6 * (1 - k), color, 8);
     }
 
-    private static void impact(Ctx c, Vec3 hit, double life, int color, long seed) {
-        double k = life / LIFE, fade = 1 - k * k;
+    /** Impact scale: twice the old size, for the 3x world and the 5 block close-up. */
+    private static final double I = 2 * B;
+
+    /** {@code crowd}: 1 for a lone hit, less when many hits stack on one spot (a boss under the whole barrage), so the sum stays readable instead of white. */
+    private static void impact(Ctx c, Vec3 hit, double life, int color, long seed, double crowd) {
+        double k = life / LIFE, fade = (1 - k * k) * crowd;
         Vec3 o = hit.add(0, .12, 0);
-        fan(c, o, (3 + 4 * smooth(life / 2)) * B, color, .4 * fade, 8);
-        GateDraw.sprite(c, hit.add(0, .6, 0), (1.6 + 1.2 * (1 - k)) * B, .7 * fade, GateCircles.HOT);
-        ring(c, o, (.8 + 8 * smooth(life / LIFE)) * B, 1.3 * B, .55 * fade, GateCircles.HOT, 10);
-        int sparks = 8 + (int) (hash(seed, 99) * 5);
+        fan(c, o, (3 + 4 * smooth(life / 2)) * I, color, .35 * fade, 12);
+        // Short bright flash on the first ticks, and a column of light where the beam lands.
+        if (life < 2.5) GateDraw.sprite(c, hit.add(0, 1.5, 0), (1 + 2 * (1 - life / 2.5)) * B, .7 * crowd * (1 - life / 2.5), GateCircles.HOT);
+        GateDraw.sprite(c, hit.add(0, 1.2, 0), (.9 + .7 * (1 - k)) * I, .7 * fade, GateCircles.HOT);
+        column(c, hit, .8 * B * (1 - .5 * k), 18 * B, color, .3 * fade);
+        ring(c, o, (.8 + 8 * smooth(life / LIFE)) * I, 1.3 * I, .6 * fade, GateCircles.HOT, 12);
+        int sparks = 16 + (int) (hash(seed, 99) * 8);
         for (int i = 0; i < sparks; i++) {
             double az = hash(seed, i) * TAU, speed = 3 + 5 * hash(seed, i + 100), up = 4 + 6 * hash(seed, i + 200);
-            Vec3 p = hit.add(Math.cos(az) * speed * life * .5, Math.max(.1, up * life * .5 - 1.4 * life * life), Math.sin(az) * speed * life * .5);
-            GateDraw.sprite(c, p, .28 * (1 - k * .6), .9 * (1 - k), i % 3 == 0 ? GateCircles.HOT : color);
+            Vec3 p = hit.add(Math.cos(az) * speed * life * .9, Math.max(.1, up * life * .9 - 1.4 * life * life), Math.sin(az) * speed * life * .9);
+            GateDraw.sprite(c, p, .55 * (1 - k * .6), .95 * (1 - k), i % 3 == 0 ? GateCircles.HOT : color);
         }
+    }
+
+    /** Camera-facing column of light standing on {@code base}, fading upwards. */
+    private static void column(Ctx c, Vec3 base, double halfWidth, double height, int color, double alpha) {
+        Vec3 side = new Vec3(0, 1, 0).cross(base.subtract(c.eye));
+        if (side.lengthSqr() < 1e-8 || alpha <= 0) return;
+        side = side.normalize().scale(halfWidth);
+        Vec3 top = base.add(0, height, 0);
+        GateDraw.gradient(c, base.subtract(side), base, top, top.subtract(side), color, 0, alpha, 0, 0);
+        GateDraw.gradient(c, base, base.add(side), top.add(side), top, color, alpha, 0, 0, 0);
     }
 
     private static void fan(Ctx c, Vec3 o, double radius, int color, double alpha, int n) {

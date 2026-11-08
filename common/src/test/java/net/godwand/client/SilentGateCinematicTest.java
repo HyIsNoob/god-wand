@@ -66,20 +66,26 @@ class SilentGateCinematicTest {
         assertTrue(barrage(30, 200).position().y < PLAYER.y + 6, "low wide shot");
         for (double c = 13; c < 56; c += 3)
             assertTrue(barrage(c, 200).position().distanceTo(barrage(c + 3, 200).position()) < 4, "slow dolly at " + c);
-        // 60..125: kill close-up, 12 blocks from the target, never jumping.
+        // 60..125: kill close-up, 5.5 blocks from the target, below its eye, looking up, never jumping.
         Vec3 target = new Vec3(6, 70, 50);
         for (double c = 61; c < 122; c += 2) {
             var pose = shotAt(c, shots, target);
-            assertEquals(12, Math.hypot(pose.position().x - target.x, pose.position().z - target.z), .01, "12 blocks at " + c);
-            assertTrue(pose.position().y < target.y + 2, "eye level, slightly low at " + c);
+            assertEquals(5.5, Math.hypot(pose.position().x - target.x, pose.position().z - target.z), .01, "5.5 blocks at " + c);
+            assertEquals(target.y + .6, pose.position().y, 1e-9, "just above its feet, under its 1.6 eye at " + c);
+            assertTrue(pose.pitch() < -15 && pose.pitch() > -30, "looking a bit up so the beams fall into the frame: " + pose.pitch());
             var next = shotAt(c + 2, shots, target);
             assertTrue(pose.position().distanceTo(next.position()) < 1.2, "slow orbit at " + c);
         }
         double a0 = Math.atan2(shotAt(60.5, shots, target).position().x - target.x, shotAt(60.5, shots, target).position().z - target.z);
         double a1 = Math.atan2(shotAt(124.5, shots, target).position().x - target.x, shotAt(124.5, shots, target).position().z - target.z);
-        assertEquals(25, Math.abs(Math.IEEEremainder(Math.toDegrees(a1 - a0), 360)), 1.5, "orbit sweep");
+        assertEquals(20, Math.abs(Math.IEEEremainder(Math.toDegrees(a1 - a0), 360)), 1.5, "orbit sweep");
         // 125..165: high scale shot sinking slowly.
-        assertTrue(barrage(126, 200).position().y > PLAYER.y + 190 && barrage(164, 200).position().y < barrage(126, 200).position().y - 80);
+        var high = barrage(126, 200);
+        assertEquals(PLAYER.y + 140, high.position().y, 1);
+        assertTrue(barrage(164, 200).position().y < high.position().y - 35);
+        assertTrue(high.pitch() > 5 && high.pitch() < 20, "slightly down, horizon in the upper third: " + high.pitch());
+        double toCaster = Math.toDegrees(Math.atan2(high.position().y - PLAYER.y, high.position().distanceTo(new Vec3(PLAYER.x, high.position().y, PLAYER.z))));
+        assertTrue(toCaster < high.pitch() + 35, "the caster is inside the frame (" + toCaster + " below the horizon)");
         // 165..: behind the caster, then the return.
         assertTrue(PLAYER.z - barrage(200, 200).position().z >= 14, "behind the caster");
         assertNotNull(barrage(272 + 15 - .01, 200));
@@ -133,7 +139,7 @@ class SilentGateCinematicTest {
             var f = frame(2, 300 + c, c, 200);
             // A crater: the surface under the camera is 20 blocks above the planned shot.
             var pose = SilentGateCinematic.cameraFor(f, PLAYER, 0f, 0f, true, shots, (x, z) -> PLAYER.y + 20);
-            assertTrue(pose.position().y >= PLAYER.y + 21.5 - 1e-6, "above ground at " + c);
+            assertTrue(pose.position().y >= PLAYER.y + 20.5 - 1e-6, "above ground at " + c);
         }
     }
 

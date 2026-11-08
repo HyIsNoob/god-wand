@@ -204,24 +204,26 @@ public final class SilentGateCinematic {
         }
         if (c < s125) return killShot(a, f, shots, focus, smooth(c, s60, s125), ground);
         if (c < s165) {
-            // High and far back, sinking slowly: the whole formation and the craters under it.
+            // High oblique view from behind the caster, sinking slowly: caster and arc small at the bottom, the crater field and beams
+            // across the middle, the gate and its circle above the horizon.
             double t = smooth(c, s125, s165);
-            return look(a.add(f.scale(-140 + 30 * t)).add(r.scale(40)).add(0, 200 - 110 * t, 0), a.add(f.scale(90)).add(0, 60, 0));
+            return look(a.add(f.scale(-125 + 10 * t)).add(r.scale(25)).add(0, 140 - 40 * t, 0), a.add(f.scale(110)).add(0, 70, 0));
         }
         double t = smooth(c, s165, end);
         return look(a.add(f.scale(-14 - 6 * t)).add(r.scale(3)).add(0, 3.2 + 2 * t, 0), a.add(f.scale(100)).add(0, 130, 0));
     }
 
-    /** Close view of the kill: ~12 blocks from the target on the caster's side, slightly below its head, orbiting 25 degrees. */
+    /** Kill close-up: {@value #KILL_DISTANCE} blocks from the target on the caster's side, just above its feet, looking up past it so the beams fall into the frame; 20 degree orbit. */
+    static final double KILL_DISTANCE = 5.5, KILL_CAM_HEIGHT = .6, KILL_LOOK_HEIGHT = 2.6;
     private static AtomicCinematic.Pose killShot(Vec3 caster, Vec3 forward, List<Shot> shots, Vec3 focus, double t, ToDoubleBiFunction<Double, Double> ground) {
         Vec3 at = focus != null ? focus : densest(shots, caster.add(forward.scale(40)));
         Vec3 toward = new Vec3(caster.x - at.x, 0, caster.z - at.z);
         toward = toward.lengthSqr() < 1 ? forward.scale(-1) : toward.normalize();
-        Vec3 offset = toward.yRot((float) Math.toRadians(-12 + 25 * t)).scale(12);
-        Vec3 cam = new Vec3(at.x + offset.x, at.y + .9, at.z + offset.z);
+        Vec3 offset = toward.yRot((float) Math.toRadians(-10 + 20 * t)).scale(KILL_DISTANCE);
+        Vec3 cam = new Vec3(at.x + offset.x, at.y + KILL_CAM_HEIGHT, at.z + offset.z);
         // Stay above the live surface: the hit's crater may already be dug out under the camera.
-        double floor = ground.applyAsDouble(cam.x, cam.z) + 1.5;
-        return look(cam.y < floor ? new Vec3(cam.x, floor, cam.z) : cam, at.add(0, 3.5, 0));
+        double floor = ground.applyAsDouble(cam.x, cam.z) + .5;
+        return look(cam.y < floor ? new Vec3(cam.x, floor, cam.z) : cam, at.add(0, KILL_LOOK_HEIGHT, 0));
     }
 
     /** The impact with the most other impacts within 12 blocks (the newest on ties); {@code none} without any. */

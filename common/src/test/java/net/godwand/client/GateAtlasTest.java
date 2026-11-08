@@ -13,9 +13,9 @@ class GateAtlasTest {
         return sum / 255.0 / (r.w() * r.h());
     }
 
-    @Test void atlasIs512SquareAndDeterministic() {
+    @Test void atlasIsSquareAndDeterministic() {
         byte[] px = GateAtlas.alpha();
-        assertEquals(512 * 512, px.length);
+        assertEquals(GateAtlas.SIZE * GateAtlas.SIZE, px.length);
         assertSame(px, GateAtlas.alpha());
     }
 
@@ -61,8 +61,21 @@ class GateAtlasTest {
         String dir = System.getenv("GATE_ATLAS_DUMP");
         if (dir == null) return;
         byte[] px = GateAtlas.alpha();
-        var img = new java.awt.image.BufferedImage(512, 512, java.awt.image.BufferedImage.TYPE_INT_RGB);
-        for (int y = 0; y < 512; y++) for (int x = 0; x < 512; x++) { int v = a(px, x, y); img.setRGB(x, y, v << 16 | v << 8 | v); }
+        var img = new java.awt.image.BufferedImage(GateAtlas.SIZE, GateAtlas.SIZE, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        for (int y = 0; y < GateAtlas.SIZE; y++) for (int x = 0; x < GateAtlas.SIZE; x++) { int v = a(px, x, y); img.setRGB(x, y, v << 16 | v << 8 | v); }
         javax.imageio.ImageIO.write(img, "png", new java.io.File(dir, "atlas.png"));
+    }
+
+    @Test void pixelTilesAreCrispAndRepeatSeamlessly() {
+        byte[] px = GateAtlas.alpha(), lum = GateAtlas.lum();
+        var s = GateAtlas.PIX_STONE;
+        for (int y = 0; y < s.h(); y += 3) for (int x = 0; x < s.w(); x += 3) {
+            assertEquals(255, a(px, s.x() + x, s.y() + y), "stone tile is opaque");
+            int texel = (y / GateAtlas.TEXEL) * 31 + x / GateAtlas.TEXEL;
+            assertEquals(lum[(s.y() + y) * GateAtlas.SIZE + s.x() + x], lum[(s.y() + y - y % GateAtlas.TEXEL) * GateAtlas.SIZE + s.x() + x - x % GateAtlas.TEXEL], "flat inside a texel " + texel);
+            assertEquals(lum[(s.y() + y) * GateAtlas.SIZE + s.x() + x], lum[(s.y() + (y + GateAtlas.TILE * GateAtlas.TEXEL) % s.h()) * GateAtlas.SIZE + s.x() + x], "tiles repeat");
+        }
+        double v = coverage(px, GateAtlas.PIX_VEIN);
+        assertTrue(v > .1 && v < .4, "vein tile coverage " + v);
     }
 }

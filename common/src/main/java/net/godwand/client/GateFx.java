@@ -145,16 +145,27 @@ final class GateFx {
         double k = smooth(open * 1.25);
         if (k <= 0.01 || !c.glow()) return;
         double g = gap(angle), top = OPENING_Y0 + SilentGateSequence.GATE_INNER_HEIGHT, mid = (OPENING_Y0 + top) / 2;
-        double[] ys = {OPENING_Y0, mid, top}, ya = {.55, 1, .8};
+        double[] ys = {OPENING_Y0, mid, top}, ya = {.6, 1, .8};
+        // Layered glow: a wide cyan plane that falls off to nothing at the jambs (so the leaf edges stay dark and readable),
+        // and a soft white core a third as wide, never brighter than .45.
         for (int row = 0; row < 2; row++) for (int side = -1; side <= 1; side += 2) {
-            double edge = .5 * k, centre = .95 * k;
             Vec3 a = p.at(side * g, ys[row], .3), b = p.at(0, ys[row], .3), d = p.at(0, ys[row + 1], .3), e = p.at(side * g, ys[row + 1], .3);
-            GateDraw.gradient(c, a, b, d, e, HOT, edge * ya[row], centre * ya[row], centre * ya[row + 1], edge * ya[row + 1]);
+            double wide = .62 * k;
+            GateDraw.gradient(c, a, b, d, e, BLUE, .08 * k * ya[row], wide * ya[row], wide * ya[row + 1], .08 * k * ya[row + 1]);
+            Vec3 a2 = p.at(side * g * .35, ys[row] + 2, .35), d2 = p.at(side * g * .35, ys[row + 1] - 2, .35);
+            double core = .45 * k;
+            GateDraw.gradient(c, a2, b, d, d2, HOT, 0, core * ya[row], core * ya[row + 1], 0);
         }
         Vec3 aperture = p.at(0, mid, 0);
-        GateDraw.sprite(c, aperture, (30 + 12 * k) * p.s(), .2 * k, BLUE);
-        GateDraw.sprite(c, aperture, (17 + 8 * k) * p.s(), .18 * k, HOT);
-        for (int i = 0; i < 18; i++) {
+        GateDraw.sprite(c, aperture, (30 + 12 * k) * p.s(), .12 * k, BLUE);
+        GateDraw.sprite(c, aperture, (12 + 6 * k) * p.s(), .1 * k, HOT);
+        // Motes of light drifting out of the doorway on both sides.
+        for (int i = 0; i < 16; i++) {
+            double fwd = i % 2 == 0 ? 1 : -1, life = (hash(i, 41) + age * (.004 + .003 * hash(i, 42))) % 1;
+            double x = (hash(i, 43) * 2 - 1) * Math.max(g, 1) * (1 + 2 * life), y = mid + (hash(i, 44) - .5) * 40 + life * 8;
+            GateDraw.sprite(c, p.at(x, y, fwd * (1 + 30 * life)), (.5 + .7 * hash(i, 45)) * p.s(), .6 * k * Math.sin(Math.PI * life), i % 3 == 0 ? BLUE : HOT);
+        }
+        for (int i = 0; i < 30; i++) {
             double fwd = i % 3 == 0 ? 1 : -1;
             double ox = (hash(i, 31) * 2 - 1) * Math.max(g, 1), oy = mid + (hash(i, 32) - .5) * 38;
             Vec3 o = p.at(ox, oy, .5 * fwd);
@@ -163,10 +174,10 @@ final class GateFx {
             if (side.lengthSqr() < 1e-8) continue;
             double len = (70 + 60 * hash(i, 35)) * p.s(), w0 = .8 * p.s(), w1 = (5 + 4 * hash(i, 36)) * p.s();
             side = side.normalize();
-            double shimmer = .6 + .4 * Math.sin(age * .08 + i * 1.7), al = (fwd < 0 ? .2 : .12) * k * shimmer;
+            double shimmer = .55 + .45 * Math.sin(age * .045 + i * 1.7), al = (fwd < 0 ? .16 : .1) * k * shimmer;
             Vec3 tip = o.add(dir.scale(len));
             for (int s = -1; s <= 1; s += 2)
-                GateDraw.gradient(c, o, o.add(side.scale(s * w0)), tip.add(side.scale(s * w1)), tip, HOT, al, 0, 0, 0);
+                GateDraw.gradient(c, o, o.add(side.scale(s * w0)), tip.add(side.scale(s * w1)), tip, i % 2 == 0 ? HOT : BLUE, al, 0, 0, 0);
         }
     }
 }

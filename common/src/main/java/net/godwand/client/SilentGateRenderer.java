@@ -221,12 +221,14 @@ public final class SilentGateRenderer {
         double now = f.startedAt() + age;
         for (Shot s : shots) {
             double life = now - s.tick();
+            int stacked = 0;
+            if (life >= 0 && life < BEAM_TICKS) for (Shot o : shots) if (now - o.tick() >= 0 && now - o.tick() < BEAM_TICKS && o.hit().distanceToSqr(s.hit()) < 64) stacked++;
             if (life < 0 || life >= BEAM_TICKS || s.circle() < 0) continue;
             Vec3 from = s.circle() < f.skyCircles()
                     ? SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), s.circle(), f.skyCircles())
                     : SilentGateSequence.groundCircle(anchor, f.yaw(), s.circle() - f.skyCircles());
             GateBeams.shot(c, from, s.hit(), life, s.circle() < f.skyCircles() ? (s.circle() % 2 == 0 ? GateMinor.JADE : GateCircles.GLOW_BLUE)
-                    : SilentGateSequence.groundCircleGold(s.circle() - f.skyCircles()) ? GateMinor.GOLD : GateMinor.GREEN, s.tick() * 31L + s.circle(), now);
+                    : SilentGateSequence.groundCircleGold(s.circle() - f.skyCircles()) ? GateMinor.GOLD : GateMinor.GREEN, s.tick() * 31L + s.circle(), now, 1 / Math.max(1, stacked * .6));
         }
         lastQuads = c.quads;
         return c.quads;

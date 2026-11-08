@@ -16,10 +16,31 @@ final class GateAtlas {
         float u(double phase) { return (float) ((x + .5 + phase * (w - 1)) / SIZE); }
         float v(double t) { return (float) ((y + .5 + t * (h - 1)) / SIZE); }
     }
-    static final int SIZE = 512;
+    static final int SIZE = 1024;
     static final Region SWIRL = new Region(0, 0, 512, 64), RUNES = new Region(0, 64, 512, 64), DASH = new Region(0, 128, 512, 64),
             RIM = new Region(0, 192, 512, 64), SEAL = new Region(0, 256, 256, 256), FILIGREE = new Region(256, 256, 256, 64),
             GLOW = new Region(256, 320, 64, 64), CLOUD = new Region(384, 320, 128, 128), FIBRE = new Region(256, 448, 256, 56), SOLID = new Region(504, 504, 8, 8);
+    /** Pixel-art tiles of the gate: 16x16 texels drawn 8 atlas pixels each and repeated 3x3, so any quad up to 32 texels wide samples one run
+     *  without wrapping and the (bilinear) filter only softens a texel edge by an eighth of a texel. */
+    static final int TEXEL = 8, TILE = 16, REPEAT = 3;
+    static final Region PIX_STONE = new Region(512, 0, TILE * TEXEL * REPEAT, TILE * TEXEL * REPEAT),
+            PIX_VEIN = new Region(512, TILE * TEXEL * REPEAT, TILE * TEXEL * REPEAT, TILE * TEXEL * REPEAT);
+    /** Atlas coordinate of a texel offset (0..{@code TILE * REPEAT}) inside a pixel region. */
+    static float pixU(Region r, double texel) { return (float) ((r.x + texel * TEXEL) / SIZE); }
+    static float pixV(Region r, double texel) { return (float) ((r.y + texel * TEXEL) / SIZE); }
+    /** Brightness of the stone tile at texel (x, y): grey ashlar block with a dark mortar edge on the right and bottom, a bright chisel line on the left and top. */
+    static double stone(int x, int y) {
+        x %= TILE; y %= TILE;
+        if (x == TILE - 1 || y == TILE - 1) return .66;
+        if (x == 0 || y == 0) return 1;
+        double n = lattice(x, y, 5);
+        return n < .12 ? .8 : n < .4 ? .88 : n < .75 ? .94 : 1;
+    }
+    /** Vein tile: a one texel line through the middle with alternating teeth. */
+    static boolean vein(int x, int y) {
+        x %= TILE; y %= TILE;
+        return y == 7 || (x % 4 == 1 && (y == 5 || y == 6)) || (x % 4 == 3 && (y == 8 || y == 9));
+    }
     static final Region[] STRIPS = {SWIRL, RUNES, DASH, RIM, FILIGREE};
     static final float SOLID_U = SOLID.u(.5), SOLID_V = SOLID.v(.5);
     private static final double TAU = Math.PI * 2;
@@ -35,16 +56,31 @@ final class GateAtlas {
         swirl(c); runes(c); dash(c); rim(c); filigree(c); seal(c); glow(c); cloud(c);
         for (int y = 0; y < FIBRE.h; y++) for (int x = 0; x < FIBRE.w; x++) c.a[(FIBRE.y + y) * SIZE + FIBRE.x + x] = FugaRenderer.flameAlpha(x, y) / 255f;
         for (int y = 0; y < SOLID.h; y++) for (int x = 0; x < SOLID.w; x++) c.a[(SOLID.y + y) * SIZE + SOLID.x + x] = 1;
+        for (int y = 0; y < PIX_STONE.h; y++) for (int x = 0; x < PIX_STONE.w; x++) {
+            c.a[(PIX_STONE.y + y) * SIZE + PIX_STONE.x + x] = 1;
+            if (vein(x / TEXEL, y / TEXEL)) c.a[(PIX_VEIN.y + y) * SIZE + PIX_VEIN.x + x] = 1;
+        }
         byte[] out = new byte[SIZE * SIZE];
         for (int i = 0; i < out.length; i++) out[i] = (byte) Math.round(Math.min(1, c.a[i]) * 255);
         return cache = out;
     }
 
+    private static byte[] lumCache;
+    /** Grey level of every atlas pixel: white everywhere except the pixel-art stone tile, which carries its own tones. */
+    static byte[] lum() {
+        if (lumCache != null) return lumCache;
+        byte[] out = new byte[SIZE * SIZE];
+        java.util.Arrays.fill(out, (byte) 255);
+        for (int y = 0; y < PIX_STONE.h; y++) for (int x = 0; x < PIX_STONE.w; x++)
+            out[(PIX_STONE.y + y) * SIZE + PIX_STONE.x + x] = (byte) Math.round(255 * stone(x / TEXEL, y / TEXEL));
+        return lumCache = out;
+    }
+
     static void bind() {
         if (!ready) {
             var pixels = new com.mojang.blaze3d.platform.NativeImage(SIZE, SIZE, false);
-            byte[] a = alpha();
-            for (int y = 0; y < SIZE; y++) for (int x = 0; x < SIZE; x++) pixels.setPixelRGBA(x, y, ((a[y * SIZE + x] & 255) << 24) | 0xFFFFFF);
+            byte[] a = alpha(), l = lum();
+            for (int y = 0; y < SIZE; y++) for (int x = 0; x < SIZE; x++) { int g = l[y * SIZE + x] & 255; pixels.setPixelRGBA(x, y, ((a[y * SIZE + x] & 255) << 24) | g << 16 | g << 8 | g); }
             var texture = new net.minecraft.client.renderer.texture.DynamicTexture(pixels);
             texture.setFilter(true, false);
             Minecraft.getInstance().getTextureManager().register(TEXTURE, texture);
