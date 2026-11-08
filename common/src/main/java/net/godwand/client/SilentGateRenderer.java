@@ -3,6 +3,7 @@ package net.godwand.client;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
+import net.godwand.client.GateDraw.Ctx;
 import net.godwand.network.SilentGatePayload;
 import net.godwand.skill.SilentGateSequence;
 import net.minecraft.client.Camera;
@@ -16,6 +17,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static net.godwand.client.GateDraw.clamp01;
+import static net.godwand.client.GateDraw.smooth;
 
 /** Client state of every visible Silent Gate cast. Geometry is drawn on top of {@link #localFrame} / {@link #shots}. */
 public final class SilentGateRenderer {
@@ -113,14 +117,12 @@ public final class SilentGateRenderer {
         return out;
     }
 
-    // ---- placeholder geometry (milestone 1): flat rings, boxes, discs and straight beams ----
+    // ---- geometry: great circle in GateCircles; sky discs, ground ring, gate and beams are still milestone-1 placeholders ----
     static final int QUAD_BUDGET = 20000;
     static final int WHITE_BLUE = 0xCFE6FF, JADE = 0x2FD6A0, GOLD = 0xFFC83A;
     static final double BEAM_TICKS = 6, GATE_DROP = 60;
-    private static final int GREAT_SEGMENTS = 48;
-    private static final double[] GREAT_RADII = {8, 16, 28, 40, 56}, GREAT_LIFT = {-2, 1, 0, 2, -1};
-    /** Per-pass opacity gain: the additive pass only adds a soft glow over the body. */
-    private static double gain = 1;
+    /** Opacity of the legacy flat geometry in the additive pass: it only adds a soft glow over the body. */
+    private static final double GLOW_GAIN = .35;
 
     public static void render(PoseStack pose, Camera camera, float partial) {
         List<Frame> frames = frames(partial);
@@ -129,14 +131,13 @@ public final class SilentGateRenderer {
         try {
             for (int pass = 0; pass < 2; pass++) {
                 if (pass == 1) additiveBlend(); else RenderSystem.defaultBlendFunc();
-                gain = pass == 0 ? 1 : .35;
                 for (Frame f : frames) {
                     BufferBuilder buffer = begin();
-                    emitScene(buffer, pose.last().pose(), f, shots(f.casterId()), camera.getPosition());
+                    emitScene(buffer, pose.last().pose(), f, shots(f.casterId()), camera.getPosition(), pass);
                     draw(buffer);
                 }
             }
-        } finally { gain = 1; teardown(); }
+        } finally { teardown(); }
     }
     private record Deferred(Matrix4f pose, Matrix4f modelView, Matrix4f projection, Camera camera, float partial) {}
     private static Deferred deferred;
@@ -161,7 +162,7 @@ public final class SilentGateRenderer {
     }
     private static void setup() {
         RenderSystem.enableBlend(); RenderSystem.defaultBlendFunc(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
-        FugaRenderer.bindFlameTexture(); RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+        GateAtlas.bind(); RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
     }
     private static void additiveBlend() { RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE); }
     private static void teardown() {
@@ -173,31 +174,22 @@ public final class SilentGateRenderer {
         if (mesh != null) BufferUploader.drawWithShader(mesh);
     }
 
-    private static final class Ctx {
-        VertexConsumer v; Matrix4f m; Vec3 eye; double fade; int quads;
-    }
-    private static double clamp01(double x) { return Math.max(0, Math.min(1, x)); }
-    private static double smooth(double x) { x = clamp01(x); return x * x * (3 - 2 * x); }
+    /** Pure geometry for one cast with both layers (tests). */
+    static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye) { return emitScene(v, m, f, shots, eye, -1); }
 
-    /** Pure geometry for one cast; returns the quads emitted (never more than {@link #QUAD_BUDGET}). */
-    static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye) {
+    /** Geometry of one layer (0 body, 1 additive glow, -1 both); returns the quads emitted (never more than {@link #QUAD_BUDGET}). */
+    static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye, int layer) {
         if (!Double.isFinite(f.age()) || f.age() < 0 || f.anchor() == null || !Double.isFinite(f.anchor().x + f.anchor().y + f.anchor().z)
                 || !Double.isFinite(eye.x + eye.y + eye.z)) return 0;
-        Ctx c = new Ctx(); c.v = v; c.m = m; c.eye = eye; c.fade = 1;
+        Ctx c = new Ctx(); c.v = v; c.m = m; c.eye = eye; c.layer = layer; c.gain = layer == 1 ? GLOW_GAIN : 1;
         int endStart = SilentGateSequence.ACTIVATE_TICKS + f.barrageTicks();
         if (f.commandAge() >= endStart) c.fade = clamp01(1 - (f.commandAge() - endStart) / SilentGateSequence.ENDING_TICKS);
         if (c.fade <= 0) return 0;
         double age = f.age();
         Vec3 anchor = f.anchor();
         Vec3 gate = SilentGateSequence.gateCenter(anchor, f.yaw());
-        // Great circle: five flat rings at slightly different heights, swept into view over 80..140.
-        double reveal = smooth((age - SilentGateSequence.BEAT_CIRCLE) / (SilentGateSequence.BEAT_GATE - SilentGateSequence.BEAT_CIRCLE));
-        for (int i = 0; i < GREAT_RADII.length; i++) {
-            Vec3 center = new Vec3(gate.x, anchor.y + SilentGateSequence.CIRCLE_ALTITUDE + GREAT_LIFT[i], gate.z);
-            double step = Math.PI * 2 / GREAT_SEGMENTS, spin = (i % 2 == 0 ? 1 : -1) * age * .004;
-            for (int s = 0; s < GREAT_SEGMENTS && s * step < reveal * Math.PI * 2; s++)
-                ring(c, center, GREAT_RADII[i] - .75, GREAT_RADII[i] + .75, spin + s * step, spin + (s + 1) * step, WHITE_BLUE, .8);
-        }
+        double endK = f.commandAge() >= endStart ? clamp01((f.commandAge() - endStart) / SilentGateSequence.ENDING_TICKS) : 0;
+        GateCircles.great(c, anchor, gate, age, endK);
         int sky = Math.max(0, Math.min(f.skyCircles(), 96));
         for (int i = 0; i < sky; i++)
             disc(c, SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), i, f.skyCircles()), 3,
@@ -239,15 +231,15 @@ public final class SilentGateRenderer {
             double a0 = s * Math.PI / 6, a1 = (s + 1) * Math.PI / 6;
             for (int tier = 0; tier < 2; tier++) {
                 double r = radius * (1 - tier * .45);
-                quad(c, at, at.add(t.scale(Math.cos(a0) * r)).add(up.scale(Math.sin(a0) * r)),
-                        at.add(t.scale(Math.cos(a1) * r)).add(up.scale(Math.sin(a1) * r)), at, color, alpha * (tier == 0 ? .65 : .95));
+                GateDraw.quad(c, at, at.add(t.scale(Math.cos(a0) * r)).add(up.scale(Math.sin(a0) * r)),
+                        at.add(t.scale(Math.cos(a1) * r)).add(up.scale(Math.sin(a1) * r)), at, color, alpha * (tier == 0 ? .65 : .95), true);
             }
         }
     }
     /** One flat annulus sector between two angles. */
     private static void ring(Ctx c, Vec3 center, double r0, double r1, double a0, double a1, int color, double alpha) {
-        quad(c, center.add(Math.cos(a0) * r0, 0, Math.sin(a0) * r0), center.add(Math.cos(a1) * r0, 0, Math.sin(a1) * r0),
-                center.add(Math.cos(a1) * r1, 0, Math.sin(a1) * r1), center.add(Math.cos(a0) * r1, 0, Math.sin(a0) * r1), color, alpha);
+        GateDraw.quad(c, center.add(Math.cos(a0) * r0, 0, Math.sin(a0) * r0), center.add(Math.cos(a1) * r0, 0, Math.sin(a1) * r0),
+                center.add(Math.cos(a1) * r1, 0, Math.sin(a1) * r1), center.add(Math.cos(a0) * r1, 0, Math.sin(a0) * r1), color, alpha, true);
     }
     private static void gate(Ctx c, Vec3 gate, float yaw, double age) {
         double alpha = smooth((age - 120) / 20);
@@ -283,18 +275,7 @@ public final class SilentGateRenderer {
         quad(c, from.subtract(s), from.add(s), to.add(s), to.subtract(s), WHITE_BLUE, alpha);
         quad(c, from.subtract(t), from.add(t), to.add(t), to.subtract(t), WHITE_BLUE, alpha);
     }
-    private static void quad(Ctx c, Vec3 a, Vec3 b, Vec3 d, Vec3 e, int color, double alpha) {
-        if (c.quads >= QUAD_BUDGET) return;
-        double k = alpha * c.fade * gain;
-        vertex(c, a, color, k); vertex(c, b, color, k); vertex(c, d, color, k); vertex(c, e, color, k);
-        c.quads++;
-    }
-    private static void vertex(Ctx c, Vec3 p, int color, double alpha) {
-        Vec3 q = p.subtract(c.eye);
-        int opacity = (int) (clamp01(alpha) * 255);
-        c.v.addVertex(c.m, (float) q.x, (float) q.y, (float) q.z).setColor((color >> 16) & 255, (color >> 8) & 255, color & 255, opacity)
-                .setUv(FugaRenderer.SOLID_U, FugaRenderer.SOLID_V);
-    }
+    private static void quad(Ctx c, Vec3 a, Vec3 b, Vec3 d, Vec3 e, int color, double alpha) { GateDraw.quad(c, a, b, d, e, color, alpha); }
 
     public static void tick(Minecraft client) {
         if (client.level != world || client.player == null) { reset(); return; }

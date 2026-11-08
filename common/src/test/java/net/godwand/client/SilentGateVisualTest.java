@@ -43,6 +43,31 @@ class SilentGateVisualTest {
             assertEquals(quads * 4, mesh.vertices.size());
         }
     }
+    @Test void fullSceneStaysUnderEightThousandQuads() {
+        int peak = 0;
+        var shots = new ArrayList<SilentGateRenderer.Shot>();
+        for (int i = 0; i < 40; i++) shots.add(new SilentGateRenderer.Shot(i, new Vec3(i, 70, 40), 100 + 320));
+        for (int age = 0; age <= 700; age += 5) {
+            double command = age < 300 ? -1 : Math.min(age - 300, 272);
+            for (int layer = -1; layer <= 1; layer++) {
+                int quads = SilentGateRenderer.emitScene(new Mesh(), new Matrix4f(), frame(age, command, 96), shots, Vec3.ZERO, layer);
+                peak = Math.max(peak, quads);
+                assertTrue(quads <= 8000, "age " + age + " layer " + layer + ": " + quads);
+            }
+        }
+        assertTrue(peak > 1000, "scene should really be drawn, peak " + peak);
+    }
+    @Test void circleGeometryFadesOutWithinTwelveBlocksOfTheCamera() {
+        Vec3 disc = SilentGateSequence.groundCircle(ANCHOR, 0f, 0);
+        Mesh near = new Mesh(), far = new Mesh();
+        SilentGateRenderer.emitScene(near, new Matrix4f(), frame(300, -1, 0), List.of(), disc);
+        SilentGateRenderer.emitScene(far, new Matrix4f(), frame(300, -1, 0), List.of(), Vec3.ZERO);
+        // Vertices are camera relative: the camera sits on the first gold disc, so everything within 2.5 blocks of it must be invisible.
+        double nearAlpha = near.vertices.stream().filter(p -> Math.hypot(Math.hypot(p[0], p[1]), p[2]) < 2.5).mapToDouble(p -> p[3]).max().orElse(-1);
+        double farAlpha = far.vertices.stream().filter(p -> p[1] < ANCHOR.y + 8).mapToDouble(p -> p[3]).max().orElseThrow();
+        assertEquals(0, nearAlpha, "disc vanishes around the camera");
+        assertTrue(farAlpha > 40, "same disc is visible from afar: " + farAlpha);
+    }
     @Test void greatCircleAppearsAtItsAltitudeAndNothingBeforeIt() {
         Mesh early = new Mesh();
         assertEquals(0, emit(early, frame(50, -1, 48), List.of()));
