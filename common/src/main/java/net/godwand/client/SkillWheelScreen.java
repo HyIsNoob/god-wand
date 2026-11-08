@@ -147,15 +147,15 @@ public final class SkillWheelScreen extends Screen {
     }
 
     static void drawWheel(GuiGraphics context, int current, int hovered, float[] cooldown) {
-        context.blit(SECTORS, -112, -112, 1568f, 0f, 224, 224, 1792, 224);
+        context.blit(SECTORS, -112, -112, 1792f, 0f, 224, 224, 2048, 224);
         if (hovered >= 0)
-            context.blit(SECTORS, -112, -112, hovered * 224f, 0f, 224, 224, 1792, 224);
+            context.blit(SECTORS, -112, -112, hovered * 224f, 0f, 224, 224, 2048, 224);
         for (int mode = 0; mode < GodWandItem.TOTAL_MODES; mode++) {
             double angle = -Math.PI / 2 + mode * SECTOR;
             int x = (int)Math.round(Math.cos(angle) * 82) - 20;
             int y = (int)Math.round(Math.sin(angle) * 82) - 20;
             int row = mode == hovered ? 2 : mode == current ? 1 : 0;
-            context.blit(ART, x, y, mode * 40f, row * 40f, 40, 40, 280, 120);
+            context.blit(ART, x, y, mode * 40f, row * 40f, 40, 40, 320, 120);
             {
                 float skillCooldown=cooldown[mode];
                 if (skillCooldown > 0) {
@@ -175,6 +175,7 @@ public final class SkillWheelScreen extends Screen {
             case 3 -> 0xFFF18BAB;
             case 4 -> 0xFFB08759;
             case 6 -> 0xFFFF9C38;
+            case 7 -> 0xFF68D6FF;
             default -> 0xFFC17AF2;
         };
     }

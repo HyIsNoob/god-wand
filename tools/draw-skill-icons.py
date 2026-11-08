@@ -4,7 +4,7 @@ import math
 from PIL import Image, ImageDraw
 
 COLORS = [(139, 216, 255), (72, 152, 255), (255, 100, 54),
-          (224, 62, 112), (176, 135, 89), (180, 99, 236), (255, 156, 56)]
+          (224, 62, 112), (176, 135, 89), (180, 99, 236), (255, 156, 56), (104, 214, 255)]
 
 
 
@@ -90,7 +90,7 @@ def icon(mode):
         d.rectangle((11, 10, 12, 11), fill=(255, 237, 255))
         for x, y in [(21, 11), (7, 3), (6, 19)]:
             d.rectangle((x, y, x + 1, y + 1), fill=(225, 182, 255))
-    else:  # A single flaming arrow: flame streams back along the shaft from a white-hot head.
+    elif mode == 6:  # A single flaming arrow: flame streams back along the shaft from a white-hot head.
         # Shaft with fletching, visible past the flame.
         d.line([(3,20),(16,7)],fill=(150,82,40),width=2)
         d.line([(4,20),(16,8)],fill=(255,226,150))
@@ -106,11 +106,26 @@ def icon(mode):
         d.polygon([(22,1),(16,3),(18,5),(20,7)],fill=(255,150,40))
         d.polygon([(21,2),(18,3),(20,5)],fill=(255,246,214))
         for x,y in [(3,11),(8,21),(13,18),(22,11)]: d.point((x,y),fill=(255,223,108))
+    else:  # Silent Gate: two stone-and-light pillars under a floating summoning circle.
+        pale, glow, stone = (214, 245, 255), (104, 214, 255), (92, 118, 142)
+        d.ellipse((4, 0, 19, 8), outline=glow)
+        d.ellipse((7, 2, 16, 6), outline=(61, 134, 190))
+        d.rectangle((11, 3, 12, 4), fill=pale)
+        d.point((3, 4), fill=pale); d.point((20, 4), fill=pale)
+        for x in (5, 16):
+            d.rectangle((x, 10, x + 2, 21), fill=stone)
+            d.line((x + 2, 11, x + 2, 21), fill=(60, 80, 104))
+            d.line((x, 11, x, 20), fill=glow)
+            d.rectangle((x - 1, 9, x + 3, 10), fill=pale)
+            d.rectangle((x - 1, 21, x + 3, 22), fill=(130, 158, 182))
+        for y, c in [(12, (61, 134, 190)), (15, glow), (18, (61, 134, 190))]:
+            d.line((9, y, 14, y), fill=c)
+        d.line((11, 11, 12, 20), fill=pale)
     return im
 
 
 def build():
-    atlas = Image.new('RGBA', (280, 120))
+    atlas = Image.new('RGBA', (320, 120))
     for mode in range(len(COLORS)):
         for state in range(3):
             tile = Image.new('RGBA', (40, 40))
@@ -126,6 +141,7 @@ def build():
                 [(113, 108, 117), (210, 164, 80), (236, 222, 179)],
                 [(132, 63, 185), (184, 90, 237), (211, 142, 255)],
                 [(179, 76, 28), (242, 137, 37), (255, 217, 144)],
+                [(61, 134, 190), (104, 214, 255), (214, 245, 255)],
             ]
             trim = trims[mode][state]
             d.rectangle((2, 2, 37, 37), outline=trim, width=2)
@@ -145,14 +161,14 @@ def build():
                 d.point((x, y), fill=tuple(min(255, c + 45) for c in color))
             tile.alpha_composite(icon(mode), (8, 8))
             atlas.alpha_composite(tile, (mode * 40, state * 40))
-    assert atlas.size == (280, 120)
+    assert atlas.size == (320, 120)
     out = Path(__file__).resolve().parents[1] / 'common/src/main/resources/assets/godwand/textures/gui/skill_wheel.png'
     out.parent.mkdir(parents=True, exist_ok=True)
     atlas.save(out)
     print(out)
     if '--sectors' not in __import__('sys').argv:
         return
-    sectors = Image.new('RGBA', (224 * 8, 224))
+    sectors = Image.new('RGBA', (2048, 224))
     sector_pen = ImageDraw.Draw(sectors)
     for y in range(-112, 112, 2):
         for x in range(-112, 112, 2):
@@ -160,12 +176,12 @@ def build():
             if not 48 <= radius <= 112:
                 continue
             angle = math.atan2(y + 1, x + 1) + math.pi / 2
-            mode = math.floor(angle / (math.tau / 7) + .5) % 7
-            if abs(math.remainder(angle - mode * math.tau / 7, math.tau)) > math.pi / 7 - .025:
+            mode = math.floor(angle / (math.tau / 8) + .5) % 8
+            if abs(math.remainder(angle - mode * math.tau / 8, math.tau)) > math.pi / 8 - .025:
                 continue
             idle = (18, 17, 20, 64)
             hover = (96, 87, 76, 105)
-            for column, paint in [(7, idle), (mode, hover)]:
+            for column, paint in [(8, idle), (mode, hover)]:
                 sector_pen.rectangle((column * 224 + x + 112, y + 112,
                                                    column * 224 + x + 113, y + 113), fill=paint)
     sectors.save(out.with_name('skill_sectors.png'))

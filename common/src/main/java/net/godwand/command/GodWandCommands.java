@@ -9,7 +9,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 
 public final class GodWandCommands {
-    private static final String[] SKILLS = {"spatial_path", "singularity", "earth_drill", "supernova", "stone_cannon", "atomic"};
+    private static final String[] SKILLS = {"spatial_path", "singularity", "earth_drill", "supernova", "stone_cannon", "atomic", "fuga", "silent_gate"};
     private GodWandCommands() {}
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         var root = Commands.literal("godwand").requires(source -> source.hasPermission(2));

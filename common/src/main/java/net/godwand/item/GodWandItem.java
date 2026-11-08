@@ -44,7 +44,8 @@ public class GodWandItem extends Item {
     public static final int MODE_STONE_CANNON = 4;
     public static final int MODE_ATOMIC = 5;
     public static final int MODE_FUGA = 6;
-    public static final int TOTAL_MODES = 7;
+    public static final int MODE_SILENT_GATE = 7;
+    public static final int TOTAL_MODES = 8;
 
     public static String chargeMeter(int level, int maximum) {
         int filled = Mth.clamp(level, 0, maximum);
@@ -92,6 +93,7 @@ public class GodWandItem extends Item {
         Level world = user.level();
         if (!world.isClientSide()) {
             if (mode == MODE_FUGA) user.displayClientMessage(Component.literal("§6Fuga"), true);
+            if (mode == MODE_SILENT_GATE) user.displayClientMessage(Component.literal("§bSilent Gate"), true);
             if (mode == MODE_ATOMIC) user.displayClientMessage(Component.literal("§dI am Atomic"), true);
             switch (mode) {
                 case MODE_SPATIAL_PATH -> {
@@ -158,6 +160,11 @@ public class GodWandItem extends Item {
                     return InteractionResultHolder.fail(stack);
                 user.startUsingItem(hand);
                 return InteractionResultHolder.consume(stack);
+            }
+            case MODE_SILENT_GATE -> {
+                if (user instanceof ServerPlayer player)
+                    return net.godwand.skill.SilentGateManager.click(player, hand) ? InteractionResultHolder.success(stack) : InteractionResultHolder.fail(stack);
+                return InteractionResultHolder.success(stack);
             }
             case MODE_ATOMIC -> {
                 if (user instanceof ServerPlayer player && !AtomicManager.beginCharge(player,hand))
@@ -475,6 +482,7 @@ public class GodWandItem extends Item {
             case MODE_SUPERNOVA -> tooltip.add(Component.literal("§a§cSupernova §7(Hold to charge)"));
             case MODE_STONE_CANNON -> tooltip.add(Component.literal("§a§6Stone Cannon §7(Hold to charge)"));
             case MODE_FUGA -> tooltip.add(Component.literal("§6Fuga §7(Hold to form a bow - Aim and release)"));
+            case MODE_SILENT_GATE -> tooltip.add(Component.literal("§f§bSilent Gate §7(Click to summon - Click again to command)"));
             case MODE_ATOMIC -> tooltip.add(Component.literal("§dI am Atomic §7(Hold through ATOMIC - Release to detonate)"));
         }
         super.appendHoverText(stack, context, tooltip, type);

@@ -1,6 +1,6 @@
 {
   "item.godwand.god_wand": "God Wand",
-  "item.godwand.god_wand.desc": "Spatial Path | Singularity | Earth Drill | Supernova | Stone Cannon | I am Atomic | Fuga",
+  "item.godwand.god_wand.desc": "Spatial Path | Singularity | Earth Drill | Supernova | Stone Cannon | I am Atomic | Fuga | Silent Gate",
   "entity.godwand.stone_cannon": "Stone Cannon",
   "itemGroup.godwand.tab": "God Wand",
   "key.godwand.skill_wheel": "Skill wheel",
@@ -36,6 +36,9 @@
   "gui.godwand.config.atomic_cutscene": "Atomic cutscene",
   "skill.godwand.6": "Fuga",
   "gui.godwand.config.fuga_cutscene": "Fuga Cutscene",
+  "skill.godwand.7": "Silent Gate",
+  "gui.godwand.config.gate_cutscene": "Silent Gate Cutscene",
+  "message.godwand.gate_command": "Right-click to command the gate",
   "message.godwand.skill_cooldown": "%s: %ss",
   "message.godwand.skill_locked": "Locked skill: %s",
   "command.godwand.hold_wand": "Hold a God Wand in your main hand.",

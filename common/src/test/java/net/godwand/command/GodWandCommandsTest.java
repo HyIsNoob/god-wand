@@ -26,6 +26,8 @@ class GodWandCommandsTest {
   when(player.isUsingItem()).thenReturn(false);
   assertEquals(1,dispatcher.execute("godwand lock atomic",source));assertEquals(5,GodWandItem.getSkillMode(stack));
   assertTrue(WandSkillLock.isLocked(stack));
+  assertEquals(1,dispatcher.execute("godwand lock fuga",source));assertEquals(6,GodWandItem.getSkillMode(stack));
+  assertEquals(1,dispatcher.execute("godwand lock silent_gate",source));assertEquals(7,GodWandItem.getSkillMode(stack));
   assertEquals(1,dispatcher.execute("godwand unlock",source));assertFalse(WandSkillLock.isLocked(stack));
   assertThrows(CommandSyntaxException.class,()->dispatcher.execute("godwand lock missing",source));
   when(player.getMainHandItem()).thenReturn(ItemStack.EMPTY);

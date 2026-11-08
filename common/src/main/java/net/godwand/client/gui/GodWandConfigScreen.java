@@ -73,6 +73,9 @@ public class GodWandConfigScreen extends Screen {
         addRenderableWidget(CycleButton.onOffBuilder(GodWandConfig.CLIENT.fugaCutscene)
                 .create(left,y,columnWidth,20,Component.translatable("gui.godwand.config.fuga_cutscene"),
                         (button,value)->GodWandConfig.CLIENT.fugaCutscene=value));
+        addRenderableWidget(CycleButton.onOffBuilder(GodWandConfig.CLIENT.gateCutscene)
+                .create(right,y,columnWidth,20,Component.translatable("gui.godwand.config.gate_cutscene"),
+                        (button,value)->GodWandConfig.CLIENT.gateCutscene=value));
         y += 20 + gap;
 
         addRenderableWidget(new AbstractSliderButton(left, y, columnWidth, 20,

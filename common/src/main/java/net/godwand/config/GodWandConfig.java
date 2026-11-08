@@ -25,6 +25,7 @@ public final class GodWandConfig {
         public boolean targetMarker = true;
         public boolean atomicCutscene = true;
         public boolean fugaCutscene = true;
+        public boolean gateCutscene = true;
         public float cameraShake = 1;
         public float bloomStrength = .85f;
         public int bloomDownsample = 4;
@@ -57,6 +58,7 @@ public final class GodWandConfig {
         public int supernovaCooldownTicks = 900;
         public int atomicCooldownTicks = 1200;
         public int fugaCooldownTicks = 1200;
+        public int gateCooldownTicks = 1200;
         public float[] singularityDamageMultipliers = {1,1,1};
         public float[] earthDrillDamageMultipliers = {1,1,1,1};
         public float[] stoneCannonDamageMultipliers = {1,1,1,1};
@@ -77,6 +79,14 @@ public final class GodWandConfig {
         public boolean fugaTerrainDamage = true;
         public int fugaTerrainRadius = (int)net.godwand.skill.FugaSequence.RADIUS;
         public float fugaDamage = 9999;
+        public float gateBeamDamage = 80;
+        public int gateTargetRadius = 64;
+        public String gateTargetMode = "hostile";
+        public int gateBarrageTicks = 200;
+        public int gateWaitTicks = 300;
+        public int gateSkyCircles = 48;
+        public boolean gateTerrainDamage = true;
+        public int gateCraterRadius = 2;
         public List<String> dimensionBlacklist = new ArrayList<>();
 
         public boolean isDimensionBlacklisted(String dimensionId) { return !isDimensionAllowed(dimensionId); }
@@ -89,6 +99,14 @@ public final class GodWandConfig {
             fugaCooldownTicks=Mth.clamp(fugaCooldownTicks,0,72000);
             fugaTerrainRadius=Mth.clamp(fugaTerrainRadius,0,64);
             fugaDamage=finiteClamp(fugaDamage,0,1_000_000,9999);
+            gateCooldownTicks=Mth.clamp(gateCooldownTicks,0,72000);
+            gateBeamDamage=finiteClamp(gateBeamDamage,0,1_000_000,80);
+            gateTargetRadius=Mth.clamp(gateTargetRadius,8,128);
+            if(!"hostile".equals(gateTargetMode)&&!"all".equals(gateTargetMode))gateTargetMode="hostile";
+            gateBarrageTicks=Mth.clamp(gateBarrageTicks,60,600);
+            gateWaitTicks=Mth.clamp(gateWaitTicks,40,1200);
+            gateSkyCircles=Mth.clamp(gateSkyCircles,8,96);
+            gateCraterRadius=Mth.clamp(gateCraterRadius,0,4);
             singularityCooldownTicks=validatedCooldowns(singularityCooldownTicks,new int[]{60,120,200});
             earthDrillCooldownTicks=validatedCooldowns(earthDrillCooldownTicks,new int[]{80,140,220,320});
             stoneCannonCooldownTicks=validatedCooldowns(stoneCannonCooldownTicks,new int[]{40,80,140,220});
@@ -211,6 +229,7 @@ public final class GodWandConfig {
             case 4 -> SERVER.stoneCannonCooldownTicks[tierIndex(level,4)];
             case 5 -> SERVER.atomicCooldownTicks;
             case 6 -> SERVER.fugaCooldownTicks;
+            case 7 -> SERVER.gateCooldownTicks;
             default -> 0;
         };
         return ticks==0?0:cooldownTicks(ticks);
