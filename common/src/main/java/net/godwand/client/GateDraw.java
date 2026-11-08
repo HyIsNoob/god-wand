@@ -62,12 +62,14 @@ final class GateDraw {
     }
     /** Camera-facing soft sprite from the glow tile. */
     static void sprite(Ctx c, Vec3 at, double size, double alpha, int color) { sprite(c, at, size, alpha, color, GateAtlas.GLOW); }
-    static void sprite(Ctx c, Vec3 at, double size, double alpha, int color, GateAtlas.Region region) {
+    static void sprite(Ctx c, Vec3 at, double size, double alpha, int color, GateAtlas.Region region) { sprite(c, at, size, alpha, color, region, 0); }
+    static void sprite(Ctx c, Vec3 at, double size, double alpha, int color, GateAtlas.Region region, double roll) {
         Vec3 look = at.subtract(c.eye);
         if (look.lengthSqr() < 1e-6 || alpha <= 0) return;
         Vec3 right = look.cross(new Vec3(0, 1, 0)), up;
         right = (right.lengthSqr() < 1e-8 ? new Vec3(1, 0, 0) : right.normalize()).scale(size);
         up = right.cross(look).normalize().scale(size);
+        if (roll != 0) { Vec3 r0 = right; right = r0.scale(Math.cos(roll)).add(up.scale(Math.sin(roll))); up = up.scale(Math.cos(roll)).subtract(r0.scale(Math.sin(roll))); }
         tex(c, at.subtract(right).subtract(up), at.add(right).subtract(up), at.add(right).add(up), at.subtract(right).add(up),
                 region, 0, 1, 0, 1, color, alpha, alpha, alpha, alpha);
     }

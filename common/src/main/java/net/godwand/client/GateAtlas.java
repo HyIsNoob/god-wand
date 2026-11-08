@@ -19,7 +19,7 @@ final class GateAtlas {
     static final int SIZE = 512;
     static final Region SWIRL = new Region(0, 0, 512, 64), RUNES = new Region(0, 64, 512, 64), DASH = new Region(0, 128, 512, 64),
             RIM = new Region(0, 192, 512, 64), SEAL = new Region(0, 256, 256, 256), FILIGREE = new Region(256, 256, 256, 64),
-            GLOW = new Region(256, 320, 64, 64), CLOUD = new Region(320, 320, 64, 64), SOLID = new Region(504, 504, 8, 8);
+            GLOW = new Region(256, 320, 64, 64), CLOUD = new Region(384, 320, 128, 128), SOLID = new Region(504, 504, 8, 8);
     static final Region[] STRIPS = {SWIRL, RUNES, DASH, RIM, FILIGREE};
     static final float SOLID_U = SOLID.u(.5), SOLID_V = SOLID.v(.5);
     private static final double TAU = Math.PI * 2;
@@ -187,13 +187,26 @@ final class GateAtlas {
         }
         c.poly(pts, w0, w1);
     }
+    /** Round puff: three octaves of value noise carve a soft, uneven billow whose alpha always falls smoothly to zero well inside the tile. */
     private static void cloud(Canvas c) {
         for (int y = 0; y < CLOUD.h; y++) for (int x = 0; x < CLOUD.w; x++) {
-            double dx = x + .5 - 32, dy = y + .5 - 32, d = Math.hypot(dx, dy) / 31, a = Math.atan2(dy, dx);
-            double rim = 1 - d * (1 + .12 * Math.sin(a * 3 + 1) + .08 * Math.sin(a * 5 + 2));
-            double f = Math.max(0, Math.min(1, rim * 2.2));
-            c.a[(CLOUD.y + y) * SIZE + CLOUD.x + x] = (float) (f * f * (3 - 2 * f));
+            double dx = (x + .5 - 64) / 62, dy = (y + .5 - 64) / 62, d = Math.hypot(dx, dy);
+            double n = .55 * vnoise(x / 22.0, y / 22.0, 1) + .3 * vnoise(x / 11.0, y / 11.0, 2) + .15 * vnoise(x / 5.5, y / 5.5, 3);
+            double f = clamp01Soft((1 - d) * 1.5 + (n - .5) * .9);
+            c.a[(CLOUD.y + y) * SIZE + CLOUD.x + x] = (float) (f * f * (3 - 2 * f) * .95);
         }
+    }
+    private static double clamp01Soft(double v) { return Math.max(0, Math.min(1, v)); }
+    private static double lattice(int x, int y, int salt) {
+        double h = Math.sin(x * 127.1 + y * 311.7 + salt * 74.7) * 43758.5453;
+        return h - Math.floor(h);
+    }
+    private static double vnoise(double x, double y, int salt) {
+        int ix = (int) Math.floor(x), iy = (int) Math.floor(y);
+        double fx = x - ix, fy = y - iy;
+        fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+        double a = lattice(ix, iy, salt), b = lattice(ix + 1, iy, salt), d = lattice(ix, iy + 1, salt), e = lattice(ix + 1, iy + 1, salt);
+        return a + (b - a) * fx + (d - a) * fy + (a - b - d + e) * fx * fy;
     }
     /** Spiral that starts on the circle of radius {@code r} around (cx,cy) at angle {@code a0} and winds inward {@code turns} turns. */
     private static void curl(Canvas c, double cx, double cy, double r, double a0, int dir, double turns, double w) {

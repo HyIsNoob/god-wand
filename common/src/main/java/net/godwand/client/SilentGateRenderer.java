@@ -193,13 +193,12 @@ public final class SilentGateRenderer {
         GateSky.clouds(c, GateCircles.center(anchor, gate), age, endK);
         GateCircles.great(c, anchor, gate, age, endK);
         int sky = Math.max(0, Math.min(f.skyCircles(), 96));
+        double wave = f.commandAge() >= 0 ? f.commandAge() * GateMinor.WAVE_SPEED : -1;
         for (int i = 0; i < sky; i++)
-            disc(c, SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), i, f.skyCircles()), 3,
-                    WHITE_BLUE, smooth((age - 140 - 60.0 * i / sky) / 20));
+            GateMinor.sky(c, SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), i, f.skyCircles()), i, age, 140 + 60.0 * i / sky, gate, wave);
         for (int i = 0; i < SilentGateSequence.GROUND_RING; i++)
-            uprightDisc(c, SilentGateSequence.groundCircle(anchor, f.yaw(), i), anchor,
-                    SilentGateSequence.groundCircleGold(i) ? 2.4 : 1.5,
-                    SilentGateSequence.groundCircleGold(i) ? GOLD : JADE, smooth((age - 200 - 4.0 * i) / 20));
+            GateMinor.ground(c, SilentGateSequence.groundCircle(anchor, f.yaw(), i), anchor, i, age, SilentGateSequence.groundCircleGold(i), gate, wave);
+        GateMinor.wave(c, gate, f.yaw(), wave);
         gate(c, gate, f.yaw(), age);
         // Beams from circle to hit point, alive for BEAM_TICKS.
         double now = f.startedAt() + age;
@@ -217,32 +216,6 @@ public final class SilentGateRenderer {
     /** Quads of the last emitted cast (dev statistic read by the QA probe). */
     public static volatile int lastQuads;
 
-    /** Three stacked flat discs, narrowing upwards. */
-    private static void disc(Ctx c, Vec3 at, double radius, int color, double alpha) {
-        if (alpha <= 0) return;
-        for (int tier = 0; tier < 3; tier++)
-            for (int s = 0; s < 8; s++)
-                ring(c, at.add(0, tier * .4, 0), 0, radius * (1 - tier * .3), s * Math.PI / 4, (s + 1) * Math.PI / 4, color, alpha * (tier == 0 ? .6 : .85));
-    }
-    /** Vertical disc (outer ring plus brighter core) at {@code at}, facing {@code toward}. */
-    private static void uprightDisc(Ctx c, Vec3 at, Vec3 toward, double radius, int color, double alpha) {
-        if (alpha <= 0) return;
-        Vec3 n = new Vec3(toward.x - at.x, 0, toward.z - at.z);
-        Vec3 t = (n.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : new Vec3(-n.z, 0, n.x).normalize()), up = new Vec3(0, 1, 0);
-        for (int s = 0; s < 12; s++) {
-            double a0 = s * Math.PI / 6, a1 = (s + 1) * Math.PI / 6;
-            for (int tier = 0; tier < 2; tier++) {
-                double r = radius * (1 - tier * .45);
-                GateDraw.quad(c, at, at.add(t.scale(Math.cos(a0) * r)).add(up.scale(Math.sin(a0) * r)),
-                        at.add(t.scale(Math.cos(a1) * r)).add(up.scale(Math.sin(a1) * r)), at, color, alpha * (tier == 0 ? .65 : .95), true);
-            }
-        }
-    }
-    /** One flat annulus sector between two angles. */
-    private static void ring(Ctx c, Vec3 center, double r0, double r1, double a0, double a1, int color, double alpha) {
-        GateDraw.quad(c, center.add(Math.cos(a0) * r0, 0, Math.sin(a0) * r0), center.add(Math.cos(a1) * r0, 0, Math.sin(a1) * r0),
-                center.add(Math.cos(a1) * r1, 0, Math.sin(a1) * r1), center.add(Math.cos(a0) * r1, 0, Math.sin(a0) * r1), color, alpha, true);
-    }
     private static void gate(Ctx c, Vec3 gate, float yaw, double age) {
         double alpha = smooth((age - 120) / 20);
         if (alpha <= 0) return;

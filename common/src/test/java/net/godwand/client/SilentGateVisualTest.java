@@ -50,9 +50,11 @@ class SilentGateVisualTest {
         for (int age = 0; age <= 700; age += 5) {
             double command = age < 300 ? -1 : Math.min(age - 300, 272);
             for (int layer = -1; layer <= 1; layer++) {
-                int quads = SilentGateRenderer.emitScene(new Mesh(), new Matrix4f(), frame(age, command, 96), shots, Vec3.ZERO, layer);
-                peak = Math.max(peak, quads);
-                assertTrue(quads <= 8000, "age " + age + " layer " + layer + ": " + quads);
+                for (Vec3 eye : new Vec3[]{Vec3.ZERO, new Vec3(0, 130, 48)}) {
+                    int quads = SilentGateRenderer.emitScene(new Mesh(), new Matrix4f(), frame(age, command, 96), shots, eye, layer);
+                    peak = Math.max(peak, quads);
+                    assertTrue(quads <= 8000, "age " + age + " layer " + layer + " eye " + eye + ": " + quads);
+                }
             }
         }
         assertTrue(peak > 1000, "scene should really be drawn, peak " + peak);
@@ -81,9 +83,9 @@ class SilentGateVisualTest {
         emit(mesh, frame(300, -1, 0), List.of());
         double minY = Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
         for (float[] p : mesh.vertices) if (p[1] > ANCHOR.y - 1 && p[1] < ANCHOR.y + 8) { minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
-        // Gold disc (r 2.4) centred 3 above the anchor: spans 0.6..5.4.
-        assertEquals(ANCHOR.y + 3 - 2.4, minY, .01);
-        assertEquals(ANCHOR.y + 3 + 2.4, maxY, .01);
+        // Gold disc (r 2.4) centred 3 above the anchor; its spinning square seal tile reaches a little past the circle.
+        assertTrue(minY >= ANCHOR.y + 3 - 3.4 && minY <= ANCHOR.y + 3 - 2.0, "min " + minY);
+        assertTrue(maxY <= ANCHOR.y + 3 + 3.4 && maxY >= ANCHOR.y + 3 + 2.0, "max " + maxY);
     }
     @Test void beamsLastSixTicksAndTheEndingFadesToNothing() {
         var shot = new SilentGateRenderer.Shot(3, new Vec3(5, 70, 40), 100 + 320);

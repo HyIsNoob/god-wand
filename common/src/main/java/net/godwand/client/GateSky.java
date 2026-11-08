@@ -11,7 +11,7 @@ import static net.godwand.client.GateDraw.smooth;
 final class GateSky {
     private GateSky() {}
     private static final double TAU = Math.PI * 2;
-    static final int STORM = 0x0B1424, CLOUD_BODY = 0x5C7596, CLOUD_RIM = 0x7FE8FF, CLOUDS = 40;
+    static final int STORM = 0x0B1424, CLOUD_BODY = 0x4A5F80, CLOUD_DARK = 0x2A3850, CLOUD_LIT = 0xBFEFFF, CLOUD_RIM = 0x7FE8FF, CLOUDS = 40;
     private static final int RINGS = 6, SEGS = 24;
     private static final double DOME_RADIUS = 180, DOME_ALPHA = .45;
 
@@ -41,13 +41,18 @@ final class GateSky {
             double life = (hash(i, 1) + age * .0011) % 1, r = (90 - 34 * life) * (1 + .8 * smooth(endK));
             double a = i * 2.399963 + age * .0032 * (1 + (90 - r) / 50) + hash(i, 2) * .6;
             double envelope = Math.pow(Math.sin(Math.PI * life), .6) * on;
-            double size = 15 + 11 * hash(i, 3);
+            double size = 13 + 9 * hash(i, 3);
             Vec3 p = ctr.add(Math.cos(a) * r, (hash(i, 4) - .5) * 18 - 4, Math.sin(a) * r);
-            if (c.body()) GateDraw.sprite(c, p, size, .34 * envelope, CLOUD_BODY, GateAtlas.CLOUD);
-            if (c.glow()) {
-                // Rim light on the side facing the circle.
-                Vec3 toward = ctr.subtract(p).multiply(1, 0, 1).normalize().scale(size * .45);
-                GateDraw.sprite(c, p.add(toward), size * .7, .09 * envelope, CLOUD_RIM, GateAtlas.CLOUD);
+            Vec3 toward = ctr.subtract(p).multiply(1, 0, 1).normalize();
+            // A billow is a handful of overlapping soft puffs at slight offsets, each turned its own way.
+            int n = 3 + (i % 3);
+            for (int k = 0; k < n; k++) {
+                double ox = (hash(i * 7 + k, 5) - .5) * size * 1.3, oy = (hash(i * 7 + k, 6) - .5) * size * .6, oz = (hash(i * 7 + k, 7) - .5) * size * 1.3;
+                double sz = size * (.6 + .5 * hash(i * 7 + k, 8)), roll = hash(i * 7 + k, 9) * TAU + age * .002 * (k % 2 == 0 ? 1 : -1);
+                Vec3 q = p.add(ox, oy, oz);
+                if (c.body()) GateDraw.sprite(c, q, sz, .16 * envelope, i % 3 == 0 ? CLOUD_BODY : CLOUD_DARK, GateAtlas.CLOUD, roll);
+                // Light from the circle: the side facing it glows cyan-white.
+                if (c.glow() && k < 3) GateDraw.sprite(c, q.add(toward.scale(sz * .5)), sz * .75, .075 * envelope, k == 0 ? CLOUD_LIT : CLOUD_RIM, GateAtlas.CLOUD, roll + 1.7);
             }
         }
     }
