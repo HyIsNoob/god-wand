@@ -1,0 +1,25 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "        boolean commanded;\n        List<LivingEntity> candidates = List.of();\n        Task(ServerPlayer player) {\n            caster = player; world = player.serverLevel(); started = phaseAt = world.getGameTime();\n            anchor = player.position(); yaw = player.getYRot();\n            seed = started * 0x9E3779B97F4A7C15L ^ player.getUUID().getLeastSignificantBits();\n        }\n",
+      "after": "        boolean commanded;\n        List<LivingEntity> candidates = List.of();\n        Task(ServerPlayer player) {\n            caster = player; world = player.level(); started = phaseAt = world.getGameTime();\n            anchor = player.position(); yaw = player.getYRot();\n            seed = started * 0x9E3779B97F4A7C15L ^ player.getUUID().getLeastSignificantBits();\n        }\n"
+    },
+    {
+      "before": "            fx(task, CinematicFxPayload.EVENT_TRAUMA_SHAKE, .8f, 14);\n            return true;\n        }\n        var world = player.serverLevel();\n        if (!player.isAlive() || player.isSpectator() || player.isPassenger()\n                || !GodWandConfig.SERVER.isDimensionAllowed(world.dimension().location().toString())\n                || TASKS.values().stream().filter(t -> t.world == world).count() >= SilentGateSequence.MAX_TASKS_PER_WORLD\n                || !holding(player)) return false;\n        task = new Task(player);\n",
+      "after": "            fx(task, CinematicFxPayload.EVENT_TRAUMA_SHAKE, .8f, 14);\n            return true;\n        }\n        var world = player.level();\n        if (!player.isAlive() || player.isSpectator() || player.isPassenger()\n                || !GodWandConfig.SERVER.isDimensionAllowed(world.dimension().identifier().toString())\n                || TASKS.values().stream().filter(t -> t.world == world).count() >= SilentGateSequence.MAX_TASKS_PER_WORLD\n                || !holding(player)) return false;\n        task = new Task(player);\n"
+    },
+    {
+      "before": "    public static boolean movementLocked(ServerPlayer player) {\n        Task task = TASKS.get(player.getUUID());\n        return task != null && (task.phase == Phase.BUILD || task.phase == Phase.WAIT)\n                && player.isAlive() && !player.isSpectator() && task.world == player.serverLevel();\n    }\n\n    public static boolean invulnerable(ServerPlayer player) {\n",
+      "after": "    public static boolean movementLocked(ServerPlayer player) {\n        Task task = TASKS.get(player.getUUID());\n        return task != null && (task.phase == Phase.BUILD || task.phase == Phase.WAIT)\n                && player.isAlive() && !player.isSpectator() && task.world == player.level();\n    }\n\n    public static boolean invulnerable(ServerPlayer player) {\n"
+    },
+    {
+      "before": "\n    private static boolean invalid(Task task) {\n        return !task.caster.isAlive() || task.caster.hasDisconnected() || task.caster.isSpectator()\n                || task.caster.serverLevel() != task.world\n                || (task.phase == Phase.BUILD || task.phase == Phase.WAIT) && !holding(task.caster);\n    }\n\n",
+      "after": "\n    private static boolean invalid(Task task) {\n        return !task.caster.isAlive() || task.caster.hasDisconnected() || task.caster.isSpectator()\n                || task.caster.level() != task.world\n                || (task.phase == Phase.BUILD || task.phase == Phase.WAIT) && !holding(task.caster);\n    }\n\n"
+    },
+    {
+      "before": "    private static Vec3 groundBelow(ServerLevel world, ServerPlayer caster, Vec3 from) {\n        var pos = BlockPos.containing(from);\n        if (!world.isInWorldBounds(pos) || world.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4) == null) return null;\n        var hit = world.clip(new ClipContext(from, new Vec3(from.x, world.getMinBuildHeight(), from.z),\n                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, caster));\n        return hit.getType() == HitResult.Type.MISS ? null : hit.getLocation();\n    }\n",
+      "after": "    private static Vec3 groundBelow(ServerLevel world, ServerPlayer caster, Vec3 from) {\n        var pos = BlockPos.containing(from);\n        if (!world.isInWorldBounds(pos) || world.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4) == null) return null;\n        var hit = world.clip(new ClipContext(from, new Vec3(from.x, world.getMinY(), from.z),\n                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, caster));\n        return hit.getType() == HitResult.Type.MISS ? null : hit.getLocation();\n    }\n"
+    }
+  ]
+}

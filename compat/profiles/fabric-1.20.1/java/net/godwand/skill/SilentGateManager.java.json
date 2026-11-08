@@ -1,0 +1,13 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "import net.godwand.spatial.DisplacementPersistentState;\nimport net.godwand.spatial.SpatialDisplacementManager;\nimport net.minecraft.core.BlockPos;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.server.level.ServerLevel;\nimport net.minecraft.server.level.ServerPlayer;\nimport net.minecraft.world.InteractionHand;\n",
+      "after": "import net.godwand.spatial.DisplacementPersistentState;\nimport net.godwand.spatial.SpatialDisplacementManager;\nimport net.minecraft.core.BlockPos;\nimport net.godwand.network.GodWandPacket;\nimport net.minecraft.server.level.ServerLevel;\nimport net.minecraft.server.level.ServerPlayer;\nimport net.minecraft.world.InteractionHand;\n"
+    },
+    {
+      "before": "\n/** Server owns the Silent Gate lifecycle (BUILD, WAIT, BARRAGE, END), targeting, beam damage and craters. */\npublic final class SilentGateManager {\n    interface Sender { void send(ServerLevel level, Vec3 pos, CustomPacketPayload payload); }\n    /** Test seam: the real sender fans out to players within 256 blocks of the gate anchor. */\n    static Sender sender = (level, pos, payload) -> Services.NETWORK.sendToNearby(level, pos, 256, payload);\n\n",
+      "after": "\n/** Server owns the Silent Gate lifecycle (BUILD, WAIT, BARRAGE, END), targeting, beam damage and craters. */\npublic final class SilentGateManager {\n    interface Sender { void send(ServerLevel level, Vec3 pos, GodWandPacket payload); }\n    /** Test seam: the real sender fans out to players within 256 blocks of the gate anchor. */\n    static Sender sender = (level, pos, payload) -> Services.NETWORK.sendToNearby(level, pos, 256, payload);\n\n"
+    }
+  ]
+}
