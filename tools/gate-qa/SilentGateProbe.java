@@ -35,6 +35,7 @@ public final class SilentGateProbe implements ClientModInitializer {
     private String msptAt = "-";
     private boolean moved;
     private boolean click2, sawFrame, sawBarrage;
+    private final long[] quadSum = new long[4]; private final int[] quadMax = new int[4];
     private int ground, solidBefore, solidAfter, total;
     private final List<UUID> targets = new ArrayList<>();
     private final String run = Long.toString(System.currentTimeMillis());
@@ -68,7 +69,12 @@ public final class SilentGateProbe implements ClientModInitializer {
             }).join();
         }
         if (moved && stage <= 1) sampleMspt(server, "SETUP");
+        if (stage == 0 && moved && ticks - since > 200 && Files.exists(c.gameDirectory.toPath().getParent().resolve("warmup"))) {
+            System.out.println("GATE_QA WARMUP done (chunks generated)"); c.stop(); return;
+        }
         if (stage == 0 && moved && ticks - since > 200) {
+            // A/B switch: build/fuga-qa/nocrater turns terrain damage off to separate re-meshing from rendering cost.
+            if (Files.exists(c.gameDirectory.toPath().getParent().resolve("nocrater"))) GodWandConfig.SERVER.gateTerrainDamage = false;
             c.getWindow().setWindowed(1280, 720);
             c.getWindow().setTitle("God Wand 1.5.0 - Silent Gate QA");
             c.options.framerateLimit().set(60); c.options.renderDistance().set(16);
@@ -126,6 +132,8 @@ public final class SilentGateProbe implements ClientModInitializer {
                 for (int i = 0; i < 4; i++) if (firstFrame[i] >= 0)
                     System.out.printf(Locale.ROOT, "GATE_QA FPS %s avg=%.1f min=%d frames=%d..%d%n", PHASES[i],
                             fpsSum[i] / (double) Math.max(1, fpsN[i]), fpsMin[i], firstFrame[i], lastFrame[i]);
+                for (int i = 0; i < 4; i++) if (firstFrame[i] >= 0)
+                    System.out.printf(Locale.ROOT, "GATE_QA QUADS %s avgPerTick=%.0f max=%d%n", PHASES[i], quadSum[i] / (double) Math.max(1, (lastFrame[i] - firstFrame[i] + 1) * 2), quadMax[i]);
             }
             return;
         }
@@ -133,6 +141,7 @@ public final class SilentGateProbe implements ClientModInitializer {
         if (firstFrame[ph] < 0) { firstFrame[ph] = frame; System.out.println("GATE_QA PHASE " + ph + " " + PHASES[ph] + " age=" + age + " frame=" + frame); }
         lastFrame[ph] = frame;
         int fps = c.getFps();
+        int q = SilentGateRenderer.lastQuads; quadSum[ph] += q; quadMax[ph] = Math.max(quadMax[ph], q);
         if (ticks % 5 == 0 && fps > 0) { fpsSum[ph] += fps; fpsN[ph]++; fpsMin[ph] = Math.min(fpsMin[ph], fps); }
         sampleMspt(server, PHASES[ph] + " age=" + age);
         if (ph == 2) sawBarrage = true;
