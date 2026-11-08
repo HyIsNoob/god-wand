@@ -26,7 +26,7 @@ public final class SilentGateProbe implements ClientModInitializer {
     private static final String[] PHASES = {"BUILD", "WAIT", "BARRAGE", "END"};
     // Clean spot on the flat QA world (the copied world has an old Fuga crater next to spawn).
     private static final int OX = 4000, OZ = 4000;
-    private static final int FIELD_X0 = OX - 60, FIELD_X1 = OX + 60, FIELD_Z0 = OZ + 8, FIELD_Z1 = OZ + 70;
+    private static final int FIELD_X0 = OX - 130, FIELD_X1 = OX + 130, FIELD_Z0 = OZ + 8, FIELD_Z1 = OZ + 150;
     private int ticks, stage, since, clickAt, frame;
     private final long[] fpsSum = new long[4], fpsN = new long[4];
     private final int[] fpsMin = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE},
@@ -90,8 +90,8 @@ public final class SilentGateProbe implements ClientModInitializer {
                 ground = level.getHeight(Heightmap.Types.WORLD_SURFACE, OX, OZ);
                 var rnd = new Random(7);
                 for (int i = 0; i < 14; i++) {
-                    // 12 zombies + 2 skeletons, 15-55 blocks ahead (+Z), spread to the sides.
-                    double z = 15 + rnd.nextDouble() * 40, x = (rnd.nextDouble() * 2 - 1) * (10 + z * 0.8);
+                    // 12 zombies + 2 skeletons, 20-130 blocks ahead (+Z), spread to the sides (scaled Silent Gate, target radius 160).
+                    double z = 20 + rnd.nextDouble() * 110, x = (rnd.nextDouble() * 2 - 1) * (10 + z * 0.8);
                     x += OX; z += OZ;
                     Mob m = (Mob) (i < 12 ? EntityType.ZOMBIE : EntityType.SKELETON).create(level);
                     int gy = level.getHeight(Heightmap.Types.WORLD_SURFACE, (int) Math.floor(x), (int) Math.floor(z));
@@ -196,7 +196,7 @@ public final class SilentGateProbe implements ClientModInitializer {
             server.submit(() -> {
                 var p = server.getPlayerList().getPlayer(c.player.getUUID());
                 p.setGameMode(GameType.SPECTATOR);
-                p.connection.teleport(OX + (top ? 0 : -60), ground + (top ? 110 : 40), OZ + (top ? 40 : -25), top ? 0 : -45, top ? 90 : 28);
+                p.connection.teleport(OX + (top ? 0 : -120), ground + (top ? 260 : 90), OZ + (top ? 80 : -50), top ? 0 : -45, top ? 90 : 28);
             }).join();
         }
         if (t == 40 || t == 90)

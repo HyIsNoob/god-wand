@@ -12,13 +12,14 @@ final class GateMinor {
     private static final double TAU = Math.PI * 2;
     static final int JADE = 0x5CFFC8, GREEN = 0x63FF9E, GOLD = 0xFFC94A;
     /** Blocks per tick the activation wave travels from the gate. */
-    static final double WAVE_SPEED = 6, WAVE_REACH = 95, FAR = 80, BLOOM_TICKS = 8;
+    static final double WAVE_SPEED = 6 * net.godwand.skill.SilentGateSequence.SCALE, WAVE_REACH = 95 * net.godwand.skill.SilentGateSequence.SCALE,
+            FAR = 160, BLOOM_TICKS = 8, BIG = 2;
     private static final int SEGS = 12;
 
     /** 0..1..0 pulse while the wave front is within 12 blocks past the circle. */
     static double flare(Vec3 gate, Vec3 at, double wave) {
         if (wave < 0) return 0;
-        double x = (wave - gate.distanceTo(at)) / 12;
+        double x = (wave - gate.distanceTo(at)) / 36;
         return x > 0 && x < 1 ? Math.sin(Math.PI * x) : 0;
     }
     /** Grows to 1.15 and settles to 1 over {@link #BLOOM_TICKS}; 0 before the circle is born. */
@@ -32,7 +33,7 @@ final class GateMinor {
     static void sky(Ctx c, Vec3 at, int index, double age, double born, Vec3 gate, double wave) {
         double t = (age - born) / BLOOM_TICKS, k = bloom(t);
         if (k <= 0) return;
-        double flare = flare(gate, at, wave), s = k * (1 + .1 * flare), alpha = smooth(t * 2) * (1 + .6 * flare);
+        double flare = flare(gate, at, wave), s = k * BIG * (1 + .1 * flare), alpha = smooth(t * 2) * (1 + .6 * flare);
         int tint = index % 2 == 0 ? JADE : GateCircles.WHITE_BLUE, color = mix(tint, 0xFFFFFF, .7 * flare);
         double spin = age * .012 * (index % 2 == 0 ? 1 : -1) + index;
         double dist = c.eye.distanceTo(at);
@@ -56,8 +57,8 @@ final class GateMinor {
             double since = age - born, flash = since < 14 ? Math.sin(Math.PI * since / 14) : 0;
             GateDraw.sprite(c, at.add(0, 1.2 * s, 0), 4.6 * s, .16 * alpha, tint == JADE ? JADE : GateCircles.GLOW_BLUE);
             GateDraw.sprite(c, at.add(0, 2.6 * s, 0), .9 * s + .4, .75 * Math.min(1, alpha), GateCircles.HOT);
-            if (flash > 0) GateDraw.sprite(c, at.add(0, 1.2, 0), 3 + 4 * since / 14, .5 * flash, GateCircles.HOT);
-            if (flare > 0) { GateDraw.sprite(c, at.add(0, 1.2, 0), 7, .6 * flare, GateCircles.HOT); GateDraw.sprite(c, at.add(0, 2.4, 0), 2.6, .95 * flare, 0xFFFFFF); }
+            if (flash > 0) GateDraw.sprite(c, at.add(0, 1.2 * s, 0), (3 + 4 * since / 14) * BIG, .5 * flash, GateCircles.HOT);
+            if (flare > 0) { GateDraw.sprite(c, at.add(0, 1.2 * s, 0), 7 * BIG, .6 * flare, GateCircles.HOT); GateDraw.sprite(c, at.add(0, 2.4 * s, 0), 2.6 * BIG, .95 * flare, 0xFFFFFF); }
         }
     }
 
@@ -142,7 +143,8 @@ final class GateMinor {
         for (int plane = 0; plane < 2; plane++) for (int i = 0; i < n; i++) {
             double a0 = i * TAU / n, a1 = (i + 1) * TAU / n;
             Vec3 d0 = dir(plane, right, fwd, up, a0), d1 = dir(plane, right, fwd, up, a1);
-            double[] r = {radius - 8, radius - 1.8, radius, radius + 1.5}, al = {0, trail, front, 0};
+            double sc = net.godwand.skill.SilentGateSequence.SCALE;
+            double[] r = {radius - 8 * sc, radius - 1.8 * sc, radius, radius + 1.5 * sc}, al = {0, trail, front, 0};
             for (int k = 0; k < 3; k++)
                 GateDraw.gradient(c, gate.add(d0.scale(r[k])), gate.add(d1.scale(r[k])), gate.add(d1.scale(r[k + 1])), gate.add(d0.scale(r[k + 1])),
                         0xC8F8FF, al[k], al[k], al[k + 1], al[k + 1]);

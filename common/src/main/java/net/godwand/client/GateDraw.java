@@ -11,6 +11,8 @@ final class GateDraw {
     /** {@code layer}: -1 emits both layers (tests), 0 the alpha-blended body, 1 the additive glow. */
     static final class Ctx {
         VertexConsumer v; Matrix4f m; Vec3 eye; double fade = 1, gain = 1; int layer = -1, quads;
+        /** Only the opaque gate body: drawn into the depth buffer alone so additive light behind it cannot shine through. */
+        boolean solidOnly;
         boolean body() { return layer <= 0; }
         boolean glow() { return layer != 0; }
     }
@@ -73,6 +75,26 @@ final class GateDraw {
         tex(c, at.subtract(right).subtract(up), at.add(right).subtract(up), at.add(right).add(up), at.subtract(right).add(up),
                 region, 0, 1, 0, 1, color, alpha, alpha, alpha, alpha);
     }
+
+    /** Big solid pieces (the gate) only fade when the camera is almost inside them: {@value #SOLID_NEAR_MIN}..{@value #SOLID_NEAR_MAX} blocks. */
+    static final double SOLID_NEAR_MIN = 1.2, SOLID_NEAR_MAX = 5;
+
+    /**
+     * Quad with a colour and alpha per corner (fake shading, rim light); textured from {@code r} when it is not null.
+     * Corners a (u0,v0), b (u1,v0), d (u1,v1), e (u0,v1).
+     */
+    static void shaded(Ctx c, Vec3[] p, int[] color, double[] alpha, GateAtlas.Region r, double u0, double u1, double v0, double v1) {
+        if (!room(c)) return;
+        double lo = Double.MAX_VALUE;
+        for (Vec3 q : p) lo = Math.min(lo, q.distanceToSqr(c.eye));
+        double k = c.fade * (lo >= SOLID_NEAR_MAX * SOLID_NEAR_MAX ? 1 : smooth((Math.sqrt(lo) - SOLID_NEAR_MIN) / (SOLID_NEAR_MAX - SOLID_NEAR_MIN)));
+        if (k <= 0) return;
+        float[] uv = r == null ? new float[]{SOLID_U, SOLID_V, SOLID_U, SOLID_V, SOLID_U, SOLID_V, SOLID_U, SOLID_V}
+                : new float[]{r.u(u0), r.v(v0), r.u(u1), r.v(v0), r.u(u1), r.v(v1), r.u(u0), r.v(v1)};
+        for (int i = 0; i < 4; i++) vertex(c, p[i], color[i], alpha[i] * k, uv[2 * i], uv[2 * i + 1]);
+        c.quads++;
+    }
+    private static final float SOLID_U = GateAtlas.SOLID_U, SOLID_V = GateAtlas.SOLID_V;
 
     private static void vertex(Ctx c, Vec3 p, int color, double alpha, float u, float v) {
         Vec3 q = p.subtract(c.eye);

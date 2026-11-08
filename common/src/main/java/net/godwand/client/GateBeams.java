@@ -9,7 +9,7 @@ import static net.godwand.client.GateDraw.smooth;
 /** Silent Gate beams: camera-facing ribbons with a white core and a fibre-textured sheath, muzzle flash and ground impact. */
 final class GateBeams {
     private GateBeams() {}
-    private static final double TAU = Math.PI * 2, FIBRE_LENGTH = 14;
+    private static final double TAU = Math.PI * 2, FIBRE_LENGTH = 28, B = 2;
     static final double LIFE = 8, MUZZLE_TICKS = 6;
 
     /** 1 tick up, 2 hold, 5 decay. */
@@ -39,11 +39,11 @@ final class GateBeams {
         Vec3 side = n.cross(look);
         side = side.lengthSqr() < 1e-8 ? n.cross(new Vec3(0, 1, 0)).normalize() : side.normalize();
         if (c.body()) {
-            Vec3 w = side.scale(.125);
+            Vec3 w = side.scale(.125 * B);
             GateDraw.quad(c, from.subtract(w), from.add(w), to.add(w), to.subtract(w), GateCircles.HOT, .95 * env);
         }
         if (!c.glow()) return;
-        Vec3 half = side.scale(.8);
+        Vec3 half = side.scale(.8 * B);
         // Fibre sheath: energy runs from the circle to the target; each piece spans whole texture periods so nothing wraps inside a quad.
         double scroll = (now * .22) % 1, t0 = 0;
         for (int guard = 0; guard < 40 && t0 < len - 1e-6; guard++) {
@@ -53,7 +53,7 @@ final class GateBeams {
             t0 = t1;
         }
         // Soft outer glow, brightest on the axis.
-        Vec3 wide = side.scale(1.8);
+        Vec3 wide = side.scale(1.8 * B);
         double g = .16 * env;
         GateDraw.gradient(c, from.subtract(wide), from, to, to.subtract(wide), color, 0, g, g, 0);
         GateDraw.gradient(c, from, from.add(wide), to.add(wide), to, color, g, 0, 0, g);
@@ -62,16 +62,16 @@ final class GateBeams {
     private static void muzzle(Ctx c, Vec3 at, double life, int color) {
         if (life >= MUZZLE_TICKS) return;
         double k = life / MUZZLE_TICKS, a = (1 - k) * .8;
-        GateDraw.sprite(c, at, 2 + 5 * k, a, GateCircles.HOT);
-        ring(c, at, 1 + 7 * k, 1.1, .6 * (1 - k), color, 8);
+        GateDraw.sprite(c, at, (2 + 5 * k) * B, a, GateCircles.HOT);
+        ring(c, at, (1 + 7 * k) * B, 1.1 * B, .6 * (1 - k), color, 8);
     }
 
     private static void impact(Ctx c, Vec3 hit, double life, int color, long seed) {
         double k = life / LIFE, fade = 1 - k * k;
         Vec3 o = hit.add(0, .12, 0);
-        fan(c, o, 3 + 4 * smooth(life / 2), color, .4 * fade, 8);
-        GateDraw.sprite(c, hit.add(0, .6, 0), 1.6 + 1.2 * (1 - k), .7 * fade, GateCircles.HOT);
-        ring(c, o, .8 + 8 * smooth(life / LIFE), 1.3, .55 * fade, GateCircles.HOT, 10);
+        fan(c, o, (3 + 4 * smooth(life / 2)) * B, color, .4 * fade, 8);
+        GateDraw.sprite(c, hit.add(0, .6, 0), (1.6 + 1.2 * (1 - k)) * B, .7 * fade, GateCircles.HOT);
+        ring(c, o, (.8 + 8 * smooth(life / LIFE)) * B, 1.3 * B, .55 * fade, GateCircles.HOT, 10);
         int sparks = 8 + (int) (hash(seed, 99) * 5);
         for (int i = 0; i < sparks; i++) {
             double az = hash(seed, i) * TAU, speed = 3 + 5 * hash(seed, i + 100), up = 4 + 6 * hash(seed, i + 200);

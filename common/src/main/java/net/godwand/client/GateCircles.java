@@ -10,7 +10,7 @@ import static net.godwand.client.GateDraw.smooth;
 /** The great circle: five tiers of line art that write themselves in from the inside out, with halos, light shafts and a closing flash. */
 final class GateCircles {
     private GateCircles() {}
-    private static final double TAU = Math.PI * 2, EDGE = .14;
+    private static final double TAU = Math.PI * 2, EDGE = .14, S = SilentGateSequence.SCALE;
     static final int SEGMENTS = 96;
     static final int WHITE_BLUE = 0xD8F4FF, GLOW_BLUE = 0x7FE8FF, TEAL = 0x9FF0F0, HOT = 0xEAFBFF;
 
@@ -24,10 +24,10 @@ final class GateCircles {
             new Tier(GateAtlas.RUNES, null, 34, 42, 2.6, 4, 104, -.07, TEAL),
             new Tier(GateAtlas.DASH, GateAtlas.RIM, 50, 56, 3.2, 12, 112, .05, WHITE_BLUE)};
     private static final int SEAL_START = 80, WRITE_TICKS = 32;
-    static final double SEAL_RADIUS = 9, SEAL_SPEED = .2;
+    static final double SEAL_RADIUS = 9 * S, SEAL_SPEED = .2;
 
     /** Altitude the circle hangs at relative to the anchor; shared by every layer. */
-    static Vec3 center(Vec3 anchor, Vec3 gate) { return new Vec3(gate.x, anchor.y + SilentGateSequence.CIRCLE_ALTITUDE, gate.z); }
+    static Vec3 center(Vec3 anchor, Vec3 gate) { return new Vec3(gate.x, anchor.y + SilentGateSequence.circleAltitude(anchor.y), gate.z); }
 
     static void great(Ctx c, Vec3 anchor, Vec3 gate, double age, double endK) {
         if (age < SEAL_START) return;
@@ -38,10 +38,10 @@ final class GateCircles {
         for (int i = 0; i < TIERS.length; i++) lastWrite = Math.max(lastWrite, tier(c, ctr, TIERS[i], i, age, shrink, breath));
         if (c.glow()) {
             // Wide faint disc of light above the circle, and the shafts it throws down once the gate arrives.
-            fan(c, ctr.add(0, 6, 0), 70 * shrink, GLOW_BLUE, .15 * smooth((age - SEAL_START) / 40) * breath);
+            fan(c, ctr.add(0, 6 * S, 0), 70 * S * shrink, GLOW_BLUE, .15 * smooth((age - SEAL_START) / 40) * breath);
             shafts(c, ctr, age, shrink);
         }
-        if (c.body()) underlay(c, ctr, 58 * shrink, smooth((age - SEAL_START) / 60));
+        if (c.body()) underlay(c, ctr, 58 * S * shrink, smooth((age - SEAL_START) / 60));
         flash(c, ctr, endK);
     }
 
@@ -66,7 +66,7 @@ final class GateCircles {
             if (c.glow()) GateDraw.tex(c, a, b, d, e, GateAtlas.SEAL, u0, u1, v0, v1, GLOW_BLUE, Math.min(.8, .5 * k * hot), Math.min(.8, .5 * k * hot),
                     Math.min(.8, .5 * k * hot), Math.min(.8, .5 * k * hot));
         }
-        if (reveal < 1 && c.glow()) GateDraw.sprite(c, at(ctr, half, Math.cos(head) * .85, Math.sin(head) * .85, 0), 1.6 * shrink + .4, .8 * live, HOT);
+        if (reveal < 1 && c.glow()) GateDraw.sprite(c, at(ctr, half, Math.cos(head) * .85, Math.sin(head) * .85, 0), (1.6 * shrink + .4) * S, .8 * live, HOT);
     }
     private static Vec3 at(Vec3 ctr, double half, double x, double z, double spin) {
         double cs = Math.cos(spin), sn = Math.sin(spin);
@@ -79,8 +79,8 @@ final class GateCircles {
         if (reveal <= 0) return 0;
         double head = reveal * (TAU + EDGE), live = 1 - smooth((reveal - .92) / .08);
         double spin = Math.toRadians(t.speed() * age), step = TAU / SEGMENTS;
-        double r0 = t.r0() * shrink, r1 = t.r1() * shrink, mid = (r0 + r1) / 2, hw = (r1 - r0) * .8 + 1.2, haloGain = index == 3 ? 1.7 : 1;
-        Vec3 o = ctr.add(0, t.lift(), 0);
+        double r0 = t.r0() * S * shrink, r1 = t.r1() * S * shrink, mid = (r0 + r1) / 2, hw = (r1 - r0) * .8 + 1.2 * S, haloGain = index == 3 ? 1.7 : 1;
+        Vec3 o = ctr.add(0, t.lift() * S, 0);
         int per = SEGMENTS / t.repeats();
         double split = t.second() == null ? r1 : r0 + (r1 - r0) * .55;
         for (int s = 0; s < SEGMENTS; s++) {
@@ -107,8 +107,8 @@ final class GateCircles {
         if (reveal < 1 && c.glow()) {
             Vec3 headAt = pt(o, mid, head + spin);
             double pulse = 1 - smooth((reveal - .85) / .15);
-            GateDraw.sprite(c, headAt, (r1 - r0) * .9 + 1.4, .75 * pulse, GLOW_BLUE);
-            GateDraw.sprite(c, headAt, (r1 - r0) * .35 + .5, .9 * pulse, HOT);
+            GateDraw.sprite(c, headAt, (r1 - r0) * .9 + 1.4 * S, .75 * pulse, GLOW_BLUE);
+            GateDraw.sprite(c, headAt, (r1 - r0) * .35 + .5 * S, .9 * pulse, HOT);
         }
         return reveal;
     }
@@ -123,7 +123,7 @@ final class GateCircles {
     /** Pale luminous plate behind the tiers (ref 1): white-cyan, brightest at the centre and gone at the rim. */
     private static void underlay(Ctx c, Vec3 ctr, double radius, double k) {
         if (k <= 0) return;
-        Vec3 o = ctr.add(0, -.3, 0);
+        Vec3 o = ctr.add(0, -.3 * S, 0);
         int n = 48, rings = 3;
         for (int i = 0; i < n; i++) {
             double a0 = i * TAU / n, a1 = (i + 1) * TAU / n;
@@ -139,15 +139,15 @@ final class GateCircles {
         double on = smooth((age - SilentGateSequence.BEAT_GATE) / 30);
         if (on <= 0) return;
         for (int i = 0; i < 7; i++) {
-            double r = (8 + i * 7) * shrink, a = i * 2.4 + age * .004 * (i % 2 == 0 ? 1 : -1);
+            double r = (8 + i * 7) * S * shrink, a = i * 2.4 + age * .004 * (i % 2 == 0 ? 1 : -1);
             double al = (.08 + .04 * ((i * 5) % 3) / 2.0) * on * (1 + .15 * Math.sin(age * .05 + i));
-            Vec3 top = pt(ctr, r, a), bottom = top.add(0, -90, 0);
+            Vec3 top = pt(ctr, r, a), bottom = top.add(0, -90 * S, 0);
             for (int cross = 0; cross < 2; cross++) {
                 double d = a + cross * Math.PI / 2;
                 Vec3 w = new Vec3(Math.cos(d), 0, Math.sin(d));
                 for (int side = -1; side <= 1; side += 2) {
                     // Half ribbon from the centre line (full alpha) to an edge (zero alpha), tapering 4.5 -> 1.2 blocks.
-                    GateDraw.gradient(c, top, top.add(w.scale(4.5 * side)), bottom.add(w.scale(1.2 * side)), bottom, GLOW_BLUE, al, 0, 0, 0);
+                    GateDraw.gradient(c, top, top.add(w.scale(4.5 * S * side)), bottom.add(w.scale(1.2 * S * side)), bottom, GLOW_BLUE, al, 0, 0, 0);
                 }
             }
         }
@@ -164,9 +164,9 @@ final class GateCircles {
         double t = clamp01((endK - .5) / .5);
         if (t <= 0 || !c.glow()) return;
         double save = c.fade; c.fade = 1;
-        fan(c, ctr, 6 + 26 * t, HOT, .32 * Math.sin(Math.PI * t) * .8);
-        fan(c, ctr, 14 + 40 * t, GLOW_BLUE, .16 * Math.sin(Math.PI * t));
-        GateDraw.sprite(c, ctr, 10 + 30 * t, .6 * Math.sin(Math.PI * t), HOT);
+        fan(c, ctr, (6 + 26 * t) * S, HOT, .32 * Math.sin(Math.PI * t) * .8);
+        fan(c, ctr, (14 + 40 * t) * S, GLOW_BLUE, .16 * Math.sin(Math.PI * t));
+        GateDraw.sprite(c, ctr, (10 + 30 * t) * S, .6 * Math.sin(Math.PI * t), HOT);
         c.fade = save;
     }
 }

@@ -93,6 +93,7 @@ public final class SilentGateRenderer {
     static Frame frameAt(int casterId, double now) {
         Cast c = CASTS.get(casterId);
         if (c == null || over(c, now)) return null;
+        now = SilentGateCinematic.warp(c.startedAt, now);
         return new Frame(casterId, c.startedAt, c.phase, now - c.startedAt, c.commandAt < 0 ? -1 : now - c.commandAt,
                 c.anchor, c.yaw, c.seed, c.skyCircles, c.barrageTicks);
     }
@@ -119,8 +120,7 @@ public final class SilentGateRenderer {
 
     // ---- geometry: great circle in GateCircles; sky discs, ground ring, gate and beams are still milestone-1 placeholders ----
     static final int QUAD_BUDGET = 20000;
-    static final int WHITE_BLUE = 0xCFE6FF, JADE = 0x2FD6A0, GOLD = 0xFFC83A;
-    static final double BEAM_TICKS = GateBeams.LIFE, GATE_DROP = 60;
+    static final double BEAM_TICKS = GateBeams.LIFE;
     /** Opacity of the legacy flat geometry in the additive pass: it only adds a soft glow over the body. */
     private static final double GLOW_GAIN = .35;
 
@@ -130,7 +130,7 @@ public final class SilentGateRenderer {
         setup();
         try {
             for (int pass = 0; pass < 2; pass++) {
-                if (pass == 1) additiveBlend(); else RenderSystem.defaultBlendFunc();
+                if (pass == 1) { depthPrepass(pose, camera, frames); additiveBlend(); } else RenderSystem.defaultBlendFunc();
                 for (Frame f : frames) {
                     BufferBuilder buffer = begin();
                     emitScene(buffer, pose.last().pose(), f, shots(f.casterId()), camera.getPosition(), pass);
@@ -138,6 +138,17 @@ public final class SilentGateRenderer {
                 }
             }
         } finally { teardown(); }
+    }
+    /** The gate body is alpha blended without depth writes; stamp its depth so the additive layer (circle glow, rays) cannot shine through it. */
+    private static void depthPrepass(PoseStack pose, Camera camera, List<Frame> frames) {
+        RenderSystem.colorMask(false, false, false, false); RenderSystem.depthMask(true);
+        try {
+            for (Frame f : frames) {
+                BufferBuilder buffer = begin();
+                emitScene(buffer, pose.last().pose(), f, List.of(), camera.getPosition(), 0, true);
+                draw(buffer);
+            }
+        } finally { RenderSystem.colorMask(true, true, true, true); RenderSystem.depthMask(false); }
     }
     private record Deferred(Matrix4f pose, Matrix4f modelView, Matrix4f projection, Camera camera, float partial) {}
     private static Deferred deferred;
@@ -178,10 +189,12 @@ public final class SilentGateRenderer {
     static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye) { return emitScene(v, m, f, shots, eye, -1); }
 
     /** Geometry of one layer (0 body, 1 additive glow, -1 both); returns the quads emitted (never more than {@link #QUAD_BUDGET}). */
-    static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye, int layer) {
+    static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye, int layer) { return emitScene(v, m, f, shots, eye, layer, false); }
+
+    static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye, int layer, boolean solidOnly) {
         if (!Double.isFinite(f.age()) || f.age() < 0 || f.anchor() == null || !Double.isFinite(f.anchor().x + f.anchor().y + f.anchor().z)
                 || !Double.isFinite(eye.x + eye.y + eye.z)) return 0;
-        Ctx c = new Ctx(); c.v = v; c.m = m; c.eye = eye; c.layer = layer; c.gain = layer == 1 ? GLOW_GAIN : 1;
+        Ctx c = new Ctx(); c.v = v; c.m = m; c.eye = eye; c.layer = layer; c.gain = layer == 1 ? GLOW_GAIN : 1; c.solidOnly = solidOnly;
         int endStart = SilentGateSequence.ACTIVATE_TICKS + f.barrageTicks();
         if (f.commandAge() >= endStart) c.fade = clamp01(1 - (f.commandAge() - endStart) / SilentGateSequence.ENDING_TICKS);
         if (c.fade <= 0) return 0;
@@ -189,6 +202,10 @@ public final class SilentGateRenderer {
         Vec3 anchor = f.anchor();
         Vec3 gate = SilentGateSequence.gateCenter(anchor, f.yaw());
         double endK = f.commandAge() >= endStart ? clamp01((f.commandAge() - endStart) / SilentGateSequence.ENDING_TICKS) : 0;
+        if (solidOnly) {
+            gate(c, anchor, f.yaw(), age, f.commandAge(), endK);
+            return c.quads;
+        }
         GateSky.dome(c, gate, age);
         GateSky.clouds(c, GateCircles.center(anchor, gate), age, endK);
         GateCircles.great(c, anchor, gate, age, endK);
@@ -199,7 +216,7 @@ public final class SilentGateRenderer {
         for (int i = 0; i < SilentGateSequence.GROUND_RING; i++)
             GateMinor.ground(c, SilentGateSequence.groundCircle(anchor, f.yaw(), i), anchor, i, age, SilentGateSequence.groundCircleGold(i), gate, wave);
         GateMinor.wave(c, gate, f.yaw(), wave);
-        gate(c, gate, f.yaw(), age);
+        gate(c, anchor, f.yaw(), age, f.commandAge(), endK);
         // Beams from circle to hit point, alive for BEAM_TICKS.
         double now = f.startedAt() + age;
         for (Shot s : shots) {
@@ -217,32 +234,31 @@ public final class SilentGateRenderer {
     /** Quads of the last emitted cast (dev statistic read by the QA probe). */
     public static volatile int lastQuads;
 
-    private static void gate(Ctx c, Vec3 gate, float yaw, double age) {
-        double alpha = smooth((age - 120) / 20);
-        if (alpha <= 0) return;
-        double rad = Math.toRadians(yaw);
-        Vec3 d = new Vec3(-Math.sin(rad), 0, Math.cos(rad)), r = new Vec3(Math.cos(rad), 0, Math.sin(rad)), up = new Vec3(0, 1, 0);
-        Vec3 foot = gate.add(0, GATE_DROP * SilentGateSequence.gateDescent(age), 0);
-        double h = SilentGateSequence.GATE_HEIGHT, w = SilentGateSequence.GATE_WIDTH / 2.0;
-        for (int side = -1; side <= 1; side += 2)
-            box(c, foot.add(r.scale(side * w)).add(up.scale(h / 2)), r.scale(1.5), up.scale(h / 2), d.scale(1.5), WHITE_BLUE, alpha);
-        box(c, foot.add(up.scale(h - 1.5)), r.scale(w), up.scale(1.5), d.scale(1.5), WHITE_BLUE, alpha);
-        box(c, foot.add(up.scale(.75)), r.scale(w), up.scale(.75), d.scale(1.5), WHITE_BLUE, alpha);
-        double open = SilentGateSequence.gateOpen(age) * Math.PI / 2;
-        for (int side = -1; side <= 1; side += 2) {
-            Vec3 hinge = foot.add(r.scale(side * (w - 1.5))).add(up.scale(1.5));
-            Vec3 leaf = r.scale(-side * Math.cos(open)).add(d.scale(Math.sin(open))).scale(w - 1.5), rise = up.scale(h - 3);
-            quad(c, hinge, hinge.add(leaf), hinge.add(leaf).add(rise), hinge.add(rise), JADE, alpha * .55);
+    /** The gate: slit it climbs out of (140-200), descent wind and dust, the sculpted model, then shockwave, pressure rings and the opening light. */
+    private static void gate(Ctx c, Vec3 anchor, float yaw, double age, double commandAge, double endK) {
+        double descent = SilentGateSequence.gateDescent(age);
+        // Ending: the leaves close first, then the gate climbs back into the slit and fades there.
+        double rise = smooth((endK - .2) / .55), fadeOut = clamp01(4 * (1 - endK));
+        double appear = smooth((age - 141) / 9);
+        double slit = Math.max(smooth((age - 138) / 10) * (1 - smooth((age - 188) / 12)), Math.sin(Math.PI * clamp01((endK - .1) / .8)));
+        Vec3 start = SilentGateSequence.gateFoot(anchor, yaw, 1);
+        GateFx.Pose slitPose = GateFx.Pose.of(start, yaw);
+        if (!c.solidOnly) GateFx.slit(c, slitPose, age < 138 && endK <= 0 ? 0 : slit, SilentGateSequence.GATE_HEIGHT + 20);
+        if (appear <= 0 || fadeOut <= 0) return;
+        double saved = c.fade;
+        c.fade = saved * appear * (endK > 0 ? Math.min(1, fadeOut) : 1);
+        GateFx.Pose pose = GateFx.Pose.of(SilentGateSequence.gateFoot(anchor, yaw, descent + rise), yaw);
+        double speed = (SilentGateSequence.gateDescent(age - .5) - SilentGateSequence.gateDescent(age + .5)) * SilentGateSequence.GATE_DROP;
+        double open = SilentGateSequence.gateOpen(age) * (1 - smooth(endK / .2));
+        GateModel.draw(c, pose, age, open, GateModel.vein(age, commandAge, endK));
+        if (!c.solidOnly) {
+            GateFx.wind(c, pose, age, Math.max(0, speed));
+            GateFx.dust(c, pose, age);
+            GateFx.shockwave(c, pose, age);
+            GateFx.pressure(c, pose, age, endK);
         }
+        c.fade = saved;
     }
-    private static void box(Ctx c, Vec3 mid, Vec3 x, Vec3 y, Vec3 z, int color, double alpha) {
-        Vec3[][] axes = {{x, y, z}, {y, z, x}, {z, x, y}};
-        for (Vec3[] a : axes) for (int sign = -1; sign <= 1; sign += 2) {
-            Vec3 face = mid.add(a[2].scale(sign));
-            quad(c, face.subtract(a[0]).subtract(a[1]), face.add(a[0]).subtract(a[1]), face.add(a[0]).add(a[1]), face.subtract(a[0]).add(a[1]), color, alpha);
-        }
-    }
-    private static void quad(Ctx c, Vec3 a, Vec3 b, Vec3 d, Vec3 e, int color, double alpha) { GateDraw.quad(c, a, b, d, e, color, alpha); }
 
     public static void tick(Minecraft client) {
         if (client.level != world || client.player == null) { reset(); return; }
@@ -258,7 +274,7 @@ public final class SilentGateRenderer {
     }
 
     /** The cast replaces the sky with its own vortex, so vanilla clouds are switched off while one is in range and put back after. */
-    private static final double RENDER_RANGE = 300;
+    private static final double RENDER_RANGE = 600;
     private static net.minecraft.client.CloudStatus savedClouds;
     static void vanillaClouds(Minecraft client, boolean cast) {
         var option = client.options.cloudStatus();

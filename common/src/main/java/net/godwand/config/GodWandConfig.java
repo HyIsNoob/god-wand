@@ -80,13 +80,13 @@ public final class GodWandConfig {
         public int fugaTerrainRadius = (int)net.godwand.skill.FugaSequence.RADIUS;
         public float fugaDamage = 9999;
         public float gateBeamDamage = 80;
-        public int gateTargetRadius = 64;
+        public int gateTargetRadius = 160;
         public String gateTargetMode = "hostile";
         public int gateBarrageTicks = 200;
         public int gateWaitTicks = 300;
         public int gateSkyCircles = 48;
         public boolean gateTerrainDamage = true;
-        public int gateCraterRadius = 2;
+        public int gateCraterRadius = 3;
         public List<String> dimensionBlacklist = new ArrayList<>();
 
         public boolean isDimensionBlacklisted(String dimensionId) { return !isDimensionAllowed(dimensionId); }
@@ -101,12 +101,12 @@ public final class GodWandConfig {
             fugaDamage=finiteClamp(fugaDamage,0,1_000_000,9999);
             gateCooldownTicks=Mth.clamp(gateCooldownTicks,0,72000);
             gateBeamDamage=finiteClamp(gateBeamDamage,0,1_000_000,80);
-            gateTargetRadius=Mth.clamp(gateTargetRadius,8,128);
+            gateTargetRadius=Mth.clamp(gateTargetRadius,8,256);
             if(!"hostile".equals(gateTargetMode)&&!"all".equals(gateTargetMode))gateTargetMode="hostile";
             gateBarrageTicks=Mth.clamp(gateBarrageTicks,60,600);
             gateWaitTicks=Mth.clamp(gateWaitTicks,40,1200);
             gateSkyCircles=Mth.clamp(gateSkyCircles,8,96);
-            gateCraterRadius=Mth.clamp(gateCraterRadius,0,4);
+            gateCraterRadius=Mth.clamp(gateCraterRadius,0,6);
             singularityCooldownTicks=validatedCooldowns(singularityCooldownTicks,new int[]{60,120,200});
             earthDrillCooldownTicks=validatedCooldowns(earthDrillCooldownTicks,new int[]{80,140,220,320});
             stoneCannonCooldownTicks=validatedCooldowns(stoneCannonCooldownTicks,new int[]{40,80,140,220});

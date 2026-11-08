@@ -32,7 +32,7 @@ class SilentGateCinematicTest {
     @Test void cameraFollowsTheShotList() {
         assertTrue(build(0, 10).position().distanceTo(EYE) <= .6, "first person at the start");
         var up = build(0, 100);
-        assertTrue(up.position().y < PLAYER.y + SilentGateSequence.CIRCLE_ALTITUDE, "under the great circle");
+        assertTrue(up.position().y < PLAYER.y + SilentGateSequence.circleAltitude(PLAYER.y), "under the great circle");
         assertTrue(up.pitch() < -40, "looking up at it");
         Vec3 gate = SilentGateSequence.gateCenter(PLAYER, 0f);
         assertTrue(build(0, 170).position().y < gate.y - SilentGateSequence.GATE_HEIGHT / 2.0, "below the gate's foot");
@@ -44,25 +44,92 @@ class SilentGateCinematicTest {
             assertTrue(build(1, age).position().distanceTo(held.position()) <= .5, "WAIT holds the frame at " + age);
     }
 
-    @Test void barrageShotsScaleAndReturn() {
+    @Test void gateShotsLookUpAtTheColumnsAndPullBackWide() {
+        Vec3 foot = SilentGateSequence.gateFoot(PLAYER, 0f, 0);
+        var under = build(0, 205);
+        assertTrue(under.position().y < foot.y - 5, "below the gate's foot: " + under.position().y);
+        assertTrue(under.pitch() < -30, "looking up at the columns: " + under.pitch());
+        assertTrue(under.position().distanceTo(foot) < 100, "close to the foot: " + under.position().distanceTo(foot));
+        var wide = build(0, 249);
+        assertTrue(wide.position().distanceTo(foot.add(0, 108, 0)) > 150, "wide enough to hold the whole gate: " + wide.position().distanceTo(foot.add(0, 108, 0)));
+        assertTrue(wide.position().distanceTo(under.position()) > 100);
+        assertTrue(wide.position().distanceTo(PLAYER) < 150, "the caster stays in the wide frame");
+        var fall = build(0, 150);
+        assertTrue(fall.pitch() < -50, "watching it come down from underneath: " + fall.pitch());
+    }
+
+    @Test void barrageShotListHasFewLongReadableShots() {
+        assertArrayEquals(new int[]{12, 60, 125, 165, 272}, SilentGateCinematic.boundaries(200));
+        assertArrayEquals(new int[]{12, 108, 238, 318, 472}, SilentGateCinematic.boundaries(400), "scaled with the barrage length");
+        var shots = List.of(new SilentGateRenderer.Shot(3, new Vec3(5, 70, 40), 100));
+        // 12..60: low wide rain, no cut inside the shot.
         assertTrue(barrage(30, 200).position().y < PLAYER.y + 6, "low wide shot");
-        // Top-down shot stays above the great circle (altitude 100) and its lift.
-        int s80 = SilentGateSequence.shotTick(80, 200), s110 = SilentGateSequence.shotTick(110, 200);
-        for (double c = s80 + 1; c < s110; c += 5)
-            assertTrue(barrage(c, 200).position().y > PLAYER.y + SilentGateSequence.CIRCLE_ALTITUDE + 10, "above the circle layer at " + c);
+        for (double c = 13; c < 56; c += 3)
+            assertTrue(barrage(c, 200).position().distanceTo(barrage(c + 3, 200).position()) < 4, "slow dolly at " + c);
+        // 60..125: kill close-up, 12 blocks from the target, never jumping.
+        Vec3 target = new Vec3(6, 70, 50);
+        for (double c = 61; c < 122; c += 2) {
+            var pose = shotAt(c, shots, target);
+            assertEquals(12, Math.hypot(pose.position().x - target.x, pose.position().z - target.z), .01, "12 blocks at " + c);
+            assertTrue(pose.position().y < target.y + 2, "eye level, slightly low at " + c);
+            var next = shotAt(c + 2, shots, target);
+            assertTrue(pose.position().distanceTo(next.position()) < 1.2, "slow orbit at " + c);
+        }
+        double a0 = Math.atan2(shotAt(60.5, shots, target).position().x - target.x, shotAt(60.5, shots, target).position().z - target.z);
+        double a1 = Math.atan2(shotAt(124.5, shots, target).position().x - target.x, shotAt(124.5, shots, target).position().z - target.z);
+        assertEquals(25, Math.abs(Math.IEEEremainder(Math.toDegrees(a1 - a0), 360)), 1.5, "orbit sweep");
+        // 125..165: high scale shot sinking slowly.
+        assertTrue(barrage(126, 200).position().y > PLAYER.y + 190 && barrage(164, 200).position().y < barrage(126, 200).position().y - 80);
+        // 165..: behind the caster, then the return.
+        assertTrue(PLAYER.z - barrage(200, 200).position().z >= 14, "behind the caster");
         assertNotNull(barrage(272 + 15 - .01, 200));
         assertNull(barrage(272 + 15, 200));
         int end = SilentGateSequence.endTick(400);
         assertNotNull(barrage(end + 15 - .01, 400));
         assertNull(barrage(end + 15, 400));
-        // The same authored shot lands later when the barrage is longer.
         assertNotEquals(barrage(60, 200).position(), barrage(60, 400).position());
+    }
+    private static AtomicCinematic.Pose shotAt(double c, List<SilentGateRenderer.Shot> shots, Vec3 focus) {
+        return SilentGateCinematic.cameraFor(frame(2, 300 + c, c, 200), PLAYER, 0f, 0f, true, shots, (x, z) -> Double.NEGATIVE_INFINITY, focus);
+    }
+
+    @Test void killShotKeepsTheSameTargetForItsWholeWindow() {
+        var lock = new SilentGateCinematic.KillLock();
+        var zombie = new SilentGateCinematic.Candidate(1, 20, new Vec3(0, 70, 30));
+        var warden = new SilentGateCinematic.Candidate(2, 500, new Vec3(10, 70, 40));
+        assertNull(lock.update(100, 59, 60, List.of(zombie, warden), PLAYER), "nothing is chosen before the kill shot");
+        assertEquals(warden.position(), lock.update(100, 60, 60, List.of(zombie, warden), PLAYER), "highest max health wins");
+        // A stronger mob walks in, and the target keeps moving: still the same entity, followed by id.
+        var moved = new SilentGateCinematic.Candidate(2, 500, new Vec3(12, 70, 41));
+        var giant = new SilentGateCinematic.Candidate(3, 9999, new Vec3(1, 70, 31));
+        for (double c = 61; c <= 125; c += 4) {
+            assertEquals(moved.position(), lock.update(100, c, 60, List.of(zombie, giant, moved), PLAYER));
+            assertEquals(2, lock.id());
+        }
+        // It dies: the camera holds on the last position.
+        assertEquals(moved.position(), lock.update(100, 100, 60, List.of(zombie), PLAYER));
+        // No target at all: nothing locked, the densest impacts are framed.
+        var empty = new SilentGateCinematic.KillLock();
+        assertNull(empty.update(200, 70, 60, List.of(), PLAYER));
+        var impacts = List.of(new SilentGateRenderer.Shot(1, new Vec3(0, 70, 90), 1), new SilentGateRenderer.Shot(2, new Vec3(3, 70, 91), 2),
+                new SilentGateRenderer.Shot(3, new Vec3(-4, 70, 88), 3), new SilentGateRenderer.Shot(4, new Vec3(80, 70, 10), 4));
+        assertTrue(SilentGateCinematic.densest(impacts, Vec3.ZERO).z > 85, "cluster beats the stray hit");
+    }
+
+    @Test void hitStopSlowsTheRenderClockForAboutThreeTicks() {
+        assertEquals(50, SilentGateCinematic.warp(50.0, 100), 1e-9);
+        assertEquals(100, SilentGateCinematic.warp(100.0, 100), 1e-9);
+        assertEquals(100.15 * 1 + 0.15 * 0, SilentGateCinematic.warp(101.0, 100), .16);
+        double after = SilentGateCinematic.warp(110.0, 100);
+        assertEquals(110 - 3 * .85, after, 1e-9);
+        assertEquals(after + 1, SilentGateCinematic.warp(111.0, 100), 1e-9, "full speed again after the stop");
+        assertEquals(77, SilentGateCinematic.warp(77.0, -1), 1e-9, "no hit: no stop");
     }
 
     @Test void closeUpsStayAboveTheLiveGround() {
         var shots = List.of(new SilentGateRenderer.Shot(3, new Vec3(5, 70, 40), 100));
-        int s50 = SilentGateSequence.shotTick(50, 200), s80 = SilentGateSequence.shotTick(80, 200);
-        for (double c = s50 + 1; c < s80; c += 5) {
+        int s60 = SilentGateCinematic.boundaries(200)[1], s125 = SilentGateCinematic.boundaries(200)[2];
+        for (double c = s60 + 1; c < s125; c += 5) {
             var f = frame(2, 300 + c, c, 200);
             // A crater: the surface under the camera is 20 blocks above the planned shot.
             var pose = SilentGateCinematic.cameraFor(f, PLAYER, 0f, 0f, true, shots, (x, z) -> PLAYER.y + 20);

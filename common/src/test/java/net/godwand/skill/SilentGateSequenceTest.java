@@ -16,12 +16,12 @@ class SilentGateSequenceTest {
         for (int i = 0; i < 48; i++) {
             a[i] = SilentGateSequence.skyCircle(ANCHOR, yaw, 1234L, i, 48);
             assertEquals(a[i], SilentGateSequence.skyCircle(ANCHOR, yaw, 1234L, i, 48));
-            assertTrue(a[i].y >= ANCHOR.y + 30 && a[i].y <= ANCHOR.y + 70, "y " + a[i].y);
-            assertTrue(Math.hypot(a[i].x - center.x, a[i].z - center.z) <= 64);
+            assertTrue(a[i].y >= ANCHOR.y + 90 && a[i].y <= ANCHOR.y + 210, "y " + a[i].y);
+            assertTrue(Math.hypot(a[i].x - center.x, a[i].z - center.z) <= 64 * SilentGateSequence.SCALE);
         }
         for (int i = 0; i < 48; i++)
             for (int j = i + 1; j < 48; j++)
-                assertTrue(a[i].distanceTo(a[j]) >= 6, i + "," + j);
+                assertTrue(a[i].distanceTo(a[j]) >= 6 * SilentGateSequence.SCALE, i + "," + j);
     }
 
     @Test

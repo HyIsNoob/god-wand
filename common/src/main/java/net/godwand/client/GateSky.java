@@ -13,12 +13,12 @@ final class GateSky {
     private static final double TAU = Math.PI * 2;
     static final int STORM = 0x0B1424, CLOUD_BODY = 0x4A5F80, CLOUD_DARK = 0x2A3850, CLOUD_LIT = 0xBFEFFF, CLOUD_RIM = 0x7FE8FF, CLOUDS = 40;
     private static final int RINGS = 6, SEGS = 24;
-    private static final double DOME_RADIUS = 180, DOME_ALPHA = .45;
+    private static final double DOME_RADIUS = 180, DOME_ALPHA = .45, S = net.godwand.skill.SilentGateSequence.SCALE;
 
     /** Hemisphere about the camera, darkening the sky from 80 to 120 without a shader and melting into the horizon. */
     static void dome(Ctx c, Vec3 gate, double age) {
         if (!c.body()) return;
-        double k = smooth((age - 80) / 40) * (1 - smooth((c.eye.distanceTo(gate) - 150) / 80));
+        double k = smooth((age - 80) / 40) * (1 - smooth((c.eye.distanceTo(gate) - 150 * S) / (80 * S)));
         if (k <= 0) return;
         for (int j = 0; j < RINGS; j++) for (int s = 0; s < SEGS; s++) {
             double e0 = Math.PI / 2 * j / RINGS, e1 = Math.PI / 2 * (j + 1) / RINGS, a0 = s * TAU / SEGS, a1 = (s + 1) * TAU / SEGS;
@@ -38,11 +38,13 @@ final class GateSky {
         double on = smooth((age - 80) / 40);
         if (on <= 0) return;
         for (int i = 0; i < CLOUDS; i++) {
-            double life = (hash(i, 1) + age * .0011) % 1, r = (90 - 34 * life) * (1 + .8 * smooth(endK));
+            // The shockwave at 206 shoves the vortex outwards for one beat.
+            double push = smooth((age - 206) / 5) * (1 - smooth((age - 211) / 40));
+            double life = (hash(i, 1) + age * .0011) % 1, r = S * (90 - 34 * life) * (1 + .8 * smooth(endK) + .3 * push);
             double a = i * 2.399963 + age * .0032 * (1 + (90 - r) / 50) + hash(i, 2) * .6;
             double envelope = Math.pow(Math.sin(Math.PI * life), .6) * on;
-            double size = 13 + 9 * hash(i, 3);
-            Vec3 p = ctr.add(Math.cos(a) * r, (hash(i, 4) - .5) * 18 - 4, Math.sin(a) * r);
+            double size = S * (13 + 9 * hash(i, 3));
+            Vec3 p = ctr.add(Math.cos(a) * r, ((hash(i, 4) - .5) * 18 - 4) * S, Math.sin(a) * r);
             Vec3 toward = ctr.subtract(p).multiply(1, 0, 1).normalize();
             // A billow is a handful of overlapping soft puffs at slight offsets, each turned its own way.
             int n = 3 + (i % 3);

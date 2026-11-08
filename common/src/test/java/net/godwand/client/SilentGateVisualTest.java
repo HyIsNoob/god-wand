@@ -43,7 +43,7 @@ class SilentGateVisualTest {
             assertEquals(quads * 4, mesh.vertices.size());
         }
     }
-    @Test void fullSceneStaysUnderEightThousandQuads() {
+    @Test void fullSceneStaysUnderTwelveThousandQuads() {
         int peak = 0;
         var shots = new ArrayList<SilentGateRenderer.Shot>();
         for (int i = 0; i < 24; i++) shots.add(new SilentGateRenderer.Shot(i, new Vec3(i, 70, 40), 100 + 320));
@@ -53,12 +53,80 @@ class SilentGateVisualTest {
                 for (Vec3 eye : new Vec3[]{Vec3.ZERO, new Vec3(0, 130, 48)}) {
                     int quads = SilentGateRenderer.emitScene(new Mesh(), new Matrix4f(), frame(age, command, 96), shots, eye, layer);
                     peak = Math.max(peak, quads);
-                    assertTrue(quads <= 8000, "age " + age + " layer " + layer + " eye " + eye + ": " + quads);
+                    assertTrue(quads <= 12000, "age " + age + " layer " + layer + " eye " + eye + ": " + quads);
                 }
             }
         }
         assertTrue(peak > 1000, "scene should really be drawn, peak " + peak);
     }
+    private static GateDraw.Ctx ctx(Mesh mesh, Vec3 eye, int layer) {
+        GateDraw.Ctx c = new GateDraw.Ctx(); c.v = mesh; c.m = new Matrix4f(); c.eye = eye; c.layer = layer; return c;
+    }
+    private static final GateFx.Pose POSE = GateFx.Pose.of(new Vec3(0, 0, 0), 0f);
+
+    @Test void gateStaysUnderFourThousandQuadsFromEveryDistance() {
+        int peak = 0;
+        Vec3[] eyes = {new Vec3(0, 108, -270), new Vec3(0, 90, -36), new Vec3(-42, -9, -18), new Vec3(0, 108, -1200), new Vec3(90, 240, 60), new Vec3(0, 108, 9)};
+        for (Vec3 eye : eyes) for (double open : new double[]{0, .5, 1}) {
+            GateDraw.Ctx c = ctx(new Mesh(), eye, -1);
+            GateModel.draw(c, POSE, 250, open, 1.2);
+            peak = Math.max(peak, c.quads);
+            assertTrue(c.quads <= 4000, "eye " + eye + " open " + open + ": " + c.quads);
+        }
+        assertTrue(peak > 700, "the gate should really be sculpted, peak " + peak);
+    }
+    @Test void gateScalesWithTheSequenceConstants() {
+        Mesh mesh = new Mesh();
+        Vec3 eye = new Vec3(0, 120, -270);
+        GateModel.draw(ctx(mesh, eye, 0), POSE, 250, 0, 0);
+        double minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+        for (float[] p : mesh.vertices) { minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minY = Math.min(minY, p[1] + eye.y); maxY = Math.max(maxY, p[1] + eye.y); }
+        double halfW = SilentGateSequence.GATE_WIDTH / 2.0 * SilentGateSequence.SCALE, k = SilentGateSequence.SCALE;
+        assertTrue(maxX >= halfW - 3.6 && maxX <= halfW + 1.5 && minX <= -halfW + 3.6 && minX >= -halfW - 1.5, "outer columns span " + minX + ".." + maxX);
+        assertTrue(maxY >= (SilentGateSequence.GATE_HEIGHT + 6) * k && maxY <= (SilentGateSequence.GATE_HEIGHT + 11) * k, "finial top " + maxY);
+        assertTrue(minY <= 0 && minY >= -11 * k, "column tips and spike " + minY);
+        assertTrue(SilentGateSequence.GATE_INNER_WIDTH == 22 && SilentGateSequence.GATE_INNER_HEIGHT == 44, "door opening 22 x 44");
+        // The finials stay under the great circle (altitude 100 above the anchor) when the gate is at rest.
+        assertTrue(SilentGateSequence.gateBase(0) + maxY < SilentGateSequence.circleAltitude(0), "finials stay under the great circle");
+        assertEquals(3, SilentGateSequence.SCALE);
+    }
+    @Test void doorLeavesSwingOutTowardsTheCasterWithGateOpen() {
+        Vec3 eye = new Vec3(0, 120, -240);
+        double[] centre = new double[2]; double[] depth = new double[2];
+        for (int k = 0; k < 2; k++) {
+            Mesh mesh = new Mesh();
+            GateModel.draw(ctx(mesh, eye, 0), POSE, 250, k, 0);
+            centre[k] = mesh.vertices.stream().filter(p -> p[1] + eye.y > 51 && p[1] + eye.y < 168 && Math.abs(p[0]) < 9).count();
+            depth[k] = mesh.vertices.stream().filter(p -> p[1] + eye.y > 51 && p[1] + eye.y < 168 && Math.abs(p[0]) < 34).mapToDouble(p -> -(p[2] + eye.z)).max().orElse(0);
+        }
+        assertTrue(centre[0] > 20, "closed leaves meet in the middle: " + centre[0]);
+        assertEquals(0, centre[1], "open leaves have left the middle");
+        assertTrue(depth[1] > 18 && depth[0] < 9, "open leaves swing out towards the caster (-z): " + depth[1] + " vs " + depth[0]);
+        assertEquals(SilentGateSequence.gateOpen(210) < SilentGateSequence.gateOpen(240), true);
+    }
+    @Test void slitShockwaveAndVeinsAppearAtTheirTicks() {
+        Vec3 eye = new Vec3(0, 120, -270);
+        int[] slit = new int[2], wave = new int[3];
+        for (int k = 0; k < 2; k++) { GateDraw.Ctx c = ctx(new Mesh(), eye, 1); GateFx.slit(c, POSE, k, 84); slit[k] = c.quads; }
+        assertEquals(0, slit[0]);
+        assertTrue(slit[1] > 30, "slit " + slit[1]);
+        double[] ages = {205, 215, 240};
+        for (int k = 0; k < 3; k++) { GateDraw.Ctx c = ctx(new Mesh(), eye, 1); GateFx.shockwave(c, POSE, ages[k]); wave[k] = c.quads; }
+        assertEquals(0, wave[0]); assertTrue(wave[1] > 40, "shockwave " + wave[1]); assertEquals(0, wave[2]);
+        assertEquals(0, GateModel.vein(180, -1, 0), "veins are dark while falling");
+        assertTrue(GateModel.vein(208, -1, 0) > 1, "flare at the shockwave");
+        assertTrue(GateModel.vein(300, -1, 0) > .4, "steady glow while waiting");
+        assertTrue(GateModel.vein(300, 2, 0) > GateModel.vein(300, -1, 0), "activation flares them");
+        // In the scene: the gate is absent before the slit, present after, and the slit itself is drawn from 140.
+        Mesh before = new Mesh(), after = new Mesh();
+        int a = SilentGateRenderer.emitScene(before, new Matrix4f(), frame(139, -1, 0), List.of(), Vec3.ZERO, 0);
+        int b = SilentGateRenderer.emitScene(after, new Matrix4f(), frame(180, -1, 0), List.of(), Vec3.ZERO, 0);
+        assertTrue(b - a > 500, "gate body appears: " + a + " -> " + b);
+        int g1 = SilentGateRenderer.emitScene(new Mesh(), new Matrix4f(), frame(145, -1, 0), List.of(), Vec3.ZERO, 1);
+        int g0 = SilentGateRenderer.emitScene(new Mesh(), new Matrix4f(), frame(130, -1, 0), List.of(), Vec3.ZERO, 1);
+        assertTrue(g1 - g0 > 30, "slit glow at 145: " + g0 + " -> " + g1);
+    }
+
     @Test void circleGeometryFadesOutWithinTwelveBlocksOfTheCamera() {
         Vec3 disc = SilentGateSequence.groundCircle(ANCHOR, 0f, 0);
         Mesh near = new Mesh(), far = new Mesh();
@@ -75,14 +143,14 @@ class SilentGateVisualTest {
         assertEquals(0, emit(early, frame(50, -1, 48), List.of()));
         Mesh mesh = new Mesh();
         emit(mesh, frame(100, -1, 48), List.of());
-        double target = SilentGateSequence.CIRCLE_ALTITUDE;
+        double target = SilentGateSequence.circleAltitude(ANCHOR.y);
         assertTrue(mesh.vertices.stream().anyMatch(p -> Math.abs(p[1] - (ANCHOR.y + target)) <= 3));
     }
     @Test void groundRingDiscsStandUprightBehindTheCaster() {
         Mesh mesh = new Mesh();
         emit(mesh, frame(300, -1, 0), List.of());
         double minY = Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
-        for (float[] p : mesh.vertices) if (p[1] > ANCHOR.y - 1 && p[1] < ANCHOR.y + 8) { minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
+        for (float[] p : mesh.vertices) if (p[1] > ANCHOR.y - 1 && p[1] < ANCHOR.y + 8 && Math.hypot(p[0] - ANCHOR.x, p[2] - ANCHOR.z) < 12) { minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
         // Gold disc (r 2.4) centred 3 above the anchor; its spinning square seal tile reaches a little past the circle.
         assertTrue(minY >= ANCHOR.y + 3 - 3.4 && minY <= ANCHOR.y + 3 - 2.0, "min " + minY);
         assertTrue(maxY <= ANCHOR.y + 3 + 3.4 && maxY >= ANCHOR.y + 3 + 2.0, "max " + maxY);
