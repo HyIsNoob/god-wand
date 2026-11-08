@@ -33,6 +33,7 @@ public final class SilentGateProbe implements ClientModInitializer {
             firstFrame = {-1, -1, -1, -1}, lastFrame = {-1, -1, -1, -1};
     private long msptPeak, msptSeen = -1, setupPeak;
     private String msptAt = "-";
+    private final Map<String, double[]> msptPhase = new TreeMap<>(); // phase -> {sumMs, n, maxMs}
     private boolean moved;
     private boolean click2, sawFrame, sawBarrage;
     private final long[] quadSum = new long[4]; private final int[] quadMax = new int[4];
@@ -132,6 +133,7 @@ public final class SilentGateProbe implements ClientModInitializer {
                 for (int i = 0; i < 4; i++) if (firstFrame[i] >= 0)
                     System.out.printf(Locale.ROOT, "GATE_QA FPS %s avg=%.1f min=%d frames=%d..%d%n", PHASES[i],
                             fpsSum[i] / (double) Math.max(1, fpsN[i]), fpsMin[i], firstFrame[i], lastFrame[i]);
+                msptPhase.forEach((k, a) -> System.out.printf(Locale.ROOT, "GATE_QA MSPT %s avg=%.2f max=%.2f ticks=%.0f%n", k, a[0] / a[1], a[2], a[1]));
                 for (int i = 0; i < 4; i++) if (firstFrame[i] >= 0)
                     System.out.printf(Locale.ROOT, "GATE_QA QUADS %s avgPerTick=%.0f max=%d%n", PHASES[i], quadSum[i] / (double) Math.max(1, (lastFrame[i] - firstFrame[i] + 1) * 2), quadMax[i]);
             }
@@ -169,7 +171,11 @@ public final class SilentGateProbe implements ClientModInitializer {
             long ns = times[(int) (t % times.length)];
             boolean setup = label.startsWith("SETUP");
             if (setup) setupPeak = Math.max(setupPeak, ns);
-            else if (ns > msptPeak) { msptPeak = ns; msptAt = label; }
+            else {
+                if (ns > msptPeak) { msptPeak = ns; msptAt = label; }
+                var a = msptPhase.computeIfAbsent(label.split(" ")[0], k -> new double[3]);
+                a[0] += ns / 1e6; a[1]++; a[2] = Math.max(a[2], ns / 1e6);
+            }
             if (ns > 50_000_000L) System.out.printf(Locale.ROOT, "GATE_QA SLOWTICK %.1f ms server tick %d [%s]%n", ns / 1e6, t, label);
         }
         msptSeen = Math.max(msptSeen, now - 1);

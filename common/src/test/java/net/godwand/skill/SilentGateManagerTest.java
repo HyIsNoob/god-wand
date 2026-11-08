@@ -185,4 +185,23 @@ class SilentGateManagerTest {
         SilentGateManager.drain(world);
         assertEquals(once - 768, SilentGateManager.pendingCraters(world));
     }
+
+    @Test void drainDigsWithQuietFlagsAndSkipsUnbreakable() {
+        var stone = net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
+        var bedrock = net.minecraft.world.level.block.Blocks.BEDROCK.defaultBlockState();
+        var rock = new net.minecraft.core.BlockPos(0, 64, 0);
+        when(world.isInWorldBounds(any(net.minecraft.core.BlockPos.class))).thenReturn(true);
+        when(world.hasChunkAt(any(net.minecraft.core.BlockPos.class))).thenReturn(true);
+        when(world.getBlockState(any(net.minecraft.core.BlockPos.class))).thenReturn(bedrock);
+        when(world.getBlockState(rock)).thenReturn(stone);
+        SilentGateManager.queueCrater(world, player(), new Vec3(0.5, 64.5, 0.5), 1);
+        SilentGateManager.budget(88);
+        SilentGateManager.drain(world);
+        int flags = net.minecraft.world.level.block.Block.UPDATE_CLIENTS | net.minecraft.world.level.block.Block.UPDATE_KNOWN_SHAPE
+                | net.minecraft.world.level.block.Block.UPDATE_SUPPRESS_DROPS;
+        verify(world).setBlock(rock, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), flags);
+        verify(world, times(1)).setBlock(any(net.minecraft.core.BlockPos.class), any(), anyInt());
+        verify(world, never()).destroyBlock(any(net.minecraft.core.BlockPos.class), anyBoolean(), any());
+        assertEquals(0, SilentGateManager.pendingCraters(world));
+    }
 }

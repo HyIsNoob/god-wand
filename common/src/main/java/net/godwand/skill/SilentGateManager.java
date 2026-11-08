@@ -15,6 +15,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -280,7 +281,8 @@ public final class SilentGateManager {
                 SpatialDisplacementManager.removeActiveRecord(world.dimension(), pos);
                 removedDisplacement = true;
             }
-            world.destroyBlock(pos, false, queue.breaker);
+            // Same flags as Fuga/Atomic craters: no break level event (64 particles + sound per block on every client), no neighbour-update cascade.
+            world.setBlock(pos, state.getFluidState().createLegacyBlock(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS);
             budget--;
             spendBudget(1);
         }
