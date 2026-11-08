@@ -85,7 +85,8 @@ tasks.register('releaseJars', Copy) {
         names.each { name ->
             if (!new File(collected,name).isFile()) throw new GradleException("Missing release target: ${name}")
         }
-        copy { from names.collect { new File(collected,it) }; into versioned }
+        // -dev builds collect straight into versioned; copying a file onto itself truncates it to 0 bytes.
+        if (versioned != collected) copy { from names.collect { new File(collected,it) }; into versioned }
         copy { from names.findAll { it.contains('-26.3-') }.collect { new File(collected,it) }; into new File(collected,'26.3') }
         copy { from names.findAll { it.contains('-26.1.2-') }.collect { new File(collected,it) }; into new File(collected,'26.1.2') }
         def checksum = { File directory -> names.collect { name ->
