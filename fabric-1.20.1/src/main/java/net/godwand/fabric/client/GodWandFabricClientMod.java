@@ -135,6 +135,11 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             client.execute(() -> net.godwand.client.FugaRenderer.receive(payload));
         });
 
+        ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.SilentGatePayload.ID, (client, handler, buf, responseSender) -> {
+            var payload = net.godwand.network.SilentGatePayload.read(buf);
+            client.execute(() -> net.godwand.client.SilentGateRenderer.receive(payload));
+        });
+
         WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> {
             PoseStack matrices = context.matrixStack();
             Camera camera = context.camera();

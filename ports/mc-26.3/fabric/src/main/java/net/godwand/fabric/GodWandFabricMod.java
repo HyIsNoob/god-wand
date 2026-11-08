@@ -80,6 +80,7 @@ public class GodWandFabricMod implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(DrillWindPayload.ID, DrillWindPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(AtomicFxPayload.ID, AtomicFxPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.SilentGatePayload.ID, net.godwand.network.SilentGatePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.SkillCooldownPayload.ID, net.godwand.network.SkillCooldownPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(SpatialAuraPayload.ID, SpatialAuraPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(CannonPressurePayload.ID, CannonPressurePayload.CODEC);
@@ -88,8 +89,11 @@ public class GodWandFabricMod implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(CinematicFxPayload.ID, CinematicFxPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(SelectSkillPayload.ID, SelectSkillPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(net.godwand.network.AtomicSkipPayload.ID, net.godwand.network.AtomicSkipPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(net.godwand.network.SilentGateCancelPayload.ID, net.godwand.network.SilentGateCancelPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.AtomicSkipPayload.ID, (payload, context) ->
                 context.server().execute(() -> net.godwand.skill.AtomicManager.releaseMovement(context.player(),payload.startedAt())));
+        ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.SilentGateCancelPayload.ID, (payload, context) ->
+                context.server().execute(() -> net.godwand.skill.SilentGateManager.cancelFromClient(context.player(),payload.startedAt())));
 
 
         ServerPlayNetworking.registerGlobalReceiver(SelectSkillPayload.ID, (payload, context) -> {

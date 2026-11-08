@@ -1,0 +1,13 @@
+{
+  "reason": "SilentGateCancelPayload: ResourceLocation renamed to Identifier in mc-26.3",
+  "changes": [
+    {
+      "before": "import net.minecraft.resources.ResourceLocation;",
+      "after": "import net.minecraft.resources.Identifier;"
+    },
+    {
+      "before": "ResourceLocation.fromNamespaceAndPath(\"godwand\",\"silent_gate_cancel\")",
+      "after": "Identifier.fromNamespaceAndPath(\"godwand\",\"silent_gate_cancel\")"
+    }
+  ]
+}

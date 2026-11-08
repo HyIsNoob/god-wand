@@ -1,0 +1,34 @@
+package net.godwand.network;
+import io.netty.buffer.Unpooled;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+class SilentGatePayloadTest {
+ private static SilentGatePayload make(long startedAt,long phaseAt,int phase,double x,int[] shots,double[] hits) {
+  return new SilentGatePayload(7,startedAt,phaseAt,phase,x,64,-3,45.5f,99L,48,200,shots,hits);
+ }
+ @Test void roundTripsThroughCodec() {
+  var buf=new RegistryFriendlyByteBuf(Unpooled.buffer(),RegistryAccess.EMPTY);
+  try { var p=make(100,130,2,1.5,new int[]{0,55,3},new double[]{1,2,3,4,5,6,7,8,9});
+   SilentGatePayload.CODEC.encode(buf,p); var d=SilentGatePayload.CODEC.decode(buf); assertEquals(0,buf.readableBytes());
+   assertEquals(p.casterId(),d.casterId()); assertEquals(p.startedAt(),d.startedAt()); assertEquals(p.phaseAt(),d.phaseAt());
+   assertEquals(p.phase(),d.phase()); assertEquals(p.x(),d.x()); assertEquals(p.y(),d.y()); assertEquals(p.z(),d.z());
+   assertEquals(p.yaw(),d.yaw()); assertEquals(p.seed(),d.seed()); assertEquals(p.skyCircles(),d.skyCircles());
+   assertEquals(p.barrageTicks(),d.barrageTicks()); assertArrayEquals(p.shots(),d.shots()); assertArrayEquals(p.hits(),d.hits());
+  } finally {buf.release();}
+ }
+ @Test void rejectsMalformedLifecycle() {
+  var none=new int[0]; var noHits=new double[0];
+  assertDoesNotThrow(()->make(10,10,4,0,none,noHits));
+  assertThrows(IllegalArgumentException.class,()->make(10,10,5,0,none,noHits));
+  assertThrows(IllegalArgumentException.class,()->make(10,9,0,0,none,noHits));
+  assertThrows(IllegalArgumentException.class,()->make(10,10,0,Double.NaN,none,noHits));
+  assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[]{1},new double[]{1,2}));
+  assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[]{56},new double[]{1,2,3}));
+  assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[]{-1},new double[]{1,2,3}));
+  assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[]{1},new double[]{1,Double.POSITIVE_INFINITY,3}));
+  assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[105],new double[315]));
+  assertDoesNotThrow(()->make(10,10,0,0,new int[104],new double[312]));
+ }
+}

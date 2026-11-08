@@ -78,6 +78,10 @@ public class GodWandFabricMod implements ModInitializer {
             var payload=net.godwand.network.AtomicSkipPayload.read(buf);
             server.execute(() -> net.godwand.skill.AtomicManager.releaseMovement(player,payload.startedAt()));
         });
+        ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.SilentGateCancelPayload.ID, (server,player,handler,buf,responseSender) -> {
+            var payload=net.godwand.network.SilentGateCancelPayload.read(buf);
+            server.execute(() -> net.godwand.skill.SilentGateManager.cancelFromClient(player,payload.startedAt()));
+        });
 
         ServerPlayNetworking.registerGlobalReceiver(SelectSkillPayload.ID, (server, player, handler, buf, responseSender) -> {
             SelectSkillPayload payload = SelectSkillPayload.read(buf);

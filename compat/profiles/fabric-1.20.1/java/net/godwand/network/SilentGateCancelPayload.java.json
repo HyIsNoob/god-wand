@@ -1,0 +1,9 @@
+{
+  "reason": "Silent Gate cancel payload: FriendlyByteBuf write/read and GodWandPacket instead of CustomPacketPayload codec (fabric-1.20.1 network API)",
+  "changes": [
+    {
+      "before": "package net.godwand.network;\n\nimport net.minecraft.network.RegistryFriendlyByteBuf;\nimport net.minecraft.network.codec.StreamCodec;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.resources.ResourceLocation;\n\npublic record SilentGateCancelPayload(long startedAt) implements CustomPacketPayload {\n    public static final Type<SilentGateCancelPayload> ID=new Type<>(ResourceLocation.fromNamespaceAndPath(\"godwand\",\"silent_gate_cancel\"));\n    public static final StreamCodec<RegistryFriendlyByteBuf,SilentGateCancelPayload> CODEC=new StreamCodec<>() {\n        public SilentGateCancelPayload decode(RegistryFriendlyByteBuf buf) { return new SilentGateCancelPayload(buf.readLong()); }\n        public void encode(RegistryFriendlyByteBuf buf,SilentGateCancelPayload value) { buf.writeLong(value.startedAt()); }\n    };\n    public Type<? extends CustomPacketPayload> type() { return ID; }\n}\n",
+      "after": "package net.godwand.network;\n\nimport net.minecraft.network.FriendlyByteBuf;\nimport net.minecraft.resources.ResourceLocation;\n\npublic record SilentGateCancelPayload(long startedAt) implements GodWandPacket {\n    public static final ResourceLocation ID=new ResourceLocation(\"godwand\",\"silent_gate_cancel\");\n    public ResourceLocation getId() { return ID; }\n    public void write(FriendlyByteBuf buf) { buf.writeLong(startedAt); }\n    public static SilentGateCancelPayload read(FriendlyByteBuf buf) { return new SilentGateCancelPayload(buf.readLong()); }\n}\n"
+    }
+  ]
+}

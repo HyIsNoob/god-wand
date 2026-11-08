@@ -114,6 +114,13 @@ public final class GodWandForgeNetwork {
                     handleFuga(payload);
                     ctx.get().setPacketHandled(true);
                 }).add();
+        CHANNEL.messageBuilder(net.godwand.network.SilentGatePayload.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(net.godwand.network.SilentGatePayload::write)
+                .decoder(net.godwand.network.SilentGatePayload::read)
+                .consumerMainThread((payload, ctx) -> {
+                    handleSilentGate(payload);
+                    ctx.get().setPacketHandled(true);
+                }).add();
         CHANNEL.messageBuilder(net.godwand.network.SkillCooldownPayload.class,id++,NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(net.godwand.network.SkillCooldownPayload::write).decoder(net.godwand.network.SkillCooldownPayload::read)
                 .consumerMainThread((payload,ctx)->{handleSkillCooldown(payload);ctx.get().setPacketHandled(true);}).add();
@@ -143,6 +150,14 @@ public final class GodWandForgeNetwork {
                     if(player!=null)ctx.get().enqueueWork(() -> net.godwand.skill.AtomicManager.releaseMovement(player,payload.startedAt()));
                     ctx.get().setPacketHandled(true);
                 }).add();
+        CHANNEL.messageBuilder(net.godwand.network.SilentGateCancelPayload.class, id++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(net.godwand.network.SilentGateCancelPayload::write)
+                .decoder(net.godwand.network.SilentGateCancelPayload::read)
+                .consumerMainThread((payload,ctx) -> {
+                    var player=ctx.get().getSender();
+                    if(player!=null)ctx.get().enqueueWork(() -> net.godwand.skill.SilentGateManager.cancelFromClient(player,payload.startedAt()));
+                    ctx.get().setPacketHandled(true);
+                }).add();
     }
 
     public static void sendToPlayer(ServerPlayer player, GodWandPacket packet) {
@@ -159,6 +174,8 @@ public final class GodWandForgeNetwork {
 
     @OnlyIn(Dist.CLIENT)
     private static void handleFuga(net.godwand.network.FugaFxPayload payload) { net.godwand.client.FugaRenderer.receive(payload); }
+    @OnlyIn(Dist.CLIENT)
+    private static void handleSilentGate(net.godwand.network.SilentGatePayload payload) { net.godwand.client.SilentGateRenderer.receive(payload); }
     private static void handleSkillCooldown(net.godwand.network.SkillCooldownPayload payload) {net.godwand.client.SkillCooldownClient.receive(payload);}
 
     @OnlyIn(Dist.CLIENT)

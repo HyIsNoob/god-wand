@@ -73,6 +73,8 @@ public class GodWandNeoForgeClientMod {
                 (payload, context) -> context.enqueueWork(() -> AtomicRenderer.receive(payload)));
         registrar.playToClient(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC,
                 (payload, context) -> context.enqueueWork(() -> net.godwand.client.FugaRenderer.receive(payload)));
+        registrar.playToClient(net.godwand.network.SilentGatePayload.ID, net.godwand.network.SilentGatePayload.CODEC,
+                (payload, context) -> context.enqueueWork(() -> net.godwand.client.SilentGateRenderer.receive(payload)));
         registrar.playToClient(
                 DrillWindPayload.ID,
                 DrillWindPayload.CODEC,

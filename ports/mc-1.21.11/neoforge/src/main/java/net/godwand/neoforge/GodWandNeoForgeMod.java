@@ -141,6 +141,10 @@ public class GodWandNeoForgeMod {
                 (payload,context) -> context.enqueueWork(() -> {
                     if(context.player() instanceof ServerPlayer player)net.godwand.skill.AtomicManager.releaseMovement(player,payload.startedAt());
                 }));
+        registrar.playToServer(net.godwand.network.SilentGateCancelPayload.ID, net.godwand.network.SilentGateCancelPayload.CODEC,
+                (payload,context) -> context.enqueueWork(() -> {
+                    if(context.player() instanceof ServerPlayer player)net.godwand.skill.SilentGateManager.cancelFromClient(player,payload.startedAt());
+                }));
 
         registrar.playToServer(
                 SelectSkillPayload.ID,
@@ -168,6 +172,7 @@ public class GodWandNeoForgeMod {
             registrar.playToClient(CinematicFxPayload.ID, CinematicFxPayload.CODEC, (payload, context) -> {});
             registrar.playToClient(AtomicFxPayload.ID, AtomicFxPayload.CODEC, (payload, context) -> {});
             registrar.playToClient(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC, (payload, context) -> {});
+            registrar.playToClient(net.godwand.network.SilentGatePayload.ID, net.godwand.network.SilentGatePayload.CODEC, (payload, context) -> {});
             registrar.playToClient(net.godwand.network.SkillCooldownPayload.ID, net.godwand.network.SkillCooldownPayload.CODEC, (payload, context) -> {});
         }
     }

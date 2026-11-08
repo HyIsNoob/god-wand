@@ -80,6 +80,7 @@ public class GodWandFabricMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(DrillWindPayload.ID, DrillWindPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(AtomicFxPayload.ID, AtomicFxPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(net.godwand.network.SilentGatePayload.ID, net.godwand.network.SilentGatePayload.CODEC);
         PayloadTypeRegistry.playS2C().register(net.godwand.network.SkillCooldownPayload.ID, net.godwand.network.SkillCooldownPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(SpatialAuraPayload.ID, SpatialAuraPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(CannonPressurePayload.ID, CannonPressurePayload.CODEC);
@@ -88,8 +89,11 @@ public class GodWandFabricMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(CinematicFxPayload.ID, CinematicFxPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(SelectSkillPayload.ID, SelectSkillPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(net.godwand.network.AtomicSkipPayload.ID, net.godwand.network.AtomicSkipPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(net.godwand.network.SilentGateCancelPayload.ID, net.godwand.network.SilentGateCancelPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.AtomicSkipPayload.ID, (payload, context) ->
                 context.server().execute(() -> net.godwand.skill.AtomicManager.releaseMovement(context.player(),payload.startedAt())));
+        ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.SilentGateCancelPayload.ID, (payload, context) ->
+                context.server().execute(() -> net.godwand.skill.SilentGateManager.cancelFromClient(context.player(),payload.startedAt())));
 
 
         ServerPlayNetworking.registerGlobalReceiver(SelectSkillPayload.ID, (payload, context) -> {
