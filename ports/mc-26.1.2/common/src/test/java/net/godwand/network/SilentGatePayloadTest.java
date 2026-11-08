@@ -31,4 +31,14 @@ class SilentGatePayloadTest {
   assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[105],new double[315]));
   assertDoesNotThrow(()->make(10,10,0,0,new int[104],new double[312]));
  }
+ @Test void featuredTargetRoundTripsAndIsValidated() {
+  var buf=new RegistryFriendlyByteBuf(Unpooled.buffer(),RegistryAccess.EMPTY);
+  try { for(int id:new int[]{-1,0,4711}) {
+    var p=new SilentGatePayload(7,100,130,2,1.5,64,-3,45.5f,99L,48,200,new int[0],new double[0],id);
+    SilentGatePayload.CODEC.encode(buf,p); var d=SilentGatePayload.CODEC.decode(buf);
+    assertEquals(id,d.featured()); assertEquals(0,buf.readableBytes()); }
+   assertEquals(-1,make(10,10,0,0,new int[0],new double[0]).featured(),"old constructor means none");
+  } finally {buf.release();}
+  assertThrows(IllegalArgumentException.class,()->new SilentGatePayload(7,100,130,2,1.5,64,-3,45.5f,99L,48,200,new int[0],new double[0],-2));
+ }
 }
