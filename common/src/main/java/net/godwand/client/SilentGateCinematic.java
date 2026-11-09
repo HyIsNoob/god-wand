@@ -132,7 +132,7 @@ public final class SilentGateCinematic {
         return c <= end ? shot : blend(shot, new AtomicCinematic.Pose(player.add(0, 1.62, 0), yaw, pitch), smooth(c, end, end + SilentGateSequence.RETURN_TICKS));
     }
 
-    // ---- BUILD shot table ----------------------------------------------------------------------------------------
+    // ---- shot tables ---------------------------------------------------------------------------------------------
     /** How a shot's progress u (0..1) follows its time k (0..1): one curve per shot, never a default symmetric ease-in-out. */
     enum Curve {
         /** Camera does not move; the subject does. */
@@ -154,108 +154,144 @@ public final class SilentGateCinematic {
             };
         }
     }
-    /** Cast geometry shared by every shot: caster, forward/right, the landed gate foot, the door centre. */
-    record Rig(Vec3 a, Vec3 f, Vec3 r, float yaw) {
-        Rig(Vec3 anchor, float yaw) { this(anchor, Vec3.directionFromRotation(0, yaw), Vec3.directionFromRotation(0, yaw).cross(UP), yaw); }
+    /** Cast geometry shared by every shot: caster, forward/right, the landed gate, the live ground, the barrage's recent hits and tracked target. */
+    record Rig(Vec3 a, Vec3 f, Vec3 r, float yaw, long seed, int sky, ToDoubleBiFunction<Double, Double> ground, List<Shot> shots, Vec3 focus) {
+        Rig(Frame fr, ToDoubleBiFunction<Double, Double> ground, List<Shot> shots, Vec3 focus) {
+            this(fr.anchor(), Vec3.directionFromRotation(0, fr.yaw()), Vec3.directionFromRotation(0, fr.yaw()).cross(UP), fr.yaw(), fr.seed(), fr.skyCircles(), ground, shots, focus);
+        }
         Vec3 foot() { return SilentGateSequence.gateFoot(a, yaw, 0); }
         Vec3 slit() { return SilentGateSequence.gateFoot(a, yaw, 1); }
         Vec3 door() { return SilentGateSequence.doorCenter(a, yaw); }
         /** Point at {@code fwd} blocks forward, {@code right} to the right and {@code up} above the caster's feet. */
         Vec3 rel(double fwd, double right, double up) { return a.add(f.scale(fwd)).add(r.scale(right)).add(0, up, 0); }
+        /** {@code p} lifted to at least {@code clearance} above the live surface under it. */
+        Vec3 above(Vec3 p, double clearance) {
+            double floor = ground.applyAsDouble(p.x, p.z) + clearance;
+            return p.y < floor ? new Vec3(p.x, floor, p.z) : p;
+        }
     }
-    /** Pose at progress {@code u}; {@code t} is the cast age for effects that run on the clock (shake, look-up). */
+    /** Pose at progress {@code u}; {@code t} is the clock of the table (cast age for the build, ticks after the barrage for the ending). */
     @FunctionalInterface interface Path { AtomicCinematic.Pose at(Rig g, double u, double t); }
-    /** One shot: ticks [t0, t1) from click 1, a curve and a path. */
+    /** One shot: ticks [t0, t1), a curve and a path. */
     record Cut(String name, int t0, int t1, Curve curve, Path path) {
-        AtomicCinematic.Pose at(Rig g, double age) { return path.at(g, curve.u((age - t0) / (t1 - t0)), age); }
+        AtomicCinematic.Pose at(Rig g, double t) { return path.at(g, curve.u((t - t0) / (t1 - t0)), t); }
     }
     private static Path line(java.util.function.Function<Rig, Vec3> p0, java.util.function.Function<Rig, Vec3> p1,
             java.util.function.Function<Rig, Vec3> l0, java.util.function.Function<Rig, Vec3> l1) {
         return (g, u, t) -> look(p0.apply(g).lerp(p1.apply(g), u), l0.apply(g).lerp(l1.apply(g), u));
     }
-    /** Camera tremble from the stuck doors, and the jolt when they meet the stops at tick 285. */
+    /** Camera tremble from the stuck doors, and the jolt when they meet the stops. */
     static Vec3 rattle(double t) {
         double shake = SilentGateSequence.gateShake(t), d = t - SilentGateSequence.OPEN_END;
         double jolt = d >= 0 ? .8 * Math.exp(-d / 4) * Math.sin(1.4 * d) : 0;
         return new Vec3(shake * .35 * Math.sin(t * 1.7 + 1), shake * .5 * Math.sin(t * 2.3) + jolt, shake * .25 * Math.sin(t * 1.3 + 2));
     }
-    /** The ten shots of the build (plan 2026-11-09-silent-gate-cinematography.md), authored for BUILD_TICKS = 360. */
+    private static double alt(Rig g) { return SilentGateSequence.circleAltitude(g.a().y); }
+
+    /** The ten shots of the build (BUILD_TICKS = 480, every shot at least 2 s, S9 2.5 s). */
     static final List<Cut> CUTS = List.of(
         // S1 eyes open, wand floating, mana drifting past: first person, barely moving.
-        new Cut("S1", 0, 20, Curve.LINEAR, line(g -> g.rel(.1, 0, 1.45), g -> g.rel(.25, 0, 1.45), g -> g.rel(8, 0, 1.35), g -> g.rel(8, 0, 1.35))),
+        new Cut("S1", 0, 40, Curve.LINEAR, line(g -> g.rel(.1, 0, 1.45), g -> g.rel(.25, 0, 1.45), g -> g.rel(8, 0, 1.35), g -> g.rel(8, 0, 1.35))),
         // S2 the wand spins round the hand: a steady sideways drift in front of the caster.
-        new Cut("S2", 20, 45, Curve.LINEAR, line(g -> g.rel(3, 2.8, .9), g -> g.rel(3, .5, 1.1), g -> g.rel(-.2, 0, 1.35), g -> g.rel(-.2, 0, 1.35))),
+        new Cut("S2", 40, 80, Curve.LINEAR, line(g -> g.rel(3, 2.8, .9), g -> g.rel(3, .5, 1.1), g -> g.rel(-.2, 0, 1.35), g -> g.rel(-.2, 0, 1.35))),
         // S3 "shh": push in on the face, a long ease-out tail.
-        new Cut("S3", 45, 80, Curve.EASE_OUT_LONG, line(g -> g.rel(2.4, .9, 1.45), g -> g.rel(1.1, .35, 1.6), g -> g.rel(0, 0, 1.62), g -> g.rel(0, 0, 1.62))),
-        // S4 the great circle writes itself: low, looking up, turning steadily (0.57 deg/tick) about the vertical axis.
-        new Cut("S4", 80, 130, Curve.LINEAR, (g, u, t) -> {
-            double th = -.25 + .5 * u, alt = SilentGateSequence.circleAltitude(g.a().y);
+        new Cut("S3", 80, 120, Curve.EASE_OUT_LONG, line(g -> g.rel(2.4, .9, 1.45), g -> g.rel(1.1, .35, 1.6), g -> g.rel(0, 0, 1.62), g -> g.rel(0, 0, 1.62))),
+        // S4 the great circle writes itself (120..168, then a hold): low, looking up, turning steadily (0.57 deg/tick) about the vertical axis.
+        new Cut("S4", 120, 170, Curve.LINEAR, (g, u, t) -> {
+            double th = -.25 + .5 * u;
             Vec3 pos = g.a().add(g.f().scale(-Math.cos(th) * 14)).add(g.r().scale(Math.sin(th) * 14)).add(0, 1.8, 0);
-            return look(pos, g.rel(100, 0, alt * .7));
+            return look(pos, g.rel(100, 0, alt(g) * .7));
         }),
         // S5 the slit opens: close to its edge, drifting up along it.
-        new Cut("S5", 130, 150, Curve.LINEAR, line(g -> g.slit().add(g.f().scale(-22)).add(g.r().scale(4)).add(0, 10, 0), g -> g.slit().add(g.f().scale(-22)).add(g.r().scale(4)).add(0, 70, 0),
+        new Cut("S5", 170, 210, Curve.LINEAR, line(g -> g.slit().add(g.f().scale(-22)).add(g.r().scale(4)).add(0, 10, 0), g -> g.slit().add(g.f().scale(-22)).add(g.r().scale(4)).add(0, 70, 0),
                 g -> g.slit().add(0, 16, 0), g -> g.slit().add(0, 76, 0))),
-        // S6 the gate comes out and falls: the camera is still beside the path of the spike and the columns, looking up, and eases its gaze up at the end.
-        new Cut("S6", 150, 190, Curve.STATIC, (g, u, t) -> look(g.foot().add(g.f().scale(-40)).add(g.r().scale(9)).add(0, 25, 0),
-                g.foot().add(0, 60 + 36 * smooth(t, 175, 190), 0))),
-        // S7 the stop, extreme wide: the caster is a speck; the camera recoils on the touchdown (spring), the shockwave runs through it.
-        new Cut("S7", 190, 215, Curve.SPRING, line(g -> g.rel(-115, 30, 4), g -> g.rel(-119, 30, 1), g -> g.foot().add(0, 85, 0), g -> g.foot().add(0, 85, 0))),
-        // S8 the doors push open: a slow, steady turn round them (0.6 deg/tick), ending dead frontal; stuck tremble and the closing jolt ride on top.
-        new Cut("S8", 215, 290, Curve.LINEAR, (g, u, t) -> {
+        // S6 the gate comes out (210) and falls (to 248): the camera is still beside the path of the spike and the columns, looking up, and eases its gaze up at the end.
+        new Cut("S6", 210, 250, Curve.STATIC, (g, u, t) -> look(g.foot().add(g.f().scale(-40)).add(g.r().scale(9)).add(0, 25, 0),
+                g.foot().add(0, 60 + 36 * smooth(t, 235, 250), 0))),
+        // S7 the stop (248), the settle and the shockwave (274), extreme wide: the camera recoils on the touchdown (spring).
+        new Cut("S7", 250, 290, Curve.SPRING, line(g -> g.rel(-115, 30, 4), g -> g.rel(-119, 30, 1), g -> g.foot().add(0, 60, 0), g -> g.foot().add(0, 60, 0))),
+        // S8 the doors push open (stuck 292, parting 316, heavy stop 392): a slow, steady turn round them (0.5 deg/tick) ending dead frontal; tremble on top.
+        new Cut("S8", 290, 380, Curve.LINEAR, (g, u, t) -> {
             double th = -.8 + .8 * u;
             Vec3 door = g.door(), rock = rattle(t);
             Vec3 pos = door.add(g.f().scale(-Math.cos(th) * 46)).add(g.r().scale(Math.sin(th) * 46)).add(0, -10, 0).add(rock);
             return look(pos, door.add(0, -4, 0));
         }),
-        // S9 the doors' gap to the sky: the camera darts out of the doorway along the lane the small circles bloom along, accelerating to the cut.
-        new Cut("S9", 290, 330, Curve.EASE_IN, (g, u, t) -> look(SilentGateSequence.flight(g.a(), g.yaw(), u),
+        // S9 the doors' gap to the sky: the camera darts out of the doorway along the lane the small circles bloom along, accelerating to the cut; the stop jolt rings in it.
+        new Cut("S9", 380, 430, Curve.EASE_IN, (g, u, t) -> look(SilentGateSequence.flight(g.a(), g.yaw(), u).add(rattle(t)),
                 SilentGateSequence.flight(g.a(), g.yaw(), Math.min(1.08, u + .08)).add(0, 3, 0))),
-        // S10 the scale: the same motion keeps going (matched speed) and dies away very slowly; extreme wide, high, gate, caster and circles.
-        new Cut("S10", 330, 360, Curve.EASE_OUT_LONG, (g, u, t) -> {
-            Vec3 p0 = SilentGateSequence.flight(g.a(), g.yaw(), 1), p1 = p0.add(g.f().scale(-90)).add(0, 6, 0);
-            return look(p0.lerp(p1, u), g.rel(110, 0, 85));
+        // S10 the scale: the same motion keeps going (matched speed) and dies away very slowly; extreme wide: gate, caster and circles.
+        new Cut("S10", 430, 480, Curve.EASE_OUT_LONG, (g, u, t) -> {
+            Vec3 p0 = SilentGateSequence.flight(g.a(), g.yaw(), 1), p1 = p0.add(g.f().scale(-120)).add(0, 6, 0);
+            return look(p0.lerp(p1, u), g.rel(110, 0, 100));
         }));
+
+    /** The ten barrage shots authored for a 200 tick barrage (ticks after the command, scaled with the barrage length) and their curves. */
+    static final List<Cut> BARRAGE = List.of(
+        // B1 low wide rain under the formation, a slow dolly forward.
+        new Cut("B1 rain", 12, 48, Curve.LINEAR, (g, u, t) -> look(g.rel(-6 + 24 * u, 10 - 6 * u, 2.5), g.rel(110 + 30 * u, 0, 120))),
+        // B2 dive: down from a sky circle toward the ground it fires at, accelerating.
+        new Cut("B2 dive", 48, 84, Curve.EASE_IN, (g, u, t) -> {
+            Vec3 circle = SilentGateSequence.skyCircle(g.a(), g.yaw(), g.seed(), 4, g.sky());
+            double gy = g.ground().applyAsDouble(circle.x, circle.z);
+            if (!Double.isFinite(gy)) gy = g.a().y;
+            Vec3 p0 = circle.add(g.f().scale(-12)).add(0, 12, 0), p1 = new Vec3(p0.x, gy + 8, p0.z);
+            return look(p0.lerp(p1, u), new Vec3(circle.x + g.f().x * 30, gy + 3, circle.z + g.f().z * 30));
+        }),
+        // B3 the featured kill close-up: 5.5 blocks from the target, 20 degree orbit.
+        new Cut("B3 kill", 84, 134, Curve.LINEAR, (g, u, t) -> killShot(g.a(), g.f(), g.shots(), g.focus(), u, g.ground())),
+        // B4 ground tracking: low, moving past the impacts of the field, looking ahead and to the left.
+        new Cut("B4 track", 134, 170, Curve.LINEAR, (g, u, t) -> look(g.above(g.rel(30 + 90 * u, 28, 4), 3), g.rel(55 + 90 * u, -20, 7))),
+        // B5 high wide, sinking slowly: caster and arc small at the bottom, the field and beams across the middle, the gate above the horizon.
+        new Cut("B5 high", 170, 212, Curve.LINEAR, (g, u, t) -> look(g.rel(-125 + 10 * u, 25, 140 - 40 * u), g.rel(110, 0, 70))));
+
+    /** The ending (ticks after the barrage): doors close, circles retract, the gate climbs into the great circle, which unwrites. */
+    static final List<Cut> ENDING = List.of(
+        // E1 medium on the doors as they close heavily.
+        new Cut("E1 doors", 0, 40, Curve.LINEAR, (g, u, t) -> look(g.door().add(g.f().scale(-66)).add(g.r().scale(14 - 8 * u)).add(0, -34, 0), g.door().add(0, -4, 0))),
+        // E2 wide while the small circles retract toward the gate.
+        new Cut("E2 retract", 40, 80, Curve.EASE_OUT_LONG, line(g -> g.rel(-110, 35, 45), g -> g.rel(-120, 35, 50), g -> g.rel(70, 0, 150), g -> g.rel(70, 0, 150))),
+        // E3 low, looking up as the gate climbs into the great circle (the gaze follows it).
+        new Cut("E3 ascend", 80, 125, Curve.LINEAR, (g, u, t) -> look(g.above(g.rel(105, 30, 3), 2),
+                SilentGateSequence.gateFoot(g.a(), g.yaw(), SilentGateSequence.gateRise(t)).add(0, 96, 0))),
+        // E4 wide as the great circle fades, drifting back very slowly.
+        new Cut("E4 fade", 125, 160, Curve.EASE_OUT_LONG, line(g -> g.rel(-95, 10, 75), g -> g.rel(-110, 10, 85), g -> g.rel(144, 0, alt(g) * .9), g -> g.rel(144, 0, alt(g) * .9))));
 
     /** The waiting frame: medium, in front of the caster pointing at the sky, the circle behind them, breathing very slowly. */
     private static AtomicCinematic.Pose waitShot(Rig g, double t) {
         double w = smooth(t, 0, 20);
         Vec3 breath = g.r().scale(Math.sin(t * .045) * .15 * w).add(0, Math.sin(t * .07) * .2 * w, 0);
-        return look(g.rel(6.2, 3.2, 1.1).add(breath), g.rel(0, 0, 2.9));
+        return look(g.rel(6.2, 3.2, 1.1).add(breath), g.rel(-4, 0, 9));
     }
 
     static AtomicCinematic.Pose buildShot(Frame frame, double age) {
-        Rig g = new Rig(frame.anchor(), frame.yaw());
+        Rig g = new Rig(frame, NO_GROUND, List.of(), null);
         if (age >= SilentGateSequence.BUILD_TICKS) return waitShot(g, age - SilentGateSequence.BUILD_TICKS);
         for (Cut c : CUTS) if (age < c.t1()) return c.at(g, Math.max(age, c.t0()));
         return waitShot(g, 0);
     }
 
-    /** Shot boundaries inside the barrage (authored for 200 ticks, scaled like every barrage shot): wave, rain, kill, scale, wide finish. */
+    /** Shot boundaries inside the barrage (authored for 200 ticks, scaled like every barrage shot): rain, dive, kill, tracking, high wide, then the barrage's end. */
     static int[] boundaries(int barrageTicks) {
-        return new int[]{SilentGateSequence.shotTick(12, barrageTicks), SilentGateSequence.shotTick(60, barrageTicks), SilentGateSequence.shotTick(125, barrageTicks),
-                SilentGateSequence.shotTick(165, barrageTicks), SilentGateSequence.endTick(barrageTicks)};
+        return new int[]{SilentGateSequence.shotTick(48, barrageTicks), SilentGateSequence.shotTick(84, barrageTicks), SilentGateSequence.shotTick(134, barrageTicks),
+                SilentGateSequence.shotTick(170, barrageTicks), SilentGateSequence.ACTIVATE_TICKS + barrageTicks};
     }
 
     private static AtomicCinematic.Pose barrageShot(Frame frame, double c, List<Shot> shots, ToDoubleBiFunction<Double, Double> ground, Vec3 focus) {
         int[] b = boundaries(frame.barrageTicks());
-        int s12 = b[0], s60 = b[1], s125 = b[2], s165 = b[3], end = b[4];
-        Vec3 a = frame.anchor(), f = Vec3.directionFromRotation(0, frame.yaw()), r = f.cross(UP);
-        if (c < s12) return buildShot(frame, frame.age());
-        if (c < s60) {
-            // Low wide rain under the formation, a slow dolly forward.
-            double t = smooth(c, s12, s60);
-            return look(a.add(f.scale(-6 + 40 * t)).add(r.scale(10 - 8 * t)).add(0, 2.5, 0), a.add(f.scale(110 + 40 * t)).add(0, 120, 0));
+        Rig g = new Rig(frame, ground, shots, focus);
+        if (c < SilentGateSequence.ACTIVATE_TICKS) return buildShot(frame, frame.age());
+        if (c >= b[4]) {
+            double e = c - b[4];
+            for (Cut cut : ENDING) if (e < cut.t1()) return cut.at(g, Math.max(e, cut.t0()));
+            return ENDING.get(ENDING.size() - 1).at(g, ENDING.get(ENDING.size() - 1).t1());
         }
-        if (c < s125) return killShot(a, f, shots, focus, smooth(c, s60, s125), ground);
-        if (c < s165) {
-            // High oblique view from behind the caster, sinking slowly: caster and arc small at the bottom, the crater field and beams
-            // across the middle, the gate and its circle above the horizon.
-            double t = smooth(c, s125, s165);
-            return look(a.add(f.scale(-125 + 10 * t)).add(r.scale(25)).add(0, 140 - 40 * t, 0), a.add(f.scale(110)).add(0, 70, 0));
+        int bt = frame.barrageTicks();
+        for (Cut cut : BARRAGE) {
+            int t0 = SilentGateSequence.shotTick(cut.t0(), bt), t1 = SilentGateSequence.shotTick(cut.t1(), bt);
+            if (c < t1) return cut.path().at(g, cut.curve().u((c - t0) / (double) (t1 - t0)), c);
         }
-        double t = smooth(c, s165, end);
-        return look(a.add(f.scale(-14 - 6 * t)).add(r.scale(3)).add(0, 3.2 + 2 * t, 0), a.add(f.scale(100)).add(0, 130, 0));
+        return BARRAGE.get(BARRAGE.size() - 1).path().at(g, 1, c);
     }
 
     /** Kill close-up: {@value #KILL_DISTANCE} blocks from the target on the caster's side, just above its feet, looking up past it so the beams fall into the frame; 20 degree orbit. */

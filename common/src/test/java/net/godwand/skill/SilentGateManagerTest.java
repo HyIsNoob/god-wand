@@ -24,10 +24,10 @@ class SilentGateManagerTest {
 
     // ---- pure transitions ----
     @Test void phasesFollowTheClocks() {
-        assertEquals(BUILD, SilentGateManager.next(BUILD, 359, false, 300, 200));
-        assertEquals(WAIT, SilentGateManager.next(BUILD, 360, false, 300, 200));
-        assertEquals(WAIT, SilentGateManager.next(WAIT, 659, false, 300, 200));
-        assertEquals(BARRAGE, SilentGateManager.next(WAIT, 660, false, 300, 200));
+        assertEquals(BUILD, SilentGateManager.next(BUILD, 479, false, 300, 200));
+        assertEquals(WAIT, SilentGateManager.next(BUILD, 480, false, 300, 200));
+        assertEquals(WAIT, SilentGateManager.next(WAIT, 779, false, 300, 200));
+        assertEquals(BARRAGE, SilentGateManager.next(WAIT, 780, false, 300, 200));
         assertEquals(BARRAGE, SilentGateManager.next(WAIT, 310, true, 300, 200));
         assertEquals(BARRAGE, SilentGateManager.next(BARRAGE, 211, true, 300, 200));
         assertEquals(END, SilentGateManager.next(BARRAGE, 212, true, 300, 200));
@@ -83,7 +83,7 @@ class SilentGateManagerTest {
         assertTrue(SilentGateManager.click(p, InteractionHand.MAIN_HAND));
         assertFalse(SilentGateManager.click(p, InteractionHand.MAIN_HAND), "BUILD ignores click 2");
         assertEquals(BUILD.ordinal(), lastPhase());
-        tickTo(1360);
+        tickTo(1480);
         assertEquals(WAIT.ordinal(), lastPhase());
         assertTrue(SilentGateManager.click(p, InteractionHand.MAIN_HAND), "WAIT click commands");
         assertEquals(BARRAGE.ordinal(), lastPhase());
@@ -96,15 +96,15 @@ class SilentGateManagerTest {
         SilentGateManager.click(p, InteractionHand.MAIN_HAND);
         assertTrue(SilentGateManager.movementLocked(p));
         assertTrue(SilentGateManager.invulnerable(p));
-        tickTo(1360);
+        tickTo(1480);
         assertTrue(SilentGateManager.movementLocked(p));
         SilentGateManager.click(p, InteractionHand.MAIN_HAND);
         assertFalse(SilentGateManager.movementLocked(p));
         assertTrue(SilentGateManager.invulnerable(p));
-        tickTo(1360 + 12 + 200);
+        tickTo(1480 + 12 + 200);
         assertEquals(END.ordinal(), lastPhase());
         assertTrue(SilentGateManager.invulnerable(p));
-        tickTo(1360 + SilentGateSequence.endTick(200) + SilentGateSequence.RETURN_TICKS);
+        tickTo(1480 + SilentGateSequence.endTick(200) + SilentGateSequence.RETURN_TICKS);
         assertFalse(SilentGateManager.invulnerable(p));
         cooldowns.verify(() -> SkillCooldowns.start(eq(p), eq(7), anyInt()));
     }
@@ -130,11 +130,11 @@ class SilentGateManagerTest {
         var waiting = player();
         sent.clear(); now[0] = 1000;
         SilentGateManager.click(waiting, InteractionHand.MAIN_HAND);
-        tickTo(1360);
+        tickTo(1480);
         var empty = mock(ItemStack.class);
         when(waiting.getItemInHand(any())).thenReturn(empty);
         modes.when(() -> GodWandItem.getSkillMode(empty)).thenReturn(0);
-        tickTo(1361);
+        tickTo(1481);
         assertEquals(SilentGatePayload.CANCEL, lastPhase());
         assertFalse(SilentGateManager.invulnerable(waiting));
         cooldowns.verify(() -> SkillCooldowns.start(eq(waiting), eq(7), anyInt()));
@@ -158,7 +158,7 @@ class SilentGateManagerTest {
         assertFalse(SilentGateManager.invulnerable(p));
         assertEquals(SilentGatePayload.CANCEL, lastPhase());
         SilentGateManager.click(p, InteractionHand.MAIN_HAND);
-        tickTo(1360); SilentGateManager.click(p, InteractionHand.MAIN_HAND);
+        tickTo(1480); SilentGateManager.click(p, InteractionHand.MAIN_HAND);
         SilentGateManager.cancelFromClient(p, 1000);
         assertTrue(SilentGateManager.invulnerable(p), "barrage cannot be cancelled by the client");
     }

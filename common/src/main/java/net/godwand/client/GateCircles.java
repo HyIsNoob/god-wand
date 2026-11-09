@@ -29,27 +29,34 @@ final class GateCircles {
     /** Altitude the circle hangs at relative to the anchor; shared by every layer. */
     static Vec3 center(Vec3 anchor, Vec3 gate) { return new Vec3(gate.x, anchor.y + SilentGateSequence.circleAltitude(anchor.y), gate.z); }
 
-    static void great(Ctx c, Vec3 anchor, Vec3 gate, double age, double endK) {
+    /** Cast tick to circle clock (authored for a 64 tick write from 80): the write fills ticks 120..168, a short hold follows, then it runs on. */
+    static double clock(double age) { return age < 120 ? 0 : age < 168 ? 80 + (age - 120) * 4 / 3 : 144 + (age - 168); }
+
+    /** {@code e}: ticks after the barrage (-1 before): the tiers unwrite from the outside in, the seal last, and the light fades with them. */
+    static void great(Ctx c, Vec3 anchor, Vec3 gate, double age, double e) {
         if (age < SEAL_START) return;
+        double endK = e < 0 ? 0 : smooth((e - 100) / 60);
         Vec3 ctr = center(anchor, gate);
-        double shrink = 1 - .92 * smooth(endK), breath = 1 + .1 * Math.sin(age * .09);
+        double shrink = 1, breath = (1 + .1 * Math.sin(age * .09));
         double lastWrite = 0;
-        seal(c, ctr, age, shrink, breath);
-        for (int i = 0; i < TIERS.length; i++) lastWrite = Math.max(lastWrite, tier(c, ctr, TIERS[i], i, age, shrink, breath));
+        seal(c, ctr, age, shrink, breath, unwrite(e, 4));
+        for (int i = 0; i < TIERS.length; i++) lastWrite = Math.max(lastWrite, tier(c, ctr, TIERS[i], i, age, shrink, breath, unwrite(e, 3 - i)));
         if (c.glow()) {
             // Wide faint disc of light above the circle, and the shafts it throws down once the gate arrives.
-            fan(c, ctr.add(0, 6 * S, 0), 70 * S * shrink, GLOW_BLUE, .15 * smooth((age - SEAL_START) / 40) * breath);
-            shafts(c, ctr, age, shrink);
+            fan(c, ctr.add(0, 6 * S, 0), 70 * S * shrink, GLOW_BLUE, .15 * smooth((age - SEAL_START) / 40) * breath * (1 - endK));
+            shafts(c, ctr, age, shrink * (1 - endK));
         }
-        if (c.body()) underlay(c, ctr, 58 * S * shrink, smooth((age - SEAL_START) / 60));
-        flash(c, ctr, endK);
+        if (c.body()) underlay(c, ctr, 58 * S * shrink, smooth((age - SEAL_START) / 60) * (1 - endK));
     }
+
+    /** 0..1: how far the k-th ring from the outside (0) to the seal (4) has been unwritten {@code e} ticks into the ending. */
+    private static double unwrite(double e, int k) { return e < 0 ? 0 : smooth((e - 108 - 7 * k) / 20); }
 
     /** Fresh-ink brightness: strong at the writing head, gone a moment after the stroke has passed. */
     private static double ink(double head, double theta, double live) { return live * Math.exp(-(head - theta) / .45); }
 
-    private static void seal(Ctx c, Vec3 ctr, double age, double shrink, double breath) {
-        double reveal = smooth((age - SEAL_START) / WRITE_TICKS);
+    private static void seal(Ctx c, Vec3 ctr, double age, double shrink, double breath, double unwrite) {
+        double reveal = Math.min(smooth((age - SEAL_START) / WRITE_TICKS), 1 - unwrite);
         if (reveal <= 0) return;
         double head = reveal * (TAU + .6), spin = Math.toRadians(SEAL_SPEED * age), live = 1 - smooth((reveal - .92) / .08);
         int n = 6;
@@ -74,8 +81,8 @@ final class GateCircles {
     }
 
     /** Draws one ring; returns its reveal so the caller can tell whether anything is still being written. */
-    private static double tier(Ctx c, Vec3 ctr, Tier t, int index, double age, double shrink, double breath) {
-        double reveal = smooth((age - t.start()) / WRITE_TICKS);
+    private static double tier(Ctx c, Vec3 ctr, Tier t, int index, double age, double shrink, double breath, double unwrite) {
+        double reveal = Math.min(smooth((age - t.start()) / WRITE_TICKS), 1 - unwrite);
         if (reveal <= 0) return 0;
         double head = reveal * (TAU + EDGE), live = 1 - smooth((reveal - .92) / .08);
         double spin = Math.toRadians(t.speed() * age), step = TAU / SEGMENTS;

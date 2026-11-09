@@ -225,27 +225,29 @@ public final class SilentGateRenderer {
                 || !Double.isFinite(eye.x + eye.y + eye.z)) return 0;
         Ctx c = new Ctx(); c.v = v; c.m = m; c.eye = eye; c.layer = layer; c.gain = layer == 1 ? GLOW_GAIN : 1; c.solidOnly = solidOnly;
         int endStart = SilentGateSequence.ACTIVATE_TICKS + f.barrageTicks();
-        if (f.commandAge() >= endStart) c.fade = clamp01(1 - (f.commandAge() - endStart) / SilentGateSequence.ENDING_TICKS);
+        // Ending ticks after the barrage (-1 before); everything dims only in the last 25 ticks, the sequence itself is staged by e.
+        double e = f.commandAge() >= endStart ? f.commandAge() - endStart : -1;
+        if (e >= 0) c.fade = clamp01(1 - smooth((e - (SilentGateSequence.ENDING_TICKS - 25)) / 25));
         if (c.fade <= 0) return 0;
         double age = f.age();
         Vec3 anchor = f.anchor();
         Vec3 gate = SilentGateSequence.gateCenter(anchor, f.yaw());
-        double endK = f.commandAge() >= endStart ? clamp01((f.commandAge() - endStart) / SilentGateSequence.ENDING_TICKS) : 0;
+        double endK = e >= 0 ? clamp01(e / SilentGateSequence.ENDING_TICKS) : 0;
         if (solidOnly) {
-            gate(c, anchor, f.yaw(), age, f.commandAge(), endK);
+            gate(c, anchor, f.yaw(), age, f.commandAge(), e);
             return c.quads;
         }
         GateSky.dome(c, gate, age);
         GateSky.clouds(c, GateCircles.center(anchor, gate), age, endK);
-        GateCircles.great(c, anchor, gate, age, endK);
+        GateCircles.great(c, anchor, gate, GateCircles.clock(age), e);
         int count = Math.max(0, Math.min(f.skyCircles(), 256)), sky = SilentGateSequence.skyTotal(count);
         double wave = f.commandAge() >= 0 ? f.commandAge() * GateMinor.WAVE_SPEED : -1;
         for (int i = 0; i < sky; i++)
-            GateMinor.sky(c, SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), i, count), i, age, SilentGateSequence.circleBorn(i, count, f.seed()), gate, wave);
+            GateMinor.sky(c, SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), i, count), i, age, SilentGateSequence.circleBorn(i, count, f.seed()), gate, wave, e);
         for (int i = 0; i < SilentGateSequence.GROUND_RING; i++)
-            GateMinor.ground(c, SilentGateSequence.groundCircle(anchor, f.yaw(), i), anchor, i, age, SilentGateSequence.groundCircleGold(i), gate, wave);
+            GateMinor.ground(c, SilentGateSequence.groundCircle(anchor, f.yaw(), i), anchor, i, age, SilentGateSequence.groundCircleGold(i), gate, wave, e);
         GateMinor.wave(c, gate, f.yaw(), wave);
-        gate(c, anchor, f.yaw(), age, f.commandAge(), endK);
+        gate(c, anchor, f.yaw(), age, f.commandAge(), e);
         // Beams from circle to hit point, alive for BEAM_TICKS.
         double now = f.startedAt() + age;
         for (Shot s : shots) {
@@ -268,32 +270,39 @@ public final class SilentGateRenderer {
     /** Quads of the last emitted cast (dev statistic read by the QA probe). */
     public static volatile int lastQuads;
 
-    /** The gate: slit it climbs out of (140-200), descent wind and dust, the sculpted model, then shockwave, pressure rings and the opening light. */
-    private static void gate(Ctx c, Vec3 anchor, float yaw, double age, double commandAge, double endK) {
-        double descent = SilentGateSequence.gateDescent(age);
-        // Ending: the leaves close first, then the gate climbs back into the slit and fades there.
-        double rise = smooth((endK - .2) / .55), fadeOut = clamp01(4 * (1 - endK));
+    /** The gate: slit it climbs out of, descent wind and dust, the sculpted model, shockwave, pressure rings and the opening light; in the ending
+     *  (e = ticks after the barrage) the doors close, the gate climbs back into the slit and on into the great circle. */
+    private static void gate(Ctx c, Vec3 anchor, float yaw, double age, double commandAge, double e) {
+        double endK = e < 0 ? 0 : clamp01(e / SilentGateSequence.ENDING_TICKS);
+        double descent = SilentGateSequence.gateDescent(age), rise = e < 0 ? 0 : SilentGateSequence.gateRise(e);
+        double fadeOut = e < 0 ? 1 : 1 - smooth((rise - 1.15) / .9);
         double appear = smooth((age - SilentGateSequence.DESCENT_START) / 8);
-        double slit = Math.max(smooth((age - 128) / 14) * (1 - smooth((age - 176) / 14)), Math.sin(Math.PI * clamp01((endK - .1) / .8)));
+        double slit = e < 0 ? smooth((age - 166) / 20) * (1 - smooth((age - 232) / 20)) : Math.sin(Math.PI * clamp01((e - 70) / 60));
         Vec3 start = SilentGateSequence.gateFoot(anchor, yaw, 1);
         GateFx.Pose slitPose = GateFx.Pose.of(start, yaw);
-        if (!c.solidOnly) GateFx.slit(c, slitPose, age < 128 && endK <= 0 ? 0 : slit, SilentGateSequence.GATE_HEIGHT + 20);
+        if (!c.solidOnly) GateFx.slit(c, slitPose, slit, SilentGateSequence.GATE_HEIGHT + 20);
         if (appear <= 0 || fadeOut <= 0) return;
         double saved = c.fade;
-        c.fade = saved * appear * (endK > 0 ? Math.min(1, fadeOut) : 1);
+        c.fade = saved * appear * fadeOut;
         // The stuck doors shudder the whole gate a little.
-        double shake = SilentGateSequence.gateShake(age) * (1 - smooth(endK / .2));
+        double shake = e < 0 ? SilentGateSequence.gateShake(age) : 0;
         GateFx.Pose pose = GateFx.Pose.of(SilentGateSequence.gateFoot(anchor, yaw, descent + rise).add(0, shake * Math.sin(age * 2.3), 0), yaw);
         double speed = (SilentGateSequence.gateDescent(age - .5) - SilentGateSequence.gateDescent(age + .5)) * SilentGateSequence.GATE_DROP;
-        double open = SilentGateSequence.gateOpen(age) * (1 - smooth(endK / .2));
+        double open = e < 0 ? SilentGateSequence.gateOpen(age) : SilentGateSequence.closingOpen(e);
         GateModel.draw(c, pose, age, open, GateModel.vein(age, commandAge, endK));
         if (!c.solidOnly) {
             GateFx.wind(c, pose, age, Math.max(0, speed));
-            GateFx.dust(c, pose, age, SilentGateSequence.DESCENT_END, 1);
-            GateFx.shockwave(c, pose, age, SilentGateSequence.SHOCK, 120, 34, 1);
-            // The doors meet their stops: dust off the sill and a short ring of light at door height.
-            GateFx.dust(c, pose, age, SilentGateSequence.OPEN_END, .55);
-            GateFx.shockwave(c, pose, age, SilentGateSequence.OPEN_END, 46, 37, .6);
+            if (e < 0) {
+                GateFx.dust(c, pose, age, SilentGateSequence.DESCENT_END, 1);
+                GateFx.shockwave(c, pose, age, SilentGateSequence.SHOCK, 120, 34, 1);
+                // The doors meet their stops: dust off the sill and a short ring of light at door height.
+                GateFx.dust(c, pose, age, SilentGateSequence.OPEN_END, .55);
+                GateFx.shockwave(c, pose, age, SilentGateSequence.OPEN_END, 46, 37, .6);
+            } else {
+                // The doors shut: the same, smaller, at the moment they close.
+                GateFx.dust(c, pose, e, SilentGateSequence.END_CLOSE, .55);
+                GateFx.shockwave(c, pose, e, SilentGateSequence.END_CLOSE, 46, 37, .6);
+            }
             GateFx.pressure(c, pose, age, endK);
         }
         c.fade = saved;

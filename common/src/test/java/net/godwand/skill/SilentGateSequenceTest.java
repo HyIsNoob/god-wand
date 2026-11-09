@@ -35,7 +35,9 @@ class SilentGateSequenceTest {
         // The ring of 24 round the gate body.
         for (int i = n; i < total; i++) {
             double d = Math.hypot(a[i].x - center.x, a[i].z - center.z);
-            assertEquals(78, d, .01);
+            assertEquals(90, d, .01);
+            double ax = SilentGateSequence.gateCenter(ANCHOR, yaw).x, side = Math.abs((a[i].x - center.x) * Math.cos(Math.toRadians(yaw)) + (a[i].z - center.z) * Math.sin(Math.toRadians(yaw)));
+            assertTrue(side >= 62, "ring circle " + i + " stays out of the gate's silhouette: " + side);
             assertTrue(a[i].y > ANCHOR.y + SilentGateSequence.gateBase(ANCHOR.y) && a[i].y < ANCHOR.y + SilentGateSequence.gateBase(ANCHOR.y) + 192, "ring height " + i);
         }
     }
@@ -50,7 +52,7 @@ class SilentGateSequenceTest {
             assertTrue(d >= 1.5 && d <= 9, "lane circle " + i + " is " + d + " from the camera path");
             double born = SilentGateSequence.circleBorn(i, n, 5L);
             // The camera is at that lane point when flightU(t) = laneU: the circle starts to bloom a few ticks before.
-            double passes = SilentGateSequence.FLIGHT_START + 40 * Math.sqrt(SilentGateSequence.laneU(i, n));
+            double passes = SilentGateSequence.FLIGHT_START + 50 * Math.sqrt(SilentGateSequence.laneU(i, n));
             assertEquals(passes - 4, born, 1e-9);
             assertEquals(SilentGateSequence.laneU(i, n), SilentGateSequence.flightU(passes), 1e-9);
         }
@@ -76,55 +78,78 @@ class SilentGateSequenceTest {
 
     @Test
     void gateDescendsWithOvershootAndSettles() {
-        assertEquals(1, SilentGateSequence.gateDescent(149));
-        assertEquals(1, SilentGateSequence.gateDescent(150));
-        assertEquals(0, SilentGateSequence.gateDescent(203));
+        assertEquals(1, SilentGateSequence.gateDescent(209));
+        assertEquals(1, SilentGateSequence.gateDescent(210));
+        assertEquals(0, SilentGateSequence.gateDescent(266));
         boolean dipped = false;
-        for (double t = 188.5; t < 203; t += .5) dipped |= SilentGateSequence.gateDescent(t) < 0;
+        for (double t = 248.5; t < 266; t += .5) dipped |= SilentGateSequence.gateDescent(t) < 0;
         assertTrue(dipped);
-        for (double t = 190; t <= 203; t += .5)
+        for (double t = 250; t <= 266; t += .5)
             assertTrue(Math.abs(SilentGateSequence.gateDescent(t)) <= 0.08);
-        assertEquals(.5, SilentGateSequence.gateDescent(169), .01, "half way down at the middle of S6");
+        assertEquals(.5, SilentGateSequence.gateDescent(229), .01, "half way down at the middle of S6");
     }
 
     @Test
     void buildIsThreeHundredAndSixtyTicksOfDirection() {
-        assertEquals(360, SilentGateSequence.BUILD_TICKS);
-        assertEquals(215, SilentGateSequence.OPEN_START);
-        assertEquals(285, SilentGateSequence.OPEN_END);
+        assertEquals(480, SilentGateSequence.BUILD_TICKS);
+        assertEquals(160, SilentGateSequence.ENDING_TICKS);
+        assertTrue(SilentGateSequence.STUCK_END - SilentGateSequence.OPEN_START >= 20, "stuck at least 1 s");
+        assertTrue(SilentGateSequence.OPEN_END - SilentGateSequence.STUCK_END >= 60, "separation at least 3 s");
+        assertTrue(SilentGateSequence.OPEN_END - SilentGateSequence.OPEN_FAST_END >= 20, "settle at least 1 s");
+        assertTrue(SilentGateSequence.SETTLE_END - SilentGateSequence.DESCENT_END >= 15 && SilentGateSequence.SHOCK > SilentGateSequence.SETTLE_END, "settle, silence, then the shockwave");
     }
 
     @Test
     void gateOpensHeavily() {
-        assertEquals(0, SilentGateSequence.gateOpen(215));
-        for (double t = 215; t <= 228; t += .25) assertTrue(SilentGateSequence.gateOpen(t) < .03, "stuck at " + t);
-        assertEquals(.02, SilentGateSequence.gateOpen(228), 1e-9);
-        assertTrue(SilentGateSequence.gateOpen(285) >= .98);
-        assertEquals(1, SilentGateSequence.gateOpen(300), 0);
+        int s = SilentGateSequence.OPEN_START, st = SilentGateSequence.STUCK_END, f = SilentGateSequence.OPEN_FAST_END, o = SilentGateSequence.OPEN_END;
+        assertEquals(0, SilentGateSequence.gateOpen(s));
+        for (double t = s; t <= st; t += .25) assertTrue(SilentGateSequence.gateOpen(t) < .03, "stuck at " + t);
+        assertEquals(.02, SilentGateSequence.gateOpen(st), 1e-9);
+        assertTrue(SilentGateSequence.gateOpen(o) >= .98);
+        assertEquals(1, SilentGateSequence.gateOpen(o + 20), 0);
         double prev = 0;
-        for (double t = 200; t <= 300; t += .25) {
+        for (double t = s - 20; t <= o + 20; t += .25) {
             double v = SilentGateSequence.gateOpen(t);
             assertTrue(v >= prev, "monotonic at " + t);
             prev = v;
         }
-        // Speed: growing through the push (a huge mass getting going), then dying away to a stop with no jump at 270.
+        // Speed: growing through the push (a huge mass getting going), then dying away to a stop with no jump.
         double last = 0;
-        for (double t = 230; t <= 268; t += 2) {
+        for (double t = st + 2; t <= f - 3; t += 2) {
             double v = SilentGateSequence.gateOpen(t + 1) - SilentGateSequence.gateOpen(t);
             assertTrue(v >= last - 1e-9, "the push keeps gaining speed at " + t);
             last = v;
         }
-        double v268 = SilentGateSequence.gateOpen(269) - SilentGateSequence.gateOpen(268), v271 = SilentGateSequence.gateOpen(271) - SilentGateSequence.gateOpen(270);
-        assertEquals(v268, v271, v268 * .15, "no jump in speed at 270");
-        assertTrue(SilentGateSequence.gateOpen(270) < .85 && SilentGateSequence.gateOpen(270) > .75, "not yet fully open at 270: " + SilentGateSequence.gateOpen(270));
-        assertTrue(SilentGateSequence.gateOpen(284) - SilentGateSequence.gateOpen(283) < (SilentGateSequence.gateOpen(272) - SilentGateSequence.gateOpen(271)) * .1, "creeps in at the end");
+        double vBefore = SilentGateSequence.gateOpen(f - 1) - SilentGateSequence.gateOpen(f - 2), vAfter = SilentGateSequence.gateOpen(f + 2) - SilentGateSequence.gateOpen(f + 1);
+        assertEquals(vBefore, vAfter, vBefore * .15, "no jump in speed at the end of the push");
+        assertTrue(SilentGateSequence.gateOpen(f) < .88 && SilentGateSequence.gateOpen(f) > .7, "not yet fully open when the push ends: " + SilentGateSequence.gateOpen(f));
+        assertTrue(SilentGateSequence.gateOpen(o - 1) - SilentGateSequence.gateOpen(o - 2) < (SilentGateSequence.gateOpen(f + 2) - SilentGateSequence.gateOpen(f + 1)) * .1, "creeps in at the end");
+    }
+
+    @Test
+    void endingClosesHeavilyAndTheGateClimbsIntoTheCircle() {
+        assertEquals(1, SilentGateSequence.closingOpen(0), 0);
+        assertEquals(0, SilentGateSequence.closingOpen(SilentGateSequence.END_CLOSE), 0);
+        double prev = 1, first = 0;
+        for (double e = 0; e <= 40; e += .5) {
+            double v = SilentGateSequence.closingOpen(e);
+            assertTrue(v <= prev + 1e-12, "closing only closes at " + e);
+            prev = v;
+            if (e == 3) first = 1 - v;
+        }
+        assertTrue(first < .02, "it starts slowly: " + first);
+        assertEquals(0, SilentGateSequence.gateRise(74), 0);
+        assertEquals(2.2, SilentGateSequence.gateRise(125), 1e-9);
+        assertTrue(SilentGateSequence.gateRise(80) < .1, "slow start");
+        assertTrue(SilentGateSequence.END_RISE_FROM >= SilentGateSequence.END_CLOSE, "the gate climbs only when the doors are shut");
+        assertTrue(SilentGateSequence.END_UNWRITE_FROM > SilentGateSequence.END_RISE_FROM && SilentGateSequence.END_UNWRITE_FROM + 52 <= SilentGateSequence.ENDING_TICKS);
     }
 
     @Test
     void gateShudderIsFeltOnlyWhileTheDoorsPush() {
-        assertEquals(0, SilentGateSequence.gateShake(214), 0);
-        assertEquals(0, SilentGateSequence.gateShake(285), 0);
-        for (double t = 216; t < 275; t += 3) assertTrue(SilentGateSequence.gateShake(t) > .05 && SilentGateSequence.gateShake(t) < .5, "shake at " + t);
+        assertEquals(0, SilentGateSequence.gateShake(291), 0);
+        assertEquals(0, SilentGateSequence.gateShake(392), 0);
+        for (double t = 294; t < 371; t += 3) assertTrue(SilentGateSequence.gateShake(t) > .05 && SilentGateSequence.gateShake(t) < .5, "shake at " + t);
     }
 
     private static int shots(int circle, int barrageTicks) {
@@ -152,14 +177,14 @@ class SilentGateSequenceTest {
     void shotTicksScaleWithBarrage() {
         assertEquals(140, SilentGateSequence.shotTick(140, 200));
         assertEquals(268, SilentGateSequence.shotTick(140, 400));
-        assertEquals(272, SilentGateSequence.endTick(200));
+        assertEquals(372, SilentGateSequence.endTick(200));
     }
 
     @Test
     void featuredTargetIsWithheldThenSixBeamsLandWithinThreeTicks() {
         for (int barrage : new int[]{200, 400}) {
             int kill = SilentGateSequence.killBarrageAge(barrage);
-            assertEquals(SilentGateSequence.shotTick(75, barrage), kill + SilentGateSequence.ACTIVATE_TICKS);
+            assertEquals(SilentGateSequence.shotTick(100, barrage), kill + SilentGateSequence.ACTIVATE_TICKS);
             assertTrue(SilentGateSequence.withheld(0, kill) && SilentGateSequence.withheld(kill + 2, kill));
             assertFalse(SilentGateSequence.withheld(kill + 3, kill));
             var all = new java.util.HashSet<Integer>();
@@ -171,6 +196,6 @@ class SilentGateSequenceTest {
             assertEquals(6, all.size(), "six distinct sky circles");
             assertTrue(all.stream().allMatch(i -> i >= 0 && i < 48));
         }
-        assertEquals(75 - SilentGateSequence.ACTIVATE_TICKS, SilentGateSequence.killBarrageAge(200));
+        assertEquals(100 - SilentGateSequence.ACTIVATE_TICKS, SilentGateSequence.killBarrageAge(200));
     }
 }

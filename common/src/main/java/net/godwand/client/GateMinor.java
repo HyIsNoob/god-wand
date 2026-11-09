@@ -1,6 +1,7 @@
 package net.godwand.client;
 
 import net.godwand.client.GateDraw.Ctx;
+import net.godwand.skill.SilentGateSequence;
 import net.minecraft.world.phys.Vec3;
 
 import static net.godwand.client.GateDraw.clamp01;
@@ -30,8 +31,15 @@ final class GateMinor {
     }
 
     /** Three rune rings of radius 3.2 / 2.2 / 1.2, each .8 higher, over a seal disc; one plain ring and no runes beyond 80 blocks. */
-    static void sky(Ctx c, Vec3 at, int index, double age, double born, Vec3 gate, double wave) {
+    static void sky(Ctx c, Vec3 at, int index, double age, double born, Vec3 gate, double wave, double e) {
         double t = (age - born) / BLOOM_TICKS, k = bloom(t);
+        if (e >= 0) {
+            // Ending: far circles retract first, then the nearer ones, shrinking and drifting toward the gate (ticks 20..85).
+            double near = clamp01(at.distanceTo(gate) / 330), start = SilentGateSequence.END_RETRACT_FROM + (SilentGateSequence.END_RETRACT_TO - SilentGateSequence.END_RETRACT_FROM - 22) * (1 - near),
+                    gone = smooth((e - start) / 22);
+            k *= 1 - gone;
+            at = at.lerp(gate, .3 * gone);
+        }
         if (k <= 0) return;
         double flare = flare(gate, at, wave), s = k * BIG * (1 + .1 * flare), alpha = smooth(t * 2) * (1 + .6 * flare);
         int tint = index % 2 == 0 ? JADE : GateCircles.WHITE_BLUE, color = mix(tint, 0xFFFFFF, .7 * flare);
@@ -39,12 +47,14 @@ final class GateMinor {
         double dist = c.eye.distanceTo(at);
         if (c.body()) {
             if (dist > FAR) {
-                disc(c, at, 3.6 * s, .22 * alpha, tint);
-                ring(c, at, 2.4 * s, 3.2 * s, 0, spin, GateAtlas.RIM, 1, 12, .9 * alpha, color);
+                // Far: a bright fill and a heavy ring, so the stroke stays at least ~1.5 px wide (thickness grows with distance).
+                double thick = Math.min(3.2, dist / 90);
+                disc(c, at, 3.6 * s, .38 * alpha, tint);
+                ring(c, at, 3.2 * s - .8 * s * thick, 3.2 * s, 0, spin, GateAtlas.RIM, 1, dist > 220 ? 8 : 12, Math.min(1, .95 * alpha), color);
             }
             else {
                 // Soft luminous fill under every tier, tinted by the circle.
-                disc(c, at.add(0, -.05, 0), 4.2 * s, .27 * alpha, tint);
+                disc(c, at.add(0, -.05, 0), 4.2 * s, .36 * alpha, tint);
                 disc(c, at.add(0, 1.6 * s, 0), 2.8 * s, .22 * alpha, tint);
                 disc(c, at.add(0, 2.4 * s, 0), 1.7 * s, .25 * alpha, tint);
                 seal(c, at.add(0, -.1, 0), 3.2 * s, spin, color, .85 * alpha);
@@ -93,8 +103,9 @@ final class GateMinor {
     private static Vec3 rot(Vec3 o, double h, double x, double z, double cs, double sn) { return o.add(h * (x * cs - z * sn), 0, h * (x * sn + z * cs)); }
 
     /** Upright disc facing the caster: seal in the middle, a strip ring round it, spinning slowly, with a faint column of light above. */
-    static void ground(Ctx c, Vec3 at, Vec3 toward, int index, double age, boolean gold, Vec3 gate, double wave) {
-        double t = smooth((age - 296 - 4.0 * index) / 20);
+    static void ground(Ctx c, Vec3 at, Vec3 toward, int index, double age, boolean gold, Vec3 gate, double wave, double e) {
+        double t = smooth((age - 436 - 4.0 * index) / 20);
+        if (e >= 0) t *= 1 - smooth((e - 20 - 3.0 * index) / 20);
         if (t <= 0) return;
         double flare = flare(gate, at, wave), radius = (gold ? 2.4 : 1.5) * (1 + .1 * flare) * (.6 + .4 * t);
         double alpha = t * (1 + .3 * flare);

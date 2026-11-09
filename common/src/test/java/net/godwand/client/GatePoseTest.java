@@ -7,7 +7,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class GatePoseTest {
     private static final double END = 12 + 200;
-    private static GatePose.Joints at(double age) { return GatePose.joints(age, -1, END); }
+    /** Pose at an age of the 300-tick authoring timeline (BUILD is 480: the clock is stretched, see GatePose.poseClock). */
+    private static GatePose.Joints at(double old) { return GatePose.joints(GatePose.fromOld(old), -1, END); }
 
     @Test void beatAnglesAtTheKeyTicks() {
         var hover = at(5);
@@ -19,17 +20,17 @@ class GatePoseTest {
         assertEquals(GatePose.LIPS.lp(), at(240).lp(), .03);
         var lowered = at(345);
         assertEquals(GatePose.REST.lp(), lowered.lp(), .03); assertTrue(lowered.rp() < GatePose.HIP.rp());
-        var wait = at(380);
+        var wait = at(300);
         assertEquals(GatePose.POINT.rp(), wait.rp(), .03);
         assertTrue(Math.abs(wait.rp()) > 2.8);
-        assertEquals(GatePose.AIM.rp(), GatePose.joints(380, 20, END).rp(), .03);
-        assertEquals(GatePose.REST.rp(), GatePose.joints(460, END + 40, END).rp(), .03);
+        assertEquals(GatePose.AIM.rp(), GatePose.joints(480, 20, END).rp(), .03);
+        assertEquals(GatePose.REST.rp(), GatePose.joints(560, END + 40, END).rp(), .03);
     }
 
     @Test void commandSnapsFromSkyToForwardInUnderTwelveTicks() {
-        assertTrue(GatePose.joints(380, 0, END).rp() < -2.8);
-        assertTrue(GatePose.joints(380, 8, END).rp() > -1.2);
-        assertEquals(GatePose.AIM.rp(), GatePose.joints(380, 20, END).rp(), .03);
+        assertTrue(GatePose.joints(480, 0, END).rp() < -2.8);
+        assertTrue(GatePose.joints(480, 8, END).rp() > -1.2);
+        assertEquals(GatePose.AIM.rp(), GatePose.joints(480, 20, END).rp(), .03);
     }
 
     @Test void heavyEaseOvershootsALittleAndSettles() {
@@ -50,30 +51,30 @@ class GatePoseTest {
 
     @Test void wandFollowsTheHandAndLeavesItAtTheRelease() {
         Vec3 feet = new Vec3(0, 70, 0);
-        var hand = GatePose.rightHand(GatePose.joints(35, -1, END), feet, 0);
-        var wand = GatePose.wand(35, -1, END, feet, 0);
+        var hand = GatePose.rightHand(GatePose.joints(GatePose.fromOld(35), -1, END), feet, 0);
+        var wand = GatePose.wand(GatePose.fromOld(35), -1, END, feet, 0);
         assertTrue(wand.pos().distanceTo(hand.pos()) < .25, "spinning around the hand");
         assertEquals(1, wand.axis().length(), 1e-6); assertEquals(0, wand.axis().dot(wand.face()), 1e-6);
         assertTrue(Math.abs(wand.axis().dot(hand.axis())) < .35, "spin plane is roughly perpendicular to the forearm: " + wand.axis().dot(hand.axis()));
-        var grip = GatePose.wand(100, -1, END, feet, 0);
+        var grip = GatePose.wand(GatePose.fromOld(100), -1, END, feet, 0);
         assertTrue(Math.abs(grip.axis().y) < .2, "horizontal in the hand");
-        assertTrue(grip.pos().distanceTo(GatePose.rightHand(GatePose.joints(100, -1, END), feet, 0).pos()) < .05);
-        var floating = GatePose.wand(380, -1, END, feet, 0);
+        assertTrue(grip.pos().distanceTo(GatePose.rightHand(GatePose.joints(GatePose.fromOld(100), -1, END), feet, 0).pos()) < .05);
+        var floating = GatePose.wand(GatePose.fromOld(320), -1, END, feet, 0);
         assertTrue(floating.axis().y > .9, "upright beside the caster");
         assertTrue(floating.pos().subtract(feet).horizontalDistance() > .6);
-        var chest = GatePose.wand(5, -1, END, feet, 0);
+        var chest = GatePose.wand(GatePose.fromOld(5), -1, END, feet, 0);
         assertTrue(chest.axis().y > .9 && chest.pos().z > .4 && chest.pos().y > 71, "floating before the chest");
     }
 
     @Test void leftHandReachesTheMouthArea() {
-        var lips = GatePose.leftHand(GatePose.joints(120, -1, END), Vec3.ZERO, 0);
+        var lips = GatePose.leftHand(GatePose.joints(GatePose.fromOld(120), -1, END), Vec3.ZERO, 0);
         assertTrue(lips.pos().y > 1.3 && lips.pos().y < 1.75, "at face height: " + lips.pos());
         assertTrue(Math.abs(lips.pos().x) < .3 && lips.pos().z > .25, "in front of the face: " + lips.pos());
     }
 
     @Test void manaGainShape() {
         assertEquals(0, GatePose.manaGain(frame(0, -1)), 1e-9);
-        double strong = GatePose.manaGain(frame(40, -1)), calm = GatePose.manaGain(frame(310, -1)), gone = GatePose.manaGain(frame(500, 272));
+        double strong = GatePose.manaGain(frame(40, -1)), calm = GatePose.manaGain(frame(310, -1)), gone = GatePose.manaGain(frame(640, 372));
         assertTrue(strong > .95 && calm < strong && calm > .4 && gone < 1e-6, strong + " " + calm + " " + gone);
     }
     private static SilentGateRenderer.Frame frame(double age, double cmd) {

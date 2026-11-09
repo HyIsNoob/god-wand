@@ -27,7 +27,7 @@ public final class SilentGateProbe implements ClientModInitializer {
     // Clean spot on the flat QA world (the copied world has an old Fuga crater next to spawn).
     private static final int OX = 4000, OZ = 4000;
     private static final int FIELD_X0 = OX - 130, FIELD_X1 = OX + 130, FIELD_Z0 = OZ + 8, FIELD_Z1 = OZ + 150;
-    private static final Set<Integer> REFERENCE = Set.of(140, 165, 200, 222, 245, 270, 286, 300, 315, 330, 355, 380);
+    private static final Set<Integer> REFERENCE = Set.of(20, 100, 150, 168, 200, 230, 262, 285, 310, 330, 345, 372, 390, 405, 428, 450, 479, 500);
     private int ticks, stage, since, clickAt, frame, lastCmd = -1, lastBuild = -1;
     private final long[] fpsSum = new long[4], fpsN = new long[4];
     private final int[] fpsMin = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE},
@@ -37,7 +37,7 @@ public final class SilentGateProbe implements ClientModInitializer {
     private final Map<String, double[]> msptPhase = new TreeMap<>(); // phase -> {sumMs, n, maxMs}
     private boolean moved;
     private boolean click2, sawFrame, sawBarrage;
-    private final long[] quadSum = new long[4]; private final int[] quadMax = new int[4];
+    private final int[] phTicks = new int[4]; private final long[] quadSum = new long[4]; private final int[] quadMax = new int[4];
     private int ground, solidBefore, solidAfter, total;
     private final List<UUID> targets = new ArrayList<>();
     private final String run = Long.toString(System.currentTimeMillis());
@@ -129,9 +129,9 @@ public final class SilentGateProbe implements ClientModInitializer {
         if (f != null) sawFrame = true;
         if (f == null && !sawFrame) return;
         if (f != null && f.phase() <= 1 && f.commandAge() < 0) {
-            // BUILD/WAIT: every third cast tick (contact sheet) plus the reference ticks, named by cast age.
+            // BUILD/WAIT: every fourth cast tick (contact sheet) plus the reference ticks, named by cast age.
             int fa = (int) Math.floor(f.age());
-            if (fa != lastBuild && (fa % 3 == 0 || REFERENCE.contains(fa))) {
+            if (fa != lastBuild && (fa % 4 == 0 || REFERENCE.contains(fa))) {
                 lastBuild = fa;
                 Screenshot.grab(c.gameDirectory, "gate-" + run + "/b-" + String.format(Locale.ROOT, "%03d", fa) + ".png", c.getMainRenderTarget(), m -> {});
             }
@@ -156,11 +156,11 @@ public final class SilentGateProbe implements ClientModInitializer {
         if (firstFrame[ph] < 0) { firstFrame[ph] = frame; System.out.println("GATE_QA PHASE " + ph + " " + PHASES[ph] + " age=" + age + " frame=" + frame); }
         lastFrame[ph] = frame;
         int fps = c.getFps();
-        int q = SilentGateRenderer.lastQuads; quadSum[ph] += q; quadMax[ph] = Math.max(quadMax[ph], q);
+        int q = SilentGateRenderer.lastQuads; phTicks[ph]++; quadSum[ph] += q; quadMax[ph] = Math.max(quadMax[ph], q);
         if (ticks % 5 == 0 && fps > 0) { fpsSum[ph] += fps; fpsN[ph]++; fpsMin[ph] = Math.min(fpsMin[ph], fps); }
         sampleMspt(server, PHASES[ph] + " age=" + age);
         if (ph == 2) sawBarrage = true;
-        if ((ph == 0 && age == 100 || ph == 1 && age == 390) && marks.add("lock" + ph)) {
+        if ((ph == 0 && age == 100 || ph == 1 && age == 520) && marks.add("lock" + ph)) {
             server.submit(() -> {
                 var p = server.getPlayerList().getPlayer(c.player.getUUID());
                 if (!SilentGateManager.movementLocked(p) || !SilentGateManager.invulnerable(p))
@@ -168,7 +168,7 @@ public final class SilentGateProbe implements ClientModInitializer {
             }).join();
             System.out.println("GATE_QA PASS lock+invulnerable in " + PHASES[ph]);
         }
-        if (age >= 400 && !click2 && ph == 1) {
+        if (age >= 540 && !click2 && ph == 1) {
             click2 = true;
             c.gameMode.useItem(c.player, InteractionHand.MAIN_HAND);
             System.out.println("GATE_QA CLICK2 age=" + age);
@@ -182,7 +182,7 @@ public final class SilentGateProbe implements ClientModInitializer {
                             fpsSum[i] / (double) Math.max(1, fpsN[i]), fpsMin[i], firstFrame[i], lastFrame[i]);
                 msptPhase.forEach((k, a) -> System.out.printf(Locale.ROOT, "GATE_QA MSPT %s avg=%.2f max=%.2f ticks=%.0f%n", k, a[0] / a[1], a[2], a[1]));
                 for (int i = 0; i < 4; i++) if (firstFrame[i] >= 0)
-                    System.out.printf(Locale.ROOT, "GATE_QA QUADS %s avgPerTick=%.0f max=%d%n", PHASES[i], quadSum[i] / (double) Math.max(1, (lastFrame[i] - firstFrame[i] + 1) * 2), quadMax[i]);
+                    System.out.printf(Locale.ROOT, "GATE_QA QUADS %s avgPerTick=%.0f max=%d%n", PHASES[i], quadSum[i] / (double) Math.max(1, phTicks[i]), quadMax[i]);
     }
 
     /** Reads every server tick time since the last call; logs ticks over 50 ms with the Silent Gate phase/age. */

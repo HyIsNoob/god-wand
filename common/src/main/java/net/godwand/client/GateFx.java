@@ -112,13 +112,13 @@ final class GateFx {
 
     /** After the shockwave, rings of pressure leave the gate on a 20 tick beat, and a faint shell of light breathes around it. */
     static void pressure(Ctx c, Pose p, double age, double endK) {
-        if (age < 214 || !c.glow()) return;
+        if (age < SilentGateSequence.SHOCK + 10 || !c.glow()) return;
         double fadeOut = 1 - smooth(endK / .4);
         if (fadeOut <= 0) return;
         Vec3 ctr = p.at(0, 34, 0);
-        int last = (int) Math.floor((age - 214) / 20);
+        int last = (int) Math.floor((age - SilentGateSequence.SHOCK - 10) / 20);
         for (int n = Math.max(0, last - 2); n <= last; n++) {
-            double life = (age - 214 - 20.0 * n) / 46;
+            double life = (age - SilentGateSequence.SHOCK - 10 - 20.0 * n) / 46;
             if (life < 0 || life >= 1) continue;
             double radius = 24 + 42 * life, wd = 1.6 + 2.2 * life, alpha = .32 * (1 - life) * (1 - life) * smooth(life * 10) * fadeOut;
             int segs = 28;
@@ -130,7 +130,7 @@ final class GateFx {
                 GateDraw.gradient(c, m0, m1, o1, o0, BLUE, alpha, alpha, 0, 0);
             }
         }
-        double beat = .5 + .5 * Math.sin((age - 214) * TAU / 20), shell = smooth((age - 214) / 20) * fadeOut;
+        double beat = .5 + .5 * Math.sin((age - SilentGateSequence.SHOCK - 10) * TAU / 20), shell = smooth((age - SilentGateSequence.SHOCK - 10) / 20) * fadeOut;
         GateDraw.sprite(c, ctr, (58 + 3 * beat) * p.s(), (.1 + .04 * beat) * shell, BLUE);
         GateDraw.sprite(c, ctr, 34 * p.s(), .09 * shell, HOT);
     }

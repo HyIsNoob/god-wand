@@ -18,7 +18,7 @@ final class GateSky {
     /** Hemisphere about the camera, darkening the sky from 80 to 120 without a shader and melting into the horizon. */
     static void dome(Ctx c, Vec3 gate, double age) {
         if (!c.body()) return;
-        double k = smooth((age - 80) / 40) * (1 - smooth((c.eye.distanceTo(gate) - 150 * S) / (80 * S)));
+        double k = smooth((age - 120) / 50) * (1 - smooth((c.eye.distanceTo(gate) - 150 * S) / (80 * S)));
         if (k <= 0) return;
         for (int j = 0; j < RINGS; j++) for (int s = 0; s < SEGS; s++) {
             double e0 = Math.PI / 2 * j / RINGS, e1 = Math.PI / 2 * (j + 1) / RINGS, a0 = s * TAU / SEGS, a1 = (s + 1) * TAU / SEGS;
@@ -35,11 +35,11 @@ final class GateSky {
 
     /** Cloud billows spiralling in from r 90 to the rim at r 56, quicker near the centre, lit cyan on the circle's side. */
     static void clouds(Ctx c, Vec3 ctr, double age, double endK) {
-        double on = smooth((age - 80) / 40);
+        double on = smooth((age - 120) / 50);
         if (on <= 0) return;
         for (int i = 0; i < CLOUDS; i++) {
-            // The shockwave at 204 shoves the vortex outwards for one beat.
-            double push = smooth((age - 204) / 5) * (1 - smooth((age - 209) / 40));
+            // The shockwave shoves the vortex outwards for one beat.
+            double push = smooth((age - net.godwand.skill.SilentGateSequence.SHOCK) / 5) * (1 - smooth((age - net.godwand.skill.SilentGateSequence.SHOCK - 5) / 40));
             double life = (hash(i, 1) + age * .0011) % 1, r = S * (90 - 34 * life) * (1 + .8 * smooth(endK) + .3 * push);
             double a = i * 2.399963 + age * .0032 * (1 + (90 - r) / 50) + hash(i, 2) * .6;
             double envelope = Math.pow(Math.sin(Math.PI * life), .6) * on;
