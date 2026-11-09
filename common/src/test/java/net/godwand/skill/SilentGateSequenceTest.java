@@ -52,7 +52,7 @@ class SilentGateSequenceTest {
             assertTrue(c.y - lane.y >= 35 && c.y - lane.y <= 75, "lane circle " + i + " hangs " + (c.y - lane.y) + " over the camera");
             assertTrue(Math.hypot(c.x - lane.x, c.z - lane.z) <= 14.01, "within 14 sideways");
             double born = SilentGateSequence.circleBorn(i, n, 5L);
-            assertEquals(SilentGateSequence.flightTime(u) - 6, born, 1e-9, "blooms 6 ticks before the camera passes");
+            assertEquals(SilentGateSequence.flightTime(u) - 14, born, 1e-9, "blooms 14 ticks before the camera passes");
             assertEquals(u, SilentGateSequence.flightU(SilentGateSequence.flightTime(u)), 1e-6);
         }
         for (int i = 0; i < SilentGateSequence.skyTotal(n); i++) {

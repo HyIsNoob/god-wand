@@ -1,43 +1,30 @@
 # Silent Gate cinematography QA (Fabric 1.21.1)
 
-Runs: build/cine1..cine4.log (cine4 final; world restored from gate-qa-pristine each time). Sheets: build/fuga-qa/gate-sheets-cine/
-(build-0-480.png step 4, barrage.png and ending.png step 3 frames = 6 ticks, key-b<age>.png full-size build frames, key-f<n>.png barrage frames).
-Commits: b729d22 (360 tick pass), 2ccb6c1 (480 tick pass, ending, barrage), then the circle-legibility commit.
+Runs build/cine1..cine6.log (cine6 final, world restored from gate-qa-pristine each time). Sheets: build/fuga-qa/gate-sheets-cine/
+(build-0-480.png step 4, barrage.png and ending.png step 3 frames = 6 ticks, key-b<age>.png and key-f<n>.png full-size).
+Commits: b729d22, 2ccb6c1, 81eed5c, 06a31df (continuous sequences), then the final circle-size commit.
 
-## Timeline (ticks from click 1; BUILD 480)
-| Shot | Ticks | Curve | Content |
-|---|---|---|---|
-| S1 | 0-40 | linear drift | first person, wand, mana |
-| S2 | 40-80 | linear | wand spin, sideways drift |
-| S3 | 80-120 | ease-out long | push in, "shh" |
-| S4 | 120-170 | linear orbit 0.57 deg/tick | great circle writes 120-168, 2 tick hold |
-| S5 | 170-210 | linear | slit opens, camera rises along its edge |
-| S6 | 210-250 | static camera | gate emerges 210, falls to 248; gaze lifts 235-250 |
-| S7 | 250-290 | spring recoil | touchdown 248, settle to 266, shockwave 274, extreme wide |
-| S8 | 290-380 | linear orbit 0.51 deg/tick | stuck 292-316, push apart 316-366, heavy stop to 392; ends frontal |
-| S9 | 380-430 | ease-in | camera darts out of the doorway along the circle lane |
-| S10 | 430-480 | ease-out long | matched speed, extreme wide |
-| WAIT | 480+ | breathe | medium in front of the caster |
+## Camera: continuous keyframe sequences (Hermite, velocity continuous, rest keys stop dead) and the only hard cuts
+BUILD (480 ticks), 4 sequences, 3 cuts:
+| Sequence | Ticks | Content |
+|---|---|---|
+| SEQ1 | 0-120 | first person, out round the shoulder, front 3/4 sideways drift (spin), push in on the face that stops dead |
+| cut 1 | 120 | face close-up to the sky under the great circle: change of subject and scale |
+| SEQ2 | 120-290 | orbit under the circle (written 120-168), slow dolly toward the gate (slit 166, gate out 210), arrives at rest beside the spike's path as the gate lands (248, camera shake), then a pull-back from rest to the extreme wide (shockwave 274) |
+| cut 2 | 290 | extreme wide to the door close-up: 240 to 46 blocks, a move would be long and dull |
+| SEQ3 | 290-380 | slow orbit round the door (0.5 deg/tick), stuck 292-316, push apart 316-366, heavy stop 392, ends frontal |
+| cut 3 | 380 | door frontal to a ground overview looking back and up (place and direction reversal) |
+| SEQ4 | 380-480 | overview from the ground under the gate looking up at the whole spread (circles bloom 384-420, 24 ring circles from 393), hold to 405, then ONE low flight toward the caster, always looking up at circles that bloom overhead (35..75 above the camera lane, 14 ticks ahead), long ease-out, lands exactly on the waiting frame (no cut into WAIT) |
+Barrage (200 ticks authored), 3 sequences, 2 cuts: BAR1 0-84 starts exactly on the waiting frame, round the caster to behind and low, forward and up under the formation looking up (no cut from WAIT); cut at 84 (sky to ground target); BAR2 84-170 kill close-up (5.5 blocks, 0.4 deg/tick) then one continuous pull-away from zero speed (volley at 100); cut at 170 (ground at the target to behind the caster); BAR3 170-212 low behind the caster rising slowly, looking up at circles and beams.
+Ending (160 ticks), one continuous move, 1 cut (entry from BAR3: high behind the caster to medium on the doors): medium on the doors from below while they close (0-40), back and aside while circles retract (20-85), low and steeply up as the gate climbs into the great circle (75-125), still while it unwrites tier by tier (108-160); screen dims 135-160; 15 tick blend back to the player.
+Rule applied: circles are seen from below or above, never level (all circle shots look up; far circles are drawn camera-facing).
 
-Barrage (authored for 200 ticks, scaled): B1 12-48 low rain, B2 48-84 dive from a sky circle, B3 84-134 kill close-up (volley now at tick 100), B4 134-170 ground tracking, B5 170-212 high wide.
-Ending (160 ticks after the barrage): E1 0-40 doors close (medium), E2 40-80 wide while circles retract (20-85), E3 80-125 low looking up as the gate climbs (75-125) into the great circle, E4 125-160 wide while the circle unwrites tier by tier (108-160); screen dims 135-160; then 15 tick return.
+## Numbers (1280x720, sampled; screenshots every 4th tick in BUILD)
+cine6: FPS BUILD avg 55.0 (min 17), WAIT 59.4, BARRAGE 47.2 (min 6, one server hitch of 60 ms), END 59.0. Quads/tick: BUILD avg 1571 max 3054, WAIT 2454, BARRAGE avg 4009 max 4992, END avg 1885 max 4201 (budget 20000).
+cine5 (circles at 2x scale): BARRAGE avg 53.8 min 23. Terrain damage ~11,400 blocks removed (3.3x the 48-circle run).
 
-## Numbers (1280x720, sampled; screenshots every 4th tick in BUILD so FPS is slightly pessimistic)
-cine4: FPS BUILD avg 55.6 (min 12), WAIT 59.6 (59), BARRAGE 45.8 (min 7, one hitch with a 73 ms server tick), END 58.5 (56).
-cine3 (same code, no face-ring change): BARRAGE avg 54.1 min 30, END 59.5. Quads/tick: BUILD avg 1540 max 2624, WAIT 2453, BARRAGE avg 4041 max 4859, END avg 1908 max 4090 (budget 20000).
-killed 14/14, blocks removed ~11400 (about 3.3x the 48-circle run: more circles = more craters; server MSPT max 37-73 ms in BARRAGE).
-
-## Honest shot notes
-- S1-S3: unchanged framing, slower; fine.
-- S4: circle writes; frame is mostly dark sky with a small circle at first, readable by 150.
-- S5/S6: slit and falling gate read well from the static low camera (gate slides down the frame).
-- S7: gate, circle and shockwave read; the caster is NOT visible (ground only), so "tiny caster" is not shown.
-- S8: very slow orbit; the first half is mostly door leaves filling the frame, the light leaks as thin rays at the edges, the crack opens late in the shot; the end is frontal and bright.
-- S9: the camera flies out among circles but the field looks sparse in this shot; circles are large ghostly discs against red sky.
-- S10: gate + great circle + about 40 visible face-on small circles; caster off-screen at the bottom. Circles around the gate are not "hundreds" yet in view; those behind the camera are never seen.
-- WAIT: caster pointing up with the gold/green ring behind; sky above has only ~6 circles in view (camera faces away from the gate).
-- Ending: doors close, circles shrink toward the gate, gate climbs into the circle, circle unwrites ring by ring, sky clears. Reads clearly; the dim to black is dark.
-- Barrage: B2 dive ends on empty ground (weak, no tracked target); B3/B4/B5 fine; B1 shows the ground ring.
-
-## Concerns
-Small circles at the gate silhouette partly remain (lane circles run along the gate axis); circle count in view in S10/WAIT is lower than the owner expects; blocks removed grows with circle count (terrain damage cost).
+## Honest notes
+- SEQ1/SEQ2 read as one move; the pull-back from the landing gate to the wide is fast (peak ~5 blocks/tick) but starts from rest.
+- SEQ4: the overview and the low flight now show big legible rings from below; the stroke style is the far-LOD octagon ring.
+- Circle scale is now 5x the old size: in the barrage and ending the circles are numerous and large enough to clutter and partly hide the gate (looks busy, white glare). VFX polish (opacity, size, runes) is deferred as agreed.
+- Caster is not visible in the wide shots. BAR1 pops by up to 0.2 blocks (WAIT breathing) at the command. BAR2 is only as good as the focus target (falls back to the densest impacts).

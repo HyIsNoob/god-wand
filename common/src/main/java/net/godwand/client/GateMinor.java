@@ -14,7 +14,7 @@ final class GateMinor {
     static final int JADE = 0x5CFFC8, GREEN = 0x63FF9E, GOLD = 0xFFC94A;
     /** Blocks per tick the activation wave travels from the gate. */
     static final double WAVE_SPEED = 6 * net.godwand.skill.SilentGateSequence.SCALE, WAVE_REACH = 95 * net.godwand.skill.SilentGateSequence.SCALE,
-            FAR = 120, BLOOM_TICKS = 8, BIG = 2;
+            FAR = 120, BLOOM_TICKS = 8, BIG = 5;
     private static final int SEGS = 12;
 
     /** 0..1..0 pulse while the wave front is within 12 blocks past the circle. */
@@ -41,10 +41,9 @@ final class GateMinor {
             at = at.lerp(gate, .3 * gone);
         }
         if (k <= 0) return;
-        double flare = flare(gate, at, wave), s = k * BIG * (1 + .1 * flare), alpha = smooth(t * 2) * (1 + .6 * flare);
+        double dist = c.eye.distanceTo(at), flare = flare(gate, at, wave), s = k * BIG * Math.min(2, Math.max(1, dist / 100)) * (1 + .1 * flare), alpha = smooth(t * 2) * (1 + .6 * flare);
         int tint = index % 2 == 0 ? JADE : GateCircles.WHITE_BLUE, color = mix(tint, 0xFFFFFF, .7 * flare);
         double spin = age * .012 * (index % 2 == 0 ? 1 : -1) + index;
-        double dist = c.eye.distanceTo(at);
         if (c.body()) {
             if (dist > FAR) {
                 // Far: a bright fill and a heavy ring, so the stroke stays at least ~1.5 px wide (thickness grows with distance).

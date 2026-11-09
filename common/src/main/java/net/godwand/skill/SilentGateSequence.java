@@ -109,7 +109,7 @@ public final class SilentGateSequence {
     /** Tick at which a sky circle starts to bloom: lane circles a few ticks before the camera passes, ring circles when the doors stop, the rest spread over S9. */
     public static double circleBorn(int index, int count, long seed) {
         if (index >= count) return OPEN_END + 1 + (index - count) * .8;
-        if (index % 4 == 3) return flightTime(laneU(index, count)) - 6;
+        if (index % 4 == 3) return flightTime(laneU(index, count)) - 14;
         return OVERVIEW_START + 4 + 36 * rng(seed ^ 0x5DEECE66DL, index).nextDouble();
     }
 
