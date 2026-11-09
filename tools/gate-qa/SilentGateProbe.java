@@ -131,7 +131,7 @@ public final class SilentGateProbe implements ClientModInitializer {
         // Full-size frames by command age: every tick around the first hits (56..84), plus the requested reference ticks.
         if (f != null && f.phase() == 2 && f.commandAge() >= 0) {
             int cmd = (int) f.commandAge();
-            if (cmd != lastCmd && (cmd >= 56 && cmd <= 96 || cmd % 10 == 0)) {
+            if (cmd != lastCmd && (cmd >= 56 && cmd <= 96 || cmd % 10 == 0 || cmd == 6)) {
                 lastCmd = cmd;
                 Screenshot.grab(c.gameDirectory, "gate-" + run + "/c-" + String.format(Locale.ROOT, "%03d", cmd) + ".png", c.getMainRenderTarget(), m -> {});
             }
@@ -139,16 +139,11 @@ public final class SilentGateProbe implements ClientModInitializer {
         if (f == null) {
             if (click2 && sawBarrage) {
                 stage = 3; since = ticks;
-                System.out.printf(Locale.ROOT, "GATE_QA PASS frames=%d serverMsptPeak=%.2f ms at [%s] setupPeak=%.2f ms%n", frame, msptPeak / 1e6, msptAt, setupPeak / 1e6);
-                for (int i = 0; i < 4; i++) if (firstFrame[i] >= 0)
-                    System.out.printf(Locale.ROOT, "GATE_QA FPS %s avg=%.1f min=%d frames=%d..%d%n", PHASES[i],
-                            fpsSum[i] / (double) Math.max(1, fpsN[i]), fpsMin[i], firstFrame[i], lastFrame[i]);
-                msptPhase.forEach((k, a) -> System.out.printf(Locale.ROOT, "GATE_QA MSPT %s avg=%.2f max=%.2f ticks=%.0f%n", k, a[0] / a[1], a[2], a[1]));
-                for (int i = 0; i < 4; i++) if (firstFrame[i] >= 0)
-                    System.out.printf(Locale.ROOT, "GATE_QA QUADS %s avgPerTick=%.0f max=%d%n", PHASES[i], quadSum[i] / (double) Math.max(1, (lastFrame[i] - firstFrame[i] + 1) * 2), quadMax[i]);
+                summary();
             }
             return;
         }
+        if (f.commandAge() >= 20 && Files.exists(c.gameDirectory.toPath().getParent().resolve("short"))) { summary(); System.out.println("GATE_QA SHORT stop"); c.stop(); return; }
         int ph = Math.min(3, f.phase());
         if (firstFrame[ph] < 0) { firstFrame[ph] = frame; System.out.println("GATE_QA PHASE " + ph + " " + PHASES[ph] + " age=" + age + " frame=" + frame); }
         lastFrame[ph] = frame;
@@ -170,6 +165,16 @@ public final class SilentGateProbe implements ClientModInitializer {
             c.gameMode.useItem(c.player, InteractionHand.MAIN_HAND);
             System.out.println("GATE_QA CLICK2 age=" + age);
         }
+    }
+
+    private void summary() {
+                System.out.printf(Locale.ROOT, "GATE_QA PASS frames=%d serverMsptPeak=%.2f ms at [%s] setupPeak=%.2f ms%n", frame, msptPeak / 1e6, msptAt, setupPeak / 1e6);
+                for (int i = 0; i < 4; i++) if (firstFrame[i] >= 0)
+                    System.out.printf(Locale.ROOT, "GATE_QA FPS %s avg=%.1f min=%d frames=%d..%d%n", PHASES[i],
+                            fpsSum[i] / (double) Math.max(1, fpsN[i]), fpsMin[i], firstFrame[i], lastFrame[i]);
+                msptPhase.forEach((k, a) -> System.out.printf(Locale.ROOT, "GATE_QA MSPT %s avg=%.2f max=%.2f ticks=%.0f%n", k, a[0] / a[1], a[2], a[1]));
+                for (int i = 0; i < 4; i++) if (firstFrame[i] >= 0)
+                    System.out.printf(Locale.ROOT, "GATE_QA QUADS %s avgPerTick=%.0f max=%d%n", PHASES[i], quadSum[i] / (double) Math.max(1, (lastFrame[i] - firstFrame[i] + 1) * 2), quadMax[i]);
     }
 
     /** Reads every server tick time since the last call; logs ticks over 50 ms with the Silent Gate phase/age. */

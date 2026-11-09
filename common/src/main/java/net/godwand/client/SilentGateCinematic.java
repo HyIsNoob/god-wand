@@ -23,7 +23,7 @@ import static net.godwand.client.FugaCinematic.look;
 import static net.godwand.client.FugaCinematic.shoulder;
 import static net.godwand.client.FugaCinematic.smooth;
 
-/** Directed camera, input locks, ESC/F5 handling and the crude eyelid/hint overlay of Silent Gate. */
+/** Directed camera, input locks, ESC/F5 handling and the eyelid/hint overlay of Silent Gate. */
 public final class SilentGateCinematic {
     /** No ground clamp (pure tests / unknown terrain). */
     private static final ToDoubleBiFunction<Double, Double> NO_GROUND = (x, z) -> Double.NEGATIVE_INFINITY;
@@ -149,7 +149,7 @@ public final class SilentGateCinematic {
         if (age < SilentGateSequence.BEAT_SHUSH) {
             // Cut to a low three-quarter view from the front while the wand is spun.
             double k = smooth(age, 20, 45);
-            return look(a.add(f.scale(3.4)).add(r.scale(1.9)).add(0, .9 + .3 * k, 0), a.add(0, 1.4 + .3 * k, 0));
+            return look(a.add(f.scale(3.0)).add(r.scale(2.8)).add(0, .9 + .3 * k, 0), a.add(f.scale(-.6)).add(0, 1.4 + .3 * k, 0));
         }
         if (age < SilentGateSequence.BEAT_CIRCLE) {
             // Slow push in on the face.
@@ -182,8 +182,8 @@ public final class SilentGateCinematic {
         }
         // From below the gate's foot, racing back and up to the caster's shoulder: the held frame.
         double s = Mth.clamp((age - SilentGateSequence.BEAT_ARRAY) / 38, 0, 1), e = 1 - (1 - s) * (1 - s) * (1 - s);
-        Vec3 start = a.add(f.scale(-120)).add(r.scale(22)).add(0, 6, 0), end = a.add(f.scale(-18)).add(r.scale(2)).add(0, 12, 0);
-        return look(start.lerp(end, e), foot.add(0, 36 * S, 0).lerp(a.add(f.scale(40)).add(0, 60, 0), e));
+        Vec3 start = a.add(f.scale(-120)).add(r.scale(22)).add(0, 6, 0), end = a.add(f.scale(-6)).add(r.scale(.8)).add(0, 1.2, 0);
+        return look(start.lerp(end, e), foot.add(0, 36 * S, 0).lerp(a.add(f.scale(4)).add(0, 6.5, 0), e));
     }
 
     /** Shot boundaries inside the barrage (authored for 200 ticks, scaled like every barrage shot): wave, rain, kill, scale, wide finish. */
@@ -284,18 +284,15 @@ public final class SilentGateCinematic {
         return d < HIT_STOP_TICKS ? hit + d * HIT_STOP_SPEED : now - HIT_STOP_TICKS * (1 - HIT_STOP_SPEED);
     }
 
-    /** Crude eyelids (two black bars that retract over the first 20 ticks) and the command hint in WAIT. */
+    /** Eyelids ({@link GateEyelids}) over the first 30 ticks and the command hint in WAIT. */
     public static void render(GuiGraphics graphics, DeltaTracker timer) {
         float partial = timer.getGameTimeDeltaPartialTick(false);
         var client = Minecraft.getInstance();
         var frame = SilentGateRenderer.localFrame(partial);
         if (menuOpen(client) || !present(client, frame)) return;
         int width = graphics.guiWidth(), height = graphics.guiHeight();
-        if (directing() && frame.phase() == 0 && frame.age() < SilentGateSequence.BEAT_RAISE) {
-            int bar = Math.round(height * .5f * (1 - smooth(frame.age(), 0, SilentGateSequence.BEAT_RAISE)));
-            graphics.fill(0, 0, width, bar, 0xFF000000);
-            graphics.fill(0, height - bar, width, height, 0xFF000000);
-        }
+        if (directing() && frame.phase() == 0 && frame.age() < GateEyelids.VIGNETTE_TICKS)
+            GateEyelids.render(graphics, frame.age(), width, height, client.getWindow().getGuiScale());
         if (frame.phase() == WAIT) {
             String hint = Component.translatable("message.godwand.gate_command").getString();
             graphics.drawString(client.font, hint, (width - client.font.width(hint)) / 2, height - 62, 0xFFFFFFFF, true);

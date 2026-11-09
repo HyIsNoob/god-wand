@@ -24,6 +24,7 @@
     "AtomicInputMixin",
     "AtomicKeyboardMixin",
     "AtomicPoseMixin",
+    "GatePoseMixin",
     "AtomicToastMixin",
     "AtomicLocalMovementMixin",
     "SkillCooldownUseMixin"

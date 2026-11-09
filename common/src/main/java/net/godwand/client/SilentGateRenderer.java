@@ -139,6 +139,34 @@ public final class SilentGateRenderer {
                 }
             }
         } finally { teardown(); }
+        wands(pose, camera, frames);
+    }
+    /** True while any cast is visible: the in-hand wand of Silent Gate wands is hidden then, the floating one is drawn instead. */
+    public static boolean holdsWand() { return !CASTS.isEmpty(); }
+    private static net.godwand.client.render.GodWandItemRenderer wandRenderer;
+    /** The wand floats in the world (it leaves the hand), drawn with the item renderer's own model. */
+    private static void wands(PoseStack pose, Camera camera, List<Frame> frames) {
+        var buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+        for (Frame f : frames) {
+            var sim = GateMana.sim(f.casterId());
+            if (sim == null || !sim.ready || f.age() < 0) continue;
+            double p = sim.partial(f.age());
+            var w = GatePose.wand(f, sim.feet(p), sim.yaw(p));
+            if (wandRenderer == null) wandRenderer = new net.godwand.client.render.GodWandItemRenderer();
+            var pos = w.pos().subtract(camera.getPosition());
+            var level = Minecraft.getInstance().level;
+            int packed = level == null ? 0xF000F0 : net.minecraft.client.renderer.LevelRenderer.getLightColor(level, net.minecraft.core.BlockPos.containing(w.pos()));
+            int light = net.minecraft.client.renderer.LightTexture.pack(Math.max(11, net.minecraft.client.renderer.LightTexture.block(packed)), Math.max(8, net.minecraft.client.renderer.LightTexture.sky(packed)));
+            pose.pushPose();
+            pose.translate(pos.x, pos.y, pos.z);
+            Vec3 y = w.axis(), z = w.face(), x = y.cross(z);
+            var m = new org.joml.Matrix3f((float) x.x, (float) x.y, (float) x.z, (float) y.x, (float) y.y, (float) y.z, (float) z.x, (float) z.y, (float) z.z);
+            pose.mulPose(new org.joml.Quaternionf().setFromNormalized(m));
+            pose.scale((float) GatePose.WAND_SCALE, (float) GatePose.WAND_SCALE, (float) GatePose.WAND_SCALE);
+            wandRenderer.renderFloating(pose, buffers, light, (float) f.age());
+            pose.popPose();
+        }
+        buffers.endBatch();
     }
     /** The gate body is alpha blended without depth writes; stamp its depth so the additive layer (circle glow, rays) cannot shine through it. */
     private static void depthPrepass(PoseStack pose, Camera camera, List<Frame> frames) {
@@ -231,6 +259,8 @@ public final class SilentGateRenderer {
             GateBeams.shot(c, from, s.hit(), life, s.circle() < f.skyCircles() ? (s.circle() % 2 == 0 ? GateMinor.JADE : GateCircles.GLOW_BLUE)
                     : SilentGateSequence.groundCircleGold(s.circle() - f.skyCircles()) ? GateMinor.GOLD : GateMinor.GREEN, s.tick() * 31L + s.circle(), now, 1 / Math.max(1, stacked * .6));
         }
+        var sim = GateMana.sim(f.casterId());
+        if (sim != null) GateMana.emit(c, sim, f);
         lastQuads = c.quads;
         return c.quads;
     }
@@ -273,6 +303,7 @@ public final class SilentGateRenderer {
             return gone;
         });
         CASTS.values().forEach(c -> trim(c, now));
+        GateMana.tick(frames(0), world);
         vanillaClouds(client, CASTS.values().stream().anyMatch(c -> c.anchor != null && c.anchor.distanceToSqr(client.player.position()) < RENDER_RANGE * RENDER_RANGE));
     }
 

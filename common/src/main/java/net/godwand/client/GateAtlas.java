@@ -19,7 +19,9 @@ final class GateAtlas {
     static final int SIZE = 1024;
     static final Region SWIRL = new Region(0, 0, 512, 64), RUNES = new Region(0, 64, 512, 64), DASH = new Region(0, 128, 512, 64),
             RIM = new Region(0, 192, 512, 64), SEAL = new Region(0, 256, 256, 256), FILIGREE = new Region(256, 256, 256, 64),
-            GLOW = new Region(256, 320, 64, 64), CLOUD = new Region(384, 320, 128, 128), FIBRE = new Region(256, 448, 256, 56), SOLID = new Region(504, 504, 8, 8);
+            GLOW = new Region(256, 320, 64, 64), CLOUD = new Region(384, 320, 128, 128), FIBRE = new Region(256, 448, 256, 56), SOLID = new Region(504, 504, 8, 8),
+            /** Mana silk (U along the ribbon, V across it) and the four-point glint. */
+            SILK = new Region(0, 512, 256, 64), STAR = new Region(0, 576, 64, 64);
     /** Pixel-art tiles of the gate: 16x16 texels drawn 8 atlas pixels each and repeated 3x3, so any quad up to 32 texels wide samples one run
      *  without wrapping and the (bilinear) filter only softens a texel edge by an eighth of a texel. */
     static final int TEXEL = 8, TILE = 16, REPEAT = 3;
@@ -53,7 +55,7 @@ final class GateAtlas {
     static byte[] alpha() {
         if (cache != null) return cache;
         Canvas c = new Canvas();
-        swirl(c); runes(c); dash(c); rim(c); filigree(c); seal(c); glow(c); cloud(c);
+        swirl(c); runes(c); dash(c); rim(c); filigree(c); seal(c); glow(c); cloud(c); silk(c); star(c);
         for (int y = 0; y < FIBRE.h; y++) for (int x = 0; x < FIBRE.w; x++) c.a[(FIBRE.y + y) * SIZE + FIBRE.x + x] = FugaRenderer.flameAlpha(x, y) / 255f;
         for (int y = 0; y < SOLID.h; y++) for (int x = 0; x < SOLID.w; x++) c.a[(SOLID.y + y) * SIZE + SOLID.x + x] = 1;
         for (int y = 0; y < PIX_STONE.h; y++) for (int x = 0; x < PIX_STONE.w; x++) {
@@ -203,6 +205,30 @@ final class GateAtlas {
             double d = Math.hypot(x + .5 - GLOW.w / 2.0, y + .5 - GLOW.h / 2.0) / (GLOW.w / 2.0 - 1);
             double f = Math.max(0, 1 - d);
             c.a[(GLOW.y + y) * SIZE + GLOW.x + x] = (float) (f * f * f);
+        }
+    }
+
+
+    /** Silk: soft edges across, long creases and three bright warped fibres along. */
+    private static void silk(Canvas c) {
+        for (int y = 0; y < SILK.h; y++) for (int x = 0; x < SILK.w; x++) {
+            double u = (x + .5) / SILK.w, v = (y + .5) / SILK.h, m = Math.abs(2 * v - 1);
+            double edge = Math.pow(Math.max(0, 1 - m), .45) * (1 - m * m * m);
+            double crease = .5 + .5 * Math.sin(TAU * (2 * u + .18 * Math.sin(TAU * u)) + v * 7 + 1.3 * Math.sin(v * 11));
+            double fibres = 0;
+            for (int k = 0; k < 3; k++) {
+                double centre = .28 + .22 * k + .05 * Math.sin(TAU * (1.5 * u + k * .31)), d = (v - centre) / .028;
+                fibres = Math.max(fibres, Math.exp(-d * d));
+            }
+            c.a[(SILK.y + y) * SIZE + SILK.x + x] = (float) Math.min(1, edge * (.55 + .22 * crease + .28 * fibres));
+        }
+    }
+    /** Four-point sparkle with a small round core. */
+    private static void star(Canvas c) {
+        for (int y = 0; y < STAR.h; y++) for (int x = 0; x < STAR.w; x++) {
+            double dx = Math.abs((x + .5) / STAR.w * 2 - 1), dy = Math.abs((y + .5) / STAR.h * 2 - 1);
+            double arms = Math.max(0, 1 - Math.sqrt(dx) - Math.sqrt(dy)), core = Math.max(0, 1 - Math.hypot(dx, dy) * 2.6);
+            c.a[(STAR.y + y) * SIZE + STAR.x + x] = (float) Math.min(1, arms * arms * arms * 2.4 + core * core * core);
         }
     }
 

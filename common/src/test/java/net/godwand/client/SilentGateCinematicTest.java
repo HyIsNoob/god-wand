@@ -37,8 +37,8 @@ class SilentGateCinematicTest {
         Vec3 gate = SilentGateSequence.gateCenter(PLAYER, 0f);
         assertTrue(build(0, 170).position().y < gate.y - SilentGateSequence.GATE_HEIGHT / 2.0, "below the gate's foot");
         var closing = build(0, 299);
-        assertTrue(closing.position().y >= PLAYER.y + 8, "high");
-        assertTrue(PLAYER.z - closing.position().z >= 12, "behind the caster (forward is +z at yaw 0)");
+        assertTrue(closing.position().y >= PLAYER.y + 1, "above the ground");
+        assertTrue(PLAYER.z - closing.position().z >= 5, "close behind the caster, pointing arm and circle in frame (forward is +z at yaw 0)");
         var held = build(0, 300);
         for (double age : new double[]{300, 340, 400, 700})
             assertTrue(build(1, age).position().distanceTo(held.position()) <= .5, "WAIT holds the frame at " + age);

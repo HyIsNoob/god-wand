@@ -84,6 +84,7 @@ public class GodWandItemRenderer {
 
         int currentMode = GodWandItem.getSkillMode(stack);
         if(currentMode==GodWandItem.MODE_FUGA && mode!=ItemDisplayContext.GUI && mode!=ItemDisplayContext.GROUND && mode!=ItemDisplayContext.FIXED)return;
+        if(currentMode==GodWandItem.MODE_SILENT_GATE && mode!=ItemDisplayContext.GUI && mode!=ItemDisplayContext.GROUND && mode!=ItemDisplayContext.FIXED && net.godwand.client.SilentGateRenderer.holdsWand())return;
         float chargeRatio = getChargeRatio(client, stack);
 
         matrices.pushPose();
@@ -248,5 +249,13 @@ public class GodWandItemRenderer {
             }
         }
         return 0.0F;
+    }
+
+    /** Silent Gate: the default wand model with no display transform, glowing in the mana colours; the caller places and scales it. */
+    public void renderFloating(PoseStack matrices, MultiBufferSource buffers, int light, float time) {
+        this.model.setupProceduralAnimations(time, .6f, GodWandItem.MODE_SILENT_GATE);
+        this.model.renderWand(matrices, () -> buffers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE)),
+                () -> buffers.getBuffer(RenderType.entityTranslucentEmissive(TEXTURE)), light,
+                net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, 0xFF5CD8FF);
     }
 }
