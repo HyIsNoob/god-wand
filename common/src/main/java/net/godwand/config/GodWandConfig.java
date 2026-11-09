@@ -84,7 +84,7 @@ public final class GodWandConfig {
         public String gateTargetMode = "hostile";
         public int gateBarrageTicks = 200;
         public int gateWaitTicks = 300;
-        public int gateSkyCircles = 48;
+        public int gateSkyCircles = 160;
         public boolean gateTerrainDamage = true;
         public int gateCraterRadius = 3;
         public List<String> dimensionBlacklist = new ArrayList<>();
@@ -105,7 +105,7 @@ public final class GodWandConfig {
             if(!"hostile".equals(gateTargetMode)&&!"all".equals(gateTargetMode))gateTargetMode="hostile";
             gateBarrageTicks=Mth.clamp(gateBarrageTicks,60,600);
             gateWaitTicks=Mth.clamp(gateWaitTicks,40,1200);
-            gateSkyCircles=Mth.clamp(gateSkyCircles,8,96);
+            gateSkyCircles=Mth.clamp(gateSkyCircles,8,256);
             gateCraterRadius=Mth.clamp(gateCraterRadius,0,6);
             singularityCooldownTicks=validatedCooldowns(singularityCooldownTicks,new int[]{60,120,200});
             earthDrillCooldownTicks=validatedCooldowns(earthDrillCooldownTicks,new int[]{80,140,220,320});

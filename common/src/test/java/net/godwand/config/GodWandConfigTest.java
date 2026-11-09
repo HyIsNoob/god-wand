@@ -55,7 +55,7 @@ class GodWandConfigTest {
             s.gateBarrageTicks=9999;s.gateWaitTicks=9999;s.gateSkyCircles=999;s.gateCraterRadius=99;s.validate();
             assertEquals(72000,s.gateCooldownTicks);assertEquals(1_000_000,s.gateBeamDamage);assertEquals(256,s.gateTargetRadius);
             assertEquals("all",s.gateTargetMode);assertEquals(600,s.gateBarrageTicks);assertEquals(1200,s.gateWaitTicks);
-            assertEquals(96,s.gateSkyCircles);assertEquals(6,s.gateCraterRadius);
+            assertEquals(256,s.gateSkyCircles);assertEquals(6,s.gateCraterRadius);
             s.gateTargetMode=null;s.gateBeamDamage=-5;s.validate();
             assertEquals("hostile",s.gateTargetMode);assertEquals(0,s.gateBeamDamage);
         } finally { GodWandConfig.SERVER=previous; }

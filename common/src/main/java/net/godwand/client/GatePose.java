@@ -60,10 +60,10 @@ public final class GatePose {
     /** First click to the command: hover, spin, shh, release, point at the sky. Right arm from {@code r}, left arm and head from {@code l}. */
     private static Joints build(double age) {
         Joints r = track(age, new Key(0, HOVER), new Key(12, HOVER), new Key(30, FACE), new Key(46, FACE), new Key(68, HIP),
-                new Key(258, HIP), new Key(296, POINT));
+                new Key(318, HIP), new Key(356, POINT));
         Joints l = track(age, new Key(0, HOVER), new Key(14, HOVER), new Key(34, REST), new Key(48, REST), new Key(70, LIPS),
-                new Key(250, LIPS), new Key(276, REST));
-        float head = (float) (.20 * heavy(age, 48, 72) * (1 - sm(age, 250, 276)) - .14 * heavy(age, 262, 296));
+                new Key(310, LIPS), new Key(336, REST));
+        float head = (float) (.20 * heavy(age, 48, 72) * (1 - sm(age, 310, 336)) - .14 * heavy(age, 322, 356));
         return new Joints(r.rp, r.ry, r.rr, l.lp, l.ly, l.lr, head);
     }
     /**
@@ -181,7 +181,7 @@ public final class GatePose {
         double flat = sm(age, 16, 26);
         face = faceFor(axis, a.scale(flat).add(f.scale(1 - flat)), r, roll * (1 - flat));
         // Release into the float beside the caster while the left hand lowers.
-        double rel = heavy(age, 248, 272);
+        double rel = heavy(age, 308, 332);
         if (rel > 0) {
             pos = pos.lerp(side, rel);
             axis = slerp(axis, hoverAxis, rel);

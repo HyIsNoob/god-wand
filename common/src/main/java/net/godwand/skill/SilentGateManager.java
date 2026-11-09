@@ -173,8 +173,8 @@ public final class SilentGateManager {
                 task.caster.fallDistance = 0;
                 if (task.caster.position().distanceToSqr(task.anchor) > .0001)
                     task.caster.connection.teleport(task.anchor.x, task.anchor.y, task.anchor.z, task.caster.getYRot(), task.caster.getXRot());
-                if (task.phase == Phase.BUILD && age == 190) fx(task, CinematicFxPayload.EVENT_TRAUMA_SHAKE, .6f, 20);
-                if (task.phase == Phase.BUILD && age == 206) {
+                if (task.phase == Phase.BUILD && age == SilentGateSequence.DESCENT_END) fx(task, CinematicFxPayload.EVENT_TRAUMA_SHAKE, .6f, 20);
+                if (task.phase == Phase.BUILD && age == SilentGateSequence.SHOCK) {
                     fx(task, CinematicFxPayload.EVENT_TRAUMA_SHAKE, 1f, 24);
                     fx(task, CinematicFxPayload.EVENT_FOV_PUNCH, .9f, 8);
                 }
@@ -191,7 +191,7 @@ public final class SilentGateManager {
 
     private static void barrage(Task task, long age) {
         var cfg = GodWandConfig.SERVER;
-        int sky = task.skyCircles, barrageAge = (int) age - SilentGateSequence.ACTIVATE_TICKS;
+        int sky = SilentGateSequence.skyTotal(task.skyCircles), barrageAge = (int) age - SilentGateSequence.ACTIVATE_TICKS;
         if (barrageAge < 0) return;
         if (barrageAge % 10 == 0) {
             var box = new AABB(task.anchor, task.anchor).inflate(cfg.gateTargetRadius);
@@ -206,7 +206,7 @@ public final class SilentGateManager {
         }
         int killAge = SilentGateSequence.killBarrageAge(task.barrageTicks);
         LivingEntity featured = task.featured != null && task.featured.isAlive() ? task.featured : null;
-        var forced = featured == null ? new int[0] : SilentGateSequence.volley(barrageAge, killAge, task.seed, sky);
+        var forced = featured == null ? new int[0] : SilentGateSequence.volley(barrageAge, killAge, task.seed, task.skyCircles);
         var firing = new LinkedHashSet<Integer>();
         for (int i = 0; i < sky + SilentGateSequence.GROUND_RING; i++)
             if (SilentGateSequence.fires(i, barrageAge, task.barrageTicks, task.seed)) firing.add(i);
@@ -220,19 +220,23 @@ public final class SilentGateManager {
         for (int i : forced) shoot(task, i, featured, damage, shots, hits);
         int k = 0;
         for (int index : firing) {
-            if (shots.size() >= SilentGatePayload.MAX_SHOTS) break;
             shoot(task, index, k < picks.size() && picks.get(k).isAlive() ? picks.get(k) : null, damage, shots, hits);
             k++;
         }
         if (shots.isEmpty() && !fresh) return;
-        broadcast(task, Phase.BARRAGE.ordinal(), shots.stream().mapToInt(Integer::intValue).toArray(),
-                hits.stream().mapToDouble(Double::doubleValue).toArray());
+        // More beams than one packet may carry go out as several packets (same phase, same tick).
+        int max = SilentGatePayload.MAX_SHOTS;
+        for (int from = 0; from == 0 || from < shots.size(); from += max) {
+            int to = Math.min(shots.size(), from + max);
+            broadcast(task, Phase.BARRAGE.ordinal(), shots.subList(from, to).stream().mapToInt(Integer::intValue).toArray(),
+                    hits.subList(3 * from, 3 * to).stream().mapToDouble(Double::doubleValue).toArray());
+        }
     }
 
     /** One beam from circle {@code index} onto {@code target} (the ground below the circle when null); records the hit. */
     private static void shoot(Task task, int index, LivingEntity target, float damage, List<Integer> shots, List<Double> hits) {
-        int sky = task.skyCircles;
-        Vec3 from = index < sky ? SilentGateSequence.skyCircle(task.anchor, task.yaw, task.seed, index, sky)
+        int sky = SilentGateSequence.skyTotal(task.skyCircles);
+        Vec3 from = index < sky ? SilentGateSequence.skyCircle(task.anchor, task.yaw, task.seed, index, task.skyCircles)
                 : SilentGateSequence.groundCircle(task.anchor, task.yaw, index - sky);
         Vec3 hit, ground;
         if (target != null) {

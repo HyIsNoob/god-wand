@@ -17,19 +17,19 @@ class GatePoseTest {
         var shh = at(100);
         assertEquals(GatePose.LIPS.lp(), shh.lp(), .03); assertEquals(GatePose.HIP.rp(), shh.rp(), .03); assertEquals(.20, shh.head(), .03);
         assertEquals(GatePose.LIPS.lp(), at(240).lp(), .03);
-        var lowered = at(285);
+        var lowered = at(345);
         assertEquals(GatePose.REST.lp(), lowered.lp(), .03); assertTrue(lowered.rp() < GatePose.HIP.rp());
-        var wait = at(320);
+        var wait = at(380);
         assertEquals(GatePose.POINT.rp(), wait.rp(), .03);
         assertTrue(Math.abs(wait.rp()) > 2.8);
-        assertEquals(GatePose.AIM.rp(), GatePose.joints(320, 20, END).rp(), .03);
-        assertEquals(GatePose.REST.rp(), GatePose.joints(400, END + 40, END).rp(), .03);
+        assertEquals(GatePose.AIM.rp(), GatePose.joints(380, 20, END).rp(), .03);
+        assertEquals(GatePose.REST.rp(), GatePose.joints(460, END + 40, END).rp(), .03);
     }
 
     @Test void commandSnapsFromSkyToForwardInUnderTwelveTicks() {
-        assertTrue(GatePose.joints(320, 0, END).rp() < -2.8);
-        assertTrue(GatePose.joints(320, 8, END).rp() > -1.2);
-        assertEquals(GatePose.AIM.rp(), GatePose.joints(320, 20, END).rp(), .03);
+        assertTrue(GatePose.joints(380, 0, END).rp() < -2.8);
+        assertTrue(GatePose.joints(380, 8, END).rp() > -1.2);
+        assertEquals(GatePose.AIM.rp(), GatePose.joints(380, 20, END).rp(), .03);
     }
 
     @Test void heavyEaseOvershootsALittleAndSettles() {
@@ -58,7 +58,7 @@ class GatePoseTest {
         var grip = GatePose.wand(100, -1, END, feet, 0);
         assertTrue(Math.abs(grip.axis().y) < .2, "horizontal in the hand");
         assertTrue(grip.pos().distanceTo(GatePose.rightHand(GatePose.joints(100, -1, END), feet, 0).pos()) < .05);
-        var floating = GatePose.wand(320, -1, END, feet, 0);
+        var floating = GatePose.wand(380, -1, END, feet, 0);
         assertTrue(floating.axis().y > .9, "upright beside the caster");
         assertTrue(floating.pos().subtract(feet).horizontalDistance() > .6);
         var chest = GatePose.wand(5, -1, END, feet, 0);

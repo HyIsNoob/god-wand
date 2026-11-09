@@ -42,8 +42,8 @@ final class GateModel {
     /** Glow of the veins: dark while falling, a blue flare at the shockwave, then a steady beat; every cast activation flares them once more. */
     static double vein(double age, double commandAge, double endK) {
         double v = 0;
-        if (age >= 206) {
-            double t = age - 206;
+        if (age >= SilentGateSequence.SHOCK) {
+            double t = age - SilentGateSequence.SHOCK;
             v = 1.2 * Math.exp(-t / 10) + smooth(t / 20) * (.72 + .28 * Math.sin(t * TAU / 20));
         }
         if (commandAge >= 0) v += .9 * Math.exp(-commandAge / 10);

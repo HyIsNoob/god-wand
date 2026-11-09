@@ -38,8 +38,8 @@ final class GateSky {
         double on = smooth((age - 80) / 40);
         if (on <= 0) return;
         for (int i = 0; i < CLOUDS; i++) {
-            // The shockwave at 206 shoves the vortex outwards for one beat.
-            double push = smooth((age - 206) / 5) * (1 - smooth((age - 211) / 40));
+            // The shockwave at 204 shoves the vortex outwards for one beat.
+            double push = smooth((age - 204) / 5) * (1 - smooth((age - 209) / 40));
             double life = (hash(i, 1) + age * .0011) % 1, r = S * (90 - 34 * life) * (1 + .8 * smooth(endK) + .3 * push);
             double a = i * 2.399963 + age * .0032 * (1 + (90 - r) / 50) + hash(i, 2) * .6;
             double envelope = Math.pow(Math.sin(Math.PI * life), .6) * on;

@@ -13,7 +13,7 @@ final class GateMinor {
     static final int JADE = 0x5CFFC8, GREEN = 0x63FF9E, GOLD = 0xFFC94A;
     /** Blocks per tick the activation wave travels from the gate. */
     static final double WAVE_SPEED = 6 * net.godwand.skill.SilentGateSequence.SCALE, WAVE_REACH = 95 * net.godwand.skill.SilentGateSequence.SCALE,
-            FAR = 160, BLOOM_TICKS = 8, BIG = 2;
+            FAR = 120, BLOOM_TICKS = 8, BIG = 2;
     private static final int SEGS = 12;
 
     /** 0..1..0 pulse while the wave front is within 12 blocks past the circle. */
@@ -94,7 +94,7 @@ final class GateMinor {
 
     /** Upright disc facing the caster: seal in the middle, a strip ring round it, spinning slowly, with a faint column of light above. */
     static void ground(Ctx c, Vec3 at, Vec3 toward, int index, double age, boolean gold, Vec3 gate, double wave) {
-        double t = smooth((age - 200 - 4.0 * index) / 20);
+        double t = smooth((age - 296 - 4.0 * index) / 20);
         if (t <= 0) return;
         double flare = flare(gate, at, wave), radius = (gold ? 2.4 : 1.5) * (1 + .1 * flare) * (.6 + .4 * t);
         double alpha = t * (1 + .3 * flare);

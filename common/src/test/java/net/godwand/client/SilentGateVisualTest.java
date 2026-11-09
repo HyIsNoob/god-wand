@@ -34,11 +34,11 @@ class SilentGateVisualTest {
         return SilentGateRenderer.emitScene(mesh, new Matrix4f(), f, shots, Vec3.ZERO);
     }
 
-    @Test void quadBudgetHoldsAtEveryAgeWith96Circles() {
-        for (int age = 0; age <= 300 + 300 + 272 + 15; age += 5) {
-            double command = age < 300 ? -1 : Math.min(age - 300, 272);
+    @Test void quadBudgetHoldsAtEveryAgeWith160Circles() {
+        for (int age = 0; age <= 360 + 300 + 272 + 15; age += 5) {
+            double command = age < 360 ? -1 : Math.min(age - 360, 272);
             Mesh mesh = new Mesh();
-            int quads = emit(mesh, frame(age, command, 96), List.of());
+            int quads = emit(mesh, frame(age, command, 160), List.of());
             assertTrue(quads <= SilentGateRenderer.QUAD_BUDGET, "age " + age + ": " + quads);
             assertEquals(quads * 4, mesh.vertices.size());
         }
@@ -48,16 +48,27 @@ class SilentGateVisualTest {
         var shots = new ArrayList<SilentGateRenderer.Shot>();
         for (int i = 0; i < 24; i++) shots.add(new SilentGateRenderer.Shot(i, new Vec3(i, 70, 40), 100 + 320));
         for (int age = 0; age <= 700; age += 5) {
-            double command = age < 300 ? -1 : Math.min(age - 300, 272);
+            double command = age < 360 ? -1 : Math.min(age - 360, 272);
             for (int layer = -1; layer <= 1; layer++) {
                 for (Vec3 eye : new Vec3[]{Vec3.ZERO, new Vec3(0, 130, 48)}) {
-                    int quads = SilentGateRenderer.emitScene(new Mesh(), new Matrix4f(), frame(age, command, 96), shots, eye, layer);
+                    int quads = SilentGateRenderer.emitScene(new Mesh(), new Matrix4f(), frame(age, command, 160), shots, eye, layer);
                     peak = Math.max(peak, quads);
                     assertTrue(quads <= 12000, "age " + age + " layer " + layer + " eye " + eye + ": " + quads);
                 }
             }
         }
         assertTrue(peak > 1000, "scene should really be drawn, peak " + peak);
+    }
+    @Test void twoHundredFiftySixCirclesStayUnderTheBudgetEvenFromInsideTheField() {
+        int peak = 0;
+        Vec3 lane = SilentGateSequence.flight(ANCHOR, 0f, .5);
+        for (int age = 285; age <= 372; age += 3)
+            for (Vec3 eye : new Vec3[]{Vec3.ZERO, lane, SilentGateSequence.doorCenter(ANCHOR, 0f), new Vec3(0, 160, -120)}) {
+                int quads = SilentGateRenderer.emitScene(new Mesh(), new Matrix4f(), frame(age, -1, 256), List.of(), eye, -1);
+                peak = Math.max(peak, quads);
+                assertTrue(quads <= 14000, "age " + age + " eye " + eye + ": " + quads);
+            }
+        assertTrue(peak > 3000, "hundreds of circles are really drawn: " + peak);
     }
     private static GateDraw.Ctx ctx(Mesh mesh, Vec3 eye, int layer) {
         GateDraw.Ctx c = new GateDraw.Ctx(); c.v = mesh; c.m = new Matrix4f(); c.eye = eye; c.layer = layer; return c;
@@ -110,11 +121,11 @@ class SilentGateVisualTest {
         for (int k = 0; k < 2; k++) { GateDraw.Ctx c = ctx(new Mesh(), eye, 1); GateFx.slit(c, POSE, k, 84); slit[k] = c.quads; }
         assertEquals(0, slit[0]);
         assertTrue(slit[1] > 30, "slit " + slit[1]);
-        double[] ages = {205, 215, 240};
-        for (int k = 0; k < 3; k++) { GateDraw.Ctx c = ctx(new Mesh(), eye, 1); GateFx.shockwave(c, POSE, ages[k]); wave[k] = c.quads; }
+        double[] ages = {200, 210, 240};
+        for (int k = 0; k < 3; k++) { GateDraw.Ctx c = ctx(new Mesh(), eye, 1); GateFx.shockwave(c, POSE, ages[k], 204, 120, 34, 1); wave[k] = c.quads; }
         assertEquals(0, wave[0]); assertTrue(wave[1] > 40, "shockwave " + wave[1]); assertEquals(0, wave[2]);
         assertEquals(0, GateModel.vein(180, -1, 0), "veins are dark while falling");
-        assertTrue(GateModel.vein(208, -1, 0) > 1, "flare at the shockwave");
+        assertTrue(GateModel.vein(205, -1, 0) > 1, "flare at the shockwave");
         assertTrue(GateModel.vein(300, -1, 0) > .4, "steady glow while waiting");
         assertTrue(GateModel.vein(300, 2, 0) > GateModel.vein(300, -1, 0), "activation flares them");
         // In the scene: the gate is absent before the slit, present after, and the slit itself is drawn from 140.
@@ -130,8 +141,8 @@ class SilentGateVisualTest {
     @Test void circleGeometryFadesOutWithinTwelveBlocksOfTheCamera() {
         Vec3 disc = SilentGateSequence.groundCircle(ANCHOR, 0f, 0);
         Mesh near = new Mesh(), far = new Mesh();
-        SilentGateRenderer.emitScene(near, new Matrix4f(), frame(300, -1, 0), List.of(), disc);
-        SilentGateRenderer.emitScene(far, new Matrix4f(), frame(300, -1, 0), List.of(), Vec3.ZERO);
+        SilentGateRenderer.emitScene(near, new Matrix4f(), frame(360, -1, 0), List.of(), disc);
+        SilentGateRenderer.emitScene(far, new Matrix4f(), frame(360, -1, 0), List.of(), Vec3.ZERO);
         // Vertices are camera relative: the camera sits on the first gold disc, so everything within 2.5 blocks of it must be invisible.
         double nearAlpha = near.vertices.stream().filter(p -> Math.hypot(Math.hypot(p[0], p[1]), p[2]) < 2.5).mapToDouble(p -> p[3]).max().orElse(-1);
         double farAlpha = far.vertices.stream().filter(p -> p[1] > ANCHOR.y - 1 && p[1] < ANCHOR.y + 8).mapToDouble(p -> p[3]).max().orElseThrow();
@@ -148,7 +159,7 @@ class SilentGateVisualTest {
     }
     @Test void groundRingDiscsStandUprightBehindTheCaster() {
         Mesh mesh = new Mesh();
-        emit(mesh, frame(300, -1, 0), List.of());
+        emit(mesh, frame(360, -1, 0), List.of());
         double minY = Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
         for (float[] p : mesh.vertices) if (p[1] > ANCHOR.y - 1 && p[1] < ANCHOR.y + 8 && Math.hypot(p[0] - ANCHOR.x, p[2] - ANCHOR.z) < 12) { minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
         // Gold disc (r 2.4) centred 3 above the anchor; its spinning square seal tile reaches a little past the circle.
@@ -163,9 +174,9 @@ class SilentGateVisualTest {
         assertEquals(emit(new Mesh(), frame(329, 29, 48), List.of()), emit(new Mesh(), frame(329, 29, 48), List.of(shot)), "beam gone after 8 ticks");
         Mesh half = new Mesh(), start = new Mesh(), end = new Mesh();
         double over = SilentGateSequence.ACTIVATE_TICKS + 200;
-        emit(start, frame(300 + over, over, 48), List.of());
-        emit(half, frame(300 + over + 30, over + 30, 48), List.of());
-        assertEquals(0, emit(end, frame(300 + over + 60, over + 60, 48), List.of()));
+        emit(start, frame(360 + over, over, 48), List.of());
+        emit(half, frame(360 + over + 30, over + 30, 48), List.of());
+        assertEquals(0, emit(end, frame(360 + over + 60, over + 60, 48), List.of()));
         assertTrue(half.vertices.stream().mapToDouble(p -> p[3]).max().orElseThrow()
                 < start.vertices.stream().mapToDouble(p -> p[3]).max().orElseThrow());
     }

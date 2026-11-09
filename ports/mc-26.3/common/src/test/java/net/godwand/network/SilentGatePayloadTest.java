@@ -25,7 +25,7 @@ class SilentGatePayloadTest {
   assertThrows(IllegalArgumentException.class,()->make(10,9,0,0,none,noHits));
   assertThrows(IllegalArgumentException.class,()->make(10,10,0,Double.NaN,none,noHits));
   assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[]{1},new double[]{1,2}));
-  assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[]{56},new double[]{1,2,3}));
+  assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[]{80},new double[]{1,2,3}));
   assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[]{-1},new double[]{1,2,3}));
   assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[]{1},new double[]{1,Double.POSITIVE_INFINITY,3}));
   assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[105],new double[315]));

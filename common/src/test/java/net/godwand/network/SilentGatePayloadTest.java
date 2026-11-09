@@ -18,6 +18,15 @@ class SilentGatePayloadTest {
    assertEquals(p.barrageTicks(),d.barrageTicks()); assertArrayEquals(p.shots(),d.shots()); assertArrayEquals(p.hits(),d.hits());
   } finally {buf.release();}
  }
+ @Test void acceptsTheNewCircleCounts() {
+  var buf=new RegistryFriendlyByteBuf(Unpooled.buffer(),RegistryAccess.EMPTY);
+  try { var p=new SilentGatePayload(7,100,130,2,1.5,64,-3,45.5f,99L,256,200,new int[]{0,255,287},new double[]{1,2,3,4,5,6,7,8,9});
+   SilentGatePayload.CODEC.encode(buf,p); assertEquals(256,SilentGatePayload.CODEC.decode(buf).skyCircles());
+  } finally {buf.release();}
+  assertThrows(IllegalArgumentException.class,()->new SilentGatePayload(7,100,130,2,1.5,64,-3,45.5f,99L,257,200,new int[0],new double[0]));
+  assertThrows(IllegalArgumentException.class,()->new SilentGatePayload(7,100,130,2,1.5,64,-3,45.5f,99L,160,200,new int[]{192},new double[]{1,2,3}));
+  assertDoesNotThrow(()->new SilentGatePayload(7,100,130,2,1.5,64,-3,45.5f,99L,160,200,new int[]{191},new double[]{1,2,3}));
+ }
  @Test void rejectsMalformedLifecycle() {
   var none=new int[0]; var noHits=new double[0];
   assertDoesNotThrow(()->make(10,10,4,0,none,noHits));
@@ -25,7 +34,7 @@ class SilentGatePayloadTest {
   assertThrows(IllegalArgumentException.class,()->make(10,9,0,0,none,noHits));
   assertThrows(IllegalArgumentException.class,()->make(10,10,0,Double.NaN,none,noHits));
   assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[]{1},new double[]{1,2}));
-  assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[]{56},new double[]{1,2,3}));
+  assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[]{80},new double[]{1,2,3}));
   assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[]{-1},new double[]{1,2,3}));
   assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[]{1},new double[]{1,Double.POSITIVE_INFINITY,3}));
   assertThrows(IllegalArgumentException.class,()->make(10,10,0,0,new int[105],new double[315]));

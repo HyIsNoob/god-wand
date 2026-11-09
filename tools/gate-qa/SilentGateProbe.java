@@ -27,7 +27,8 @@ public final class SilentGateProbe implements ClientModInitializer {
     // Clean spot on the flat QA world (the copied world has an old Fuga crater next to spawn).
     private static final int OX = 4000, OZ = 4000;
     private static final int FIELD_X0 = OX - 130, FIELD_X1 = OX + 130, FIELD_Z0 = OZ + 8, FIELD_Z1 = OZ + 150;
-    private int ticks, stage, since, clickAt, frame, lastCmd = -1;
+    private static final Set<Integer> REFERENCE = Set.of(140, 165, 200, 222, 245, 270, 286, 300, 315, 330, 355, 380);
+    private int ticks, stage, since, clickAt, frame, lastCmd = -1, lastBuild = -1;
     private final long[] fpsSum = new long[4], fpsN = new long[4];
     private final int[] fpsMin = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE},
             firstFrame = {-1, -1, -1, -1}, lastFrame = {-1, -1, -1, -1};
@@ -127,7 +128,14 @@ public final class SilentGateProbe implements ClientModInitializer {
         var f = SilentGateRenderer.localFrame(0);
         if (f != null) sawFrame = true;
         if (f == null && !sawFrame) return;
-        if (age % 2 == 0) grab(c);
+        if (f != null && f.phase() <= 1 && f.commandAge() < 0) {
+            // BUILD/WAIT: every third cast tick (contact sheet) plus the reference ticks, named by cast age.
+            int fa = (int) Math.floor(f.age());
+            if (fa != lastBuild && (fa % 3 == 0 || REFERENCE.contains(fa))) {
+                lastBuild = fa;
+                Screenshot.grab(c.gameDirectory, "gate-" + run + "/b-" + String.format(Locale.ROOT, "%03d", fa) + ".png", c.getMainRenderTarget(), m -> {});
+            }
+        } else if (age % 2 == 0) grab(c);
         // Full-size frames by command age: every tick around the first hits (56..84), plus the requested reference ticks.
         if (f != null && f.phase() == 2 && f.commandAge() >= 0) {
             int cmd = (int) f.commandAge();
@@ -152,7 +160,7 @@ public final class SilentGateProbe implements ClientModInitializer {
         if (ticks % 5 == 0 && fps > 0) { fpsSum[ph] += fps; fpsN[ph]++; fpsMin[ph] = Math.min(fpsMin[ph], fps); }
         sampleMspt(server, PHASES[ph] + " age=" + age);
         if (ph == 2) sawBarrage = true;
-        if ((ph == 0 && age == 100 || ph == 1 && age == 330) && marks.add("lock" + ph)) {
+        if ((ph == 0 && age == 100 || ph == 1 && age == 390) && marks.add("lock" + ph)) {
             server.submit(() -> {
                 var p = server.getPlayerList().getPlayer(c.player.getUUID());
                 if (!SilentGateManager.movementLocked(p) || !SilentGateManager.invulnerable(p))
@@ -160,7 +168,7 @@ public final class SilentGateProbe implements ClientModInitializer {
             }).join();
             System.out.println("GATE_QA PASS lock+invulnerable in " + PHASES[ph]);
         }
-        if (age >= 340 && !click2 && ph == 1) {
+        if (age >= 400 && !click2 && ph == 1) {
             click2 = true;
             c.gameMode.useItem(c.player, InteractionHand.MAIN_HAND);
             System.out.println("GATE_QA CLICK2 age=" + age);

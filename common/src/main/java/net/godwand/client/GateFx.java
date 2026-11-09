@@ -81,23 +81,23 @@ final class GateFx {
         }
     }
 
-    /** Ring of dust puffs thrown outwards when the gate comes to rest (ticks 184..204). */
-    static void dust(Ctx c, Pose p, double age) {
-        double t = (age - 184) / 22;
+    /** Ring of dust puffs thrown outwards when the gate comes to rest (188..210) and, smaller, when the doors stop (285..307). */
+    static void dust(Ctx c, Pose p, double age, int t0, double gain) {
+        double t = (age - t0) / 22;
         if (t <= 0 || t >= 1 || !c.body()) return;
         for (int i = 0; i < 20; i++) {
-            double a = i * TAU / 20 + hash(i, 21) * .3, r = p.s() * (6 + (30 + 8 * hash(i, 22)) * (1 - (1 - t) * (1 - t)));
+            double a = i * TAU / 20 + hash(i, 21) * .3, r = p.s() * (6 + (30 + 8 * hash(i, 22)) * gain * (1 - (1 - t) * (1 - t)));
             Vec3 at = p.foot().add(Math.cos(a) * r, p.s() * (2 + 5 * t * hash(i, 23)), Math.sin(a) * r);
-            GateDraw.sprite(c, at, (3.5 + 6 * t) * p.s(), .26 * (1 - t) * smooth(t * 8), DUST, GateAtlas.CLOUD, hash(i, 24) * TAU);
+            GateDraw.sprite(c, at, (3.5 + 6 * t) * p.s(), .26 * Math.min(1, gain + .3) * (1 - t) * smooth(t * 8), DUST, GateAtlas.CLOUD, hash(i, 24) * TAU);
         }
     }
 
-    /** Horizontal ring of light that races outwards from the gate at tick 206. */
-    static void shockwave(Ctx c, Pose p, double age) {
-        double t = (age - 206) / 28;
+    /** Horizontal ring of light that races outwards from the gate at tick {@code t0} (204: the gate lands; 285: the doors meet their stops). */
+    static void shockwave(Ctx c, Pose p, double age, int t0, double reach, double height, double gain) {
+        double t = (age - t0) / 28;
         if (t <= 0 || t >= 1 || !c.glow()) return;
-        double radius = p.s() * (4 + 120 * (1 - Math.pow(1 - t, 2.2))), wd = p.s() * (2.5 + 9 * t), alpha = .8 * Math.pow(1 - t, 1.4);
-        Vec3 o = p.foot().add(p.U(34));
+        double radius = p.s() * (4 + reach * (1 - Math.pow(1 - t, 2.2))), wd = p.s() * (2.5 + 9 * t) * gain, alpha = .8 * gain * Math.pow(1 - t, 1.4);
+        Vec3 o = p.foot().add(p.U(height));
         int segs = 48;
         for (int s = 0; s < segs; s++) {
             double a0 = s * TAU / segs, a1 = (s + 1) * TAU / segs;
@@ -106,7 +106,7 @@ final class GateFx {
             GateDraw.gradient(c, i0, i1, m1, m0, BLUE, 0, 0, alpha, alpha);
             GateDraw.gradient(c, m0, m1, o1, o0, HOT, alpha, alpha, 0, 0);
         }
-        if (t < .3) GateDraw.sprite(c, o, (50 * (1 - t / .3) + 8) * p.s(), .7 * (1 - t / .3), HOT);
+        if (t < .3) GateDraw.sprite(c, o, (50 * gain * (1 - t / .3) + 8) * p.s(), .7 * gain * (1 - t / .3), HOT);
     }
     private static Vec3 ring(Vec3 o, double r, double a) { return o.add(Math.cos(a) * r, 0, Math.sin(a) * r); }
 
@@ -140,10 +140,27 @@ final class GateFx {
     /** Half width of the visible gap between the two leaves: they hinge on the jambs and swing back, so the gap grows as 1 - cos. */
     static double gap(double angle) { return SilentGateSequence.GATE_INNER_WIDTH / 2.0 * .9 * (1 - Math.cos(angle)); }
 
+    /** A hairline of light between the leaves while they are stuck (at least .3 wide), with a soft halo, flickering; {@code leak} 0..1. */
+    static void crack(Ctx c, Pose p, double angle, double leak, double age) {
+        if (leak <= 0) return;
+        double w = Math.max(.3, gap(angle)) * (1 + .25 * Math.sin(age * .9)), y0 = OPENING_Y0 + 1, y1 = OPENING_Y0 + SilentGateSequence.GATE_INNER_HEIGHT - 1;
+        int rows = 8;
+        for (int j = 0; j < rows; j++) {
+            double ya = y0 + (y1 - y0) * j / rows, yb = y0 + (y1 - y0) * (j + 1) / rows, ta = taper((double) j / rows), tb = taper((j + 1.0) / rows);
+            for (int side = -1; side <= 1; side += 2) for (int halo = 0; halo < 2; halo++) {
+                double m = halo == 0 ? 1 : 6, al = (halo == 0 ? .95 : .3) * leak;
+                GateDraw.gradient(c, p.at(side * w * m, ya, .35), p.at(0, ya, .35), p.at(0, yb, .35), p.at(side * w * m, yb, .35),
+                        halo == 0 ? HOT : BLUE, 0, al * ta, al * tb, 0);
+            }
+        }
+    }
+
     /** The white-blue plane behind the doors, its god rays and a bloom, growing with the opening. */
     static void light(Ctx c, Pose p, double open, double angle, double age) {
-        double k = smooth(open * 1.25);
-        if (k <= 0.01 || !c.glow()) return;
+        double k = smooth(open * 1.25), leak = smooth((age - SilentGateSequence.OPEN_START - 2) / 14) * (1 - smooth((open - .05) / .3));
+        if ((k <= 0.01 && leak <= 0) || !c.glow()) return;
+        crack(c, p, angle, leak, age);
+        double rays = Math.max(k, .8 * leak);
         double g = gap(angle), top = OPENING_Y0 + SilentGateSequence.GATE_INNER_HEIGHT, mid = (OPENING_Y0 + top) / 2;
         double[] ys = {OPENING_Y0, mid, top}, ya = {.6, 1, .8};
         // Layered glow: a wide cyan plane that falls off to nothing at the jambs (so the leaf edges stay dark and readable),
@@ -163,7 +180,7 @@ final class GateFx {
         for (int i = 0; i < 16; i++) {
             double fwd = i % 2 == 0 ? 1 : -1, life = (hash(i, 41) + age * (.004 + .003 * hash(i, 42))) % 1;
             double x = (hash(i, 43) * 2 - 1) * Math.max(g, 1) * (1 + 2 * life), y = mid + (hash(i, 44) - .5) * 40 + life * 8;
-            GateDraw.sprite(c, p.at(x, y, fwd * (1 + 30 * life)), (.5 + .7 * hash(i, 45)) * p.s(), .6 * k * Math.sin(Math.PI * life), i % 3 == 0 ? BLUE : HOT);
+            GateDraw.sprite(c, p.at(x, y, fwd * (1 + 30 * life)), (.5 + .7 * hash(i, 45)) * p.s(), .6 * rays * Math.sin(Math.PI * life), i % 3 == 0 ? BLUE : HOT);
         }
         for (int i = 0; i < 30; i++) {
             double fwd = i % 3 == 0 ? 1 : -1;
@@ -174,7 +191,7 @@ final class GateFx {
             if (side.lengthSqr() < 1e-8) continue;
             double len = (70 + 60 * hash(i, 35)) * p.s(), w0 = .8 * p.s(), w1 = (5 + 4 * hash(i, 36)) * p.s();
             side = side.normalize();
-            double shimmer = .55 + .45 * Math.sin(age * .045 + i * 1.7), al = (fwd < 0 ? .16 : .1) * k * shimmer;
+            double shimmer = .55 + .45 * Math.sin(age * .045 + i * 1.7), al = (fwd < 0 ? .16 : .1) * rays * shimmer;
             Vec3 tip = o.add(dir.scale(len));
             for (int s = -1; s <= 1; s += 2)
                 GateDraw.gradient(c, o, o.add(side.scale(s * w0)), tip.add(side.scale(s * w1)), tip, i % 2 == 0 ? HOT : BLUE, al, 0, 0, 0);
