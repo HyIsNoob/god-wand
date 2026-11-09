@@ -9,39 +9,55 @@ class SilentGateSequenceTest {
     private static final Vec3 ANCHOR = new Vec3(100.5, 64, -20.25);
 
     @Test
-    void skyCirclesAreDeterministicAndSpread() {
+    void skyCirclesAreDeterministicAndFormADenseCanopy() {
         float yaw = 37f;
-        int n = 160, total = SilentGateSequence.skyTotal(n);
+        int n = 220, total = SilentGateSequence.skyTotal(n);
         assertEquals(n + 24, total);
         Vec3 center = SilentGateSequence.gateCenter(ANCHOR, yaw);
         Vec3[] a = new Vec3[total];
         double minDist = 1e9, maxReach = 0;
+        int[] tier = new int[3];
         for (int i = 0; i < total; i++) {
             a[i] = SilentGateSequence.skyCircle(ANCHOR, yaw, 1234L, i, n);
             assertEquals(a[i], SilentGateSequence.skyCircle(ANCHOR, yaw, 1234L, i, n));
             assertTrue(a[i].y >= ANCHOR.y + 40 - 8 && a[i].y <= ANCHOR.y + 260, "y " + (a[i].y - ANCHOR.y));
             maxReach = Math.max(maxReach, Math.hypot(a[i].x - ANCHOR.x, a[i].z - ANCHOR.z));
+            if (i < n && i % 4 != 3) tier[i % 4]++;
         }
         for (int i = 0; i < total; i++) for (int j = i + 1; j < total; j++) minDist = Math.min(minDist, a[i].distanceTo(a[j]));
-        assertTrue(maxReach > 190 && maxReach <= 290, "spread over a radius of about 220 round the caster: " + maxReach);
+        assertTrue(maxReach > 190 && maxReach <= 290, "the canopy reaches over the field: " + maxReach);
         assertTrue(minDist >= MIN_SPACING, "no two circles on top of each other: " + minDist);
-        // Denser round the gate than round the caster.
-        int nearGate = 0, nearCaster = 0;
+        for (int t : tier) assertEquals(n / 4, t, 1, "three tiers of equal strength");
+        // Three height layers: a low tier (55..90), a middle one (115..160) and a high one (175..215) above the anchor.
         for (int i = 0; i < n; i++) {
-            if (Math.hypot(a[i].x - center.x, a[i].z - center.z) < 120) nearGate++;
-            if (Math.hypot(a[i].x - ANCHOR.x, a[i].z - ANCHOR.z) < 120) nearCaster++;
+            double h = a[i].y - ANCHOR.y;
+            if (i % 4 == 0) assertTrue(h >= 55 && h <= 90, "low tier " + h);
+            if (i % 4 == 1) assertTrue(h >= 115 && h <= 160, "middle tier " + h);
+            if (i % 4 == 2) assertTrue(h >= 175 && h <= 215, "high tier " + h);
         }
-        assertTrue(nearGate > n * .45 && nearGate > nearCaster, "denser near the gate: " + nearGate + " vs " + nearCaster);
+        // Dense: in the target field (30..170 ahead, 100 to the sides) a ground point has a circle within 24 blocks (horizontally) almost everywhere.
+        double[] d = {-Math.sin(Math.toRadians(yaw)), Math.cos(Math.toRadians(yaw))};
+        var rnd = new java.util.Random(11);
+        int covered = 0, samples = 600;
+        for (int s = 0; s < samples; s++) {
+            double along = 30 + 140 * rnd.nextDouble(), lateral = (rnd.nextDouble() * 2 - 1) * 100;
+            Vec3 p = new Vec3(ANCHOR.x + d[0] * along + d[1] * lateral, ANCHOR.y, ANCHOR.z + d[1] * along - d[0] * lateral);
+            double best = 1e9;
+            for (int i = 0; i < total; i++) best = Math.min(best, Math.hypot(a[i].x - p.x, a[i].z - p.z));
+            if (best <= 24) covered++;
+        }
+        assertTrue(covered > samples * .95, "canopy covers the field: " + covered + "/" + samples);
         // The ring of 24 round the gate body.
         for (int i = n; i < total; i++) {
-            double d = Math.hypot(a[i].x - center.x, a[i].z - center.z);
-            assertEquals(90, d, .01);
-            double ax = SilentGateSequence.gateCenter(ANCHOR, yaw).x, side = Math.abs((a[i].x - center.x) * Math.cos(Math.toRadians(yaw)) + (a[i].z - center.z) * Math.sin(Math.toRadians(yaw)));
+            double dd = Math.hypot(a[i].x - center.x, a[i].z - center.z);
+            assertEquals(90, dd, .01);
+            double side = Math.abs((a[i].x - center.x) * Math.cos(Math.toRadians(yaw)) + (a[i].z - center.z) * Math.sin(Math.toRadians(yaw)));
             assertTrue(side >= 62, "ring circle " + i + " stays out of the gate's silhouette: " + side);
             assertTrue(a[i].y > ANCHOR.y + SilentGateSequence.gateBase(ANCHOR.y) && a[i].y < ANCHOR.y + SilentGateSequence.gateBase(ANCHOR.y) + 192, "ring height " + i);
         }
     }
     private static final double MIN_SPACING = 1.5;
+
 
     @Test
     void laneCirclesHangOverTheCameraAndBloomJustAheadOfIt() {
@@ -203,28 +219,39 @@ class SilentGateSequenceTest {
     }
 
     @Test
-    void beamsRainNearlyVerticallyFromTheNearestCircleThatGlidesOverTheTarget() {
-        int n = 160, total = SilentGateSequence.skyTotal(n);
+    void beamsRainNearlyVerticallyFromTheNearestCircleAfterAShortLocalSlide() {
+        int n = 220, total = SilentGateSequence.skyTotal(n);
         var rnd = new java.util.Random(3);
-        int glided = 0, straight = 0;
-        for (int t = 0; t < 400; t++) {
-            Vec3 target = new Vec3(ANCHOR.x + rnd.nextDouble() * 360 - 180, ANCHOR.y + rnd.nextDouble() * 6, ANCHOR.z + rnd.nextDouble() * 300 - 20);
+        int slid = 0, straight = 0, far = 0;
+        for (int t = 0; t < 600; t++) {
+            // Targets over the whole field: ahead 20..180, 120 to either side, on the ground.
+            Vec3 target = new Vec3(ANCHOR.x + rnd.nextDouble() * 240 - 120, ANCHOR.y + rnd.nextDouble() * 6, ANCHOR.z + 20 + rnd.nextDouble() * 160);
             int c = SilentGateSequence.nearestCircle(ANCHOR, 0f, 9L, n, target, i -> true);
             assertTrue(c >= 0 && c < total);
             Vec3 home = SilentGateSequence.skyCircle(ANCHOR, 0f, 9L, c, n);
+            Vec3 move = SilentGateSequence.slide(home, target, false);
+            assertTrue(move.length() <= SilentGateSequence.MAX_SLIDE + 1e-9, "a local slide only: " + move.length());
+            assertEquals(0, move.y, 0);
             int g = SilentGateSequence.glideTicks(home, target);
-            if (g == 0) { straight++; assertTrue(SilentGateSequence.tilt(home, target) <= SilentGateSequence.MAX_TILT_DEGREES + 1e-9, "no glide needed: tilt " + SilentGateSequence.tilt(home, target)); }
-            else {
-                glided++;
-                assertTrue(g >= 10 && g <= 15, "glide " + g);
-                Vec3 above = new Vec3(target.x, home.y, target.z);
-                assertEquals(0, SilentGateSequence.tilt(above, target), 1e-9, "after the glide the beam is vertical");
+            Vec3 at = home.add(move);
+            if (move.lengthSqr() == 0) {
+                g = g + 0; assertEquals(0, g);
+                if (SilentGateSequence.tilt(home, target) <= SilentGateSequence.MAX_TILT_DEGREES + 1e-9) straight++; else far++;
+            } else {
+                slid++;
+                assertTrue(g >= 6 && g <= 11, "slide " + g + " ticks");
+                assertTrue(SilentGateSequence.tilt(at, target) <= SilentGateSequence.MAX_TILT_DEGREES + 1e-6, "after the slide the beam leans " + SilentGateSequence.tilt(at, target) + " degrees");
             }
-            // The nearest circle is nearer than any other free one.
             double d = Math.hypot(home.x - target.x, home.z - target.z);
             for (int i = 0; i < total; i++) { Vec3 p = SilentGateSequence.skyCircle(ANCHOR, 0f, 9L, i, n); if (p.y > target.y) assertTrue(Math.hypot(p.x - target.x, p.z - target.z) >= d - 1e-9); }
         }
-        assertTrue(glided > 100 && straight > 0, "mixed: " + glided + " glided, " + straight + " straight");
+        assertTrue(far < 600 * .08, "the dense canopy leaves almost no target needing a long diagonal: " + far);
+        assertTrue(slid > 50 && straight > 50, "mixed: " + slid + " slid, " + straight + " straight, " + far + " out of reach");
+        // The kill beam slides until it stands directly above the target (at most 20 blocks).
+        Vec3 home = new Vec3(0, 150, 0), hit = new Vec3(12, 0, 5);
+        Vec3 to = home.add(SilentGateSequence.slide(home, hit, true));
+        assertEquals(0, SilentGateSequence.tilt(to, hit), 1e-9);
+        assertEquals(20, SilentGateSequence.slide(home, new Vec3(80, 0, 0), true).length(), 1e-9, "never a long flight");
         // A circle that is busy is skipped.
         Vec3 target = new Vec3(ANCHOR.x + 10, ANCHOR.y, ANCHOR.z + 50);
         int first = SilentGateSequence.nearestCircle(ANCHOR, 0f, 9L, n, target, i -> true);
@@ -235,7 +262,8 @@ class SilentGateSequenceTest {
         assertEquals(1, SilentGateSequence.glideK(12 + 3, 12), 0);
         assertEquals(0, SilentGateSequence.glideK(12 + SilentGateSequence.BEAM_TICKS + SilentGateSequence.GLIDE_BACK, 12), 1e-9);
         assertEquals(0, SilentGateSequence.glideK(5, 0), 0, "no glide, no move");
-        assertEquals(0, SilentGateSequence.glideTicks(new Vec3(0, 100, 0), new Vec3(5, 0, 0)), "within 8 degrees: no glide");
-        assertEquals(10, SilentGateSequence.glideTicks(new Vec3(0, 100, 0), new Vec3(30, 0, 0)), "off by 30: glides 10 ticks");
+        assertEquals(0, SilentGateSequence.glideTicks(new Vec3(0, 100, 0), new Vec3(5, 0, 0)), "within 8 degrees: no slide");
+        assertEquals(9, SilentGateSequence.glideTicks(new Vec3(0, 100, 0), new Vec3(25, 0, 0)), "11 blocks of slide take 9 ticks");
+        assertEquals(0, SilentGateSequence.glideTicks(new Vec3(0, 100, 0), new Vec3(60, 0, 0)), "too far for a slide: fires as it stands");
     }
 }

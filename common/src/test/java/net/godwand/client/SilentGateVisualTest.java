@@ -67,6 +67,28 @@ class SilentGateVisualTest {
         double prev = 0;
         for (double x = 0; x <= 120; x += 6) { double k = GateMinor.gateClear(eye, new Vec3(x, 150, 80), gate, 12); assertTrue(k >= prev - 1e-12); prev = k; }
     }
+    @Test void circlesStayExactlyWhereTheyBloomThroughWaitActivationAndBarrage() {
+        int n = 220, total = SilentGateSequence.skyTotal(n);
+        for (double age : new double[]{440, 480, 520, 700}) for (double command : new double[]{-1, 0, 5, 11, 12})
+            for (int i = 0; i < total; i += 7) {
+                var f = new SilentGateRenderer.Frame(1, 100, command < 0 ? 1 : 2, age, command, ANCHOR, 0f, 7L, n, 200, -1);
+                assertEquals(SilentGateSequence.skyCircle(ANCHOR, 0f, 7L, i, n), SilentGateRenderer.circlePosition(ANCHOR, f, i, n, null, 100 + age), "circle " + i + " at age " + age + " command " + command);
+            }
+        // With a shot a circle only slides a few blocks sideways (never more than 20) and comes back.
+        var f = new SilentGateRenderer.Frame(1, 100, 2, 600, 100, ANCHOR, 0f, 7L, n, 200, -1);
+        for (int i = 0; i < n; i += 5) {
+            Vec3 home = SilentGateSequence.skyCircle(ANCHOR, 0f, 7L, i, n);
+            for (boolean heavy : new boolean[]{false, true}) for (double dx : new double[]{-60, -9, 0, 14, 90}) {
+                var shot = new SilentGateRenderer.Shot(i, new Vec3(home.x + dx, ANCHOR.y, home.z + dx / 2), 700, heavy);
+                for (double now = 700; now < 700 + 45; now += 1) {
+                    Vec3 at = SilentGateRenderer.circlePosition(ANCHOR, f, i, n, shot, now);
+                    assertTrue(at.distanceTo(home) <= 20.0001, "slides " + at.distanceTo(home));
+                    assertEquals(home.y, at.y, 0);
+                }
+                assertEquals(home, SilentGateRenderer.circlePosition(ANCHOR, f, i, n, shot, 700 + 40), "back home");
+            }
+        }
+    }
     @Test void twoHundredFiftySixCirclesStayUnderTheBudgetEvenFromInsideTheField() {
         int peak = 0;
         Vec3 lane = SilentGateSequence.flight(ANCHOR, 0f, .5);
@@ -175,7 +197,8 @@ class SilentGateVisualTest {
         assertTrue(maxY <= ANCHOR.y + 3 + 3.4 && maxY >= ANCHOR.y + 3 + 2.0, "max " + maxY);
     }
     @Test void beamsLastEightTicksAndTheEndingFadesToNothing() {
-        var shot = new SilentGateRenderer.Shot(3, new Vec3(5, 70, 40), 100 + 320);
+        Vec3 home3 = SilentGateSequence.skyCircle(ANCHOR, 0f, 7L, 3, 48);
+        var shot = new SilentGateRenderer.Shot(3, new Vec3(home3.x + 12, ANCHOR.y, home3.z), 100 + 320);
         Mesh with = new Mesh(), without = new Mesh();
         int g = SilentGateSequence.glideTicks(SilentGateSequence.skyCircle(ANCHOR, 0f, 7L, 3, 48), shot.hit());
         assertTrue(g > 0, "the circle first glides over its target");

@@ -253,12 +253,7 @@ public final class SilentGateRenderer {
         Map<Integer, Shot> latest = new HashMap<>();
         for (Shot s : shots) if (s.circle() >= 0 && s.circle() < sky) latest.merge(s.circle(), s, (x, y) -> x.tick() >= y.tick() ? x : y);
         for (int i = 0; i < sky; i++) {
-            Vec3 home = SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), i, count), at = home;
-            Shot s = latest.get(i);
-            if (s != null) {
-                int glide = glideOf(s, home);
-                at = home.lerp(new Vec3(s.hit().x, home.y, s.hit().z), SilentGateSequence.glideK(now - s.tick(), glide));
-            }
+            Vec3 at = circlePosition(anchor, f, i, count, latest.get(i), now);
             GateMinor.sky(c, at, i, age, SilentGateSequence.circleBorn(i, count, f.seed()), gate, wave, e);
         }
         for (int i = 0; i < SilentGateSequence.GROUND_RING; i++)
@@ -281,7 +276,7 @@ public final class SilentGateRenderer {
                 double ol = now - o.tick() - (o.circle() < total ? glideOf(o, oh) : 0);
                 if (ol >= 0 && ol < BEAM_TICKS && o.hit().distanceToSqr(s.hit()) < 64) stacked++;
             }
-            Vec3 from = glide > 0 ? new Vec3(s.hit().x, home.y, s.hit().z) : home;
+            Vec3 from = glide > 0 ? home.add(SilentGateSequence.slide(home, s.hit(), s.heavy())) : home;
             GateBeams.shot(c, from, s.hit(), life, s.heavy() ? GateCircles.HOT : s.circle() < total ? (s.circle() % 2 == 0 ? GateMinor.JADE : GateCircles.GLOW_BLUE)
                     : SilentGateSequence.groundCircleGold(s.circle() - total) ? GateMinor.GOLD : GateMinor.GREEN, s.tick() * 31L + s.circle(), now,
                     s.heavy() ? 1 : 1 / Math.max(1, stacked * .6), s.heavy() ? 2 : 1);
@@ -291,6 +286,13 @@ public final class SilentGateRenderer {
         lastQuads = c.quads;
         return c.quads;
     }
+    /** Where sky circle {@code i} is at {@code now}: always where it bloomed, except for a short local slide (at most 20 blocks, sideways) while it lines a beam up with its target. */
+    static Vec3 circlePosition(Vec3 anchor, Frame f, int i, int count, Shot s, double now) {
+        Vec3 home = SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), i, count);
+        if (s == null) return home;
+        return home.add(SilentGateSequence.slide(home, s.hit(), s.heavy()).scale(SilentGateSequence.glideK(now - s.tick(), glideOf(s, home))));
+    }
+
     /** Ticks the circle of {@code s} glides over its target before the beam fires. */
     static int glideOf(Shot s, Vec3 home) { return s.heavy() ? SilentGateSequence.HEAVY_GLIDE : SilentGateSequence.glideTicks(home, s.hit()); }
 

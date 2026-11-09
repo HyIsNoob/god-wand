@@ -73,23 +73,21 @@ public final class SilentGateSequence {
             return new Vec3(c.x + d[0] * along + d[1] * lateral, anchor.y + gateBase(anchor.y) + 40 + 112 * r.nextDouble(), c.z + d[1] * along - d[0] * lateral);
         }
         int group = index / 4, kind = index % 4;
-        double h = anchor.y + 60 + 200 * r.nextDouble(), a = group * GOLDEN_ANGLE + kind;
-        if (kind == 2) {
-            double rad = 40 + 180 * Math.sqrt((group + .5) / Math.max(1, count / 4.0));
-            return new Vec3(anchor.x + rad * Math.cos(a), h, anchor.z + rad * Math.sin(a));
-        }
         if (kind == 3) {
             // Overhead the lane: 35..75 above the camera, up to 14 to either side.
             double u = laneU(index, count);
             Vec3 p = flight(anchor, yaw, u), right = new Vec3(Math.cos(Math.toRadians(yaw)), 0, Math.sin(Math.toRadians(yaw)));
             return p.add(right.scale((r.nextDouble() * 2 - 1) * 14)).add(0, 35 + 40 * r.nextDouble(), 0);
         }
-        double rad = 20 + 100 * Math.sqrt((group * 2 + kind + .5) / Math.max(1, count / 2.0)), dx = rad * Math.cos(a), dz = rad * Math.sin(a);
-        // Out of the gate's silhouette: at least 62 blocks sideways of the axis through the gate (as seen from the caster).
-        double along = dx * d[0] + dz * d[1], lateral = dx * d[1] - dz * d[0];
-        if (Math.abs(lateral) < 62) lateral = Math.signum(lateral == 0 ? 1 : lateral) * (62 + Math.abs(lateral) * .6);
-        return new Vec3(c.x + d[0] * along + d[1] * lateral, h, c.z + d[1] * along - d[0] * lateral);
+        // The canopy over the battlefield: three height tiers (kind 0, 1, 2), each an even low-discrepancy spread (R2 sequence) over the ground in front of the
+        // caster (10..190 ahead, 130 to either side: the target field and the gate); one group in three fills the ground behind (-110..10) so the sky above and
+        // behind the caster is packed as well. Every circle stays where it blooms, through the wait and the barrage.
+        double g = group + 13 * kind, fx = frac(.5 + .7548776662466927 * g), fy = frac(.5 + .5698402909980532 * g);
+        double lateral = (fx * 2 - 1) * 130, along = group % 3 == 2 ? -110 + 120 * fy : 10 + 180 * fy;
+        double y = anchor.y + (kind == 0 ? 55 + 35 * r.nextDouble() : kind == 1 ? 115 + 45 * r.nextDouble() : 175 + 40 * r.nextDouble());
+        return new Vec3(anchor.x + d[0] * along + d[1] * lateral, y, anchor.z + d[1] * along - d[0] * lateral);
     }
+    private static double frac(double x) { return x - Math.floor(x); }
 
     /** Where along the flight lane a lane circle (odd index) sits, 0..1 in index order. */
     public static double laneU(int index, int count) { return (index / 4 + .5) / Math.max(1, count / 4); }
@@ -203,11 +201,23 @@ public final class SilentGateSequence {
     public static final double MAX_TILT_DEGREES = 8;
     /** Degrees a beam from {@code from} to {@code hit} leans from vertical. */
     public static double tilt(Vec3 from, Vec3 hit) { return Math.toDegrees(Math.atan2(Math.hypot(from.x - hit.x, from.z - hit.z), Math.max(1e-6, from.y - hit.y))); }
-    /** Ticks a circle at {@code home} needs to glide above {@code hit} before it fires: 0 when the beam already stands within 8 degrees of vertical, else 10..15 (farther is slower). */
+    /** Longest a circle may slide sideways to line a beam up with its target (blocks); the canopy is dense enough that most beams need less. */
+    public static final double MAX_SLIDE = 15, HEAVY_MAX_SLIDE = 20;
+    /**
+     * The short local slide of a circle at {@code home} so its beam onto {@code hit} leans no more than 8 degrees: horizontally toward the target, only as far as needed, at most
+     * {@link #MAX_SLIDE} (the kill beam slides until it is directly above, at most {@link #HEAVY_MAX_SLIDE}). Zero when no slide helps (the beam already stands, or the target is outside the canopy).
+     */
+    public static Vec3 slide(Vec3 home, Vec3 hit, boolean heavy) {
+        double h = Math.hypot(hit.x - home.x, hit.z - home.z), reach = heavy ? 0 : Math.max(0, home.y - hit.y) * Math.tan(Math.toRadians(MAX_TILT_DEGREES));
+        double need = h - reach, cap = heavy ? HEAVY_MAX_SLIDE : MAX_SLIDE;
+        if (need <= 1e-9 || !heavy && need > cap || h < 1e-9) return Vec3.ZERO;
+        double d = Math.min(need, cap);
+        return new Vec3((hit.x - home.x) / h * d, 0, (hit.z - home.z) / h * d);
+    }
+    /** Ticks of the slide before an ordinary beam fires: none without a slide, else 6..11 (a longer slide takes longer). */
     public static int glideTicks(Vec3 home, Vec3 hit) {
-        double h = Math.hypot(home.x - hit.x, home.z - hit.z);
-        if (h <= Math.max(2, (home.y - hit.y) * Math.tan(Math.toRadians(MAX_TILT_DEGREES)))) return 0;
-        return 10 + (int) Math.min(5, h / 40);
+        Vec3 s = slide(home, hit, false);
+        return s == Vec3.ZERO || s.lengthSqr() == 0 ? 0 : 6 + (int) (s.length() / 3);
     }
     /** Glide offset 0..1 of a circle {@code since} ticks after the shot was announced: eased over {@code glide} ticks, held while the beam lives, eased back. */
     public static double glideK(double since, int glide) {
