@@ -35,7 +35,7 @@ class SilentGateSequenceTest {
             if (i % 4 == 1) assertTrue(h >= 115 && h <= 160, "middle tier " + h);
             if (i % 4 == 2) assertTrue(h >= 175 && h <= 215, "high tier " + h);
         }
-        // Dense: in the target field (30..170 ahead, 100 to the sides) a ground point has a circle within 24 blocks (horizontally) almost everywhere.
+        // Dense: in the target field (30..170 ahead, 100 to the sides) a ground point has a circle within 30 blocks (horizontally) almost everywhere.
         double[] d = {-Math.sin(Math.toRadians(yaw)), Math.cos(Math.toRadians(yaw))};
         var rnd = new java.util.Random(11);
         int covered = 0, samples = 600;
@@ -44,7 +44,7 @@ class SilentGateSequenceTest {
             Vec3 p = new Vec3(ANCHOR.x + d[0] * along + d[1] * lateral, ANCHOR.y, ANCHOR.z + d[1] * along - d[0] * lateral);
             double best = 1e9;
             for (int i = 0; i < total; i++) best = Math.min(best, Math.hypot(a[i].x - p.x, a[i].z - p.z));
-            if (best <= 24) covered++;
+            if (best <= 30) covered++;
         }
         assertTrue(covered > samples * .95, "canopy covers the field: " + covered + "/" + samples);
         // The ring of 24 round the gate body.

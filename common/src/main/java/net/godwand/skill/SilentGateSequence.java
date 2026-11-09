@@ -80,10 +80,10 @@ public final class SilentGateSequence {
             return p.add(right.scale((r.nextDouble() * 2 - 1) * 14)).add(0, 35 + 40 * r.nextDouble(), 0);
         }
         // The canopy over the battlefield: three height tiers (kind 0, 1, 2), each an even low-discrepancy spread (R2 sequence) over the ground in front of the
-        // caster (10..190 ahead, 130 to either side: the target field and the gate); one group in three fills the ground behind (-110..10) so the sky above and
+        // caster (10..190 ahead, 130 to either side: the target field and the gate); every other group fills the ground behind (-150..10) so the sky above and
         // behind the caster is packed as well. Every circle stays where it blooms, through the wait and the barrage.
         double g = group + 13 * kind, fx = frac(.5 + .7548776662466927 * g), fy = frac(.5 + .5698402909980532 * g);
-        double lateral = (fx * 2 - 1) * 130, along = group % 3 == 2 ? -110 + 120 * fy : 10 + 180 * fy;
+        double lateral = (fx * 2 - 1) * 130, along = group % 2 == 1 ? -150 + 160 * fy : 10 + 180 * fy;
         double y = anchor.y + (kind == 0 ? 55 + 35 * r.nextDouble() : kind == 1 ? 115 + 45 * r.nextDouble() : 175 + 40 * r.nextDouble());
         return new Vec3(anchor.x + d[0] * along + d[1] * lateral, y, anchor.z + d[1] * along - d[0] * lateral);
     }
