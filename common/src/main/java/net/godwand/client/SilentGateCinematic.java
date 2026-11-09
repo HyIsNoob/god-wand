@@ -396,7 +396,7 @@ public final class SilentGateCinematic {
             list.add(new Candidate(e.getId(), e.getMaxHealth(), e.position()));
         Vec3 at = LOCK.update(frame.startedAt(), frame.commandAge(), lockAt, list, anchor, frame.featured());
         if (hitCast != frame.startedAt()) { hitCast = frame.startedAt(); hitAt = -1; }
-        if (hitAt < 0 && at != null) for (Shot s : shots) if (s.hit().distanceToSqr(at) < 36) { hitAt = s.tick(); break; }
+        if (hitAt < 0 && at != null) for (Shot s : shots) if (s.heavy() && s.hit().distanceToSqr(at) < 36) { hitAt = s.tick() + SilentGateSequence.HEAVY_GLIDE; break; }
         return at;
     }
 

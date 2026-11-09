@@ -191,23 +191,41 @@ public final class SilentGateSequence {
         return ACTIVATE_TICKS + Math.round((baseTick - ACTIVATE_TICKS) * barrageTicks / 200f);
     }
 
-    /** The featured target is withheld from the beams until this barrage age, then {@link #VOLLEY_BEAMS} beams land within {@link #VOLLEY_TICKS} ticks
-     *  (authored as command tick 100 of a 200-tick barrage). */
-    public static final int VOLLEY_TICKS = 3, VOLLEY_BEAMS = 6;
+    /** The decisive kill beam: its circle glides over the featured target for HEAVY_GLIDE ticks, then one beam lands for HEAVY_DAMAGE_MULT times the damage of an
+     *  ordinary beam (authored as command tick 100 of a 200-tick barrage; the kill shot starts 16 ticks earlier so the camera sees the circle line up). */
+    public static final int HEAVY_GLIDE = 16, HEAVY_DAMAGE_MULT = 6, BEAM_TICKS = 8, GLIDE_BACK = 12;
     public static int killBarrageAge(int barrageTicks) { return shotTick(100, barrageTicks) - ACTIVATE_TICKS; }
 
-    /** The featured target is spared by the ordinary beams until the volley has landed. */
-    public static boolean withheld(int barrageAge, int killAge) { return barrageAge < killAge + VOLLEY_TICKS; }
+    /** The featured target is spared by the ordinary beams until the kill beam has landed. */
+    public static boolean withheld(int barrageAge, int killAge) { return barrageAge <= killAge; }
 
-    /** Sky circles that fire at the featured target on this barrage age (two per tick, spread over the spiral); empty outside the volley. */
-    public static int[] volley(int barrageAge, int killAge, long seed, int skyCircles) {
-        int o = barrageAge - killAge;
-        if (o < 0 || o >= VOLLEY_TICKS) return new int[0];
-        int slot = skyCircles / VOLLEY_BEAMS, shift = (int) Math.floorMod(seed, (long) Math.max(1, slot));
-        int per = VOLLEY_BEAMS / VOLLEY_TICKS;
-        int[] out = new int[per];
-        for (int j = 0; j < per; j++) out[j] = Math.min(skyCircles - 1, (o * per + j) * slot + shift);
-        return out;
+    /** No beam leans more than this from vertical. */
+    public static final double MAX_TILT_DEGREES = 8;
+    /** Degrees a beam from {@code from} to {@code hit} leans from vertical. */
+    public static double tilt(Vec3 from, Vec3 hit) { return Math.toDegrees(Math.atan2(Math.hypot(from.x - hit.x, from.z - hit.z), Math.max(1e-6, from.y - hit.y))); }
+    /** Ticks a circle at {@code home} needs to glide above {@code hit} before it fires: 0 when the beam already stands within 8 degrees of vertical, else 10..15 (farther is slower). */
+    public static int glideTicks(Vec3 home, Vec3 hit) {
+        double h = Math.hypot(home.x - hit.x, home.z - hit.z);
+        if (h <= Math.max(2, (home.y - hit.y) * Math.tan(Math.toRadians(MAX_TILT_DEGREES)))) return 0;
+        return 10 + (int) Math.min(5, h / 40);
+    }
+    /** Glide offset 0..1 of a circle {@code since} ticks after the shot was announced: eased over {@code glide} ticks, held while the beam lives, eased back. */
+    public static double glideK(double since, int glide) {
+        if (glide <= 0 || since <= 0) return 0;
+        if (since < glide) return smooth(since / glide);
+        if (since < glide + BEAM_TICKS) return 1;
+        return 1 - smooth((since - glide - BEAM_TICKS) / GLIDE_BACK);
+    }
+    /** The sky circle (home position) horizontally nearest to {@code target} among those {@code free} accepts, or -1. */
+    public static int nearestCircle(Vec3 anchor, float yaw, long seed, int count, Vec3 target, java.util.function.IntPredicate free) {
+        int best = -1; double bd = Double.MAX_VALUE;
+        for (int i = 0; i < skyTotal(count); i++) {
+            if (!free.test(i)) continue;
+            Vec3 p = skyCircle(anchor, yaw, seed, i, count);
+            double d = Math.hypot(p.x - target.x, p.z - target.z);
+            if (p.y > target.y && d < bd) { bd = d; best = i; }
+        }
+        return best;
     }
 
     public static int endTick(int barrageTicks) { return ACTIVATE_TICKS + barrageTicks + ENDING_TICKS; }

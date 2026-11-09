@@ -18,6 +18,11 @@ class SilentGatePayloadTest {
    assertEquals(p.barrageTicks(),d.barrageTicks()); assertArrayEquals(p.shots(),d.shots()); assertArrayEquals(p.hits(),d.hits());
   } finally {buf.release();}
  }
+ @Test void kindBeamsAreAcceptedAndBounded() {
+  assertDoesNotThrow(()->new SilentGatePayload(7,100,130,2,1.5,64,-3,45.5f,99L,160,200,new int[]{SilentGatePayload.HEAVY+10},new double[]{1,2,3}));
+  assertThrows(IllegalArgumentException.class,()->new SilentGatePayload(7,100,130,2,1.5,64,-3,45.5f,99L,160,200,new int[]{SilentGatePayload.HEAVY+192},new double[]{1,2,3}));
+  assertThrows(IllegalArgumentException.class,()->new SilentGatePayload(7,100,130,2,1.5,64,-3,45.5f,99L,160,200,new int[]{SilentGatePayload.HEAVY-1},new double[]{1,2,3}));
+ }
  @Test void acceptsTheNewCircleCounts() {
   var buf=new RegistryFriendlyByteBuf(Unpooled.buffer(),RegistryAccess.EMPTY);
   try { var p=new SilentGatePayload(7,100,130,2,1.5,64,-3,45.5f,99L,256,200,new int[]{0,255,287},new double[]{1,2,3,4,5,6,7,8,9});

@@ -53,6 +53,7 @@ public final class SilentGateManager {
         /** The one target the beams spare until the kill-shot volley; picked on the first barrage tick. */
         LivingEntity featured;
         boolean featuredPicked;
+        final Work work = new Work();
         /** Config snapshot taken at click 1: server tick and client payload must keep agreeing after a reload. */
         final int skyCircles = GodWandConfig.SERVER.gateSkyCircles, barrageTicks = GodWandConfig.SERVER.gateBarrageTicks;
         Task(ServerPlayer player) {
@@ -179,6 +180,7 @@ public final class SilentGateManager {
                     fx(task, CinematicFxPayload.EVENT_FOV_PUNCH, .9f, 8);
                 }
             } else if (task.phase == Phase.BARRAGE) barrage(task, age);
+            if (!early) runPending(task, now);
             Phase next = next(task.phase, age, task.commanded, GodWandConfig.SERVER.gateWaitTicks, task.barrageTicks);
             if (next == null) { it.remove(); cooldown(task); }
             else if (next != task.phase) {
@@ -189,9 +191,20 @@ public final class SilentGateManager {
         drain(world);
     }
 
+    /** A beam whose circle is still gliding over its target: the damage and crater land when it has arrived. */
+    private record Pending(long at, LivingEntity target, float damage) {}
+    /** Per task: circles that are gliding or firing (index to the tick they are free again), strikes waiting for their circle, the kill beam sent. */
+    private static final class Work {
+        final Map<Integer, Long> busy = new HashMap<>();
+        final List<Pending> pending = new ArrayList<>();
+        boolean heavyDone;
+    }
+
     private static void barrage(Task task, long age) {
         var cfg = GodWandConfig.SERVER;
-        int sky = SilentGateSequence.skyTotal(task.skyCircles), barrageAge = (int) age - SilentGateSequence.ACTIVATE_TICKS;
+        var work = task.work;
+        long now = task.world.getGameTime();
+        int total = SilentGateSequence.skyTotal(task.skyCircles), barrageAge = (int) age - SilentGateSequence.ACTIVATE_TICKS;
         if (barrageAge < 0) return;
         if (barrageAge % 10 == 0) {
             var box = new AABB(task.anchor, task.anchor).inflate(cfg.gateTargetRadius);
@@ -206,21 +219,33 @@ public final class SilentGateManager {
         }
         int killAge = SilentGateSequence.killBarrageAge(task.barrageTicks);
         LivingEntity featured = task.featured != null && task.featured.isAlive() ? task.featured : null;
-        var forced = featured == null ? new int[0] : SilentGateSequence.volley(barrageAge, killAge, task.seed, task.skyCircles);
+        float damage = cfg.gateBeamDamage * cfg.damageMultiplier;
+        var shots = new ArrayList<Integer>();
+        var hits = new ArrayList<Double>();
+        var used = new HashSet<Integer>();
+        // The decisive beam: one circle glides over the featured target during the first second of the kill shot, then a single heavy beam kills it.
+        int heavyStart = killAge - SilentGateSequence.HEAVY_GLIDE;
+        if (featured != null && !work.heavyDone && barrageAge >= heavyStart && barrageAge <= killAge - 4) {
+            Vec3 centre = featured.getBoundingBox().getCenter();
+            int c = SilentGateSequence.nearestCircle(task.anchor, task.yaw, task.seed, task.skyCircles, centre, i -> work.busy.getOrDefault(i, 0L) <= now);
+            if (c >= 0) {
+                work.heavyDone = true;
+                work.busy.put(c, now + SilentGateSequence.HEAVY_GLIDE + SilentGateSequence.BEAM_TICKS + SilentGateSequence.GLIDE_BACK);
+                used.add(c);
+                work.pending.add(new Pending(now + SilentGateSequence.HEAVY_GLIDE, featured, damage * SilentGateSequence.HEAVY_DAMAGE_MULT));
+                shots.add(SilentGatePayload.HEAVY + c);
+                hits.add(centre.x); hits.add(centre.y); hits.add(centre.z);
+            }
+        }
         var firing = new LinkedHashSet<Integer>();
-        for (int i = 0; i < sky + SilentGateSequence.GROUND_RING; i++)
+        for (int i = 0; i < total + SilentGateSequence.GROUND_RING; i++)
             if (SilentGateSequence.fires(i, barrageAge, task.barrageTicks, task.seed)) firing.add(i);
-        for (int i : forced) firing.remove(i);
         var pool = featured != null && SilentGateSequence.withheld(barrageAge, killAge)
                 ? task.candidates.stream().filter(e -> e != featured).toList() : task.candidates;
         var picks = SilentGateTargets.pick(pool, task.anchor, firing.size(), task.seed + barrageAge);
-        var shots = new ArrayList<Integer>();
-        var hits = new ArrayList<Double>();
-        float damage = cfg.gateBeamDamage * cfg.damageMultiplier;
-        for (int i : forced) shoot(task, i, featured, damage, shots, hits);
         int k = 0;
         for (int index : firing) {
-            shoot(task, index, k < picks.size() && picks.get(k).isAlive() ? picks.get(k) : null, damage, shots, hits);
+            fire(task, index, k < picks.size() && picks.get(k).isAlive() ? picks.get(k) : null, damage, shots, hits, used, now);
             k++;
         }
         if (shots.isEmpty() && !fresh) return;
@@ -233,24 +258,54 @@ public final class SilentGateManager {
         }
     }
 
-    /** One beam from circle {@code index} onto {@code target} (the ground below the circle when null); records the hit. */
-    private static void shoot(Task task, int index, LivingEntity target, float damage, List<Integer> shots, List<Double> hits) {
-        int sky = SilentGateSequence.skyTotal(task.skyCircles);
-        Vec3 from = index < sky ? SilentGateSequence.skyCircle(task.anchor, task.yaw, task.seed, index, task.skyCircles)
-                : SilentGateSequence.groundCircle(task.anchor, task.yaw, index - sky);
-        Vec3 hit, ground;
-        if (target != null) {
-            hit = target.getBoundingBox().getCenter();
-            SpellDamage.hurt(target, task.world.damageSources().indirectMagic(task.caster, task.caster), damage);
-            ground = groundBelow(task.world, task.caster, target.position().add(0, 1, 0));
-            if (ground != null && ground.y < target.getY() - 8) ground = null;
-        } else {
-            ground = hit = groundBelow(task.world, task.caster, from);
-            if (hit == null) return;
+    /**
+     * One ordinary beam. With a target it comes from the sky circle horizontally nearest to it that is free this tick; that circle glides over the target first when the
+     * beam would lean more than 8 degrees (the shot is announced now, the strike lands when it has arrived). Without a target the circle fires straight down.
+     */
+    private static void fire(Task task, int index, LivingEntity target, float damage, List<Integer> shots, List<Double> hits, Set<Integer> used, long now) {
+        var work = task.work;
+        int total = SilentGateSequence.skyTotal(task.skyCircles);
+        if (target == null) {
+            if (used.contains(index) || work.busy.getOrDefault(index, 0L) > now) return;
+            Vec3 from = index < total ? SilentGateSequence.skyCircle(task.anchor, task.yaw, task.seed, index, task.skyCircles)
+                    : SilentGateSequence.groundCircle(task.anchor, task.yaw, index - total);
+            Vec3 ground = groundBelow(task.world, task.caster, from);
+            if (ground == null) return;
+            used.add(index);
+            shots.add(index);
+            hits.add(ground.x); hits.add(ground.y); hits.add(ground.z);
+            crater(task, ground);
+            return;
         }
-        shots.add(index);
-        hits.add(hit.x); hits.add(hit.y); hits.add(hit.z);
+        Vec3 centre = target.getBoundingBox().getCenter();
+        int c = SilentGateSequence.nearestCircle(task.anchor, task.yaw, task.seed, task.skyCircles, centre, i -> !used.contains(i) && work.busy.getOrDefault(i, 0L) <= now);
+        if (c < 0) return;
+        Vec3 home = SilentGateSequence.skyCircle(task.anchor, task.yaw, task.seed, c, task.skyCircles);
+        int glide = SilentGateSequence.glideTicks(home, centre);
+        used.add(c);
+        work.busy.put(c, now + glide + SilentGateSequence.BEAM_TICKS + (glide > 0 ? SilentGateSequence.GLIDE_BACK : 0));
+        shots.add(c);
+        hits.add(centre.x); hits.add(centre.y); hits.add(centre.z);
+        if (glide == 0) strike(task, target, damage);
+        else work.pending.add(new Pending(now + glide, target, damage));
+    }
+
+    /** Damage and crater of a beam that has reached its target. */
+    private static void strike(Task task, LivingEntity target, float damage) {
+        if (!target.isAlive()) return;
+        SpellDamage.hurt(target, task.world.damageSources().indirectMagic(task.caster, task.caster), damage);
+        Vec3 ground = groundBelow(task.world, task.caster, target.position().add(0, 1, 0));
+        if (ground != null && ground.y < target.getY() - 8) ground = null;
         if (ground != null) crater(task, ground);
+    }
+
+    private static void runPending(Task task, long now) {
+        for (var it = task.work.pending.iterator(); it.hasNext();) {
+            var p = it.next();
+            if (p.at() > now) continue;
+            it.remove();
+            strike(task, p.target(), p.damage());
+        }
     }
 
     /** First collidable block straight below, only inside an already loaded chunk; null otherwise. */

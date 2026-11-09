@@ -22,21 +22,24 @@ final class GateBeams {
     /** A hit this close to the camera is the subject of a close-up: its beam and impact only dissolve within {@value #CLOSE_NEAR_MAX} blocks of the lens. */
     static final double CLOSE_RANGE = 14, CLOSE_NEAR_MIN = .4, CLOSE_NEAR_MAX = 2;
 
-    static void shot(Ctx c, Vec3 from, Vec3 hit, double life, int color, long seed, double now, double crowd) {
+    static void shot(Ctx c, Vec3 from, Vec3 hit, double life, int color, long seed, double now, double crowd) { shot(c, from, hit, life, color, seed, now, crowd, 1); }
+
+    /** {@code heavy} 1 for an ordinary beam, 2 for the kill beam (twice as thick, a brighter core, a stronger impact). */
+    static void shot(Ctx c, Vec3 from, Vec3 hit, double life, int color, long seed, double now, double crowd, double heavy) {
         double env = envelope(life);
         if (env <= 0) return;
         boolean close = hit.distanceTo(c.eye) < CLOSE_RANGE;
         if (close) { c.nearMin = CLOSE_NEAR_MIN; c.nearMax = CLOSE_NEAR_MAX; }
-        try { draw(c, from, hit, life, env, color, seed, now, crowd); }
+        try { draw(c, from, hit, life, env, color, seed, now, crowd, heavy); }
         finally { c.nearMin = GateDraw.NEAR_MIN; c.nearMax = GateDraw.NEAR_MAX; }
     }
 
-    private static void draw(Ctx c, Vec3 from, Vec3 hit, double life, double env, int color, long seed, double now, double crowd) {
-        beam(c, from, hit, env, color, now);
-        if (c.glow()) { muzzle(c, from, life, color); impact(c, hit, life, color, seed, crowd); }
+    private static void draw(Ctx c, Vec3 from, Vec3 hit, double life, double env, int color, long seed, double now, double crowd, double heavy) {
+        beam(c, from, hit, env, color, now, heavy);
+        if (c.glow()) { muzzle(c, from, life, color); impact(c, hit, life, color, seed, crowd, heavy); }
     }
 
-    private static void beam(Ctx c, Vec3 from, Vec3 to, double env, int color, double now) {
+    private static void beam(Ctx c, Vec3 from, Vec3 to, double env, int color, double now, double heavy) {
         Vec3 d = to.subtract(from);
         double len = d.length();
         if (len < 1e-3) return;
@@ -52,8 +55,13 @@ final class GateBeams {
         // is tapered to the width allowed at each end's distance (core thinner, sheath at most CLOSE_WIDTH wide within CLOSE_RADIUS blocks).
         double pass = from.add(n.scale(along)).distanceTo(c.eye), dim = CLOSE_DIM + (1 - CLOSE_DIM) * smooth((pass - CLOSE_RADIUS) / CLOSE_RADIUS);
         if (c.body()) {
-            Vec3 wa = side.scale(allowed(c, from, .2 * B, CLOSE_CORE)), wb = side.scale(allowed(c, to, .2 * B, CLOSE_CORE));
+            Vec3 wa = side.scale(allowed(c, from, .2 * B * heavy, CLOSE_CORE)), wb = side.scale(allowed(c, to, .2 * B * heavy, CLOSE_CORE));
             GateDraw.quad(c, from.subtract(wa), from.add(wa), to.add(wb), to.subtract(wb), GateCircles.HOT, .95 * env * (.5 + .5 * dim));
+            if (heavy > 1) {
+                // The kill beam: a second, wider white layer round a bright core.
+                Vec3 xa = side.scale(allowed(c, from, .5 * B * heavy, CLOSE_SHEATH)), xb = side.scale(allowed(c, to, .5 * B * heavy, CLOSE_SHEATH));
+                GateDraw.quad(c, from.subtract(xa), from.add(xa), to.add(xb), to.subtract(xb), GateCircles.HOT, .7 * env * (.5 + .5 * dim));
+            }
         }
         if (!c.glow()) return;
         env *= dim;
@@ -62,12 +70,12 @@ final class GateBeams {
         for (int guard = 0; guard < 40 && t0 < len - 1e-6; guard++) {
             double ph0 = (((t0 / FIBRE_LENGTH - scroll) % 1) + 1) % 1, t1 = Math.min(len, t0 + (1 - ph0) * FIBRE_LENGTH), ph1 = ph0 + (t1 - t0) / FIBRE_LENGTH;
             Vec3 a = from.add(n.scale(t0)), b = from.add(n.scale(t1));
-            Vec3 ha = side.scale(allowed(c, a, 1.1 * B, CLOSE_SHEATH)), hb = side.scale(allowed(c, b, 1.1 * B, CLOSE_SHEATH));
+            Vec3 ha = side.scale(allowed(c, a, 1.1 * B * heavy, CLOSE_SHEATH)), hb = side.scale(allowed(c, b, 1.1 * B * heavy, CLOSE_SHEATH));
             GateDraw.tex(c, a.subtract(ha), b.subtract(hb), b.add(hb), a.add(ha), GateAtlas.FIBRE, ph0, Math.min(1, ph1), 0, 1, color, .55 * env, .55 * env, .55 * env, .55 * env);
             t0 = t1;
         }
         // Soft outer glow, brightest on the axis.
-        Vec3 wf = side.scale(allowed(c, from, 2.2 * B, CLOSE_SHEATH)), wt = side.scale(allowed(c, to, 2.2 * B, CLOSE_SHEATH));
+        Vec3 wf = side.scale(allowed(c, from, 2.2 * B * heavy, CLOSE_SHEATH)), wt = side.scale(allowed(c, to, 2.2 * B * heavy, CLOSE_SHEATH));
         double g = .16 * env;
         GateDraw.gradient(c, from.subtract(wf), from, to, to.subtract(wt), color, 0, g, g, 0);
         GateDraw.gradient(c, from, from.add(wf), to.add(wt), to, color, g, 0, 0, g);
@@ -92,10 +100,10 @@ final class GateBeams {
     private static final double I = 2 * B;
 
     /** {@code crowd}: 1 for a lone hit, less when many hits stack on one spot (a boss under the whole barrage), so the sum stays readable instead of white. */
-    private static void impact(Ctx c, Vec3 hit, double life, int color, long seed, double crowd) {
+    private static void impact(Ctx c, Vec3 hit, double life, int color, long seed, double crowd, double heavy) {
         double k = life / LIFE, fade = (1 - k * k) * crowd;
         // An impact filling the lens (close-up) keeps its flash but its wide additive pieces shrink and dim.
-        double near = .35 + .65 * smooth((hit.distanceTo(c.eye) - 4) / 24);
+        double near = (.35 + .65 * smooth((hit.distanceTo(c.eye) - 4) / 24)) * (1 + .6 * (heavy - 1));
         Vec3 o = hit.add(0, .12, 0);
         fan(c, o, (3 + 4 * smooth(life / 2)) * I * near, color, .35 * fade * near, 12);
         // Short bright flash on the first ticks, and a column of light where the beam lands.

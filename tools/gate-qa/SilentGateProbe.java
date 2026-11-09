@@ -139,7 +139,7 @@ public final class SilentGateProbe implements ClientModInitializer {
         // Full-size frames by command age: every tick around the first hits (56..84), plus the requested reference ticks.
         if (f != null && f.phase() == 2 && f.commandAge() >= 0) {
             int cmd = (int) f.commandAge();
-            if (cmd != lastCmd && (cmd >= 56 && cmd <= 96 || cmd % 10 == 0 || cmd == 6)) {
+            if (cmd != lastCmd && (cmd >= 82 && cmd <= 110 || cmd % 10 == 0 || cmd == 6)) {
                 lastCmd = cmd;
                 Screenshot.grab(c.gameDirectory, "gate-" + run + "/c-" + String.format(Locale.ROOT, "%03d", cmd) + ".png", c.getMainRenderTarget(), m -> {});
             }

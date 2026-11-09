@@ -14,7 +14,7 @@ final class GateMinor {
     static final int JADE = 0x5CFFC8, GREEN = 0x63FF9E, GOLD = 0xFFC94A;
     /** Blocks per tick the activation wave travels from the gate. */
     static final double WAVE_SPEED = 6 * net.godwand.skill.SilentGateSequence.SCALE, WAVE_REACH = 95 * net.godwand.skill.SilentGateSequence.SCALE,
-            FAR = 120, BLOOM_TICKS = 8, BIG = 5;
+            FAR = 120, BLOOM_TICKS = 8, BIG = 3;
     private static final int SEGS = 12;
 
     /** 0..1..0 pulse while the wave front is within 12 blocks past the circle. */
@@ -44,6 +44,8 @@ final class GateMinor {
         double dist = c.eye.distanceTo(at), flare = flare(gate, at, wave), s = k * BIG * Math.min(2, Math.max(1, dist / 100)) * (1 + .1 * flare), alpha = smooth(t * 2) * (1 + .6 * flare);
         int tint = index % 2 == 0 ? JADE : GateCircles.WHITE_BLUE, color = mix(tint, 0xFFFFFF, .7 * flare);
         double spin = age * .012 * (index % 2 == 0 ? 1 : -1) + index;
+        // The gate stays clean: a circle in front of it that overlaps its silhouette from here fades out (ref 11 keeps them apart).
+        if (e < 70) { double clear = gateClear(c.eye, at, gate, 4 * s); if (clear <= .02) return; alpha *= clear; }
         if (c.body()) {
             if (dist > FAR) {
                 // Far: a bright fill and a heavy ring, so the stroke stays at least ~1.5 px wide (thickness grows with distance).
@@ -70,6 +72,15 @@ final class GateMinor {
             if (flash > 0) GateDraw.sprite(c, at.add(0, 1.2 * s, 0), (3 + 4 * since / 14) * BIG, .5 * flash, GateCircles.HOT);
             if (flare > 0) { GateDraw.sprite(c, at.add(0, 1.2 * s, 0), 7 * BIG, .6 * flare, GateCircles.HOT); GateDraw.sprite(c, at.add(0, 2.4 * s, 0), 2.6 * BIG, .95 * flare, 0xFFFFFF); }
         }
+    }
+
+    /** 0 while a circle of radius {@code r} in front of the gate lies on the gate's silhouette (about 105 blocks round its body centre) as seen from {@code eye}, 1 once clear of it. */
+    static double gateClear(Vec3 eye, Vec3 at, Vec3 gate, double r) {
+        Vec3 vg = gate.add(0, 21, 0).subtract(eye), vc = at.subtract(eye);
+        double dg = vg.length(), dc = vc.length();
+        if (dg < 1 || dc < 1 || dc >= dg) return 1;
+        double theta = Math.acos(Math.max(-1, Math.min(1, vg.dot(vc) / (dg * dc)))), rho = Math.atan2(105, dg), sigma = Math.atan2(r, dc);
+        return smooth((theta - rho) / Math.max(.03, sigma + .5 * rho));
     }
 
     private static int mix(int a, int b, double t) {

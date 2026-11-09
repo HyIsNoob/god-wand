@@ -59,6 +59,14 @@ class SilentGateVisualTest {
         }
         assertTrue(peak > 1000, "scene should really be drawn, peak " + peak);
     }
+    @Test void circlesInFrontOfTheGateFadeSoItsSilhouetteStaysClean() {
+        Vec3 gate = new Vec3(0, 135, 144), eye = new Vec3(0, 3, 0);
+        assertEquals(0, GateMinor.gateClear(eye, new Vec3(0, 150, 80), gate, 12), 1e-9, "on the gate's silhouette");
+        assertEquals(1, GateMinor.gateClear(eye, new Vec3(150, 150, 80), gate, 12), 1e-9, "well to the side");
+        assertEquals(1, GateMinor.gateClear(eye, new Vec3(0, 150, 300), gate, 12), 1e-9, "behind the gate");
+        double prev = 0;
+        for (double x = 0; x <= 120; x += 6) { double k = GateMinor.gateClear(eye, new Vec3(x, 150, 80), gate, 12); assertTrue(k >= prev - 1e-12); prev = k; }
+    }
     @Test void twoHundredFiftySixCirclesStayUnderTheBudgetEvenFromInsideTheField() {
         int peak = 0;
         Vec3 lane = SilentGateSequence.flight(ANCHOR, 0f, .5);
@@ -169,9 +177,12 @@ class SilentGateVisualTest {
     @Test void beamsLastEightTicksAndTheEndingFadesToNothing() {
         var shot = new SilentGateRenderer.Shot(3, new Vec3(5, 70, 40), 100 + 320);
         Mesh with = new Mesh(), without = new Mesh();
-        int a = emit(with, frame(322, 22, 48), List.of(shot)), b = emit(without, frame(322, 22, 48), List.of());
+        int g = SilentGateSequence.glideTicks(SilentGateSequence.skyCircle(ANCHOR, 0f, 7L, 3, 48), shot.hit());
+        assertTrue(g > 0, "the circle first glides over its target");
+        int a = emit(with, frame(322 + g, 22 + g, 48), List.of(shot)), b = emit(without, frame(322 + g, 22 + g, 48), List.of());
         assertTrue(a - b > 20, "ribbon, muzzle and impact: " + (a - b));
-        assertEquals(emit(new Mesh(), frame(329, 29, 48), List.of()), emit(new Mesh(), frame(329, 29, 48), List.of(shot)), "beam gone after 8 ticks");
+        assertEquals(0, emit(new Mesh(), frame(322 + g - 1, 22 + g - 1, 48), List.of(shot)) - emit(new Mesh(), frame(322 + g - 1, 22 + g - 1, 48), List.of()) - (emit(new Mesh(), frame(322 + g - 1, 22 + g - 1, 48), List.of(shot)) - emit(new Mesh(), frame(322 + g - 1, 22 + g - 1, 48), List.of())), "no beam before the circle arrives");
+        assertEquals(emit(new Mesh(), frame(329 + g, 29 + g, 48), List.of()), emit(new Mesh(), frame(329 + g, 29 + g, 48), List.of(shot)), "beam gone after 8 ticks");
         Mesh half = new Mesh(), start = new Mesh(), end = new Mesh();
         double over = SilentGateSequence.ACTIVATE_TICKS + 200;
         emit(start, frame(480 + over, over, 48), List.of());

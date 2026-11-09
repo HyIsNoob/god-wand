@@ -13,6 +13,8 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 import java.util.ArrayDeque;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,9 +28,12 @@ public final class SilentGateRenderer {
     /** {@code age}: ticks since the first click; {@code commandAge}: ticks since the second click (-1 before it). */
     public record Frame(int casterId, long startedAt, int phase, double age, double commandAge,
             Vec3 anchor, float yaw, long seed, int skyCircles, int barrageTicks, int featured) {}
-    public record Shot(int circle, Vec3 hit, long tick) {}
+    /** A beam: its circle, where it lands, the tick it was announced (the circle then glides over the target, the beam fires {@code glide} ticks later); heavy is the kill beam. */
+    public record Shot(int circle, Vec3 hit, long tick, boolean heavy) {
+        public Shot(int circle, Vec3 hit, long tick) { this(circle, hit, tick, false); }
+    }
 
-    static final int SHOT_MEMORY_TICKS = 10;
+    static final int SHOT_MEMORY_TICKS = 45;
     /** Server config maximum of gateWaitTicks. */
     static final int MAX_WAIT_TICKS = 1200;
     private static final class Cast {
@@ -73,7 +78,8 @@ public final class SilentGateRenderer {
         cast.yaw = p.yaw(); cast.seed = p.seed(); cast.skyCircles = p.skyCircles(); cast.barrageTicks = p.barrageTicks();
         if (p.featured() >= 0) cast.featured = p.featured();
         for (int i = 0; i < p.shots().length; i++)
-            cast.shots.add(new Shot(p.shots()[i], new Vec3(p.hits()[3 * i], p.hits()[3 * i + 1], p.hits()[3 * i + 2]), now));
+            { int idx = p.shots()[i]; boolean heavy = idx >= SilentGatePayload.HEAVY;
+            cast.shots.add(new Shot(heavy ? idx - SilentGatePayload.HEAVY : idx, new Vec3(p.hits()[3 * i], p.hits()[3 * i + 1], p.hits()[3 * i + 2]), now, heavy)); }
         trim(cast, now);
         if (CASTS.size() > 16) CASTS.remove(CASTS.keySet().iterator().next());
     }
@@ -242,31 +248,52 @@ public final class SilentGateRenderer {
         GateCircles.great(c, anchor, gate, GateCircles.clock(age), e);
         int count = Math.max(0, Math.min(f.skyCircles(), 256)), sky = SilentGateSequence.skyTotal(count);
         double wave = f.commandAge() >= 0 ? f.commandAge() * GateMinor.WAVE_SPEED : -1;
-        for (int i = 0; i < sky; i++)
-            GateMinor.sky(c, SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), i, count), i, age, SilentGateSequence.circleBorn(i, count, f.seed()), gate, wave, e);
+        double now = f.startedAt() + age;
+        // The latest beam of each circle: while it is announced and firing the circle glides over its target (eased there and back).
+        Map<Integer, Shot> latest = new HashMap<>();
+        for (Shot s : shots) if (s.circle() >= 0 && s.circle() < sky) latest.merge(s.circle(), s, (x, y) -> x.tick() >= y.tick() ? x : y);
+        for (int i = 0; i < sky; i++) {
+            Vec3 home = SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), i, count), at = home;
+            Shot s = latest.get(i);
+            if (s != null) {
+                int glide = glideOf(s, home);
+                at = home.lerp(new Vec3(s.hit().x, home.y, s.hit().z), SilentGateSequence.glideK(now - s.tick(), glide));
+            }
+            GateMinor.sky(c, at, i, age, SilentGateSequence.circleBorn(i, count, f.seed()), gate, wave, e);
+        }
         for (int i = 0; i < SilentGateSequence.GROUND_RING; i++)
             GateMinor.ground(c, SilentGateSequence.groundCircle(anchor, f.yaw(), i), anchor, i, age, SilentGateSequence.groundCircleGold(i), gate, wave, e);
         GateMinor.wave(c, gate, f.yaw(), wave);
         gate(c, anchor, f.yaw(), age, f.commandAge(), e);
-        // Beams from circle to hit point, alive for BEAM_TICKS.
-        double now = f.startedAt() + age;
+        // Beams from circle to hit point: they start when the circle has arrived over the target and live for BEAM_TICKS.
+        int total = SilentGateSequence.skyTotal(f.skyCircles());
         for (Shot s : shots) {
-            double life = now - s.tick();
-            int stacked = 0;
-            if (life >= 0 && life < BEAM_TICKS) for (Shot o : shots) if (now - o.tick() >= 0 && now - o.tick() < BEAM_TICKS && o.hit().distanceToSqr(s.hit()) < 64) stacked++;
-            if (life < 0 || life >= BEAM_TICKS || s.circle() < 0) continue;
-            int total = SilentGateSequence.skyTotal(f.skyCircles());
-            Vec3 from = s.circle() < total
-                    ? SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), s.circle(), f.skyCircles())
+            if (s.circle() < 0) continue;
+            Vec3 home = s.circle() < total ? SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), s.circle(), f.skyCircles())
                     : SilentGateSequence.groundCircle(anchor, f.yaw(), s.circle() - total);
-            GateBeams.shot(c, from, s.hit(), life, s.circle() < total ? (s.circle() % 2 == 0 ? GateMinor.JADE : GateCircles.GLOW_BLUE)
-                    : SilentGateSequence.groundCircleGold(s.circle() - total) ? GateMinor.GOLD : GateMinor.GREEN, s.tick() * 31L + s.circle(), now, 1 / Math.max(1, stacked * .6));
+            int glide = s.circle() < total ? glideOf(s, home) : 0;
+            double life = now - s.tick() - glide;
+            if (life < 0 || life >= BEAM_TICKS) continue;
+            int stacked = 0;
+            for (Shot o : shots) {
+                if (o.circle() < 0) continue;
+                Vec3 oh = o.circle() < total ? SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), o.circle(), f.skyCircles()) : home;
+                double ol = now - o.tick() - (o.circle() < total ? glideOf(o, oh) : 0);
+                if (ol >= 0 && ol < BEAM_TICKS && o.hit().distanceToSqr(s.hit()) < 64) stacked++;
+            }
+            Vec3 from = glide > 0 ? new Vec3(s.hit().x, home.y, s.hit().z) : home;
+            GateBeams.shot(c, from, s.hit(), life, s.heavy() ? GateCircles.HOT : s.circle() < total ? (s.circle() % 2 == 0 ? GateMinor.JADE : GateCircles.GLOW_BLUE)
+                    : SilentGateSequence.groundCircleGold(s.circle() - total) ? GateMinor.GOLD : GateMinor.GREEN, s.tick() * 31L + s.circle(), now,
+                    s.heavy() ? 1 : 1 / Math.max(1, stacked * .6), s.heavy() ? 2 : 1);
         }
         var sim = GateMana.sim(f.casterId());
         if (sim != null) GateMana.emit(c, sim, f);
         lastQuads = c.quads;
         return c.quads;
     }
+    /** Ticks the circle of {@code s} glides over its target before the beam fires. */
+    static int glideOf(Shot s, Vec3 home) { return s.heavy() ? SilentGateSequence.HEAVY_GLIDE : SilentGateSequence.glideTicks(home, s.hit()); }
+
     /** Quads of the last emitted cast (dev statistic read by the QA probe). */
     public static volatile int lastQuads;
 

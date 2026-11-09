@@ -188,21 +188,54 @@ class SilentGateSequenceTest {
     }
 
     @Test
-    void featuredTargetIsWithheldThenSixBeamsLandWithinThreeTicks() {
+    void featuredTargetIsWithheldUntilTheOneHeavyBeamLands() {
         for (int barrage : new int[]{200, 400}) {
             int kill = SilentGateSequence.killBarrageAge(barrage);
             assertEquals(SilentGateSequence.shotTick(100, barrage), kill + SilentGateSequence.ACTIVATE_TICKS);
-            assertTrue(SilentGateSequence.withheld(0, kill) && SilentGateSequence.withheld(kill + 2, kill));
-            assertFalse(SilentGateSequence.withheld(kill + 3, kill));
-            var all = new java.util.HashSet<Integer>();
-            for (int a = kill - 2; a < kill + 6; a++) {
-                int[] v = SilentGateSequence.volley(a, kill, 12345L, 48);
-                assertEquals(a >= kill && a < kill + 3 ? 2 : 0, v.length, "age " + a);
-                for (int i : v) all.add(i);
-            }
-            assertEquals(6, all.size(), "six distinct sky circles");
-            assertTrue(all.stream().allMatch(i -> i >= 0 && i < 48));
+            assertTrue(SilentGateSequence.withheld(0, kill) && SilentGateSequence.withheld(kill, kill));
+            assertFalse(SilentGateSequence.withheld(kill + 1, kill));
+            assertTrue(kill - SilentGateSequence.HEAVY_GLIDE >= 0, "the circle has time to glide over the target");
         }
         assertEquals(100 - SilentGateSequence.ACTIVATE_TICKS, SilentGateSequence.killBarrageAge(200));
+        // At the default barrage the kill shot (authored tick 84) starts exactly when the circle starts to glide.
+        assertEquals(SilentGateSequence.shotTick(84, 200) - SilentGateSequence.ACTIVATE_TICKS, SilentGateSequence.killBarrageAge(200) - SilentGateSequence.HEAVY_GLIDE);
+        assertEquals(6, SilentGateSequence.HEAVY_DAMAGE_MULT, "the heavy beam carries the old volley's six beams of damage");
+    }
+
+    @Test
+    void beamsRainNearlyVerticallyFromTheNearestCircleThatGlidesOverTheTarget() {
+        int n = 160, total = SilentGateSequence.skyTotal(n);
+        var rnd = new java.util.Random(3);
+        int glided = 0, straight = 0;
+        for (int t = 0; t < 400; t++) {
+            Vec3 target = new Vec3(ANCHOR.x + rnd.nextDouble() * 360 - 180, ANCHOR.y + rnd.nextDouble() * 6, ANCHOR.z + rnd.nextDouble() * 300 - 20);
+            int c = SilentGateSequence.nearestCircle(ANCHOR, 0f, 9L, n, target, i -> true);
+            assertTrue(c >= 0 && c < total);
+            Vec3 home = SilentGateSequence.skyCircle(ANCHOR, 0f, 9L, c, n);
+            int g = SilentGateSequence.glideTicks(home, target);
+            if (g == 0) { straight++; assertTrue(SilentGateSequence.tilt(home, target) <= SilentGateSequence.MAX_TILT_DEGREES + 1e-9, "no glide needed: tilt " + SilentGateSequence.tilt(home, target)); }
+            else {
+                glided++;
+                assertTrue(g >= 10 && g <= 15, "glide " + g);
+                Vec3 above = new Vec3(target.x, home.y, target.z);
+                assertEquals(0, SilentGateSequence.tilt(above, target), 1e-9, "after the glide the beam is vertical");
+            }
+            // The nearest circle is nearer than any other free one.
+            double d = Math.hypot(home.x - target.x, home.z - target.z);
+            for (int i = 0; i < total; i++) { Vec3 p = SilentGateSequence.skyCircle(ANCHOR, 0f, 9L, i, n); if (p.y > target.y) assertTrue(Math.hypot(p.x - target.x, p.z - target.z) >= d - 1e-9); }
+        }
+        assertTrue(glided > 100 && straight > 0, "mixed: " + glided + " glided, " + straight + " straight");
+        // A circle that is busy is skipped.
+        Vec3 target = new Vec3(ANCHOR.x + 10, ANCHOR.y, ANCHOR.z + 50);
+        int first = SilentGateSequence.nearestCircle(ANCHOR, 0f, 9L, n, target, i -> true);
+        assertNotEquals(first, SilentGateSequence.nearestCircle(ANCHOR, 0f, 9L, n, target, i -> i != first));
+        // Glide curve: nothing before, eased over the glide, held while the beam lives, eased back.
+        assertEquals(0, SilentGateSequence.glideK(0, 12), 0);
+        assertEquals(.5, SilentGateSequence.glideK(6, 12), 1e-9);
+        assertEquals(1, SilentGateSequence.glideK(12 + 3, 12), 0);
+        assertEquals(0, SilentGateSequence.glideK(12 + SilentGateSequence.BEAM_TICKS + SilentGateSequence.GLIDE_BACK, 12), 1e-9);
+        assertEquals(0, SilentGateSequence.glideK(5, 0), 0, "no glide, no move");
+        assertEquals(0, SilentGateSequence.glideTicks(new Vec3(0, 100, 0), new Vec3(5, 0, 0)), "within 8 degrees: no glide");
+        assertEquals(10, SilentGateSequence.glideTicks(new Vec3(0, 100, 0), new Vec3(30, 0, 0)), "off by 30: glides 10 ticks");
     }
 }
