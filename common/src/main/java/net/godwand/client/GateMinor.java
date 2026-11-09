@@ -48,9 +48,10 @@ final class GateMinor {
         if (c.body()) {
             if (dist > FAR) {
                 // Far: a bright fill and a heavy ring, so the stroke stays at least ~1.5 px wide (thickness grows with distance).
-                double thick = Math.min(3.2, dist / 90);
-                disc(c, at, 3.6 * s, .38 * alpha, tint);
-                ring(c, at, 3.2 * s - .8 * s * thick, 3.2 * s, 0, spin, GateAtlas.RIM, 1, dist > 220 ? 8 : 12, Math.min(1, .95 * alpha), color);
+                double thick = Math.min(3.2, dist / 70);
+                // Turned to face the camera: a flat circle seen edge-on from a camera at its own height would be a hairline.
+                faceDisc(c, at, 3.6 * s, .38 * alpha, tint);
+                faceRing(c, at, 3.2 * s - .8 * s * thick, 3.2 * s, spin, dist > 220 ? 8 : 12, Math.min(1, .95 * alpha), color);
             }
             else {
                 // Soft luminous fill under every tier, tinted by the circle.
@@ -82,6 +83,33 @@ final class GateMinor {
         GateDraw.tex(c, at.add(-radius, 0, -radius), at.add(radius, 0, -radius), at.add(radius, 0, radius), at.add(-radius, 0, radius),
                 GateAtlas.GLOW, 0, 1, 0, 1, color, alpha, alpha, alpha, alpha);
     }
+
+    private static Vec3[] faceAxes(Ctx c, Vec3 at) {
+        Vec3 view = at.subtract(c.eye);
+        if (view.lengthSqr() < 1e-6) return null;
+        view = view.normalize();
+        Vec3 u = view.cross(new Vec3(0, 1, 0));
+        u = (u.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : u).normalize();
+        return new Vec3[]{u, u.cross(view).normalize()};
+    }
+    /** Camera-facing glow disc. */
+    private static void faceDisc(Ctx c, Vec3 at, double radius, double alpha, int color) {
+        Vec3[] a = faceAxes(c, at);
+        if (a == null) return;
+        Vec3 u = a[0].scale(radius), v = a[1].scale(radius);
+        GateDraw.tex(c, at.subtract(u).subtract(v), at.add(u).subtract(v), at.add(u).add(v), at.subtract(u).add(v), GateAtlas.GLOW, 0, 1, 0, 1, color, alpha, alpha, alpha, alpha);
+    }
+    /** Camera-facing textured annulus. */
+    private static void faceRing(Ctx c, Vec3 at, double r0, double r1, double spin, int segs, double alpha, int color) {
+        Vec3[] a = faceAxes(c, at);
+        if (a == null) return;
+        double step = TAU / segs;
+        for (int s = 0; s < segs; s++) {
+            double a0 = spin + s * step, a1 = a0 + step, p0 = (double) s / segs, p1 = (double) (s + 1) / segs;
+            GateDraw.tex(c, face(at, a, r0, a0), face(at, a, r0, a1), face(at, a, r1, a1), face(at, a, r1, a0), GateAtlas.RIM, p0, p1, 0, 1, color, alpha, alpha, alpha, alpha);
+        }
+    }
+    private static Vec3 face(Vec3 at, Vec3[] ax, double r, double ang) { return at.add(ax[0].scale(Math.cos(ang) * r)).add(ax[1].scale(Math.sin(ang) * r)); }
 
     /** Horizontal textured annulus of {@value #SEGS} segments. */
     private static void ring(Ctx c, Vec3 o, double r0, double r1, double v0, double spin, GateAtlas.Region region, int repeats, int segs, double alpha, int color) {
