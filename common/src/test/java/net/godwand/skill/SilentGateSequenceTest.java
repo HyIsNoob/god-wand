@@ -44,23 +44,30 @@ class SilentGateSequenceTest {
     private static final double MIN_SPACING = 1.5;
 
     @Test
-    void laneCirclesBloomJustAheadOfTheFlyingCamera() {
+    void laneCirclesHangOverTheCameraAndBloomJustAheadOfIt() {
         int n = 160;
         for (int i = 3; i < n; i += 4) {
-            Vec3 c = SilentGateSequence.skyCircle(ANCHOR, 0f, 5L, i, n), lane = SilentGateSequence.flight(ANCHOR, 0f, SilentGateSequence.laneU(i, n));
-            double d = c.distanceTo(lane);
-            assertTrue(d >= 1.5 && d <= 9, "lane circle " + i + " is " + d + " from the camera path");
+            double u = SilentGateSequence.laneU(i, n);
+            Vec3 c = SilentGateSequence.skyCircle(ANCHOR, 0f, 5L, i, n), lane = SilentGateSequence.flight(ANCHOR, 0f, u);
+            assertTrue(c.y - lane.y >= 35 && c.y - lane.y <= 75, "lane circle " + i + " hangs " + (c.y - lane.y) + " over the camera");
+            assertTrue(Math.hypot(c.x - lane.x, c.z - lane.z) <= 14.01, "within 14 sideways");
             double born = SilentGateSequence.circleBorn(i, n, 5L);
-            // The camera is at that lane point when flightU(t) = laneU: the circle starts to bloom a few ticks before.
-            double passes = SilentGateSequence.FLIGHT_START + 50 * Math.sqrt(SilentGateSequence.laneU(i, n));
-            assertEquals(passes - 4, born, 1e-9);
-            assertEquals(SilentGateSequence.laneU(i, n), SilentGateSequence.flightU(passes), 1e-9);
+            assertEquals(SilentGateSequence.flightTime(u) - 6, born, 1e-9, "blooms 6 ticks before the camera passes");
+            assertEquals(u, SilentGateSequence.flightU(SilentGateSequence.flightTime(u)), 1e-6);
         }
         for (int i = 0; i < SilentGateSequence.skyTotal(n); i++) {
             double born = SilentGateSequence.circleBorn(i, n, 5L);
-            assertTrue(born >= SilentGateSequence.FLIGHT_START - 4 && born < SilentGateSequence.FLIGHT_END + 20, "born " + born);
+            assertTrue(born >= SilentGateSequence.OVERVIEW_START && born < SilentGateSequence.FLIGHT_END, "born " + born);
         }
-        assertEquals(4, SilentGateSequence.doorCenter(ANCHOR, 0f).distanceTo(SilentGateSequence.flight(ANCHOR, 0f, 0)), 1e-9, "the lane starts in the doorway");
+        // The flight: 140 ahead of the caster, low, ending on the waiting frame (6.2 ahead, 3.2 to the right, 1.1 up).
+        assertEquals(140, SilentGateSequence.flight(ANCHOR, 0f, 0).z - ANCHOR.z, 1e-9);
+        assertEquals(6, SilentGateSequence.flight(ANCHOR, 0f, 0).y - ANCHOR.y, 1e-9);
+        var end = SilentGateSequence.flight(ANCHOR, 0f, 1);
+        assertEquals(6.2, end.z - ANCHOR.z, 1e-9); assertEquals(-3.2, end.x - ANCHOR.x, 1e-9); assertEquals(1.1, end.y - ANCHOR.y, 1e-9);
+        // The overview (380..405) sees the whole spread bloom: many circles are born before the camera starts to move.
+        int early = 0;
+        for (int i = 0; i < SilentGateSequence.skyTotal(n); i++) if (SilentGateSequence.circleBorn(i, n, 5L) < SilentGateSequence.FLIGHT_START) early++;
+        assertTrue(early > 70, "overview blooms: " + early);
     }
 
     @Test

@@ -12,7 +12,7 @@ public final class SilentGateSequence {
      *  shockwave 274, stuck doors 292..316, a slow push apart 316..366, a long heavy stop 366..392, the circles bloom while the camera
      *  flies out (S9, 380..430). */
     public static final int DESCENT_START = 210, DESCENT_END = 248, SETTLE_END = 266, SHOCK = 274, OPEN_START = 292, STUCK_END = 316,
-            OPEN_FAST_END = 366, OPEN_END = 392, FLIGHT_START = 380, FLIGHT_END = 430;
+            OPEN_FAST_END = 366, OPEN_END = 392, FLIGHT_START = 405, FLIGHT_END = 480, OVERVIEW_START = 380;
     /** Ending (ticks after the barrage): doors close 0..40, small circles retract 20..85, the gate climbs into the great circle 75..125,
      *  the great circle unwrites tier by tier 108..160. */
     public static final int END_CLOSE = 40, END_RETRACT_FROM = 20, END_RETRACT_TO = 85, END_RISE_FROM = 75, END_RISE_TO = 125, END_UNWRITE_FROM = 108;
@@ -44,22 +44,23 @@ public final class SilentGateSequence {
         return new double[] {-Math.sin(a), Math.cos(a)};
     }
 
-    /** Circles that are not the gate ring: indices come in fours: near the gate (0, 1), wide around the caster (2), lined along the S9 flight lane (3). */
+    /** Circles that are not the gate ring: indices come in fours: near the gate (0, 1), wide around the caster (2), over the flight lane (3). */
     public static int skyTotal(int count) { return count + GATE_RING; }
 
     /** Door centre of the gate once it has landed. */
     public static Vec3 doorCenter(Vec3 anchor, float yaw) { return gateFoot(anchor, yaw, 0).add(0, 37 * SCALE, 0); }
 
-    /** Camera lane of shot S9: leaves the door gap and sweeps back over the caster (u 0..1, 180 blocks, weaving a little, descending 62). */
+    /** Camera lane of the bloom sequence: low over the ground, one direction (toward the caster), from 140 blocks ahead of the caster to the waiting frame
+     *  (6.2 ahead, 3.2 to its right, 1.1 up); u 0..1. The lane circles hang 35..75 blocks over it, so the camera always looks up at them. */
     public static Vec3 flight(Vec3 anchor, float yaw, double u) {
         double[] d = dir(yaw, 0);
-        double along = 4 + 180 * u, lateral = 14 * Math.sin(2 * Math.PI * .75 * u), y = -62 * u + 7 * Math.sin(2 * Math.PI * u);
-        Vec3 c = doorCenter(anchor, yaw);
-        return new Vec3(c.x - d[0] * along + d[1] * lateral, c.y + y, c.z - d[1] * along - d[0] * lateral);
+        double along = 140 - 133.8 * u, lateral = 3.2 * u * u * u, y = 6 - 4.9 * u * u;
+        // Rig-right of a caster is -(cos yaw, sin yaw).
+        return new Vec3(anchor.x + d[0] * along - Math.cos(Math.toRadians(yaw)) * lateral, anchor.y + y, anchor.z + d[1] * along - Math.sin(Math.toRadians(yaw)) * lateral);
     }
 
     /** Sky circle {@code index} of {@code count}; indices from {@code count} on are the {@link #GATE_RING} circles at the sides of the gate body.
-     *  Even/odd: 0 near the gate (kept out of the gate's silhouette), 2 wide round the caster, odd: along the S9 flight lane. */
+     *  Index % 4: 0 and 1 near the gate (kept out of its silhouette), 2 wide round the caster, 3 over the camera's flight lane. */
     public static Vec3 skyCircle(Vec3 anchor, float yaw, long seed, int index, int count) {
         Vec3 c = gateCenter(anchor, yaw);
         SplittableRandom r = rng(seed, index);
@@ -77,12 +78,13 @@ public final class SilentGateSequence {
             double rad = 40 + 180 * Math.sqrt((group + .5) / Math.max(1, count / 4.0));
             return new Vec3(anchor.x + rad * Math.cos(a), h, anchor.z + rad * Math.sin(a));
         }
-        if (kind % 2 == 1) {
-            double u = laneU(index, count), side = a, dist = 3 + 5 * r.nextDouble();
+        if (kind == 3) {
+            // Overhead the lane: 35..75 above the camera, up to 14 to either side.
+            double u = laneU(index, count);
             Vec3 p = flight(anchor, yaw, u), right = new Vec3(Math.cos(Math.toRadians(yaw)), 0, Math.sin(Math.toRadians(yaw)));
-            return p.add(right.scale(Math.cos(side) * dist)).add(0, Math.sin(side) * dist, 0);
+            return p.add(right.scale((r.nextDouble() * 2 - 1) * 14)).add(0, 35 + 40 * r.nextDouble(), 0);
         }
-        double rad = 20 + 100 * Math.sqrt((group + .5) / Math.max(1, count / 4.0)), dx = rad * Math.cos(a), dz = rad * Math.sin(a);
+        double rad = 20 + 100 * Math.sqrt((group * 2 + kind + .5) / Math.max(1, count / 2.0)), dx = rad * Math.cos(a), dz = rad * Math.sin(a);
         // Out of the gate's silhouette: at least 62 blocks sideways of the axis through the gate (as seen from the caster).
         double along = dx * d[0] + dz * d[1], lateral = dx * d[1] - dz * d[0];
         if (Math.abs(lateral) < 62) lateral = Math.signum(lateral == 0 ? 1 : lateral) * (62 + Math.abs(lateral) * .6);
@@ -90,16 +92,25 @@ public final class SilentGateSequence {
     }
 
     /** Where along the flight lane a lane circle (odd index) sits, 0..1 in index order. */
-    public static double laneU(int index, int count) { return ((index / 4) * 2 + (index % 4 == 3 ? 1 : 0) + .5) / Math.max(1, count / 2); }
+    public static double laneU(int index, int count) { return (index / 4 + .5) / Math.max(1, count / 4); }
 
-    /** Flight progress (0..1) at tick {@code t}: starts from rest and accelerates until the cut (u = k squared). */
-    public static double flightU(double t) { double k = Math.max(0, Math.min(1, (t - FLIGHT_START) / (double) (FLIGHT_END - FLIGHT_START))); return k * k; }
+    /** Flight progress (0..1) at tick {@code t}: from rest, quick gain, a long tail that comes to rest on the waiting frame (u = 1 - (1-k)^3 (1+3k)). */
+    public static double flightU(double t) {
+        double k = Math.max(0, Math.min(1, (t - FLIGHT_START) / (double) (FLIGHT_END - FLIGHT_START)));
+        return 1 - Math.pow(1 - k, 3) * (1 + 3 * k);
+    }
+    /** Tick at which the camera is at lane position {@code u} (inverse of {@link #flightU}). */
+    public static double flightTime(double u) {
+        double lo = 0, hi = 1;
+        for (int i = 0; i < 40; i++) { double mid = (lo + hi) / 2; if (flightU(FLIGHT_START + mid * (FLIGHT_END - FLIGHT_START)) < u) lo = mid; else hi = mid; }
+        return FLIGHT_START + (lo + hi) / 2 * (FLIGHT_END - FLIGHT_START);
+    }
 
     /** Tick at which a sky circle starts to bloom: lane circles a few ticks before the camera passes, ring circles when the doors stop, the rest spread over S9. */
     public static double circleBorn(int index, int count, long seed) {
         if (index >= count) return OPEN_END + 1 + (index - count) * .8;
-        if (index % 2 == 1) return FLIGHT_START + (FLIGHT_END - FLIGHT_START) * Math.sqrt(laneU(index, count)) - 4;
-        return FLIGHT_START + 2 + 44 * rng(seed ^ 0x5DEECE66DL, index).nextDouble();
+        if (index % 4 == 3) return flightTime(laneU(index, count)) - 6;
+        return OVERVIEW_START + 4 + 36 * rng(seed ^ 0x5DEECE66DL, index).nextDouble();
     }
 
     /** Disc centres: half ring of radius 6 BEHIND the caster, 3 blocks above the anchor (reference image 10). */

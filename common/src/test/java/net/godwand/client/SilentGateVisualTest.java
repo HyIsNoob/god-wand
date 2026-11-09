@@ -62,7 +62,7 @@ class SilentGateVisualTest {
     @Test void twoHundredFiftySixCirclesStayUnderTheBudgetEvenFromInsideTheField() {
         int peak = 0;
         Vec3 lane = SilentGateSequence.flight(ANCHOR, 0f, .5);
-        for (int age = 285; age <= 372; age += 3)
+        for (int age = 285; age <= 480; age += 5)
             for (Vec3 eye : new Vec3[]{Vec3.ZERO, lane, SilentGateSequence.doorCenter(ANCHOR, 0f), new Vec3(0, 160, -120)}) {
                 int quads = SilentGateRenderer.emitScene(new Mesh(), new Matrix4f(), frame(age, -1, 256), List.of(), eye, -1);
                 peak = Math.max(peak, quads);

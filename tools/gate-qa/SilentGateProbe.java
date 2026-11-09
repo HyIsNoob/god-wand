@@ -27,7 +27,7 @@ public final class SilentGateProbe implements ClientModInitializer {
     // Clean spot on the flat QA world (the copied world has an old Fuga crater next to spawn).
     private static final int OX = 4000, OZ = 4000;
     private static final int FIELD_X0 = OX - 130, FIELD_X1 = OX + 130, FIELD_Z0 = OZ + 8, FIELD_Z1 = OZ + 150;
-    private static final Set<Integer> REFERENCE = Set.of(20, 100, 150, 168, 200, 230, 262, 285, 310, 330, 345, 372, 390, 405, 428, 450, 479, 500);
+    private static final Set<Integer> REFERENCE = Set.of(60, 130, 170, 210, 246, 262, 285, 300, 330, 372, 392, 400, 410, 430, 450, 470, 479, 500);
     private int ticks, stage, since, clickAt, frame, lastCmd = -1, lastBuild = -1;
     private final long[] fpsSum = new long[4], fpsN = new long[4];
     private final int[] fpsMin = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE},
