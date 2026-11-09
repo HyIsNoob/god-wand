@@ -57,17 +57,17 @@ public final class GatePose {
         return keys[keys.length - 1].pose;
     }
 
-    /** Cast ticks (BUILD = 480) to the pose timeline authored for 300: the early beats are stretched to the shot list (the spin sits in S2, the shh in S3)
-     *  and the arm rises to the sky in the last 60 ticks. */
-    private static final double[] NEW_T = {0, 130, 410, 470}, OLD_T = {0, 72, 250, 296};
+    /** Cast ticks (BUILD = 480) to the pose timeline authored for 300 (script v3): the wand floats before the eyes until 62 and beside the caster until 80,
+     *  spins round the hand 95..120, the finger goes to the lips by 132 (shh), and the arm rises to the sky 410..455 (pointing from ~440 on). */
+    private static final double[] NEW_T = {0, 80, 120, 132, 400, 455}, OLD_T = {0, 12, 46, 70, 250, 296};
     static double poseClock(double t) {
         for (int i = 1; i < NEW_T.length; i++) if (t < NEW_T[i]) return OLD_T[i - 1] + (t - NEW_T[i - 1]) * (OLD_T[i] - OLD_T[i - 1]) / (NEW_T[i] - NEW_T[i - 1]);
-        return OLD_T[3] + (t - NEW_T[3]);
+        return OLD_T[OLD_T.length - 1] + (t - NEW_T[NEW_T.length - 1]);
     }
     /** Inverse of {@link #poseClock}: the cast tick at which the 300-tick timeline reaches {@code old}. */
     static double fromOld(double old) {
         for (int i = 1; i < OLD_T.length; i++) if (old < OLD_T[i]) return NEW_T[i - 1] + (old - OLD_T[i - 1]) * (NEW_T[i] - NEW_T[i - 1]) / (OLD_T[i] - OLD_T[i - 1]);
-        return NEW_T[3] + (old - OLD_T[3]);
+        return NEW_T[NEW_T.length - 1] + (old - OLD_T[OLD_T.length - 1]);
     }
 
     /** First click to the command: hover, spin, shh, release, point at the sky. Right arm from {@code r}, left arm and head from {@code l}. */
@@ -167,10 +167,15 @@ public final class GatePose {
     /** Where the wand is at this cast clock, given the caster's feet and body yaw (degrees). */
     public static Wand wand(double age, double command, double endStart, Vec3 feet, double bodyYawDeg) {
         Joints j = joints(age, command, endStart);
+        double raw = age;
         age = poseClock(age);
         Hand hand = rightHand(j, feet, bodyYawDeg);
         Vec3 f = Vec3.directionFromRotation(0, (float) bodyYawDeg), r = f.cross(UP);
         Vec3 chest = feet.add(f.scale(1.05)).add(r.scale(.05)).add(0, 1.30 + .045 * Math.sin(age * .12), 0);
+        // First person (until 62): the wand floats 1.5 blocks before the eyes, face toward the caster; it then drifts to the chest hover while turning its face round.
+        double leave = heavy(raw, 62, 84);
+        Vec3 front = feet.add(f.scale(1.5)).add(0, 1.50 + .03 * Math.sin(raw * .05), 0);
+        chest = front.lerp(chest, leave);
         Vec3 side = feet.add(r.scale(.85)).add(f.scale(.12)).add(0, 1.15 + .05 * Math.sin(age * .1), 0);
         Vec3 hoverAxis = new Vec3(Math.sin(age * .05) * .08, 1, Math.cos(age * .07) * .06).normalize();
         double roll = age * .05;
@@ -194,7 +199,7 @@ public final class GatePose {
         pos = chest.lerp(spinPos, take).lerp(hand.pos, catchK);
         axis = slerp(slerp(hoverAxis, spinAxis, take), gripAxis, catchK);
         double flat = sm(age, 16, 26);
-        face = faceFor(axis, a.scale(flat).add(f.scale(1 - flat)), r, roll * (1 - flat));
+        face = faceFor(axis, a.scale(flat).add(f.scale(1 - flat)), r, roll * (1 - flat) + Math.PI * (1 - leave) * (1 - flat));
         // Release into the float beside the caster while the left hand lowers.
         double rel = heavy(age, 248, 272);
         if (rel > 0) {
@@ -208,7 +213,7 @@ public final class GatePose {
 
     /** Mana strength of the cast: strong through the build, calm in the wait, present in the barrage, gone with the ending. */
     public static double manaGain(Frame f) {
-        double a = f.age(), g = sm(a, 0, 22) * (1 - .45 * sm(a, 144, 234));
+        double a = f.age(), g = sm(a, 0, 22) * (1 - .45 * sm(a, 160, 250)) * (1 - .6 * sm(a, 152, 166) * (1 - sm(a, 236, 262)));
         if (f.commandAge() >= 0) {
             double end = endStart(f);
             g = Math.max(g, .7 * sm(f.commandAge(), 0, 8)) * (1 - sm(f.commandAge(), end, end + net.godwand.skill.SilentGateSequence.ENDING_TICKS - 5));

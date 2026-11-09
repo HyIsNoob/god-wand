@@ -3,22 +3,21 @@ package net.godwand.client;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.Mth;
 
-/** The opening eyes of Silent Gate: two curved black lids with soft edges, one light blink, and a vignette that fades by tick 30. */
+/** The eyes of Silent Gate (script v3): black until 15, they open 15..45, close smoothly 45..55 and open again 55..62; the vignette is gone by 62. */
 final class GateEyelids {
     private GateEyelids() {}
-    static final double OPEN_TICKS = 20, BLINK_AT = 12, BLINK_LENGTH = 4, BLINK_DEPTH = .30, VIGNETTE_TICKS = 30, FEATHER_PX = 24;
+    static final double OPEN_FROM = 15, OPEN_FULL = 45, CLOSED_AT = 55, REOPENED_AT = 62, VIGNETTE_TICKS = 62, FEATHER_PX = 24;
 
     private static double smoother(double t, double a, double b) { return GatePose.smoother(t, a, b); }
 
-    /** 0 closed .. 1 open: eased opening with a short blink (closes 30% of the way, then reopens) around tick {@value #BLINK_AT}. */
+    /** 0 closed .. 1 open: black until 15, opens 15..45, closes 45..55 (shut at 55), opens again 55..62. */
     static double openness(double age) {
-        double base = smoother(age, 0, OPEN_TICKS), x = (age - (BLINK_AT - BLINK_LENGTH / 2)) / BLINK_LENGTH;
-        double blink = x > 0 && x < 1 ? Math.sin(Math.PI * x) : 0;
-        return Mth.clamp(base * (1 - BLINK_DEPTH * blink * blink), 0, 1);
+        double v = age < OPEN_FULL ? smoother(age, OPEN_FROM, OPEN_FULL) : age < CLOSED_AT ? 1 - smoother(age, OPEN_FULL, CLOSED_AT) : smoother(age, CLOSED_AT, REOPENED_AT);
+        return Mth.clamp(v, 0, 1);
     }
     /** Half height of the eye opening in pixels at horizontal position u (-1..1): widest in the middle, so the lids look like an almond. */
     static double half(double open, double u, int height) { return height * .95 * open * (1 - .45 * u * u); }
-    static double vignette(double age) { return 1 - GatePose.sm(age, 0, VIGNETTE_TICKS); }
+    static double vignette(double age) { return 1 - GatePose.sm(age, OPEN_FROM, VIGNETTE_TICKS); }
 
     static void render(GuiGraphics g, double age, int width, int height, double guiScale) {
         double open = openness(age), vig = vignette(age);

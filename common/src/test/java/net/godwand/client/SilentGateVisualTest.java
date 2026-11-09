@@ -143,7 +143,7 @@ class SilentGateVisualTest {
         assertTrue(centre[0] > 20, "closed leaves meet in the middle: " + centre[0]);
         assertEquals(0, centre[1], "open leaves have left the middle");
         assertTrue(depth[1] > 18 && depth[0] < 9, "open leaves swing out towards the caster (-z): " + depth[1] + " vs " + depth[0]);
-        assertEquals(SilentGateSequence.gateOpen(300) < SilentGateSequence.gateOpen(340), true);
+        assertEquals(SilentGateSequence.gateOpen(360) < SilentGateSequence.gateOpen(400), true);
     }
     @Test void slitShockwaveAndVeinsAppearAtTheirTicks() {
         Vec3 eye = new Vec3(0, 120, -270);
@@ -151,21 +151,21 @@ class SilentGateVisualTest {
         for (int k = 0; k < 2; k++) { GateDraw.Ctx c = ctx(new Mesh(), eye, 1); GateFx.slit(c, POSE, k, 84); slit[k] = c.quads; }
         assertEquals(0, slit[0]);
         assertTrue(slit[1] > 30, "slit " + slit[1]);
-        double[] ages = {270, 280, 310};
-        for (int k = 0; k < 3; k++) { GateDraw.Ctx c = ctx(new Mesh(), eye, 1); GateFx.shockwave(c, POSE, ages[k], 274, 120, 34, 1); wave[k] = c.quads; }
+        double[] ages = {312, 330, 360};
+        for (int k = 0; k < 3; k++) { GateDraw.Ctx c = ctx(new Mesh(), eye, 1); GateFx.shockwave(c, POSE, ages[k], 318, 120, 34, 1); wave[k] = c.quads; }
         assertEquals(0, wave[0]); assertTrue(wave[1] > 40, "shockwave " + wave[1]); assertEquals(0, wave[2]);
         assertEquals(0, GateModel.vein(230, -1, 0), "veins are dark while falling");
-        assertTrue(GateModel.vein(275, -1, 0) > 1, "flare at the shockwave");
+        assertTrue(GateModel.vein(319, -1, 0) > 1, "flare at the shockwave");
         assertTrue(GateModel.vein(400, -1, 0) > .4, "steady glow while waiting");
         assertTrue(GateModel.vein(400, 2, 0) > GateModel.vein(400, -1, 0), "activation flares them");
         // In the scene: the gate is absent before the slit, present after, and the slit itself is drawn from 140.
         Mesh before = new Mesh(), after = new Mesh();
-        int a = SilentGateRenderer.emitScene(before, new Matrix4f(), frame(209, -1, 0), List.of(), Vec3.ZERO, 0);
-        int b = SilentGateRenderer.emitScene(after, new Matrix4f(), frame(260, -1, 0), List.of(), Vec3.ZERO, 0);
+        int a = SilentGateRenderer.emitScene(before, new Matrix4f(), frame(255, -1, 0), List.of(), Vec3.ZERO, 0);
+        int b = SilentGateRenderer.emitScene(after, new Matrix4f(), frame(300, -1, 0), List.of(), Vec3.ZERO, 0);
         assertTrue(b - a > 500, "gate body appears: " + a + " -> " + b);
-        int g1 = SilentGateRenderer.emitScene(new Mesh(), new Matrix4f(), frame(190, -1, 0), List.of(), Vec3.ZERO, 1);
-        int g0 = SilentGateRenderer.emitScene(new Mesh(), new Matrix4f(), frame(160, -1, 0), List.of(), Vec3.ZERO, 1);
-        assertTrue(g1 - g0 > 30, "slit glow at 190: " + g0 + " -> " + g1);
+        int g1 = SilentGateRenderer.emitScene(new Mesh(), new Matrix4f(), frame(250, -1, 0), List.of(), Vec3.ZERO, 1);
+        int g0 = SilentGateRenderer.emitScene(new Mesh(), new Matrix4f(), frame(225, -1, 0), List.of(), Vec3.ZERO, 1);
+        assertTrue(g1 - g0 > 30, "slit glow at 250: " + g0 + " -> " + g1);
     }
 
     @Test void circleGeometryFadesOutWithinTwelveBlocksOfTheCamera() {
@@ -213,5 +213,111 @@ class SilentGateVisualTest {
         assertEquals(0, emit(end, frame(480 + over + 160, over + 160, 48), List.of()));
         assertTrue(half.vertices.stream().mapToDouble(p -> p[3]).max().orElseThrow()
                 < start.vertices.stream().mapToDouble(p -> p[3]).max().orElseThrow());
+    }
+
+    // ---- script v3: small circles, the great circle ---------------------------------------------------------------------
+    @Test void smallCirclesBloomOnlyBetween420And470() {
+        int n = 160, drawn = 0, total = SilentGateSequence.skyTotal(n);
+        Vec3 gate = SilentGateSequence.gateCenter(ANCHOR, 0f), eye = new Vec3(0, 130, -120);
+        for (int i = 0; i < total; i++) {
+            double born = SilentGateSequence.circleBorn(i, n, 7L);
+            assertEquals(0, GateMinor.bloom((419.9 - born) / GateMinor.BLOOM_TICKS), 0, "nothing before 420");
+            assertEquals(1, GateMinor.bloom((470 - born) / GateMinor.BLOOM_TICKS), 1e-12, "fully grown by 470, no growth after it");
+            Vec3 at = SilentGateSequence.skyCircle(ANCHOR, 0f, 7L, i, n);
+            for (double age : new double[]{0, 100, 300, 419.9}) {
+                GateDraw.Ctx c = ctx(new Mesh(), eye, -1);
+                GateMinor.sky(c, at, i, age, born, gate, -1, -1);
+                assertEquals(0, c.quads, "circle " + i + " is not drawn at " + age);
+            }
+            GateDraw.Ctx c = ctx(new Mesh(), eye, -1);
+            GateMinor.sky(c, at, i, 471, born, gate, -1, -1);
+            if (c.quads > 0) drawn++;
+            // After 470 the circle's size is constant: no further bloom in the wait or the barrage.
+            for (double age = 471; age < 700; age += 29) assertEquals(1, GateMinor.bloom((age - born) / GateMinor.BLOOM_TICKS), 0);
+        }
+        assertTrue(drawn > total * .55, "circles are drawn once grown: " + drawn + "/" + total);
+        // Ground discs (gold/green behind the caster) are also done by 470.
+        for (int i = 0; i < SilentGateSequence.GROUND_RING; i++) {
+            GateDraw.Ctx before = ctx(new Mesh(), eye, -1), after = ctx(new Mesh(), eye, -1);
+            GateMinor.ground(before, SilentGateSequence.groundCircle(ANCHOR, 0f, i), ANCHOR, i, 419, SilentGateSequence.groundCircleGold(i), gate, -1, -1);
+            GateMinor.ground(after, SilentGateSequence.groundCircle(ANCHOR, 0f, i), ANCHOR, i, 470, SilentGateSequence.groundCircleGold(i), gate, -1, -1);
+            assertEquals(0, before.quads); assertTrue(after.quads > 0);
+        }
+    }
+
+    @Test void endingShrinksEachCircleInPlaceAndReversesTheBloom() {
+        int n = 160, total = SilentGateSequence.skyTotal(n);
+        Vec3 gate = SilentGateSequence.gateCenter(ANCHOR, 0f), eye = new Vec3(0, 130, -120);
+        double firstStart = 1e9, lastEnd = 0;
+        for (int i = 0; i < total; i++) {
+            assertEquals(1, GateMinor.shrink(i, 0), 0); assertEquals(1, GateMinor.shrink(i, 24.9), 0);
+            assertEquals(0, GateMinor.shrink(i, 90), 0, "every circle is gone by 90");
+            double start = 0; while (GateMinor.shrink(i, start + .01) == 1 && start < 100) start += .01;
+            firstStart = Math.min(firstStart, start); lastEnd = Math.max(lastEnd, start + GateMinor.SHRINK_TICKS);
+            assertTrue(start >= 24.9 && start + GateMinor.SHRINK_TICKS <= 90.1, "circle " + i + " shrinks inside 25..90: " + start);
+            // The reverse of the bloom: the same curve run backwards.
+            assertEquals(GateMinor.bloom(.3), GateMinor.shrink(i, start + GateMinor.SHRINK_TICKS * .7), 1e-2);
+        }
+        assertTrue(lastEnd - firstStart > 40, "staggered over most of the window: " + firstStart + ".." + lastEnd);
+        // Position: a circle drawn mid-shrink is centred exactly where it was drawn at full size, only its extent shrinks.
+        for (int i : new int[]{5, 40, 77, 120}) {
+            Vec3 at = SilentGateSequence.skyCircle(ANCHOR, 0f, 7L, i, n);
+            double born = SilentGateSequence.circleBorn(i, n, 7L), e = 25;
+            while (GateMinor.shrink(i, e) > .8 && e < 90) e += .25;
+            double[] full = extent(i, at, gate, eye, born, 0), part = extent(i, at, gate, eye, born, e);
+            assertEquals(full[0], part[0], 1e-3, "x centre unchanged, circle " + i); assertEquals(full[1], part[1], 1e-3, "z centre unchanged");
+            assertTrue(part[2] < full[2] * .95, "smaller while shrinking: " + part[2] + " vs " + full[2]);
+        }
+    }
+    private double[] extent(int i, Vec3 at, Vec3 gate, Vec3 eye, double born, double e) {
+        Mesh mesh = new Mesh();
+        GateMinor.sky(ctx(mesh, eye, 0), at, i, 700, born, gate, -1, e);
+        double minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
+        for (float[] p : mesh.vertices) { minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minZ = Math.min(minZ, p[2]); maxZ = Math.max(maxZ, p[2]); }
+        return new double[]{(minX + maxX) / 2, (minZ + maxZ) / 2, Math.max(maxX - minX, maxZ - minZ)};
+    }
+
+    @Test void greatCircleTiersGrowFromTheCentreAndNeverStandStill() {
+        int tiers = GateCircles.TIER_COUNT;
+        assertEquals(5, tiers);
+        // Distinct signed speeds, neighbours turning against each other.
+        for (int i = 0; i < tiers; i++) {
+            assertTrue(Math.abs(GateCircles.speed(i)) > .1);
+            for (int j = i + 1; j < tiers; j++) assertNotEquals(Math.abs(GateCircles.speed(i)), Math.abs(GateCircles.speed(j)), 1e-9, "tiers " + i + " and " + j + " turn at different speeds");
+            if (i > 0) assertTrue(GateCircles.speed(i) * GateCircles.speed(i - 1) < 0, "neighbours turn against each other");
+        }
+        // Rotating at every age from the first tick of the circle until the last tick of the ending, whatever its size.
+        for (int i = 0; i < tiers; i++) for (double age = 160; age < 480 + 372; age += 3)
+            assertEquals(Math.toRadians(GateCircles.speed(i)) * 3, GateCircles.angle(i, age + 3) - GateCircles.angle(i, age), 1e-12, "tier " + i + " keeps turning at " + age);
+        // Growth: inner tiers first, from the centre, all grown by 232; nothing before 160.
+        for (int i = 0; i < tiers; i++) assertEquals(0, GateCircles.scale(i, 159.9, -1), 0);
+        assertEquals(0, GateCircles.scale(4, 175, -1), 0, "the outer tier has not started");
+        assertTrue(GateCircles.scale(0, 175, -1) > GateCircles.scale(1, 175, -1) && GateCircles.scale(1, 175, -1) > 0);
+        for (double age = 160; age < 232; age += 4) for (int i = 1; i < tiers; i++) assertTrue(GateCircles.scale(i - 1, age, -1) >= GateCircles.scale(i, age, -1) - 1e-12, "inside out at " + age);
+        for (int i = 0; i < tiers; i++) assertEquals(1, GateCircles.scale(i, 232, -1), 1e-12);
+        assertEquals(1, GateCircles.scale(4, 480, 100), 1e-12, "untouched until the ending dissolves it");
+        // The ending: tiers shrink to the centre, outer first, all gone by 160.
+        assertTrue(GateCircles.scale(4, 560, 120) < GateCircles.scale(0, 560, 120));
+        for (int i = 0; i < tiers; i++) assertEquals(0, GateCircles.scale(i, 700, 160), 0);
+        // Geometry: the mesh really turns from one tick to the next (also while it shrinks) and shrinks to the centre.
+        Vec3 gate = SilentGateSequence.gateCenter(ANCHOR, 0f);
+        for (double[] ae : new double[][]{{300, -1}, {600, 120}, {640, 140}}) {
+            Mesh a = new Mesh(), b = new Mesh();
+            GateCircles.great(ctx(a, new Vec3(0, 130, -120), 0), ANCHOR, gate, ae[0], ae[1]);
+            GateCircles.great(ctx(b, new Vec3(0, 130, -120), 0), ANCHOR, gate, ae[0] + 1, ae[1] < 0 ? -1 : ae[1] + 1);
+            assertEquals(a.vertices.size(), b.vertices.size());
+            boolean moved = false;
+            for (int k = 0; k < a.vertices.size() && !moved; k++) moved = Math.abs(a.vertices.get(k)[0] - b.vertices.get(k)[0]) > 1e-4 || Math.abs(a.vertices.get(k)[2] - b.vertices.get(k)[2]) > 1e-4;
+            assertTrue(moved, "turning at " + ae[0] + "/" + ae[1]);
+        }
+        double rStart = maxRadius(480, 100, gate), rMid = maxRadius(560, 125, gate), rEnd = maxRadius(600, 150, gate);
+        assertTrue(rStart > 150 && rMid < rStart * .9 && rEnd < rMid && rEnd < 120, "dissolves toward the centre: " + rStart + " " + rMid + " " + rEnd);
+    }
+    private double maxRadius(double age, double e, Vec3 gate) {
+        Mesh m = new Mesh(); Vec3 eye = new Vec3(0, 130, -120);
+        GateCircles.great(ctx(m, eye, 0), ANCHOR, gate, age, e);
+        double r = 0;
+        for (float[] p : m.vertices) r = Math.max(r, Math.hypot(p[0] + eye.x - gate.x, p[2] + eye.z - gate.z));
+        return r;
     }
 }

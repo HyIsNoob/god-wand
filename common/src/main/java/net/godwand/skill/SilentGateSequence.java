@@ -7,15 +7,16 @@ import java.util.SplittableRandom;
 /** Silent Gate clocks, layout and barrage schedule. Pure functions shared by server and client. */
 public final class SilentGateSequence {
     public static final int BUILD_TICKS = 480, ACTIVATE_TICKS = 12, ENDING_TICKS = 160, RETURN_TICKS = 15;
-    public static final int BEAT_EYES = 0, BEAT_RAISE = 20, BEAT_SHUSH = 45, BEAT_CIRCLE = 80, BEAT_GATE = 140;
-    /** Gate timeline (ticks from click 1, BUILD = 480): circle written 120..168, slit 166, descent 210..248 then a settle to 266,
-     *  shockwave 274, stuck doors 292..316, a slow push apart 316..366, a long heavy stop 366..392, the circles bloom while the camera
-     *  flies out (S9, 380..430). */
-    public static final int DESCENT_START = 210, DESCENT_END = 248, SETTLE_END = 266, SHOCK = 274, OPEN_START = 292, STUCK_END = 316,
-            OPEN_FAST_END = 366, OPEN_END = 392, FLIGHT_START = 405, FLIGHT_END = 480, OVERVIEW_START = 380;
-    /** Ending (ticks after the barrage): doors close 0..40, small circles retract 20..85, the gate climbs into the great circle 75..125,
-     *  the great circle unwrites tier by tier 108..160. */
-    public static final int END_CLOSE = 40, END_RETRACT_FROM = 20, END_RETRACT_TO = 85, END_RISE_FROM = 75, END_RISE_TO = 125, END_UNWRITE_FROM = 108;
+    /** Build beats (ticks from click 1, script v3): eyes open 15..45, close 45..55, open again 55..62; great circle grows 160..232 (tiers from the centre out);
+     *  light slit 232..262; the gate comes out and descends 262..300, settles to 312, silence, shockwave 318; doors stuck 340..365, pushed apart
+     *  365..412 (heavy stop 412); the small circles bloom only 420..470. */
+    public static final int EYES_OPEN = 15, EYES_FULL = 45, EYES_CLOSE_END = 55, EYES_REOPEN_END = 62;
+    public static final int CIRCLE_START = 160, CIRCLE_FULL = 232, SLIT_START = 232, BEAT_GATE = 262;
+    public static final int DESCENT_START = 262, DESCENT_END = 300, SETTLE_END = 312, SHOCK = 318, OPEN_START = 340, STUCK_END = 365,
+            OPEN_FAST_END = 395, OPEN_END = 412, BLOOM_START = 420, FLIGHT_START = 452, FLIGHT_END = 470, BLOOM_END = 470;
+    /** Ending (ticks after the barrage): doors close 0..40, small circles shrink in place 25..90, the gate climbs into the great circle 80..125,
+     *  the great circle dissolves tier by tier 110..160 (each tier shrinks to its centre while it keeps turning). */
+    public static final int END_CLOSE = 40, END_RETRACT_FROM = 25, END_RETRACT_TO = 90, END_RISE_FROM = 80, END_RISE_TO = 125, END_UNWRITE_FROM = 110;
     /** Extra circles ringed around the gate body, on top of the configured sky circles. */
     public static final int GATE_RING = 24;
     /** Everything in the sky is built at SCALE times its design size, to stand next to Fuga and Atomic. */
@@ -50,13 +51,13 @@ public final class SilentGateSequence {
     /** Door centre of the gate once it has landed. */
     public static Vec3 doorCenter(Vec3 anchor, float yaw) { return gateFoot(anchor, yaw, 0).add(0, 37 * SCALE, 0); }
 
-    /** Camera lane of the bloom sequence: low over the ground, one direction (toward the caster), from 140 blocks ahead of the caster to the waiting frame
-     *  (6.2 ahead, 3.2 to its right, 1.1 up); u 0..1. The lane circles hang 35..75 blocks over it, so the camera always looks up at them. */
+    /** Camera lane of the dive (shot 17): 5 blocks over the ground, 88 down to 62 blocks ahead of the caster (toward it), u 0..1 (beyond 1 it extends the lane).
+     *  The lane circles hang 35..75 blocks over it, so the camera always looks up at them. */
+    public static final double LANE_FROM = 88, LANE_LENGTH = 26;
     public static Vec3 flight(Vec3 anchor, float yaw, double u) {
         double[] d = dir(yaw, 0);
-        double along = 140 - 133.8 * u, lateral = 3.2 * u * u * u, y = 6 - 4.9 * u * u;
-        // Rig-right of a caster is -(cos yaw, sin yaw).
-        return new Vec3(anchor.x + d[0] * along - Math.cos(Math.toRadians(yaw)) * lateral, anchor.y + y, anchor.z + d[1] * along - Math.sin(Math.toRadians(yaw)) * lateral);
+        double along = LANE_FROM - LANE_LENGTH * u;
+        return new Vec3(anchor.x + d[0] * along, anchor.y + 5, anchor.z + d[1] * along);
     }
 
     /** Sky circle {@code index} of {@code count}; indices from {@code count} on are the {@link #GATE_RING} circles at the sides of the gate body.
@@ -75,9 +76,11 @@ public final class SilentGateSequence {
         int group = index / 4, kind = index % 4;
         if (kind == 3) {
             // Overhead the lane: 35..75 above the camera, up to 14 to either side.
-            double u = laneU(index, count);
+            double u = 2 * laneU(index, count);
             Vec3 p = flight(anchor, yaw, u), right = new Vec3(Math.cos(Math.toRadians(yaw)), 0, Math.sin(Math.toRadians(yaw)));
-            return p.add(right.scale((r.nextDouble() * 2 - 1) * 14)).add(0, 35 + 40 * r.nextDouble(), 0);
+            // Low-discrepancy spread over the lane's cross-section (R2 sequence), so neighbours never sit on top of each other.
+            double k = index / 4, fx = frac(.5 + .7548776662466927 * k), fy = frac(.5 + .5698402909980532 * k);
+            return p.add(right.scale((fx * 2 - 1) * 14)).add(0, 35 + 40 * fy, 0);
         }
         // The canopy over the battlefield: three height tiers (kind 0, 1, 2), each an even low-discrepancy spread (R2 sequence) over the ground in front of the
         // caster (10..190 ahead, 130 to either side: the target field and the gate); every other group fills the ground behind (-150..10) so the sky above and
@@ -92,23 +95,19 @@ public final class SilentGateSequence {
     /** Where along the flight lane a lane circle (odd index) sits, 0..1 in index order. */
     public static double laneU(int index, int count) { return (index / 4 + .5) / Math.max(1, count / 4); }
 
-    /** Flight progress (0..1) at tick {@code t}: from rest, quick gain, a long tail that comes to rest on the waiting frame (u = 1 - (1-k)^3 (1+3k)). */
+    /** Dive progress (0..1) at tick {@code t}: speed grows steadily from rest (u = k^2), peaking at 2 * LANE_LENGTH / 18 = 2.9 blocks per tick. */
     public static double flightU(double t) {
         double k = Math.max(0, Math.min(1, (t - FLIGHT_START) / (double) (FLIGHT_END - FLIGHT_START)));
-        return 1 - Math.pow(1 - k, 3) * (1 + 3 * k);
+        return k * k;
     }
     /** Tick at which the camera is at lane position {@code u} (inverse of {@link #flightU}). */
-    public static double flightTime(double u) {
-        double lo = 0, hi = 1;
-        for (int i = 0; i < 40; i++) { double mid = (lo + hi) / 2; if (flightU(FLIGHT_START + mid * (FLIGHT_END - FLIGHT_START)) < u) lo = mid; else hi = mid; }
-        return FLIGHT_START + (lo + hi) / 2 * (FLIGHT_END - FLIGHT_START);
-    }
+    public static double flightTime(double u) { return FLIGHT_START + Math.sqrt(Math.max(0, Math.min(1, u))) * (FLIGHT_END - FLIGHT_START); }
 
-    /** Tick at which a sky circle starts to bloom: lane circles a few ticks before the camera passes, ring circles when the doors stop, the rest spread over S9. */
+    /** Tick at which a sky circle starts to bloom (all inside BLOOM_START..BLOOM_END - 8): the ring circles first, the canopy spread over 420..450, the lane circles ahead of the dive in lane order. */
     public static double circleBorn(int index, int count, long seed) {
-        if (index >= count) return OPEN_END + 1 + (index - count) * .8;
-        if (index % 4 == 3) return flightTime(laneU(index, count)) - 14;
-        return OVERVIEW_START + 4 + 36 * rng(seed ^ 0x5DEECE66DL, index).nextDouble();
+        if (index >= count) return BLOOM_START + 2 + (index - count) * 1.2;
+        if (index % 4 == 3) return FLIGHT_START - 4 + 14 * laneU(index, count);
+        return BLOOM_START + 30 * rng(seed ^ 0x5DEECE66DL, index).nextDouble();
     }
 
     /** Disc centres: half ring of radius 6 BEHIND the caster, 3 blocks above the anchor (reference image 10). */

@@ -245,7 +245,7 @@ public final class SilentGateRenderer {
         }
         GateSky.dome(c, gate, age);
         GateSky.clouds(c, GateCircles.center(anchor, gate), age, endK);
-        GateCircles.great(c, anchor, gate, GateCircles.clock(age), e);
+        GateCircles.great(c, anchor, gate, age, e);
         int count = Math.max(0, Math.min(f.skyCircles(), 256)), sky = SilentGateSequence.skyTotal(count);
         double wave = f.commandAge() >= 0 ? f.commandAge() * GateMinor.WAVE_SPEED : -1;
         double now = f.startedAt() + age;
@@ -306,7 +306,7 @@ public final class SilentGateRenderer {
         double descent = SilentGateSequence.gateDescent(age), rise = e < 0 ? 0 : SilentGateSequence.gateRise(e);
         double fadeOut = e < 0 ? 1 : 1 - smooth((rise - 1.15) / .9);
         double appear = smooth((age - SilentGateSequence.DESCENT_START) / 8);
-        double slit = e < 0 ? smooth((age - 166) / 20) * (1 - smooth((age - 232) / 20)) : Math.sin(Math.PI * clamp01((e - 70) / 60));
+        double slit = e < 0 ? smooth((age - SilentGateSequence.SLIT_START) / 24) * (1 - smooth((age - 282) / 16)) : Math.sin(Math.PI * clamp01((e - 70) / 60));
         Vec3 start = SilentGateSequence.gateFoot(anchor, yaw, 1);
         GateFx.Pose slitPose = GateFx.Pose.of(start, yaw);
         if (!c.solidOnly) GateFx.slit(c, slitPose, slit, SilentGateSequence.GATE_HEIGHT + 20);

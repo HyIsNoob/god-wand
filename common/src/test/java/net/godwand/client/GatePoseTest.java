@@ -72,6 +72,32 @@ class GatePoseTest {
         assertTrue(Math.abs(lips.pos().x) < .3 && lips.pos().z > .25, "in front of the face: " + lips.pos());
     }
 
+    @Test void scriptV3BeatsInCastTicks() {
+        Vec3 feet = new Vec3(0, 70, 0);
+        // Spin: a wind-up before 95, one full turn ending at 120; the wand is back in the hand after the catch.
+        assertEquals(0, GatePose.spinAngle(GatePose.poseClock(85)), 1e-9);
+        assertTrue(GatePose.spinAngle(GatePose.poseClock(96)) < 0.1);
+        assertEquals(2 * Math.PI, GatePose.spinAngle(GatePose.poseClock(120)), 1e-6);
+        double prev = GatePose.spinAngle(GatePose.poseClock(100));
+        for (double t = 101; t <= 112; t++) { double a = GatePose.spinAngle(GatePose.poseClock(t)); assertTrue(a > prev, "turning at " + t); prev = a; }
+        // Shh: the finger reaches the lips by tick 132 and stays there.
+        assertEquals(GatePose.LIPS.lp(), GatePose.joints(132, -1, END).lp(), .03);
+        assertTrue(GatePose.joints(110, -1, END).lp() > GatePose.LIPS.lp() + .5, "not yet at the lips at 110");
+        assertEquals(GatePose.LIPS.lp(), GatePose.joints(300, -1, END).lp(), .03);
+        // The arm points at the sky from ~440 on.
+        assertTrue(GatePose.joints(440, -1, END).rp() < -2.6, "rising: " + GatePose.joints(440, -1, END).rp());
+        assertEquals(GatePose.POINT.rp(), GatePose.joints(470, -1, END).rp(), .03);
+        assertTrue(GatePose.joints(400, -1, END).rp() > -1);
+        // First person: until 62 the wand hangs 1.5 blocks before the eyes at eye height; it then drifts beside the caster.
+        for (double t : new double[]{0, 20, 45, 61}) {
+            var w = GatePose.wand(t, -1, END, feet, 0);
+            assertEquals(1.5, w.pos().z, .05, "tick " + t);
+            assertEquals(71.5, w.pos().y, .1);
+            assertTrue(Math.abs(w.pos().x) < .1);
+        }
+        assertTrue(GatePose.wand(90, -1, END, feet, 0).pos().z < 1.3, "away from the face by 90");
+    }
+
     @Test void manaGainShape() {
         assertEquals(0, GatePose.manaGain(frame(0, -1)), 1e-9);
         double strong = GatePose.manaGain(frame(40, -1)), calm = GatePose.manaGain(frame(310, -1)), gone = GatePose.manaGain(frame(640, 372));

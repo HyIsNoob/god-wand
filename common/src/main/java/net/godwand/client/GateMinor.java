@@ -30,16 +30,20 @@ final class GateMinor {
         return t < .6 ? 1.15 * smooth(t / .6) : 1.15 - .15 * smooth((t - .6) / .4);
     }
 
+    /** Ending: size factor 1..0 of circle {@code index}, {@code e} ticks after the barrage. The circle keeps its place; each starts at its own random tick within 25..80 and takes
+     *  {@value #SHRINK_TICKS} ticks, the exact reverse of {@link #bloom} (1, a swell to 1.15, then 0). */
+    static final double SHRINK_TICKS = 10;
+    static double shrink(int index, double e) {
+        double start = SilentGateSequence.END_RETRACT_FROM + (SilentGateSequence.END_RETRACT_TO - SilentGateSequence.END_RETRACT_FROM - SHRINK_TICKS) * hash(index);
+        return e <= start ? 1 : e >= start + SHRINK_TICKS ? 0 : bloom(1 - (e - start) / SHRINK_TICKS);
+    }
+    private static double hash(int i) { double h = Math.sin(i * 127.1 + 17.3) * 43758.5453; return h - Math.floor(h); }
+
     /** Three rune rings of radius 3.2 / 2.2 / 1.2, each .8 higher, over a seal disc; one plain ring and no runes beyond 80 blocks. */
     static void sky(Ctx c, Vec3 at, int index, double age, double born, Vec3 gate, double wave, double e) {
         double t = (age - born) / BLOOM_TICKS, k = bloom(t);
-        if (e >= 0) {
-            // Ending: far circles retract first, then the nearer ones, shrinking and drifting toward the gate (ticks 20..85).
-            double near = clamp01(at.distanceTo(gate) / 330), start = SilentGateSequence.END_RETRACT_FROM + (SilentGateSequence.END_RETRACT_TO - SilentGateSequence.END_RETRACT_FROM - 22) * (1 - near),
-                    gone = smooth((e - start) / 22);
-            k *= 1 - gone;
-            at = at.lerp(gate, .3 * gone);
-        }
+        // Ending: every circle shrinks where it stands (the reverse of its bloom), at its own random moment.
+        if (e >= 0) k *= shrink(index, e);
         if (k <= 0) return;
         double dist = c.eye.distanceTo(at), flare = flare(gate, at, wave), s = k * BIG * Math.min(2, Math.max(1, dist / 100)) * (1 + .1 * flare), alpha = smooth(t * 2) * (1 + .6 * flare);
         int tint = index % 2 == 0 ? JADE : GateCircles.WHITE_BLUE, color = mix(tint, 0xFFFFFF, .7 * flare);
@@ -142,7 +146,7 @@ final class GateMinor {
 
     /** Upright disc facing the caster: seal in the middle, a strip ring round it, spinning slowly, with a faint column of light above. */
     static void ground(Ctx c, Vec3 at, Vec3 toward, int index, double age, boolean gold, Vec3 gate, double wave, double e) {
-        double t = smooth((age - 436 - 4.0 * index) / 20);
+        double t = smooth((age - SilentGateSequence.BLOOM_START - 8 - 3.0 * index) / 16);
         if (e >= 0) t *= 1 - smooth((e - 20 - 3.0 * index) / 20);
         if (t <= 0) return;
         double flare = flare(gate, at, wave), radius = (gold ? 2.4 : 1.5) * (1 + .1 * flare) * (.6 + .4 * t);
