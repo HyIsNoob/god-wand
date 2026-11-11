@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Fixed a crash when opening the configuration menu (Mods list > God Wand > Config) on Minecraft 26.3 and 1.21.11, on both Fabric and NeoForge. The menu drew its background twice, which the game rejects with `Can only blur once per frame`.
+- Fixed a crash when opening the configuration menu on Minecraft 26.3 and 1.21.11 (Fabric and NeoForge).
 
 ## [1.4.1]
 
