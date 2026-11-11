@@ -1,4 +1,4 @@
-# God Wand 1.4.1
+# God Wand 1.4.2
 
 One wand with seven skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile, hold **I am Atomic** until you choose to release, or fire Fuga’s blazing arrow.
 
@@ -6,16 +6,16 @@ One wand with seven skills: walk through mountains, pull enemies into a gravity 
 
 | Minecraft | Loader | Java | Installable file |
 | --- | --- | --- | --- |
-| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.4.1.jar` |
-| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.4.1.jar` |
-| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.4.1.jar` |
-| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.4.1.jar` |
-| 1.21.11 | Fabric + Fabric API | 21 | `godwand-fabric-1.21.11-1.4.1.jar` |
-| 1.21.11 | NeoForge | 21 | `godwand-neoforge-1.21.11-1.4.1.jar` |
-| 26.1.2 | Fabric + Fabric API | 25 | `godwand-fabric-26.1.2-1.4.1.jar` |
-| 26.1.2 | NeoForge | 25 | `godwand-neoforge-26.1.2-1.4.1.jar` |
-| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.4.1.jar` |
-| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.4.1.jar` |
+| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.4.2.jar` |
+| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.4.2.jar` |
+| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.4.2.jar` |
+| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.4.2.jar` |
+| 1.21.11 | Fabric + Fabric API | 21 | `godwand-fabric-1.21.11-1.4.2.jar` |
+| 1.21.11 | NeoForge | 21 | `godwand-neoforge-1.21.11-1.4.2.jar` |
+| 26.1.2 | Fabric + Fabric API | 25 | `godwand-fabric-26.1.2-1.4.2.jar` |
+| 26.1.2 | NeoForge | 25 | `godwand-neoforge-26.1.2-1.4.2.jar` |
+| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.4.2.jar` |
+| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.4.2.jar` |
 
 Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server. For multiplayer, update God Wand on both the server and every player’s client.
 
