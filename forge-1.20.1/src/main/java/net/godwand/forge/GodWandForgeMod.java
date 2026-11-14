@@ -33,6 +33,7 @@ import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -90,6 +91,7 @@ public class GodWandForgeMod {
 
     public GodWandForgeMod(IEventBus modBus) {
         GodWandConfig.loadServer(FMLPaths.CONFIGDIR.get());
+        MinecraftForge.EVENT_BUS.addListener((ServerAboutToStartEvent event) -> GodWandConfig.loadServer(FMLPaths.CONFIGDIR.get()));
         MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.event.RegisterCommandsEvent event) -> net.godwand.command.GodWandCommands.register(event.getDispatcher()));
 
         ITEMS.register(modBus);

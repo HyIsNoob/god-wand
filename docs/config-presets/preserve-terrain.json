@@ -4,5 +4,6 @@
   "supernovaTerrainDamage": false,
   "supernovaBlockLift": false,
   "stoneCannonTerrainDamage": false,
-  "atomicTerrainDamage": false
+  "atomicTerrainDamage": false,
+  "fugaTerrainDamage": false
 }

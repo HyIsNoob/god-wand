@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.3]
+
+### Fixed
+
+- Fuga block damage is disabled by both terrain preservation presets. Reopening a single-player world now picks up changes to the server config.
+
 ## [1.4.2]
 
 ### Fixed

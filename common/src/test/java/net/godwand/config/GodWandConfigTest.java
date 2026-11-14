@@ -71,6 +71,21 @@ class GodWandConfigTest {
         assertEquals(upgraded,Files.readString(file));
     }
 
+    @Test void terrainPresetsDisableFugaBlockDamageWhenLoaded() throws Exception {
+        var previous = GodWandConfig.SERVER;
+        try {
+            Path file = directory.resolve("godwand-server.json");
+            for (String preset : new String[]{"preserve-terrain.json", "reversible-block-effects.json"}) {
+                Path source = Path.of("..", "docs", "config-presets", preset);
+                Files.writeString(file, Files.readString(source));
+                GodWandConfig.loadServer(directory);
+                assertFalse(GodWandConfig.SERVER.fugaTerrainDamage, preset);
+            }
+        } finally {
+            GodWandConfig.SERVER = previous;
+        }
+    }
+
     @Test void atomicDamageDefaultsMigrateFromPartialConfigsAndRejectInvalidValues() throws Exception {
         Path file=directory.resolve("server.json"); Files.writeString(file,"{\"atomicTerrainRadius\":32}");
         var server=GodWandConfig.read(file,GodWandConfig.Server.class,new GodWandConfig.Server());
