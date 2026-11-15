@@ -141,7 +141,8 @@ public final class SilentGateCinematic {
             // The command close; down on the field through a longer lens (it keeps the picture inside the loaded land); wide from the caster's feet up into the
             // rain; then the track over the ground and the far round.
             // Each shot holds one lens from its first frame to its last: the camera moves, the lens never zooms.
-            return tb < 14 ? .9 * (1 - .1 * Math.exp(-tb / 2.5)) : tb < 60 ? 1.1 : tb < B4_FROM ? 1.1 : tb < B4_TO ? .95 : 1.02;
+            // The shot up from the caster's feet on a normal lens: a wide one stretched it (owner, 2026-11-15).
+            return tb < 14 ? .9 * (1 - .1 * Math.exp(-tb / 2.5)) : tb < 60 ? .8 : tb < B4_FROM ? 1.1 : tb < B4_TO ? .95 : 1.02;
         }
         // The first click kicks the lens once.
         if (age < 70) return .9 * (1 + .1 * smooth(age, 1, 3) * Math.exp(-Math.max(0, age - 3) / 3.5));
@@ -521,10 +522,17 @@ public final class SilentGateCinematic {
         Vec3 toward = new Vec3(g.a().x - at.x, 0, g.a().z - at.z);
         toward = toward.lengthSqr() < 1 ? g.f().scale(-1) : toward.normalize();
         Vec3 side = toward.cross(UP);
-        Vec3 cam = at.add(toward.scale(KILL_DISTANCE)).add(side.scale(-6 + 12 * u));
-        // Above the live surface: the strikes dig craters under the track.
-        double floor = g.ground().applyAsDouble(cam.x, cam.z) + 1.5;
-        return look(new Vec3(cam.x, Math.max(at.y + KILL_CAM_HEIGHT, floor), cam.z), at.add(0, KILL_LOOK_HEIGHT, 0));
+        Vec3 cam = at.add(toward.scale(KILL_DISTANCE)).add(side.scale(-6 + 12 * u)), aim = at.add(0, KILL_LOOK_HEIGHT, 0);
+        // Above the live surface (the strikes dig craters under the track) and high enough that no hill or tree stands between the lens and the target
+        // (owner, 2026-11-15: in hilly land the kill was hidden).
+        double y = Math.max(at.y + KILL_CAM_HEIGHT, g.ground().applyAsDouble(cam.x, cam.z) + 1.5);
+        for (int k = 1; k <= 32; k++) {
+            double s = k / 32.0;
+            double ground = g.ground().applyAsDouble(aim.x + (cam.x - aim.x) * s, aim.z + (cam.z - aim.z) * s) + 1;
+            // As if the rise began a sample nearer the target: the slope between two samples is steeper than at either.
+            if (Double.isFinite(ground)) y = Math.max(y, aim.y + (ground - aim.y) / (s - .5 / 32));
+        }
+        return look(new Vec3(cam.x, Math.min(y, aim.y + 40), cam.z), aim);
     }
 
     /** The impact with the most other impacts within 12 blocks (the newest on ties); {@code none} without any. */

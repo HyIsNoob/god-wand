@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.function.ToDoubleBiFunction;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -336,6 +337,19 @@ class SilentGateCinematicTest {
         var hit = shotAt(SilentGateSequence.KILL_TICK, List.of(), mob);
         Vec3 f = Vec3.directionFromRotation(hit.pitch(), hit.yaw()), to = mob.add(0, SilentGateCinematic.KILL_LOOK_HEIGHT, 0).subtract(hit.position()).normalize();
         assertTrue(f.dot(to) > .999, "square on the target when the kill beam lands");
+    }
+
+    @Test void groundTrackSeesTheTargetOverAHill() {
+        Vec3 mob = PLAYER.add(-20, 0, 90), aim = mob.add(0, SilentGateCinematic.KILL_LOOK_HEIGHT, 0);
+        // A ridge 12 blocks high between the target and the caster's side.
+        ToDoubleBiFunction<Double, Double> ground = (x, z) -> { double d = Math.hypot(x - mob.x, z - mob.z); return d > 5 && d < 10 ? PLAYER.y + 12 : PLAYER.y; };
+        for (double c = SilentGateCinematic.B4_FROM; c < SilentGateCinematic.B4_TO; c += 3) {
+            var p = SilentGateCinematic.cameraFor(frame(2, 480 + c, c, 200), PLAYER, 0f, 0f, true, List.of(), ground, mob);
+            for (double k = .05; k < 1; k += .05) {
+                Vec3 q = aim.add(p.position().subtract(aim).scale(k));
+                assertTrue(q.y >= ground.applyAsDouble(q.x, q.z) + .9, "the ridge hides the target at " + c + ", " + k);
+            }
+        }
     }
 
     @Test void killShotKeepsTheSameTargetForItsWholeWindow() {
