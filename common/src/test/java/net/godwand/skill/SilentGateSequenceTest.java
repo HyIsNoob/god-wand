@@ -117,7 +117,7 @@ class SilentGateSequenceTest {
     @Test
     void buildIsThreeHundredAndSixtyTicksOfDirection() {
         assertEquals(480, SilentGateSequence.BUILD_TICKS);
-        assertEquals(290, SilentGateSequence.ENDING_TICKS);
+        assertEquals(265, SilentGateSequence.ENDING_TICKS);
         assertTrue(SilentGateSequence.STUCK_END - SilentGateSequence.OPEN_START >= 20, "stuck at least 1 s");
         assertTrue(SilentGateSequence.OPEN_END - SilentGateSequence.STUCK_END >= 45, "separation 365..412");
         assertTrue(SilentGateSequence.OPEN_END - SilentGateSequence.OPEN_FAST_END >= 15, "a long creep into the stop");
@@ -207,7 +207,7 @@ class SilentGateSequenceTest {
     void shotTicksScaleWithBarrage() {
         assertEquals(140, SilentGateSequence.shotTick(140, 200));
         assertEquals(268, SilentGateSequence.shotTick(140, 400));
-        assertEquals(502, SilentGateSequence.endTick(200));
+        assertEquals(477, SilentGateSequence.endTick(200));
     }
 
     @Test

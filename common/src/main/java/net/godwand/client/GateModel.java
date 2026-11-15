@@ -108,9 +108,10 @@ final class GateModel {
         /** Flat face colour: top 100%, north/south 80%, east/west 60%, bottom 50% (in the gate's own axes), three bands darker towards the foot. */
         int step(Vec3 n, double groove, double y) {
             double ny = n.dot(pose.u()), nx = Math.abs(n.dot(pose.r())), nz = Math.abs(n.dot(pose.d()));
-            double f = ny > .5 ? 1 : ny < -.5 ? .5 : nz >= nx ? .8 : .6;
+            // Undersides at .66 (not .5): seen from the low cameras, a near-black one read as a hole (owner, 2026-11-15).
+            double f = ny > .5 ? 1 : ny < -.5 ? .66 : nz >= nx ? .8 : .6;
             double h = (y - pose.foot().y) / (46 * pose.s());
-            double t = f * (h < .33 ? .82 : h < .66 ? .92 : 1);
+            double t = f * (h < .33 ? .88 : h < .66 ? .94 : 1);
             if (groove > .5) t *= .82;
             return mix(SHADOW, PORCELAIN, clamp01((t - .4) / .6));
         }

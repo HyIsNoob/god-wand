@@ -81,7 +81,7 @@ final class GateCircles {
             if (lit < 1) GateDraw.sprite(c, ctr, (6 + 22 * lit) * S, .8 * Math.sin(Math.PI * lit), HOT);
             // Wide faint disc of light above the circle, and the shafts it throws down once the gate arrives.
             fan(c, ctr.add(0, 6 * S, 0), 70 * S * scale(TIER_COUNT - 1, age, e), GLOW_BLUE, .22 * whole * breath * (1 - endK));
-            shafts(c, ctr, age, 1 - endK);
+            shafts(c, ctr, age, Math.min(1 - endK, scale(TIER_COUNT - 1, age, e)));
         }
         if (c.body()) underlay(c, ctr, 58 * S * scale(TIER_COUNT - 1, age, e), whole * (1 - endK));
     }
@@ -205,7 +205,8 @@ final class GateCircles {
         if (on <= 0) return;
         for (int i = 0; i < 9; i++) {
             double r = (8 + i * 6) * S * shrink, a = i * 2.4 + age * .004 * (i % 2 == 0 ? 1 : -1);
-            double al = (.16 + .08 * ((i * 5) % 3) / 2.0) * on * (1 + .15 * Math.sin(age * .05 + i));
+            // They go with the circle: shrunk to its centre at full strength they stood on as a lone pillar after it was gone.
+            double al = (.16 + .08 * ((i * 5) % 3) / 2.0) * on * (1 + .15 * Math.sin(age * .05 + i)) * Math.min(1, shrink);
             Vec3 top = pt(ctr, r, a);
             Vec3 bottom = top.add(0, -(70 + 12 * (i % 4)) * S, 0);
             GateDraw.shaft(c, top, bottom, (3 + i % 3) * S, (5.5 + 2 * (i % 3)) * S, GLOW_BLUE, al, 0, age * .011 + i * 1.9);

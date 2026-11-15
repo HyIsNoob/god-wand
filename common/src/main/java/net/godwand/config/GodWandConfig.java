@@ -83,7 +83,7 @@ public final class GodWandConfig {
         public float gateBeamDamage = 80;
         public int gateTargetRadius = 160;
         public String gateTargetMode = "hostile";
-        public int gateBarrageTicks = 360;
+        public int gateBarrageTicks = 400;
         public int gateWaitTicks = 300;
         public int gateSkyCircles = 220;
         public boolean gateTerrainDamage = true;

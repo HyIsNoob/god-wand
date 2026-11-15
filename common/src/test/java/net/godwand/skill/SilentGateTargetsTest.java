@@ -85,5 +85,8 @@ class SilentGateTargetsTest {
         assertEquals(ravager, pick.apply(List.of(cave, zombie, ravager)), "sky access beats a tankier buried mob");
         assertEquals(cave, pick.apply(List.of(cave)), "nothing open: fall back to all");
         assertNull(pick.apply(List.of()));
+        var distantWarden = new E("distant warden", 500, 120 * 120, true);
+        assertEquals(zombie, pick.apply(List.of(distantWarden, zombie)), "a near target the camera can show beats a far one");
+        assertEquals(distantWarden, pick.apply(List.of(distantWarden)), "only far ones: still a target");
     }
 }

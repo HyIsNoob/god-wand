@@ -101,10 +101,10 @@ class SilentGateManagerTest {
         SilentGateManager.click(p, InteractionHand.MAIN_HAND);
         assertFalse(SilentGateManager.movementLocked(p));
         assertTrue(SilentGateManager.invulnerable(p));
-        tickTo(1480 + 12 + 360);
+        tickTo(1480 + 12 + net.godwand.config.GodWandConfig.SERVER.gateBarrageTicks);
         assertEquals(END.ordinal(), lastPhase());
         assertTrue(SilentGateManager.invulnerable(p));
-        tickTo(1480 + SilentGateSequence.endTick(360) + SilentGateSequence.RETURN_TICKS);
+        tickTo(1480 + SilentGateSequence.endTick(net.godwand.config.GodWandConfig.SERVER.gateBarrageTicks) + SilentGateSequence.RETURN_TICKS);
         assertFalse(SilentGateManager.invulnerable(p));
         cooldowns.verify(() -> SkillCooldowns.start(eq(p), eq(7), anyInt()));
     }

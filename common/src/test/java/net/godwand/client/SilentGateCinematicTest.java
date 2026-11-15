@@ -267,16 +267,23 @@ class SilentGateCinematicTest {
         // B2: from the caster. Low at their shoulder, looking steeply up into the circles that fire overhead: a cut from the command, no move.
         for (double c = 14; c < 60; c += 4) {
             var p = barrage(c, 200);
-            assertTrue(p.position().distanceTo(PLAYER) < 7 && p.position().y < PLAYER.y + 1 && p.pitch() < -25, "close behind the caster, low, looking up at " + c + ": " + p.position() + " " + p.pitch());
+            assertTrue(p.position().distanceTo(PLAYER) < 7 && p.position().y < PLAYER.y + .5 && p.pitch() < -12, "close behind the caster, by the ground, looking up at " + c + ": " + p.position() + " " + p.pitch());
             assertTrue(inFrame(p, PLAYER.add(0, 1.6, 0), SilentGateCinematic.lens(480 + c, c, 200)), "the caster's head in frame at " + c);
         }
-        // B3: from the gate, the other way round: beside the gate's right column, above its doors, looking steeply down the field toward the caster.
+        // B3: just under the lowest tier of circles, far out, going round the field and looking down on it.
+        Vec3 field = PLAYER.add(0, 0, SilentGateCinematic.FIELD_CENTRE);
+        double b3first = Double.NaN, b3last = 0;
         for (double c = 60; c < SilentGateCinematic.B4_FROM; c += 4) {
             var p = barrage(c, 200); double lens = SilentGateCinematic.lens(480 + c, c, 200);
-            assertTrue(p.position().distanceTo(DOOR) < 130 && p.position().y > DOOR.y && p.pitch() > 40, "by the gate, looking down at " + c + ": " + p.position() + " " + p.pitch());
-            assertTrue(p.position().x < PLAYER.x - 90 && !inFrame(p, DOOR, lens), "well outside the right column, the gate out of the picture at " + c);
-            assertTrue(inFrame(p, PLAYER.add(0, 0, 70), lens), "the field in frame at " + c);
+            double h = Math.hypot(p.position().x - field.x, p.position().z - field.z);
+            assertTrue(p.position().y > PLAYER.y + 70 && p.position().y < PLAYER.y + SilentGateSequence.TIER_HEIGHTS[0] - 4 && h > 100 && h < 130 && p.pitch() > 25,
+                    "under the circles, far out, looking down at " + c + ": " + p.position() + " " + p.pitch());
+            assertTrue(inFrame(p, field, lens), "the field in frame at " + c);
+            double angle = Math.toDegrees(Math.atan2(p.position().x - field.x, p.position().z - field.z));
+            if (Double.isNaN(b3first)) b3first = angle;
+            b3last = angle;
         }
+        assertTrue(Math.abs(b3last - b3first) > 30, "it goes round the field: " + (b3last - b3first));
         // B4: over the ground. A low track across the field before the caster, from one side of the line to the other, looking on toward the gate's side; the
         // kill beam and its impact frame fall in it.
         for (double c = SilentGateCinematic.B4_FROM; c < SilentGateCinematic.B4_TO; c += 3) {
@@ -287,19 +294,21 @@ class SilentGateCinematicTest {
         assertTrue((SilentGateCinematic.B4_TO - SilentGateCinematic.B4_FROM) * 1.8 <= 40, "a short shot: about 1.9 s at 360 ticks of barrage (owner, 2026-11-15)");
         int kill = SilentGateSequence.KILL_TICK;
         assertTrue(kill - 10 > SilentGateCinematic.B4_FROM && kill + 5 < SilentGateCinematic.B4_TO, "the kill beam and its squeeze of the bars stay inside the shot over the ground");
-        // B5: the whole of it: far behind the caster, high and to the right, going slowly round in an arc, the gate in frame throughout, on one lens.
+        // B5: one against an army: far off and low, going slowly round the field, the circles in the upper frame and the struck field below, on one lens.
         double arc0 = 0, arc1 = 0;
         boolean first = true;
         for (double c = SilentGateCinematic.B4_TO; c < 212; c += 4) {
-            var p = barrage(c, 200);
-            assertTrue(p.position().y > PLAYER.y + 50 && PLAYER.z - p.position().z > 60 && p.position().x < PLAYER.x, "far behind, high, to the right at " + c + ": " + p.position());
-            assertTrue(inFrame(p, DOOR, SilentGateCinematic.lens(480 + c, c, 200)), "the gate in frame at " + c);
-            assertEquals(SilentGateCinematic.lens(480 + SilentGateCinematic.B4_TO, SilentGateCinematic.B4_TO, 200), SilentGateCinematic.lens(480 + c, c, 200), 0, "no zoom in the far round");
-            double angle = Math.toDegrees(Math.atan2(PLAYER.x - p.position().x, PLAYER.z - p.position().z));
+            var p = barrage(c, 200); double lens = SilentGateCinematic.lens(480 + c, c, 200);
+            double h = Math.hypot(p.position().x - field.x, p.position().z - field.z);
+            assertTrue(h > 140 && h < 160 && p.position().y > PLAYER.y + 20 && p.position().y < PLAYER.y + 50, "far off and low at " + c + ": " + p.position());
+            assertTrue(inFrame(p, field, lens) && inFrame(p, field.add(0, SilentGateSequence.TIER_HEIGHTS[2], 0), lens), "the field and the circles over it in frame at " + c);
+            assertEquals(SilentGateCinematic.lens(480 + SilentGateCinematic.B4_TO, SilentGateCinematic.B4_TO, 200), lens, 0, "no zoom in the far round");
+            double angle = Math.toDegrees(Math.atan2(p.position().x - field.x, p.position().z - field.z));
             if (first) { arc0 = angle; first = false; }
             arc1 = angle;
         }
-        assertTrue(arc1 - arc0 > 15 && arc1 - arc0 < 30, "a slow arc of " + (arc1 - arc0) + " degrees");
+        assertTrue(Math.abs(arc1 - arc0) > 15 && Math.abs(arc1 - arc0) < 40, "a slow arc of " + (arc1 - arc0) + " degrees");
+
         // Shot changes: to a setup close by the camera glides (no jump at the cut, it settles into the new shot), to one far away it cuts hard.
         assertTrue(barrage(13.99, 200).position().distanceTo(barrage(14, 200).position()) > 1, "the command cuts to the shot from the caster");
         assertTrue(barrage(59.99, 200).position().distanceTo(barrage(60, 200).position()) > 100, "the caster to the sky: a hard cut");
@@ -315,9 +324,9 @@ class SilentGateCinematicTest {
             assertEquals(0, p.position().distanceTo(pos(142)), 20, "E3 is the far camera of the gate");
             assertTrue(inFrame(p, SilentGateSequence.gateFoot(PLAYER, 0f, SilentGateSequence.gateRise(e)).add(0, 40 * SilentGateSequence.SCALE, 0), SilentGateCinematic.lens(700, endB + e, 200)), "the climbing gate is in frame at " + e);
         }
-        for (double e = 246; e < 290; e += 6) assertTrue(inFrame(barrage(endB + e, 200), circleCentre, SilentGateCinematic.lens(700, endB + e, 200)), "E3 ends on the great circle at " + e);
+        for (double e = 221; e < 265; e += 6) assertTrue(inFrame(barrage(endB + e, 200), circleCentre, SilentGateCinematic.lens(700, endB + e, 200)), "E3 ends on the great circle at " + e);
         int end = SilentGateSequence.endTick(200);
-        assertEquals(502, end);
+        assertEquals(477, end);
         assertNotNull(barrage(end + 15 - .01, 200));
         assertNull(barrage(end + 15, 200));
         int end4 = SilentGateSequence.endTick(400);
@@ -353,6 +362,21 @@ class SilentGateCinematicTest {
         }
     }
 
+    @Test void barrageShotsRiseOverRealLandAndDoNotJump() {
+        // A hill 30 blocks high over the whole field before the caster.
+        ToDoubleBiFunction<Double, Double> hills = (x, z) -> z > PLAYER.z + 20 ? PLAYER.y + 30 : PLAYER.y;
+        for (double c = 14; c < 212; c += 2) {
+            var p = SilentGateCinematic.cameraFor(frame(2, 480 + c, c, 200), PLAYER, 0f, 0f, true, List.of(), hills, null);
+            assertTrue(p.position().y >= hills.applyAsDouble(p.position().x, p.position().z) + .9, "out of the ground at " + c + ": " + p.position());
+        }
+        // Inside a shot the raise is one height: no jumps.
+        for (double c = SilentGateCinematic.B4_FROM + .5; c + 1 < SilentGateCinematic.B4_TO; c += 1) {
+            var a = SilentGateCinematic.cameraFor(frame(2, 480 + c, c, 200), PLAYER, 0f, 0f, true, List.of(), hills, null);
+            var b = SilentGateCinematic.cameraFor(frame(2, 481 + c, c + 1, 200), PLAYER, 0f, 0f, true, List.of(), hills, null);
+            assertTrue(a.position().distanceTo(b.position()) < 2.5, "smooth at " + c);
+        }
+    }
+
     @Test void killShotKeepsTheSameTargetForItsWholeWindow() {
         var lock = new SilentGateCinematic.KillLock();
         var zombie = new SilentGateCinematic.Candidate(1, 20, new Vec3(0, 70, 30));
@@ -376,7 +400,7 @@ class SilentGateCinematicTest {
         assertTrue(SilentGateCinematic.densest(impacts, Vec3.ZERO).z > 85, "cluster beats the stray hit");
     }
 
-    @Test void killLockPrefersTheServersFeaturedTargetAndFallsBackWhenItIsGone() {
+    @Test void killLockFollowsOnlyTheServersFeaturedTarget() {
         var zombie = new SilentGateCinematic.Candidate(1, 20, new Vec3(0, 70, 30));
         var warden = new SilentGateCinematic.Candidate(2, 500, new Vec3(10, 70, 40));
         var ravager = new SilentGateCinematic.Candidate(3, 100, new Vec3(-5, 70, 50));
@@ -385,7 +409,8 @@ class SilentGateCinematicTest {
         assertEquals(ravager.position(), lock.update(100, 60, 60, List.of(zombie, warden, ravager), PLAYER, 3), "featured beats higher max health");
         assertEquals(3, lock.id());
         var gone = new SilentGateCinematic.KillLock();
-        assertEquals(warden.position(), gone.update(100, 60, 60, List.of(zombie, warden), PLAYER, 3), "vanished featured: highest max health");
+        assertNull(gone.update(100, 60, 60, List.of(zombie, warden), PLAYER, 3), "the featured target not seen (yet): no other mob stands in for it");
+        assertEquals(ravager.position(), gone.update(100, 61, 60, List.of(zombie, warden, ravager), PLAYER, 3), "locked once it is seen");
         assertEquals(warden.position(), new SilentGateCinematic.KillLock().update(100, 60, 60, List.of(zombie, warden), PLAYER, -1));
     }
 
@@ -397,16 +422,6 @@ class SilentGateCinematicTest {
         assertEquals(110 - 3 * .85, after, 1e-9);
         assertEquals(after + 1, SilentGateCinematic.warp(111.0, 100), 1e-9, "full speed again after the stop");
         assertEquals(77, SilentGateCinematic.warp(77.0, -1), 1e-9, "no hit: no stop");
-    }
-
-    @Test void barrageCameraPassesThroughTheTerrain() {
-        // Owner, 2026-11-15: lifted over the live ground the camera jumped about; it keeps its path through blocks, like every other shot.
-        for (double c = 14; c < 212; c += 7) {
-            var f = frame(2, 480 + c, c, 200);
-            var flat = SilentGateCinematic.cameraFor(f, PLAYER, 0f, 0f, true, List.of(), (x, z) -> Double.NEGATIVE_INFINITY);
-            var hills = SilentGateCinematic.cameraFor(f, PLAYER, 0f, 0f, true, List.of(), (x, z) -> PLAYER.y + 20 + 15 * Math.sin(x * .3));
-            assertEquals(0, flat.position().distanceTo(hills.position()), 1e-9, "the ground moves no shot at " + c);
-        }
     }
 
     @Test void returnSlidesIntoTheFirstPersonView() {

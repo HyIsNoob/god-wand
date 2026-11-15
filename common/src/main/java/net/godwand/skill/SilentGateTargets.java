@@ -50,11 +50,15 @@ public final class SilentGateTargets {
         return out;
     }
 
-    /** The featured kill target: highest max health, ties nearest to {@code from}; candidates with sky access win over buried ones. Null when empty. */
+    /** Within this many blocks of the caster the kill target is in the loaded, tracked land round them, where the camera can show it die. */
+    public static final double FEATURED_REACH = 48;
+    /** The featured kill target: highest max health, ties nearest to {@code from}; candidates with sky access win over buried ones, and those within
+     *  {@link #FEATURED_REACH} over far ones (owner, 2026-11-15: in real land the camera kept framing a target nowhere to be seen). Null when empty. */
     public static <T> T featured(List<T> candidates, java.util.function.ToDoubleFunction<T> maxHealth,
             java.util.function.ToDoubleFunction<T> distanceSq, java.util.function.Predicate<T> skyAccess) {
         var open = candidates.stream().filter(skyAccess).toList();
-        return (open.isEmpty() ? candidates : open).stream()
+        var near = open.stream().filter(e -> distanceSq.applyAsDouble(e) <= FEATURED_REACH * FEATURED_REACH).toList();
+        return (!near.isEmpty() ? near : open.isEmpty() ? candidates : open).stream()
                 .min(Comparator.<T>comparingDouble(e -> -maxHealth.applyAsDouble(e)).thenComparingDouble(distanceSq)).orElse(null);
     }
 }
