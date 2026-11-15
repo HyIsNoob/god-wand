@@ -403,11 +403,11 @@ class SilentGateVisualTest {
         assertTrue(thread.quads > 0 && none.quads == 0);
         assertEquals(1, GateCircles.scale(4, 480, 100), 1e-12, "untouched until the ending dissolves it");
         // The ending: tiers shrink to the centre, outer first, all gone by its end.
-        assertTrue(GateCircles.scale(4, 560, 217) < GateCircles.scale(0, 560, 217));
+        assertTrue(GateCircles.scale(4, 560, 207) < GateCircles.scale(0, 560, 207));
         for (int i = 0; i < tiers; i++) assertEquals(0, GateCircles.scale(i, 700, SilentGateSequence.ENDING_TICKS), 0);
         // Geometry: the mesh really turns from one tick to the next (also while it shrinks) and shrinks to the centre.
         Vec3 gate = SilentGateSequence.gateCenter(ANCHOR, 0f);
-        for (double[] ae : new double[][]{{300, -1}, {600, 215}, {640, 235}}) {
+        for (double[] ae : new double[][]{{300, -1}, {600, 205}, {640, 225}}) {
             Mesh a = new Mesh(), b = new Mesh();
             GateCircles.great(ctx(a, new Vec3(0, 130, -120), 0), ANCHOR, gate, ae[0], ae[1]);
             GateCircles.great(ctx(b, new Vec3(0, 130, -120), 0), ANCHOR, gate, ae[0] + 1, ae[1] < 0 ? -1 : ae[1] + 1);
@@ -416,7 +416,7 @@ class SilentGateVisualTest {
             for (int k = 0; k < a.vertices.size() && !moved; k++) moved = Math.abs(a.vertices.get(k)[0] - b.vertices.get(k)[0]) > 1e-4 || Math.abs(a.vertices.get(k)[2] - b.vertices.get(k)[2]) > 1e-4;
             assertTrue(moved, "turning at " + ae[0] + "/" + ae[1]);
         }
-        double rStart = maxRadius(480, 195, gate), rMid = maxRadius(560, 220, gate), rEnd = maxRadius(600, 245, gate);
+        double rStart = maxRadius(480, 185, gate), rMid = maxRadius(560, 210, gate), rEnd = maxRadius(600, 235, gate);
         assertTrue(rStart > 150 && rMid < rStart * .9 && rEnd < rMid && rEnd < 120, "dissolves toward the centre: " + rStart + " " + rMid + " " + rEnd);
     }
     private double maxRadius(double age, double e, Vec3 gate) {
