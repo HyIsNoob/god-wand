@@ -95,9 +95,12 @@ public final class SilentGateCinematic {
             if (sum > .01) GodWandCinematicEngine.addTrauma((float) Math.min(.45, sum), 6);
         }
         if (lastHit < 0 && hit >= 0) GodWandCinematicEngine.addTrauma(.7f, 16);
-        // The shot up from the caster's feet trembles the whole time: the ground under them is taking the rain (owner, 2026-11-15).
-        if (cmd >= SilentGateSequence.shotTick(14, frame.barrageTicks()) && cmd < SilentGateSequence.shotTick(60, frame.barrageTicks()) && (int) cmd % 3 == 0)
-            GodWandCinematicEngine.addTrauma(.15f, 6);
+        // Every shot of the barrage trembles (owner, 2026-11-15: "it needs shake to have force"), the one up from the caster's feet hardest: the ground under
+        // them is taking the rain.
+        if (cmd >= 0 && cmd < SilentGateSequence.ACTIVATE_TICKS + frame.barrageTicks() && (int) cmd % 3 == 0) {
+            boolean fromFeet = cmd >= SilentGateSequence.shotTick(14, frame.barrageTicks()) && cmd < SilentGateSequence.shotTick(60, frame.barrageTicks());
+            GodWandCinematicEngine.addTrauma(fromFeet ? .26f : .11f, 6);
+        }
         lastAge = age; lastHit = hit; lastCmd = cmd;
         if (directing() && !menuOpen(client)) GodWandCinematicEngine.setFovPunch((float) lens(age, frame.commandAge(), frame.barrageTicks()), 2);
         // A held use button is one click: the key is let go for the game (a new press still counts), so holding it neither replays the arm swing every 4 ticks
