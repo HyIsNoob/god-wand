@@ -70,8 +70,6 @@ final class GateModel {
         double angle = open * 1.45;
         Vec3 mid = pose.at(0, 36, 0);
         double dist = c.eye.distanceTo(mid);
-        // The stamp before the body is left out far off: there the depth buffer is too coarse for the inlays and they flickered (owner, 2026-11-15: the descent).
-        if (c.beforeBody && dist > 200) return;
         g.sides = dist < 90 * pose.s() ? 12 : dist < 170 * pose.s() ? 10 : 8;
         List<Piece> pieces = new ArrayList<>();
         pieces.add(new Piece(pose.at(-COLUMN_X, 36, 0), () -> g.column(-COLUMN_X)));
@@ -103,6 +101,10 @@ final class GateModel {
             // Light from the great circle above and a little in front of the gate.
             light = pose.r().scale(.25).add(pose.u().scale(.8)).add(pose.d().scale(-.45)).normalize();
         }
+
+        /** How far an inlay stands off its face, in design units: .05, more far off, so it stays in front of the face in a coarse depth buffer (the gate's own
+         *  depth is stamped before its body; inlays a hair off the face flickered from the far cameras of the descent: owner, 2026-11-15). */
+        double decal(Vec3 at) { return Math.max(.05, at.distanceTo(c.eye) * .0016 / pose.s()); }
 
         // ---- shading: Minecraft-style stepped faces --------------------------------------------------------------------
         /** Flat face colour: top 100%, north/south 80%, east/west 60%, bottom 50% (in the gate's own axes), three bands darker towards the foot. */
@@ -280,7 +282,7 @@ final class GateModel {
                     for (Band band : bands) {
                         if (ys[i] < band.y0() - .34 || ys[i + 1] > band.y1() + .34) continue;
                         Vec3[] q = new Vec3[4];
-                        for (int k = 0; k < 4; k++) q[k] = p[k].add(n[k].scale(.05 * pose.s()));
+                        for (int k = 0; k < 4; k++) q[k] = p[k].add(n[k].scale(decal(p[k]) * pose.s()));
                         inlay(q, texels);
                     }
                 }
@@ -305,7 +307,7 @@ final class GateModel {
         void strip(Basis b, double x0, double x1, double y0, double y1, double z, int sign, GateAtlas.Region region, int repeats) {
             Vec3 normal = b.z().scale(sign), ctr = b.p((x0 + x1) / 2, (y0 + y1) / 2, z);
             if (normal.dot(c.eye.subtract(ctr)) <= 0) return;
-            double zz = z + sign * .05;
+            double zz = z + sign * decal(ctr);
             for (int k = 0; k < repeats; k++) {
                 double xa = x0 + (x1 - x0) * k / repeats, xb = x0 + (x1 - x0) * (k + 1) / repeats;
                 inlay(new Vec3[]{b.p(xa, y1, zz), b.p(xb, y1, zz), b.p(xb, y0, zz), b.p(xa, y0, zz)}, null);
@@ -353,7 +355,10 @@ final class GateModel {
         void sill() {
             Basis b = main();
             box(b, -12.5, 12.5, 12, OPENING_Y0, -FRAME_Z - .2, FRAME_Z + .2, .5);
-            for (int s = -1; s <= 1; s += 2) strip(b, -10.5, 10.5, 12.6, 14.4, s * (FRAME_Z + .2), s, GateAtlas.FILIGREE, 3);
+            // Two stepped courses under the sill, between the columns: the gap there showed the great circle behind and read as a hole in the gate (owner,
+            // 2026-11-15). The lower course stops above the hooks of the spike.
+            box(b, -11.5, 11.5, 9.5, 12, -FRAME_Z, FRAME_Z, .4);
+            box(b, -10.5, 10.5, 8.7, 9.5, -FRAME_Z + .8, FRAME_Z - .8, .3);
         }
         void jambs() {
             Basis b = main();
@@ -496,7 +501,7 @@ final class GateModel {
 
         /** The pixel ornament of a door panel on a face of {@code b}, its lower left corner at (x0, y0): engraved dark, the glowing vein over it. */
         void ornament(Basis b, double x0, double y0, double z, int sign) {
-            double w = GateAtlas.PANEL_W / pose.s(), h = GateAtlas.PANEL_H / pose.s(), zz = z + sign * .05;
+            double w = GateAtlas.PANEL_W / pose.s(), h = GateAtlas.PANEL_H / pose.s(), zz = z + sign * decal(b.p(x0, y0, z));
             if (b.z().scale(sign).dot(c.eye.subtract(b.p(x0 + w / 2, y0 + h / 2, z))) <= 0) return;
             // In bands, so a close camera fades the part it is in and not the whole panel.
             for (int k = 0; k < 4; k++) {

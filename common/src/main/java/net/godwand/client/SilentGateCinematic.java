@@ -95,6 +95,9 @@ public final class SilentGateCinematic {
             if (sum > .01) GodWandCinematicEngine.addTrauma((float) Math.min(.45, sum), 6);
         }
         if (lastHit < 0 && hit >= 0) GodWandCinematicEngine.addTrauma(.7f, 16);
+        // The shot up from the caster's feet trembles the whole time: the ground under them is taking the rain (owner, 2026-11-15).
+        if (cmd >= SilentGateSequence.shotTick(14, frame.barrageTicks()) && cmd < SilentGateSequence.shotTick(60, frame.barrageTicks()) && (int) cmd % 3 == 0)
+            GodWandCinematicEngine.addTrauma(.15f, 6);
         lastAge = age; lastHit = hit; lastCmd = cmd;
         if (directing() && !menuOpen(client)) GodWandCinematicEngine.setFovPunch((float) lens(age, frame.commandAge(), frame.barrageTicks()), 2);
         // A held use button is one click: the key is let go for the game (a new press still counts), so holding it neither replays the arm swing every 4 ticks
@@ -473,7 +476,7 @@ public final class SilentGateCinematic {
             // From the caster: low at their shoulder, looking up past them into the circles that fire overhead, rising a little toward them.
             // Owner, 2026-11-15: by the caster's feet, close to the ground, looking up on a slightly wide lens: the caster whole, the ground and the command's wave
             // at the foot of the frame, the rain above.
-            new Cut("B2 from the caster, up", 14, 60, Curve.LINEAR, (g, u, t) -> look(g.rel(-3 + .3 * u, 1.1 - .1 * u, .12), g.rel(16, -.5, 6 + 2 * u))),
+            new Cut("B2 from the caster, up", 14, 60, Curve.LINEAR, (g, u, t) -> look(g.rel(-2.4 + .3 * u, 1 - .1 * u, .35), g.rel(16, -.5, 6 + 2 * u))),
             new Cut("B3 round the field, down", 60, B4_FROM, Curve.LINEAR, (g, u, t) -> fieldOrbit(g, u)),
             // Over the ground: a low track across the field before the caster, the strikes going by on either hand, the gate far ahead; the kill beam lands here.
             new Cut("B4 over the ground", B4_FROM, B4_TO, Curve.LINEAR, (g, u, t) -> g.focus() != null ? killTrack(g, u)
