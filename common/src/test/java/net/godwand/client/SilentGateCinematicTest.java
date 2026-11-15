@@ -147,6 +147,13 @@ class SilentGateCinematicTest {
         }
     }
 
+    @Test void waitingFrameIsCloseOnTheCaster() {
+        for (double t = 520; t < 680; t += 10) {
+            var p = build(0, t);
+            assertTrue(p.position().distanceTo(PLAYER.add(0, 1.5, 0)) < 6.5 && inFrame(p, PLAYER.add(0, 1.5, 0), lens(t)), "close on the caster at " + t + ": " + p.position());
+        }
+    }
+
     /** A camera that is always slowly on its way somewhere: no shot of the build stands still, none races. */
     @Test void shotsMoveSlowlyButNeverStandStill() {
         double[] limit = {.1, .15, .4, .1, .15, 1.4, .15};
@@ -191,8 +198,8 @@ class SilentGateCinematicTest {
         assertEquals(2, SilentGateCinematic.flash(700, 1.5, -1)[0], 0);
         assertEquals(1, SilentGateCinematic.flash(SilentGateSequence.DESCENT_END + 1, -1, -1)[0], 0, "the touchdown is inked");
         assertEquals(0, SilentGateCinematic.flash(SilentGateSequence.DESCENT_END + 3, -1, -1)[0], 0, "for two and a half ticks only");
-        assertTrue(SilentGateCinematic.flash(SilentGateSequence.DESCENT_END + 3, -1, -1)[1] > .3 && SilentGateCinematic.flash(SilentGateSequence.DESCENT_END + 30, -1, -1)[1] == 0, "then a small flash that dies away");
-        assertTrue(SilentGateCinematic.flash(412.5, -1, -1)[1] > .25 && SilentGateCinematic.flash(412.5, -1, -1)[0] == 0, "the doors' stop only flashes");
+        assertTrue(SilentGateCinematic.flash(SilentGateSequence.DESCENT_END + 3, -1, -1)[1] > .2 && SilentGateCinematic.flash(SilentGateSequence.DESCENT_END + 30, -1, -1)[1] == 0, "then a small flash that dies away");
+        assertTrue(SilentGateCinematic.flash(412.5, -1, -1)[1] > .15 && SilentGateCinematic.flash(412.5, -1, -1)[0] == 0, "the doors' stop only flashes");
         assertEquals(1, SilentGateCinematic.flash(700, 100, .1)[0], 0, "the kill beam is inked during the hit-stop");
         assertEquals(0, SilentGateCinematic.flash(700, 100, 30)[1], 0);
         for (double t = 0; t < 480; t += 1) {
@@ -256,8 +263,8 @@ class SilentGateCinematicTest {
             assertTrue(p.position().distanceTo(PLAYER.add(0, 1.5, 0)) < 4.6 && p.position().z > PLAYER.z + 3, "B1 close, in front, at " + c);
             assertTrue(inFrame(p, PLAYER.add(.37, 1.3, .5)), "the hand is in frame at " + c);
         }
-        // B2: from the caster. Low at their shoulder, looking steeply up into the circles that fire overhead (after the glide in from the command).
-        for (double c = 32; c < 60; c += 4) {
+        // B2: from the caster. Low at their shoulder, looking steeply up into the circles that fire overhead: a cut from the command, no move.
+        for (double c = 14; c < 60; c += 4) {
             var p = barrage(c, 200);
             assertTrue(p.position().distanceTo(PLAYER) < 4 && p.position().y < PLAYER.y + 1 && p.pitch() < -45, "at the caster's feet, looking up at " + c + ": " + p.position() + " " + p.pitch());
         }
@@ -291,7 +298,7 @@ class SilentGateCinematicTest {
         }
         assertTrue(arc1 - arc0 > 15 && arc1 - arc0 < 30, "a slow arc of " + (arc1 - arc0) + " degrees");
         // Shot changes: to a setup close by the camera glides (no jump at the cut, it settles into the new shot), to one far away it cuts hard.
-        assertEquals(0, barrage(13.99, 200).position().distanceTo(barrage(14, 200).position()), .05, "the command glides into the shot from the caster");
+        assertTrue(barrage(13.99, 200).position().distanceTo(barrage(14, 200).position()) > 1, "the command cuts to the shot from the caster");
         assertTrue(barrage(59.99, 200).position().distanceTo(barrage(60, 200).position()) > 100, "the caster to the sky: a hard cut");
         assertEquals(0, pos(69.99).distanceTo(pos(70)), .05, "the raised hand glides into the great circle's shot");
         assertTrue(pos(257.99).distanceTo(pos(258)) > 50, "the gate to the face: a hard cut");

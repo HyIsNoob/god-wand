@@ -54,11 +54,15 @@ public final class SilentGateManager {
         LivingEntity featured;
         boolean featuredPicked;
         final Work work = new Work();
+        /** Height of the land the beams fall on (see {@link #fire}). */
+        double groundY;
         /** Config snapshot taken at click 1: server tick and client payload must keep agreeing after a reload. */
         final int skyCircles = GodWandConfig.SERVER.gateSkyCircles, barrageTicks = GodWandConfig.SERVER.gateBarrageTicks;
         Task(ServerPlayer player) {
             caster = player; world = player.serverLevel(); started = phaseAt = world.getGameTime();
             anchor = player.position(); yaw = player.getYRot();
+            // The land under the caster, through any tree they stand on: where beams over unloaded land strike until real hits refine it.
+            groundY = Math.min(anchor.y, world.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, (int) Math.floor(anchor.x), (int) Math.floor(anchor.z)));
             seed = started * 0x9E3779B97F4A7C15L ^ player.getUUID().getLeastSignificantBits();
         }
     }
@@ -273,8 +277,10 @@ public final class SilentGateManager {
             Vec3 ground = groundBelow(task.world, task.caster, above);
             used.add(index);
             shots.add(index);
-            // A circle too far out to touch the world still fires, for show: every circle in the sky is seen to shoot (owner, 2026-11-12).
-            if (ground == null) { hits.add(above.x); hits.add(task.anchor.y); hits.add(above.z); return; }
+            // A circle too far out to touch the world still fires, for show: every circle in the sky is seen to shoot (owner, 2026-11-12). It strikes the level
+            // of the land the other beams found, not the caster's own height (a caster on a tree saw those beams stop in the air: owner, 2026-11-15).
+            if (ground == null) { hits.add(above.x); hits.add(task.groundY); hits.add(above.z); return; }
+            task.groundY += (ground.y - task.groundY) * .1;
             hits.add(ground.x); hits.add(ground.y); hits.add(ground.z);
             crater(task, ground);
             return;

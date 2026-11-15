@@ -15,6 +15,8 @@ final class GateDraw {
         VertexConsumer v; Matrix4f m; Vec3 eye; double fade = 1, gain = 1, nearMin = NEAR_MIN, nearMax = NEAR_MAX; int layer = -1, quads;
         /** Only the opaque gate body: drawn into the depth buffer alone so additive light behind it cannot shine through. */
         boolean solidOnly;
+        /** The stamp drawn before the body (so the body shows only its nearest faces and does not look hollow): a fading gate is left out of it. */
+        boolean beforeBody;
         /** World height above which nothing is drawn yet (the gate coming down out of the crack in the sky), fading in over {@value #CLIP_BAND} blocks under it. */
         double clipY = Double.MAX_VALUE;
         boolean body() { return layer <= 0; }

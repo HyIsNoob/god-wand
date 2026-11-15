@@ -345,33 +345,37 @@ final class GateModel {
         // ---- frame ------------------------------------------------------------------------------------------------
         Basis main() { return new Basis(pose.foot(), pose.r(), pose.u(), pose.d(), pose.s()); }
 
+        /** Half depth of the frame: as deep as the columns are thick, so seen at an angle the gate is a solid wall of stone and not a screen (owner, 2026-11-15). */
+        static final double FRAME_Z = 3.2;
         void sill() {
             Basis b = main();
-            box(b, -12.5, 12.5, 12, OPENING_Y0, -1.8, 1.8, .5);
-            for (int s = -1; s <= 1; s += 2) strip(b, -10.5, 10.5, 12.6, 14.4, s * 1.8, s, GateAtlas.FILIGREE, 3);
+            box(b, -12.5, 12.5, 12, OPENING_Y0, -FRAME_Z - .2, FRAME_Z + .2, .5);
+            for (int s = -1; s <= 1; s += 2) strip(b, -10.5, 10.5, 12.6, 14.4, s * (FRAME_Z + .2), s, GateAtlas.FILIGREE, 3);
         }
         void jambs() {
             Basis b = main();
             for (int s = -1; s <= 1; s += 2) {
-                double x0 = s > 0 ? JAMB_X : -JAMB_X - 1.9, x1 = x0 + 1.9;
-                box(b, x0, x1, OPENING_Y0, OPENING_Y1, -1.3, 1.3, .25);
+                // Out to the column, so no daylight shows between jamb and column at any angle.
+                double x0 = s > 0 ? JAMB_X : -COLUMN_X, x1 = s > 0 ? COLUMN_X : -JAMB_X;
+                box(b, x0, x1, OPENING_Y0, OPENING_Y1, -FRAME_Z + .4, FRAME_Z - .4, .25);
                 // Base and capital blocks, so the jamb reads as a pilaster and not a plank.
-                box(b, x0 - .35, x1 + .35, OPENING_Y0, OPENING_Y0 + 1.6, -1.75, 1.75, .3);
-                box(b, x0 - .35, x1 + .35, OPENING_Y1 - 1.6, OPENING_Y1, -1.75, 1.75, .3);
+                double p0 = s > 0 ? JAMB_X - .35 : -JAMB_X - 2.25, p1 = p0 + 2.6;
+                box(b, p0, p1, OPENING_Y0, OPENING_Y0 + 1.6, -FRAME_Z, FRAME_Z, .3);
+                box(b, p0, p1, OPENING_Y1 - 1.6, OPENING_Y1, -FRAME_Z, FRAME_Z, .3);
             }
         }
         void crown() {
             Basis b = main();
-            box(b, -12.5, 12.5, OPENING_Y1, TOP_Y, -1.6, 1.6, .5);
-            for (int s = -1; s <= 1; s += 2) strip(b, -10.5, 10.5, OPENING_Y1 + 1.2, OPENING_Y1 + 3.8, s * 1.6, s, GateAtlas.FILIGREE, 2);
-            box(b, -8, 8, TOP_Y, TOP_Y + 2.6, -1.5, 1.5, .5);
-            for (int s = -1; s <= 1; s += 2) strip(b, -6.5, 6.5, TOP_Y + .6, TOP_Y + 2, s * 1.5, s, GateAtlas.DASH, 1);
-            box(b, -4.4, 4.4, TOP_Y + 2.6, TOP_Y + 4.8, -1.2, 1.2, .4);
-            for (int s = -1; s <= 1; s += 2) box(b, s > 0 ? 9.6 : -12.5, s > 0 ? 12.5 : -9.6, TOP_Y, TOP_Y + 1.5, -1.5, 1.5, .4);
+            box(b, -12.5, 12.5, OPENING_Y1, TOP_Y, -FRAME_Z, FRAME_Z, .5);
+            for (int s = -1; s <= 1; s += 2) strip(b, -10.5, 10.5, OPENING_Y1 + 1.2, OPENING_Y1 + 3.8, s * FRAME_Z, s, GateAtlas.FILIGREE, 2);
+            box(b, -8, 8, TOP_Y, TOP_Y + 2.6, -FRAME_Z + .3, FRAME_Z - .3, .5);
+            for (int s = -1; s <= 1; s += 2) strip(b, -6.5, 6.5, TOP_Y + .6, TOP_Y + 2, s * (FRAME_Z - .3), s, GateAtlas.DASH, 1);
+            box(b, -4.4, 4.4, TOP_Y + 2.6, TOP_Y + 4.8, -FRAME_Z + .8, FRAME_Z - .8, .4);
+            for (int s = -1; s <= 1; s += 2) box(b, s > 0 ? 9.6 : -12.5, s > 0 ? 12.5 : -9.6, TOP_Y, TOP_Y + 1.5, -FRAME_Z + .3, FRAME_Z - .3, .4);
             // The keystone hangs into the opening; its eye is a jewel that wakes with the veins.
-            box(b, -2.2, 2.2, OPENING_Y1 - 1.4, TOP_Y + .5, -2.1, 2.1, .5);
+            box(b, -2.2, 2.2, OPENING_Y1 - 1.4, TOP_Y + .5, -FRAME_Z - .5, FRAME_Z + .5, .5);
             if (c.glow()) for (int s = -1; s <= 1; s += 2) {
-                Vec3 eye = b.p(0, (OPENING_Y1 + TOP_Y) / 2 - .4, s * 2.25);
+                Vec3 eye = b.p(0, (OPENING_Y1 + TOP_Y) / 2 - .4, s * (FRAME_Z + .65));
                 if (b.z().scale(s).dot(c.eye.subtract(eye)) <= 0) continue;
                 double lit = .25 + .75 * Math.min(1, vein);
                 GateDraw.sprite(c, eye, 2.6 * pose.s(), .8 * lit, WHITE, GateAtlas.STAR, 0);
@@ -412,7 +416,7 @@ final class GateModel {
         /** The doorway itself: a plane of white nobody can look through, there as soon as the leaves part (owner, 2026-11-11: "the light of god, heaven's gate").
          *  Opaque and in the depth stamp, so nothing behind the gate shows in the opening. */
         void heaven(double k) {
-            if (!c.body()) return;
+            if (!c.body() || c.beforeBody && k < .95) return;
             Vec3[] p = {pose.at(-JAMB_X, OPENING_Y0, 1.2), pose.at(JAMB_X, OPENING_Y0, 1.2), pose.at(JAMB_X, OPENING_Y1, 1.2), pose.at(-JAMB_X, OPENING_Y1, 1.2)};
             GateDraw.shaded(c, p, new int[]{WHITE, WHITE, WHITE, WHITE}, new double[]{k, k, k, k}, null, 0, 1, 0, 1);
         }

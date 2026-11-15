@@ -2,8 +2,8 @@
   "reason": "mc-26.x API: ServerPlayer.level() is the ServerLevel (no serverLevel()), Level.getMinY() replaces getMinBuildHeight(), dimension().identifier() replaces location()",
   "changes": [
     {
-      "before": "        /** Config snapshot taken at click 1: server tick and client payload must keep agreeing after a reload. */\n        final int skyCircles = GodWandConfig.SERVER.gateSkyCircles, barrageTicks = GodWandConfig.SERVER.gateBarrageTicks;\n        Task(ServerPlayer player) {\n            caster = player; world = player.serverLevel(); started = phaseAt = world.getGameTime();\n            anchor = player.position(); yaw = player.getYRot();\n            seed = started * 0x9E3779B97F4A7C15L ^ player.getUUID().getLeastSignificantBits();\n        }\n",
-      "after": "        /** Config snapshot taken at click 1: server tick and client payload must keep agreeing after a reload. */\n        final int skyCircles = GodWandConfig.SERVER.gateSkyCircles, barrageTicks = GodWandConfig.SERVER.gateBarrageTicks;\n        Task(ServerPlayer player) {\n            caster = player; world = player.level(); started = phaseAt = world.getGameTime();\n            anchor = player.position(); yaw = player.getYRot();\n            seed = started * 0x9E3779B97F4A7C15L ^ player.getUUID().getLeastSignificantBits();\n        }\n"
+      "before": "            caster = player; world = player.serverLevel(); started = phaseAt = world.getGameTime();\n",
+      "after": "            caster = player; world = player.level(); started = phaseAt = world.getGameTime();\n"
     },
     {
       "before": "            fx(task, CinematicFxPayload.EVENT_TRAUMA_SHAKE, .8f, 14);\n            return true;\n        }\n        var world = player.serverLevel();\n        if (!player.isAlive() || player.isSpectator() || player.isPassenger()\n                || !GodWandConfig.SERVER.isDimensionAllowed(world.dimension().location().toString())\n                || TASKS.values().stream().filter(t -> t.world == world).count() >= SilentGateSequence.MAX_TASKS_PER_WORLD\n                || !holding(player)) return false;\n        task = new Task(player);\n",

@@ -121,14 +121,14 @@ public final class SilentGateCinematic {
      *  the doors' stop only flashes. */
     static double[] flash(double age, double commandAge, double sinceHit) {
         double ink = 0, white = 0, d = age - 3;
-        if (d >= 0 && d < 2) ink = d < 1 ? 1 : 2; else if (d >= 2) white = .3 * Math.exp(-(d - 2) / 2.5);
+        if (d >= 0 && d < 2) ink = d < 1 ? 1 : 2; else if (d >= 2) white = .22 * Math.exp(-(d - 2) / 2.5);
         d = age - SilentGateSequence.DESCENT_END;
-        if (d >= 0 && d < 2.5) ink = d < 1.25 ? 1 : 2; else if (d >= 2.5) white = Math.max(white, .42 * Math.exp(-(d - 2.5) / 2.5));
+        if (d >= 0 && d < 2.5) ink = d < 1.25 ? 1 : 2; else if (d >= 2.5) white = Math.max(white, .3 * Math.exp(-(d - 2.5) / 2.5));
         d = age - SilentGateSequence.OPEN_END;
-        if (d >= 0) white = Math.max(white, .32 * Math.exp(-d / 4));
-        if (commandAge >= 0 && commandAge < 2) ink = commandAge < 1 ? 1 : 2; else if (commandAge >= 2) white = Math.max(white, .3 * Math.exp(-(commandAge - 2) / 2.5));
+        if (d >= 0) white = Math.max(white, .22 * Math.exp(-d / 4));
+        if (commandAge >= 0 && commandAge < 2) ink = commandAge < 1 ? 1 : 2; else if (commandAge >= 2) white = Math.max(white, .22 * Math.exp(-(commandAge - 2) / 2.5));
         // The hit-stop holds the render clock at 15% speed for 3 ticks, so .3 on this clock is two real ticks.
-        if (sinceHit >= 0 && sinceHit < .3) ink = sinceHit < .15 ? 1 : 2; else if (sinceHit >= .3) white = Math.max(white, .5 * Math.exp(-(sinceHit - .3) / 2.5));
+        if (sinceHit >= 0 && sinceHit < .3) ink = sinceHit < .15 ? 1 : 2; else if (sinceHit >= .3) white = Math.max(white, .36 * Math.exp(-(sinceHit - .3) / 2.5));
         return new double[]{ink, white < .01 ? 0 : white};
     }
 
@@ -152,9 +152,10 @@ public final class SilentGateCinematic {
         if (age < 258) return .38 + .57 * thrown(age);
         if (age < 290) return .82;
         if (age < 340) return .82 + .13 * Curve.FLOW.u((age - 290) / 50);
-        // One shot for the doors: round the gate, and a gentle push in as they give.
-        if (age < 420) return .8 - .04 * (age - ORBIT_FROM) / 80.0 - .1 * smooth(age, 396, 418);
-        if (age < 468) return 1.04 + .1 * (age - 420) / 48;
+        // One shot for the doors: round the gate, a gentle push in as they give.
+        if (age < ORBIT_TO) return .8 - .04 * (age - ORBIT_FROM) / 80.0 - .1 * smooth(age, 396, 418);
+        // The canopy, wide, opening slowly while the circles bloom.
+        if (age < CANOPY_TO) return 1.04 + .1 * (age - ORBIT_TO) / (CANOPY_TO - ORBIT_TO);
         return .95;
     }
 
@@ -162,14 +163,16 @@ public final class SilentGateCinematic {
      *  ticks of the new shot ({@link #glideTicks}), easing out of the last shot's end and into the new move (smootherstep); a setup far away is a plain hard cut. */
     static final double GLIDE_REACH = 30;
     /** The farther the glide, the longer it takes: never a whip. */
-    static double glideTicks(double distance) { return Mth.clamp(6 + 2 * distance, 12, 30); }
+    static double glideTicks(double distance) { return Mth.clamp(14 + 3 * distance, 20, 45); }
     /** The pose of {@code table} at {@code t} (its own clock), with the glides between neighbouring setups; past the table, its last shot runs on. */
-    private static AtomicCinematic.Pose play(List<Cut> table, Rig g, double t) {
+    private static AtomicCinematic.Pose play(List<Cut> table, Rig g, double t) { return play(table, g, t, true); }
+    /** {@code glide} false: every shot change is a cut (the barrage: owner, 2026-11-15, the command cuts to the shot from the caster). */
+    private static AtomicCinematic.Pose play(List<Cut> table, Rig g, double t, boolean glide) {
         int i = 0;
         while (i < table.size() - 1 && t >= table.get(i).t1()) i++;
         Cut c = table.get(i);
         var p = c.at(g, Math.max(t, c.t0()));
-        if (i == 0 || t - c.t0() >= glideTicks(GLIDE_REACH)) return p;
+        if (!glide || i == 0 || t - c.t0() >= glideTicks(GLIDE_REACH)) return p;
         Cut prev = table.get(i - 1);
         var from = prev.at(g, prev.t1());
         double d = from.position().distanceTo(c.at(g, c.t0()).position());
@@ -293,6 +296,21 @@ public final class SilentGateCinematic {
         Vec3 door() { return SilentGateSequence.doorCenter(a, yaw); }
         /** Point at {@code fwd} blocks forward, {@code right} to the right and {@code up} above the caster's feet. */
         Vec3 rel(double fwd, double right, double up) { return a.add(f.scale(fwd)).add(r.scale(right)).add(0, up, 0); }
+        /** Height of the field the beams fall on: the median of the ground at points across it, never above the caster. A caster on a tree or a tower stands
+         *  over it (owner, 2026-11-15); without ground (unloaded, tests) it is the caster's own height. */
+        double fieldY() {
+            double[] ys = new double[15]; int n = 0;
+            for (int i = 0; i < 5; i++) for (int j = -1; j <= 1; j++) {
+                Vec3 p = rel(40 + 30 * i, 50 * j, 0);
+                double y = ground.applyAsDouble(p.x, p.z);
+                if (Double.isFinite(y) && y > a.y - 160) ys[n++] = y;
+            }
+            if (n < 4) return a.y;
+            java.util.Arrays.sort(ys, 0, n);
+            return Math.min(a.y, ys[n / 2]);
+        }
+        /** As {@link #rel} but {@code up} above the field rather than the caster's feet. */
+        Vec3 onField(double fwd, double right, double up) { Vec3 p = rel(fwd, right, 0); return new Vec3(p.x, fieldY() + up, p.z); }
         /** {@code p} lifted to at least {@code clearance} above the live surface under it. */
         Vec3 above(Vec3 p, double clearance) {
             double floor = ground.applyAsDouble(p.x, p.z) + clearance;
@@ -381,6 +399,9 @@ public final class SilentGateCinematic {
     /** The orbit (owner, 2026-11-11, reference 2): once the gate hangs still and before its doors move, the camera is in the air under it, to the caster's right,
      *  and goes slowly round it from 16 to 44 degrees off the caster's line, looking up at the leaves. */
     static final int ORBIT_FROM = 340, ORBIT_TO = 420;
+    /** The canopy (owner, 2026-11-15: the most epic shot, keep it and make it long): from the ground at the caster's shoulder, looking up at the gate's face while
+     *  the small circles bloom across the sky (the timing as first cut: a longer one felt off). */
+    static final int CANOPY_TO = 468;
     private static AtomicCinematic.Pose orbitShot(Rig g, double u) {
         double a = Math.toRadians(14 + 32 * u), r = 170;
         return look(g.rel(GATE_AHEAD - r * Math.cos(a), r * Math.sin(a), 130), g.door().add(0, -18, 0));
@@ -426,8 +447,8 @@ public final class SilentGateCinematic {
             new Cut("S05 draws back", 290, ORBIT_FROM, Curve.FLOW, (g, u, t) -> drawBack(g, u)),
             // One shot for the doors (owner, 2026-11-14): the camera goes slowly round the gate while they tremble, give and flood; it shakes with them.
             new Cut("S06 round the gate as it opens", ORBIT_FROM, ORBIT_TO, Curve.LINEAR, (g, u, t) -> turn(orbitShot(g, u), rattle(t), t)),
-            new Cut("S13 canopy writes", 420, 468, Curve.LINEAR, (g, u, t) -> look(g.rel(-2.5 - 2 * u, 1.6 + .5 * u, 1.4 + .8 * u), g.rel(GATE_AHEAD, 0, 169))),
-            new Cut("S15 waiting frame", 468, 480, Curve.STATIC, (g, u, t) -> waitShot(g, t - 468)));
+            new Cut("S13 canopy writes", ORBIT_TO, CANOPY_TO, Curve.LINEAR, (g, u, t) -> look(g.rel(-2.5 - 2 * u, 1.6 + .5 * u, 1.4 + .8 * u), g.rel(GATE_AHEAD, 0, 169))),
+            new Cut("S15 waiting frame", CANOPY_TO, SilentGateSequence.BUILD_TICKS, Curve.STATIC, (g, u, t) -> waitShot(g, t - CANOPY_TO)));
 
     /** Barrage shots in authored ticks after the command (a 200 tick barrage starts at 12; scaled with the barrage length). The owner's four, each one slow steady
      *  move with no cut inside it, in the owner's order (2026-11-15, second pass): up from the caster, down from the gate, a track over the ground (where the kill
@@ -442,7 +463,7 @@ public final class SilentGateCinematic {
             // within 130 blocks of the caster so the land round them stays in render range.
             new Cut("B3 from above, the gate ahead", 60, 108, Curve.LINEAR, (g, u, t) -> look(g.rel(-50 + 20 * u, 130 - 20 * u, 330 - 20 * u), g.rel(170 + 10 * u, 0, 200))),
             // Over the ground: a low track across the field before the caster, the strikes going by on either hand, the gate far ahead; the kill beam lands here.
-            new Cut("B4 over the ground", 108, 160, Curve.LINEAR, (g, u, t) -> look(g.rel(30 + 8 * u, -34 + 76 * u, 4.5), g.rel(78, -18 + 76 * u, 10))),
+            new Cut("B4 over the ground", 108, 160, Curve.LINEAR, (g, u, t) -> look(g.onField(30 + 8 * u, -34 + 76 * u, 4.5), g.onField(78, -18 + 76 * u, 10))),
             // The whole of it to end on: far behind the caster and high, going slowly round; no zoom, only the move.
             new Cut("B5 the far round", 160, 212, Curve.LINEAR, (g, u, t) -> panorama(g, u)));
 
@@ -458,7 +479,7 @@ public final class SilentGateCinematic {
      *  It sways from its first frame on (no ramp from a standstill) for as long as the wait lasts. */
     private static AtomicCinematic.Pose waitShot(Rig g, double t) {
         Vec3 breath = g.r().scale(Math.sin(t * .045) * .3).add(0, Math.sin(t * .07 + 1) * .22, 0).add(g.f().scale(Math.sin(t * .031) * .35));
-        return look(g.rel(7.5, .6, .6).add(breath), g.rel(-2, 0, 4.4));
+        return look(g.rel(5.2, .5, .75).add(breath), g.rel(-2, 0, 4.2));
     }
 
     static AtomicCinematic.Pose buildShot(Frame frame, double age) { return buildShot(frame, age, NO_GROUND); }
@@ -482,7 +503,7 @@ public final class SilentGateCinematic {
         }
         // Authored clock: the first 12 ticks (the command) run as they are, the rest is stretched with the barrage.
         double tb = c < SilentGateSequence.ACTIVATE_TICKS ? c : SilentGateSequence.ACTIVATE_TICKS + (c - SilentGateSequence.ACTIVATE_TICKS) * 200.0 / frame.barrageTicks();
-        return play(BARRAGE, g, tb);
+        return play(BARRAGE, g, tb, false);
     }
 
     /** Kill close-up (B4): {@value #KILL_DISTANCE} blocks from the target on the caster's side, just above its feet, looking up past it so the beams fall into the frame; a steady 0.4 deg/tick orbit. */
@@ -560,18 +581,24 @@ public final class SilentGateCinematic {
      *  Shut at the first frame, they part like a curtain; 2.39:1 as a rule; squeezed for a beat by the touchdown; drawn wide open while the doorway floods the
      *  frame; squeezed again while the kill beam gathers and thrown open by its hit; and drawn back as the camera returns to the player. */
     static double bar(double age, double commandAge, double sinceHit, int barrageTicks, double frameAspect) {
-        double aspect = 2.39, k = 1;
+        // Owner, 2026-11-15: thinner bars overall (2.2:1, not 2.39:1), and every change of them slow: no jumps.
+        double aspect = 2.2, k = 1;
         if (commandAge < 0) {
-            if (age >= SilentGateSequence.DESCENT_END) aspect += .22 * Math.exp(-(age - SilentGateSequence.DESCENT_END) / 7);
-            aspect -= .3 * smooth(age, SilentGateSequence.OPEN_END - 22, SilentGateSequence.OPEN_END + 2) * (1 - smooth(age, 420, 436));
+            double d = age - SilentGateSequence.DESCENT_END;
+            aspect += .16 * smooth(d, -2, 6) * Math.exp(-Math.max(0, d - 6) / 14);
+            // The frame opens up for the doors and stays open through the canopy.
+            aspect -= .25 * smooth(age, SilentGateSequence.OPEN_END - 40, SilentGateSequence.OPEN_END + 10) * (1 - smooth(age, CANOPY_TO - 30, CANOPY_TO + 20));
         } else {
-            int[] b = boundaries(barrageTicks);
-            if (sinceHit >= 0) aspect -= .34 * Math.exp(-sinceHit / 9);
-            else { int kill = SilentGateSequence.shotTick(SilentGateSequence.KILL_TICK, barrageTicks); if (commandAge >= kill - 20 && commandAge < kill + 6) aspect += .3 * smooth(commandAge, kill - 20, kill - 4); }
+            // Thinner bars in the shot from the caster's feet up into the rain (owner, 2026-11-15: see more of it).
+            double tb = commandAge < SilentGateSequence.ACTIVATE_TICKS ? commandAge : SilentGateSequence.ACTIVATE_TICKS + (commandAge - SilentGateSequence.ACTIVATE_TICKS) * 200.0 / barrageTicks;
+            aspect -= .3 * smooth(tb, 14, 28) * (1 - smooth(tb, 46, 60));
+            int kill = SilentGateSequence.shotTick(SilentGateSequence.KILL_TICK, barrageTicks);
+            if (sinceHit >= 0) { double o = smooth(sinceHit, 0, 10); aspect += .2 * (1 - o) - .2 * o * Math.exp(-Math.max(0, sinceHit - 10) / 25); }
+            else aspect += .2 * smooth(commandAge, kill - 24, kill - 4) * (1 - smooth(commandAge, kill + 6, kill + 20));
             int end = SilentGateSequence.endTick(barrageTicks);
-            if (commandAge > end) k = 1 - smooth(commandAge, end, end + SilentGateSequence.RETURN_TICKS);
+            if (commandAge > end - 10) k = 1 - smooth(commandAge, end - 10, end + SilentGateSequence.RETURN_TICKS);
         }
-        double open = smooth(age, 1, 11), scope = Math.max(0, (1 - frameAspect / aspect) / 2);
+        double open = smooth(age, 1, 24), scope = Math.max(0, (1 - frameAspect / aspect) / 2);
         return k * (scope + (1 - open) * (.5 - scope));
     }
     /** The bar of the local cast right now, 0 when it is not being directed. */

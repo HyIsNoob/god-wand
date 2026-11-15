@@ -347,7 +347,7 @@ final class GateFx {
 
     /** The white-blue plane behind the doors, its god rays and a bloom, growing with the opening. */
     static void light(Ctx c, Pose p, double open, double angle, double age) {
-        double settle = age > SilentGateSequence.OPEN_END ? .38 + .62 * Math.exp(-(age - SilentGateSequence.OPEN_END) / 30) : 1;
+        double settle = age > SilentGateSequence.OPEN_END ? .3 + .7 * Math.exp(-(age - SilentGateSequence.OPEN_END) / 30) : 1;
         double k = smooth(open * 1.25) * settle, leak = smooth((age - SilentGateSequence.OPEN_START - 2) / 14) * (1 - smooth((open - .05) / .3));
         if ((k <= 0.01 && leak <= 0) || !c.glow()) return;
         crack(c, p, angle, leak, age);
@@ -358,26 +358,27 @@ final class GateFx {
         // and a soft white core a third as wide, never brighter than .45.
         for (int row = 0; row < 2; row++) for (int side = -1; side <= 1; side += 2) {
             Vec3 a = p.at(side * g, ys[row], .3), b = p.at(0, ys[row], .3), d = p.at(0, ys[row + 1], .3), e = p.at(side * g, ys[row + 1], .3);
-            double wide = .62 * k;
+            double wide = .46 * k;
             GateDraw.gradient(c, a, b, d, e, BLUE, .08 * k * ya[row], wide * ya[row], wide * ya[row + 1], .08 * k * ya[row + 1]);
             // Inset only at the sill and the lintel: an inset where the two rows meet notched the core into a bow-tie.
             Vec3 a2 = p.at(side * g * .35, ys[row] + (row == 0 ? 2 : 0), .35), d2 = p.at(side * g * .35, ys[row + 1] - (row == 1 ? 2 : 0), .35);
-            double core = .45 * k;
+            double core = .3 * k;
             GateDraw.gradient(c, a2, b, d, d2, HOT, 0, core * ya[row], core * ya[row + 1], 0);
         }
         Vec3 aperture = p.at(0, mid, 0);
         // The glare of the doorway: it is brighter than anything in the sky and spills far past the frame.
-        GateDraw.sprite(c, aperture, (46 + 14 * k) * p.s(), .3 * k, BLUE);
-        GateDraw.sprite(c, aperture, (24 + 8 * k) * p.s(), .34 * k, HOT);
-        GateDraw.sprite(c, aperture, 90 * p.s(), .12 * k, BLUE);
+        GateDraw.sprite(c, aperture, (46 + 14 * k) * p.s(), .2 * k, BLUE);
+        GateDraw.sprite(c, aperture, (24 + 8 * k) * p.s(), .22 * k, HOT);
+        GateDraw.sprite(c, aperture, 90 * p.s(), .08 * k, BLUE);
         // The flood (reference 5): the light does not stay in the doorway, it bursts out over the whole face of the gate, and streamers of it fly outward.
-        GateDraw.sprite(c, p.at(0, mid, -3), (34 + 26 * k) * p.s(), .75 * k, 0xFFFFFF);
-        GateDraw.sprite(c, p.at(0, mid, -3), (60 + 20 * k) * p.s(), .4 * k, HOT);
+        // Owner, 2026-11-15: it glared; the flood is softer than first drawn.
+        GateDraw.sprite(c, p.at(0, mid, -3), (34 + 26 * k) * p.s(), .42 * k, 0xFFFFFF);
+        GateDraw.sprite(c, p.at(0, mid, -3), (60 + 20 * k) * p.s(), .24 * k, HOT);
         for (int i = 0; i < 30; i++) {
             double life = (hash(i, 171) + age * (.012 + .012 * hash(i, 172))) % 1, a = hash(i, 173) * TAU, r0 = 6 + 52 * life, len = 14 + 24 * hash(i, 174);
             double zz = -3 - 30 * life * (.4 + .6 * hash(i, 175));
             GateDraw.streamer(c, p.at(Math.cos(a) * r0, mid + Math.sin(a) * r0 * 1.2, zz), p.at(Math.cos(a) * (r0 + len), mid + Math.sin(a) * (r0 + len) * 1.2, zz - 6),
-                    (1 + 1.4 * hash(i, 176)) * p.s(), i % 3 == 0 ? HOT : 0xFFFFFF, .7 * k * Math.sin(Math.PI * life), (hash(i, 177) - .5) * 2);
+                    (1 + 1.4 * hash(i, 176)) * p.s(), i % 3 == 0 ? HOT : 0xFFFFFF, .45 * k * Math.sin(Math.PI * life), (hash(i, 177) - .5) * 2);
         }
         // Motes of light drifting out of the doorway on both sides.
         for (int i = 0; i < 16; i++) {
@@ -395,7 +396,7 @@ final class GateFx {
             double len = (70 + 60 * hash(i, 35)) * p.s(), w0 = .8 * p.s(), w1 = (5 + 4 * hash(i, 36)) * p.s();
             // A ray aimed down the lens would show as a flat bow-tie: it fades out as it turns toward (or away from) the camera.
             double facing = Math.abs(dir.dot(c.eye.subtract(o).normalize()));
-            double shimmer = .55 + .45 * Math.sin(age * .045 + i * 1.7), al = (fwd < 0 ? .24 : .15) * rays * shimmer * (1 - smooth((facing - .75) / .2));
+            double shimmer = .55 + .45 * Math.sin(age * .045 + i * 1.7), al = (fwd < 0 ? .14 : .1) * rays * shimmer * (1 - smooth((facing - .75) / .2));
             GateDraw.shaft(c, o, o.add(dir.scale(len)), w0, w1, i % 2 == 0 ? HOT : BLUE, 1.6 * al, 0, age * .013 + i * 1.1);
         }
     }

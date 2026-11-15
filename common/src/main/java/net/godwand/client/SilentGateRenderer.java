@@ -139,9 +139,10 @@ public final class SilentGateRenderer {
         setup();
         try {
             // Body first; then, with the gate's depth stamped, the shade (smoke and storm darken what is behind them) and last the light, which adds over both.
+            // The body is drawn over its own stamped depth too: only its nearest faces pass, else back faces painted over front ones made it look hollow.
             for (int layer : new int[]{0, 2, 1}) {
-                if (layer == 0) RenderSystem.defaultBlendFunc();
-                else if (layer == 2) { depthPrepass(pose, camera, frames); RenderSystem.blendFunc(GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR); GateAtlas.bindGlow(); GateDraw.premultiplied = true; }
+                if (layer == 0) { depthPrepass(pose, camera, frames, true); RenderSystem.defaultBlendFunc(); }
+                else if (layer == 2) { depthPrepass(pose, camera, frames, false); RenderSystem.blendFunc(GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR); GateAtlas.bindGlow(); GateDraw.premultiplied = true; }
                 else additiveBlend();
                 for (Frame f : frames) {
                     BufferBuilder buffer = begin();
@@ -203,10 +204,10 @@ public final class SilentGateRenderer {
         boolean seen = clip.w > .001f;
         // The open doorway floods the frame (reference 5): nothing holds the bloom back.
         double volley = f.commandAge() >= 0 ? 1 - .45 * (1 - smooth((f.commandAge() - 30) / 20)) : 1;
-        double settle = age > SilentGateSequence.OPEN_END ? .38 + .62 * Math.exp(-(age - SilentGateSequence.OPEN_END) / 30) : 1;
+        double settle = age > SilentGateSequence.OPEN_END ? .3 + .7 * Math.exp(-(age - SilentGateSequence.OPEN_END) / 30) : 1;
         open *= settle;
-        bloom = new float[]{(float) (net.godwand.config.GodWandConfig.CLIENT.bloomStrength * (1.35 + .5 * open) * on * volley),
-                seen ? (float) (on * (.3 * smooth((age - SilentGateSequence.CIRCLE_FULL) / 40) + .8 * open)) : 0,
+        bloom = new float[]{(float) (net.godwand.config.GodWandConfig.CLIENT.bloomStrength * (.95 + .15 * open) * on * volley),
+                seen ? (float) (on * (.25 * smooth((age - SilentGateSequence.CIRCLE_FULL) / 40) + .38 * open)) : 0,
                 seen ? clip.x / clip.w * .5f + .5f : .5f, seen ? clip.y / clip.w * .5f + .5f : .5f, partial};
     }
     /** Ink stage (0 none, 1 white on black, 2 black on white) and scope bar of this frame, read by {@link #flushDeferred} for the post chain. */
@@ -264,12 +265,12 @@ public final class SilentGateRenderer {
         buffers.endBatch();
     }
     /** The gate body is alpha blended without depth writes; stamp its depth so the additive layer (circle glow, rays) cannot shine through it. */
-    private static void depthPrepass(PoseStack pose, Camera camera, List<Frame> frames) {
+    private static void depthPrepass(PoseStack pose, Camera camera, List<Frame> frames, boolean beforeBody) {
         RenderSystem.colorMask(false, false, false, false); RenderSystem.depthMask(true);
         try {
             for (Frame f : frames) {
                 BufferBuilder buffer = begin();
-                emitScene(buffer, pose.last().pose(), f, List.of(), camera.getPosition(), 0, true);
+                emitScene(buffer, pose.last().pose(), f, List.of(), camera.getPosition(), 0, true, beforeBody);
                 draw(buffer);
             }
         } finally { RenderSystem.colorMask(true, true, true, true); RenderSystem.depthMask(false); }
@@ -320,12 +321,13 @@ public final class SilentGateRenderer {
     /** Geometry of one layer (0 body, 1 additive glow, 2 shade, -1 all); returns the quads emitted (never more than {@link #QUAD_BUDGET}). */
     static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye, int layer) { return emitScene(v, m, f, shots, eye, layer, false); }
 
-    static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye, int layer, boolean solidOnly) {
+    static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye, int layer, boolean solidOnly) { return emitScene(v, m, f, shots, eye, layer, solidOnly, false); }
+    static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye, int layer, boolean solidOnly, boolean beforeBody) {
         if (!Double.isFinite(f.age()) || f.age() < 0 || f.anchor() == null || !Double.isFinite(f.anchor().x + f.anchor().y + f.anchor().z)
                 || !Double.isFinite(eye.x + eye.y + eye.z)) return 0;
         // Layer 3 is the pop-out pass: the light that is drawn after the scope bars. It is left out of the ordinary glow pass (1).
         boolean front = layer == 3;
-        Ctx c = new Ctx(); c.v = v; c.m = m; c.eye = eye; c.layer = front ? 1 : layer; c.gain = c.layer == 1 ? GLOW_GAIN : 1; c.solidOnly = solidOnly;
+        Ctx c = new Ctx(); c.v = v; c.m = m; c.eye = eye; c.layer = front ? 1 : layer; c.gain = c.layer == 1 ? GLOW_GAIN : 1; c.solidOnly = solidOnly; c.beforeBody = beforeBody;
         int endStart = SilentGateSequence.ACTIVATE_TICKS + f.barrageTicks();
         // Ending ticks after the barrage (-1 before); everything dims only in the last 25 ticks, the sequence itself is staged by e.
         double e = f.commandAge() >= endStart ? f.commandAge() - endStart : -1;
@@ -420,6 +422,7 @@ public final class SilentGateRenderer {
         if (appear <= 0 || fadeOut <= 0) return;
         double saved = c.fade;
         c.fade = saved * appear * fadeOut;
+        if (c.beforeBody && c.fade < .95) { c.fade = saved; return; }
         // The stuck doors shudder the whole gate a little.
         double shake = e < 0 ? SilentGateSequence.gateShake(age) : 0;
         GateFx.Pose pose = GateFx.Pose.of(SilentGateSequence.gateFoot(anchor, yaw, descent + rise).add(0, shake * Math.sin(age * 2.3), 0), yaw);
