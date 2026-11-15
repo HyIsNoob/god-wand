@@ -141,6 +141,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             AtomicRenderer.render(matrices, camera, tickDelta);
             if (!net.godwand.client.FugaRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
             if (!net.godwand.client.SilentGateRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.SilentGateRenderer.render(matrices, camera, tickDelta);
+            net.godwand.client.BlueRedRenderer.render(matrices, camera, tickDelta);
         });
 
         WorldRenderEvents.BEFORE_BLOCK_OUTLINE.register((context, hitResult) -> {
@@ -174,6 +175,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.FugaRenderer.tick(client);
             net.godwand.client.SilentGateRenderer.tick(client);
             net.godwand.client.BlueRedInput.tick(client);
+            net.godwand.client.BlueRedRenderer.tick(client);
             net.godwand.client.FugaCinematic.tick(client);
             net.godwand.client.SilentGateCinematic.tick(client);
             net.godwand.client.SkillCooldownClient.tick(client);
@@ -191,6 +193,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.FugaRenderer.reset();
             net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.BlueRedInput.reset();
+            net.godwand.client.BlueRedRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
             net.godwand.client.SilentGateCinematic.reset();
             DrillWindRenderer.reset();
@@ -211,6 +214,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.FugaRenderer.reset();
             net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.BlueRedInput.reset();
+            net.godwand.client.BlueRedRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
             net.godwand.client.SilentGateCinematic.reset();
             StoneCannonWindSound.reset();
