@@ -87,6 +87,7 @@ public class GodWandItem extends Item {
                 SupernovaManager.cancelCharge(player);
                 AtomicManager.cancelCharge(player);
                 net.godwand.skill.FugaManager.cancelCharge(player);
+                net.godwand.skill.BlueRedManager.cancelRed(player);
             }
             user.stopUsingItem();
         }
@@ -145,7 +146,8 @@ public class GodWandItem extends Item {
             }
         }
 
-        if (!net.godwand.skill.SkillCooldowns.ready(user,currentMode)) return InteractionResultHolder.fail(stack);
+        // Blue/Red checks Red's own cooldown slot in BlueRedManager.beginRed.
+        if (currentMode != MODE_BLUE_RED && !net.godwand.skill.SkillCooldowns.ready(user,currentMode)) return InteractionResultHolder.fail(stack);
         switch (currentMode) {
             case MODE_SPATIAL_PATH -> {
                 if (!world.isClientSide() && user instanceof ServerPlayer serverPlayer) {
@@ -168,6 +170,12 @@ public class GodWandItem extends Item {
                     return net.godwand.skill.SilentGateManager.click(player, hand) ? InteractionResultHolder.success(stack) : InteractionResultHolder.fail(stack);
                 return InteractionResultHolder.success(stack);
             }
+            case MODE_BLUE_RED -> {
+                if (user instanceof ServerPlayer player && !net.godwand.skill.BlueRedManager.beginRed(player))
+                    return InteractionResultHolder.fail(stack);
+                user.startUsingItem(hand);
+                return InteractionResultHolder.consume(stack);
+            }
             case MODE_ATOMIC -> {
                 if (user instanceof ServerPlayer player && !AtomicManager.beginCharge(player,hand))
                     return InteractionResultHolder.fail(stack);
@@ -188,7 +196,7 @@ public class GodWandItem extends Item {
     @Override
     public int getUseDuration(ItemStack stack, LivingEntity user) {
         int mode = getSkillMode(stack);
-        if (mode == MODE_ARCANE_ORB || mode == MODE_SUPERNOVA || mode == MODE_RATIO_COLLAPSE || mode == MODE_STONE_CANNON || mode == MODE_ATOMIC || mode == MODE_FUGA) {
+        if (mode == MODE_ARCANE_ORB || mode == MODE_SUPERNOVA || mode == MODE_RATIO_COLLAPSE || mode == MODE_STONE_CANNON || mode == MODE_ATOMIC || mode == MODE_FUGA || mode == MODE_BLUE_RED) {
             return 72000;
         }
         return 0;
@@ -207,6 +215,10 @@ public class GodWandItem extends Item {
     public void onUseTick(Level world, LivingEntity user, ItemStack stack, int remainingUseTicks) {
         int currentMode = getSkillMode(stack);
 
+        if (currentMode == MODE_BLUE_RED) {
+            if (user instanceof ServerPlayer player) net.godwand.skill.BlueRedManager.chargeTick(player, getUseDuration(stack, user) - remainingUseTicks);
+            return;
+        }
         if (currentMode == MODE_ATOMIC) {
             int chargeTicks = getUseDuration(stack, user) - remainingUseTicks;
             if (user instanceof ServerPlayer player && chargeTicks >= AtomicSequence.CHARGE_TICKS) {
@@ -364,6 +376,10 @@ public class GodWandItem extends Item {
 
     @Override
     public void releaseUsing(ItemStack stack, Level world, LivingEntity user, int remainingUseTicks) {
+        if (getSkillMode(stack) == MODE_BLUE_RED) {
+            if (user instanceof ServerPlayer player) net.godwand.skill.BlueRedManager.cancelRed(player);
+            return;
+        }
         if (getSkillMode(stack) == MODE_FUGA) {
             if(user instanceof ServerPlayer player) {
                 boolean ready=getUseDuration(stack,user)-remainingUseTicks>=net.godwand.skill.FugaSequence.CHARGE_TICKS;

@@ -56,6 +56,13 @@ public final class BlueRedRules {
         return origin.add(dir.scale(speed * age));
     }
 
+    public static double distanceToSegment(Vec3 p, Vec3 a, Vec3 b) {
+        Vec3 d = b.subtract(a);
+        double len = d.lengthSqr();
+        double t = len == 0 ? 0 : Math.max(0, Math.min(1, p.subtract(a).dot(d) / len));
+        return p.distanceTo(a.add(d.scale(t)));
+    }
+
     public static RedMeetsBlue meet(BlueState state) {
         return state == BlueState.CHARGING ? RedMeetsBlue.SHATTER : RedMeetsBlue.PURPLE;
     }

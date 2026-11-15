@@ -57,6 +57,12 @@ class BlueRedRulesTest {
         assertEquals(new Vec3(1, 2, 33), p);
     }
 
+    @Test void distanceToSegmentClampsToEnds() {
+        assertEquals(1, distanceToSegment(new Vec3(1, 0, 2), Vec3.ZERO, new Vec3(0, 0, 4)), 1e-9);
+        assertEquals(5, distanceToSegment(new Vec3(0, 0, 9), Vec3.ZERO, new Vec3(0, 0, 4)), 1e-9);
+        assertEquals(2, distanceToSegment(new Vec3(0, 2, 0), Vec3.ZERO, Vec3.ZERO), 1e-9);
+    }
+
     @Test void meetRules() {
         assertEquals(RedMeetsBlue.SHATTER, meet(BlueState.CHARGING));
         assertEquals(RedMeetsBlue.PURPLE, meet(BlueState.READY));

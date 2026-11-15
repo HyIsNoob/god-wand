@@ -8,6 +8,7 @@ import net.godwand.skill.BlueRedRules.BlueState;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -40,7 +41,18 @@ public final class BlueRedManager {
         boolean held() { return state != BlueState.ANCHORED; }
     }
 
+    static final class Red {
+        final ServerPlayer shooter;
+        final ServerLevel level;
+        Vec3 origin = Vec3.ZERO, dir = Vec3.ZERO;
+        int age;
+        boolean fired;
+        final Set<UUID> struck = new HashSet<>();
+        Red(ServerPlayer shooter, ServerLevel level) { this.shooter = shooter; this.level = level; }
+    }
+
     private static final List<Blue> BLUES = new ArrayList<>();
+    private static final List<Red> REDS = new ArrayList<>();
 
     private BlueRedManager() {}
 
@@ -62,6 +74,121 @@ public final class BlueRedManager {
 
     private static Vec3 aim(ServerPlayer player) {
         return player.getEyePosition().add(player.getLookAngle().scale(BlueRedRules.BLUE_DISTANCE));
+    }
+
+    private static Red chargingRedOf(ServerPlayer player) {
+        for (Red r : REDS) if (!r.fired && SpellDamage.isCaster(r.shooter, player)) return r;
+        return null;
+    }
+
+    private static BlueRedPayload event(int kind, ServerPlayer who, Vec3 at, Vec3 dir) {
+        return new BlueRedPayload(kind, who.getId(), -1, 0, at.x, at.y, at.z, dir.x, dir.y, dir.z, 0);
+    }
+
+    /** Right click on Blue/Red: Red starts charging in front of the caster. Refused while the caster still holds Blue. */
+    public static boolean beginRed(ServerPlayer player) {
+        Blue own = blueOf(player);
+        if (own != null && own.held() || chargingRedOf(player) != null || !player.isAlive() || player.isSpectator()) return false;
+        ServerLevel level = player.serverLevel();
+        if (!GodWandConfig.SERVER.isDimensionAllowed(level.dimension().location().toString())) return false;
+        if (!SkillCooldowns.ready(player, SkillCooldownState.RED_SLOT)) return false;
+        REDS.add(new Red(player, level));
+        send(level, player.getEyePosition(), event(BlueRedPayload.RED_CHARGE, player, player.getEyePosition(), Vec3.ZERO));
+        return true;
+    }
+
+    /** Called every use tick; Red fires by itself once charged and cannot be fired earlier. */
+    public static void chargeTick(ServerPlayer player, int usedTicks) {
+        Red red = chargingRedOf(player);
+        if (red == null || usedTicks < GodWandConfig.SERVER.redChargeTicks) return;
+        red.fired = true;
+        red.dir = player.getLookAngle().normalize();
+        red.origin = player.getEyePosition().add(red.dir.scale(1.5));
+        send(red.level, red.origin, event(BlueRedPayload.RED_FIRE, player, red.origin, red.dir));
+        SkillCooldowns.start(player, SkillCooldownState.RED_SLOT, GodWandConfig.skillCooldownTicks(SkillCooldownState.RED_SLOT, 1));
+        player.stopUsingItem();
+    }
+
+    /** Right click let go: an uncharged Red is cancelled with no cooldown; a fired one flies on. */
+    public static void cancelRed(ServerPlayer player) {
+        Red red = chargingRedOf(player);
+        if (red == null) return;
+        REDS.remove(red);
+        send(red.level, player.getEyePosition(), event(BlueRedPayload.RED_CANCEL, player, player.getEyePosition(), Vec3.ZERO));
+    }
+
+    /** One tick of Red's flight; returns terrain inspections used. */
+    private static int fly(Red red, int budget, long deadline) {
+        var cfg = GodWandConfig.SERVER;
+        double range = cfg.redRange;
+        Vec3 from = BlueRedRules.redAt(red.origin, red.dir, BlueRedRules.RED_SPEED, red.age);
+        red.age++;
+        boolean last = red.age * BlueRedRules.RED_SPEED >= range;
+        Vec3 to = last ? red.origin.add(red.dir.scale(range)) : BlueRedRules.redAt(red.origin, red.dir, BlueRedRules.RED_SPEED, red.age);
+        // Never load terrain: Red stops where loaded chunks stop.
+        if (red.level.getChunkSource().getChunkNow(Mth.floor(to.x) >> 4, Mth.floor(to.z) >> 4) == null) { endRed(red, from); return 0; }
+        Blue hit = null;
+        double first = 2;
+        for (Blue b : blues(red.level)) {
+            double t = BlueRedRules.segmentSphere(from, to, b.pos, BlueRedRules.BLUE_RADIUS + 1);
+            if (t >= 0 && t < first) { first = t; hit = b; }
+        }
+        if (hit != null) {
+            if (BlueRedRules.meet(hit.state) == BlueRedRules.RedMeetsBlue.PURPLE) { REDS.remove(red); startPurple(red.level, hit, red.shooter); return 0; }
+            shatter(hit);
+        }
+        float damage = cfg.redDamage * cfg.damageMultiplier;
+        for (Entity e : finder.find(red.level, new AABB(from, to).inflate(BlueRedRules.RED_HIT_RADIUS + 1))) {
+            if (!(e instanceof LivingEntity) || SpellDamage.isCaster(e, red.shooter) || e.isSpectator()) continue;
+            Vec3 middle = e.position().add(0, e.getBbHeight() / 2, 0);
+            if (BlueRedRules.distanceToSegment(middle, from, to) <= BlueRedRules.RED_HIT_RADIUS + e.getBbWidth() / 2 && red.struck.add(e.getUUID()))
+                hurter.hurt(e, red.shooter, damage);
+        }
+        int used = 0;
+        double length = from.distanceTo(to);
+        for (double step = 0; step <= length && used < budget; step += 1)
+            used += BlueEater.carve(red.level, from.add(red.dir.scale(step)), cfg.redTunnelRadius, budget - used, deadline, Integer.MAX_VALUE, null, cfg.redTerrainDamage);
+        if (last) { used += explode(red, to, budget - used, deadline); endRed(red, to); }
+        return used;
+    }
+
+    private static int explode(Red red, Vec3 at, int budget, long deadline) {
+        var cfg = GodWandConfig.SERVER;
+        double radius = Math.max(cfg.redCraterRadius, 2);
+        for (Entity e : finder.find(red.level, new AABB(at, at).inflate(radius))) {
+            if (SpellDamage.isCaster(e, red.shooter) || e.isSpectator() || e instanceof Display) continue;
+            Vec3 out = e.position().subtract(at);
+            if (out.length() > radius) continue;
+            if (e instanceof LivingEntity) hurter.hurt(e, red.shooter, cfg.redDamage * cfg.damageMultiplier);
+            e.setDeltaMovement(e.getDeltaMovement().add(out.normalize().scale(1.6)).add(0, 0.5, 0));
+            e.hurtMarked = true;
+        }
+        return BlueEater.carve(red.level, at, cfg.redCraterRadius, budget, deadline, Integer.MAX_VALUE, null, cfg.redTerrainDamage);
+    }
+
+    private static void endRed(Red red, Vec3 at) {
+        REDS.remove(red);
+        send(red.level, at, event(BlueRedPayload.RED_END, red.shooter, at, red.dir));
+    }
+
+    /** Red through an unready Blue: Blue bursts outward and is gone; Red flies on. */
+    private static void shatter(Blue blue) {
+        send(blue.level, blue.pos, new BlueRedPayload(BlueRedPayload.BLUE_SHATTER, blue.owner.getId(), -1, 0, blue.pos.x, blue.pos.y, blue.pos.z, 0, 0, 0, 0));
+        for (Entity e : finder.find(blue.level, new AABB(blue.pos, blue.pos).inflate(GodWandConfig.SERVER.bluePullRadius))) {
+            if (e.isSpectator() || e instanceof Display) continue;
+            Vec3 out = e.position().subtract(blue.pos);
+            if (out.lengthSqr() < 1e-6) continue;
+            e.setDeltaMovement(e.getDeltaMovement().add(out.normalize().scale(1.2)).add(0, 0.3, 0));
+            e.hurtMarked = true;
+        }
+        remove(blue);
+    }
+
+    /** Red met a ready Blue. Task 9 turns this into the Purple detonation. */
+    static void startPurple(ServerLevel level, Blue blue, ServerPlayer shooter) {
+        BLUES.remove(blue);
+        BlueEater.retireAll(blue.eaten);
+        send(level, blue.pos, new BlueRedPayload(BlueRedPayload.PURPLE, blue.owner.getId(), shooter.getId(), 0, blue.pos.x, blue.pos.y, blue.pos.z, 0, 0, 0, 0));
     }
 
     /** Left click started or stopped on the client. */
@@ -118,6 +245,8 @@ public final class BlueRedManager {
             if (blue.state == BlueState.CHARGING && blue.credited >= cfg.blueReadyDamage) blue.state = BlueState.READY;
             if (blue.state != before || blue.age % 2 == 0) broadcast(blue);
         }
+        for (Red red : new ArrayList<>(REDS))
+            if (red.fired && red.level == level && REDS.contains(red)) budget -= fly(red, budget, deadline);
     }
 
     private static void pullAndHurt(Blue blue, boolean strike) {
@@ -149,6 +278,7 @@ public final class BlueRedManager {
 
     /** Owner disconnected, died or changed dimension: their Blue goes with them. */
     public static void onLeave(ServerPlayer player) {
+        REDS.removeIf(r -> SpellDamage.isCaster(r.shooter, player));
         Blue blue = blueOf(player);
         if (blue == null) return;
         BLUES.remove(blue);
@@ -159,5 +289,6 @@ public final class BlueRedManager {
     public static void clearAll() {
         for (Blue blue : BLUES) BlueEater.retireAll(blue.eaten);
         BLUES.clear();
+        REDS.clear();
     }
 }

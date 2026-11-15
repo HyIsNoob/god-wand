@@ -58,12 +58,17 @@ public final class BlueEater {
 
     /** Eats up to EAT_PER_TICK blocks around center; returns the inspections used from the shared budget. */
     static int eat(ServerLevel level, Vec3 center, int radius, int budget, long deadline, List<Eaten> live) {
-        if (!GodWandConfig.SERVER.blueTerrainDamage || radius <= 0 || budget <= 0) return 0;
+        return carve(level, center, radius, budget, deadline, EAT_PER_TICK, live, GodWandConfig.SERVER.blueTerrainDamage);
+    }
+
+    /** Clears up to cap blocks of a sphere, nearest first; live (or null for none) collects flying displays. */
+    static int carve(ServerLevel level, Vec3 center, int radius, int budget, long deadline, int cap, List<Eaten> live, boolean enabled) {
+        if (!enabled || radius <= 0 || budget <= 0) return 0;
         BlockPos core = BlockPos.containing(center);
         var pos = new BlockPos.MutableBlockPos();
         int inspected = 0, eaten = 0;
         for (int[] c : sphere(radius)) {
-            if (inspected >= budget || eaten >= EAT_PER_TICK) break;
+            if (inspected >= budget || eaten >= cap) break;
             if ((inspected & 31) == 0 && System.nanoTime() >= deadline) break;
             inspected++;
             pos.set(core.getX() + c[0], core.getY() + c[1], core.getZ() + c[2]);
@@ -75,7 +80,7 @@ public final class BlueEater {
             BlockPos at = pos.immutable();
             level.setBlock(at, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS);
             eaten++;
-            if (live.size() < MAX_DISPLAYS && state.getFluidState().isEmpty())
+            if (live != null && live.size() < MAX_DISPLAYS && state.getFluidState().isEmpty())
                 live.add(new Eaten(shower.show(level, at, state), Vec3.atLowerCornerOf(at)));
         }
         return inspected;
