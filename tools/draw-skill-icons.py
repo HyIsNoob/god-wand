@@ -111,12 +111,13 @@ def icon(mode):
             if 0 <= x < 24 and 0 <= y < 24: im.putpixel((x, y), c + (255,))
         ring, pale, white, halo = (104, 214, 255), (214, 245, 255), (255, 255, 255), (40, 96, 150)
         stone, stone_d, stone_l, gold = (126, 150, 176), (62, 80, 106), (186, 206, 226), (255, 214, 130)
-        # The left wing, spread level beside the gate (owner, 2026-11-15), mirrored for the right: W leading edge, P feathers, C seams and tips.
-        wing = ["WWW....", "PPWWWW.", "PPPPPWW", "CPPPPPP", "PCPCPPP", "C.C.PCP", "..C..C."]
+        # The left wing, spread low and level beside the gate, its tip drooping (owner, 2026-11-15: raised tips read as horns); mirrored for the right.
+        # W leading edge, P feathers, C seams and tips.
+        wing = ["...WWWW", ".WWPPPP", "WPPPPPP", "PPCPCPP", "PC.C.CP", "C..C..C"]
         paint = {'W': white, 'P': pale, 'C': ring}
         for y, row in enumerate(wing):
             for x, ch in enumerate(row):
-                if ch in paint: put(x, y + 6, paint[ch]); put(23 - x, y + 6, paint[ch])
+                if ch in paint: put(x, y + 9, paint[ch]); put(23 - x, y + 9, paint[ch])
         # The gate in front: a lintel with gold studs, pillars lit on their inner edge, the doorway white with a glowing rim, a step.
         top = 5  # a tall gate, its wings spread level from the top of its pillars
         for x in range(6, 18): put(x, top, stone_l); put(x, top + 1, stone); put(x, 22, stone_l); put(x, 23, stone_d)
@@ -127,7 +128,7 @@ def icon(mode):
                 if y == top + 2 and x in (9, 14): put(x, y, stone); continue
                 put(x, y, ring if x in (9, 14) else pale if x in (10, 13) or y == top + 2 else white)
         for x in (3, 4, 19, 20): put(x, 23, ring)
-        for x, y in [(1, 23), (22, 23), (2, 18), (21, 18)]: put(x, y, halo)
+        for x, y in [(1, 23), (22, 23)]: put(x, y, halo)
     return im
 
 
