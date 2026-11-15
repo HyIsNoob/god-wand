@@ -458,7 +458,8 @@ public final class SilentGateCinematic {
             new Cut("B1 command", 0, 14, Curve.LINEAR, (g, u, t) -> look(g.rel(3.4 - .3 * u, .5, 1.25), g.rel(0, 0, 1.55))),
             // The camera keeps its path through blocks here too (owner, 2026-11-15: lifted over the ground it jumped about): no shot is pushed by the terrain.
             // From the caster: low at their shoulder, looking up past them into the circles that fire overhead, rising a little toward them.
-            new Cut("B2 from the caster, up", 14, 60, Curve.LINEAR, (g, u, t) -> look(g.rel(-2.6 + .8 * u, 1.5 - .5 * u, .55 + .15 * u), g.rel(22, -2, 30 + 14 * u))),
+            // Owner, 2026-11-15: close to the caster, the caster in the picture, looking up: a few blocks behind them, low, their head and shoulders at the foot of the frame.
+            new Cut("B2 from the caster, up", 14, 60, Curve.LINEAR, (g, u, t) -> look(g.rel(-3.5 + .5 * u, 1.2 - .2 * u, .3 + .1 * u), g.rel(16, -1, 18 + 2 * u))),
             // From the gate (owner, 2026-11-15, second pass: the other way round): beside the gate's right column, a little above its doors, looking down the
             // field toward the caster: the canopy and the rain fall away below, drifting slowly down and in.
             new Cut("B3 from the gate, down", 60, B4_FROM, Curve.LINEAR, (g, u, t) -> look(gateCorner(g, u), g.rel(70 - 10 * u, 0, 0))),
@@ -522,7 +523,8 @@ public final class SilentGateCinematic {
         Vec3 toward = new Vec3(g.a().x - at.x, 0, g.a().z - at.z);
         toward = toward.lengthSqr() < 1 ? g.f().scale(-1) : toward.normalize();
         Vec3 side = toward.cross(UP);
-        Vec3 cam = at.add(toward.scale(KILL_DISTANCE)).add(side.scale(-6 + 12 * u)), aim = at.add(0, KILL_LOOK_HEIGHT, 0);
+        // A slow drift (owner, 2026-11-15): four blocks across the shot.
+        Vec3 cam = at.add(toward.scale(KILL_DISTANCE)).add(side.scale(-2 + 4 * u)), aim = at.add(0, KILL_LOOK_HEIGHT, 0);
         // Above the live surface (the strikes dig craters under the track) and high enough that no hill or tree stands between the lens and the target
         // (owner, 2026-11-15: in hilly land the kill was hidden).
         double y = Math.max(at.y + KILL_CAM_HEIGHT, g.ground().applyAsDouble(cam.x, cam.z) + 1.5);

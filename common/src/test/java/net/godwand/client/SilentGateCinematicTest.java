@@ -267,7 +267,8 @@ class SilentGateCinematicTest {
         // B2: from the caster. Low at their shoulder, looking steeply up into the circles that fire overhead: a cut from the command, no move.
         for (double c = 14; c < 60; c += 4) {
             var p = barrage(c, 200);
-            assertTrue(p.position().distanceTo(PLAYER) < 4 && p.position().y < PLAYER.y + 1 && p.pitch() < -45, "at the caster's feet, looking up at " + c + ": " + p.position() + " " + p.pitch());
+            assertTrue(p.position().distanceTo(PLAYER) < 7 && p.position().y < PLAYER.y + 1 && p.pitch() < -25, "close behind the caster, low, looking up at " + c + ": " + p.position() + " " + p.pitch());
+            assertTrue(inFrame(p, PLAYER.add(0, 1.6, 0), SilentGateCinematic.lens(480 + c, c, 200)), "the caster's head in frame at " + c);
         }
         // B3: from the gate, the other way round: beside the gate's right column, above its doors, looking steeply down the field toward the caster.
         for (double c = 60; c < SilentGateCinematic.B4_FROM; c += 4) {

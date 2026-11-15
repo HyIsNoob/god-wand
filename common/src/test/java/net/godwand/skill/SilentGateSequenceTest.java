@@ -259,4 +259,12 @@ class SilentGateSequenceTest {
         assertEquals(0, SilentGateSequence.lean(new Vec3(0, 100, 0), new Vec3(0, 0, 0)), 1e-9);
         assertEquals(45, SilentGateSequence.lean(new Vec3(0, 100, 0), new Vec3(100, 0, 0)), 1e-9);
     }
+
+    @Test void theCrackStaysOpenUntilTheGateHasGoneIn() {
+        assertEquals(0, SilentGateSequence.endSlit(0), 0);
+        assertEquals(0, SilentGateSequence.endSlit(SilentGateSequence.ENDING_TICKS), 1e-9);
+        // Open from the start of the climb until the gate has faded into the crack (rise 2.05).
+        for (double e = SilentGateSequence.END_RISE_FROM; e < SilentGateSequence.ENDING_TICKS; e += 2)
+            if (SilentGateSequence.gateRise(e) < 2.05) assertTrue(SilentGateSequence.endSlit(e) > .99, "open at " + e);
+    }
 }

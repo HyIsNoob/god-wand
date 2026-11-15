@@ -164,6 +164,11 @@ public final class SilentGateSequence {
         return gateOpen(OPEN_END - Math.max(0, Math.min(1, e / END_CLOSE)) * (OPEN_END - OPEN_START));
     }
 
+    /** Ending: the crack in the sky, open from just before the gate climbs until it has gone in (owner, 2026-11-15: it closed before the gate was taken). */
+    public static double endSlit(double e) {
+        return smooth((e - END_RISE_FROM + 18) / 16) * (1 - smooth((e - END_RISE_TO + 8) / 18));
+    }
+
     /** Ending: how far above its landed place the gate has climbed, in descent units (2 = at the great circle's plane); starts slowly. */
     public static double gateRise(double e) {
         return 2.2 * smooth((e - END_RISE_FROM) / (END_RISE_TO - END_RISE_FROM));
