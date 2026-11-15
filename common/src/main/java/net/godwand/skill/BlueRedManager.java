@@ -39,6 +39,8 @@ public final class BlueRedManager {
         final List<BlueEater.Eaten> eaten = new ArrayList<>();
         Blue(ServerPlayer owner, ServerLevel level, Vec3 pos) { this.owner = owner; this.level = level; this.pos = pos; }
         boolean held() { return state != BlueState.ANCHORED; }
+        public BlueState state() { return state; }
+        public Vec3 pos() { return pos; }
     }
 
     static final class Red {
