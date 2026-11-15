@@ -1,29 +1,25 @@
 {
-  "reason": "Minecraft 26.3 draws HUD through GuiGraphicsExtractor, reads keys globally and keeps the open screen on Gui",
+  "reason": "Explicit version/loader API adapter",
   "changes": [
     {
-      "before": "import org.lwjgl.glfw.GLFW;",
-      "after": "import com.mojang.blaze3d.platform.InputConstants;"
+      "before": "import net.godwand.skill.SilentGateSequence.Phase;\nimport net.minecraft.client.DeltaTracker;\nimport net.minecraft.client.Minecraft;\nimport net.minecraft.client.gui.GuiGraphics;\nimport net.minecraft.network.chat.Component;\nimport net.minecraft.util.Mth;\nimport net.minecraft.world.phys.Vec3;\nimport org.lwjgl.glfw.GLFW;\n\nimport java.util.List;\nimport java.util.function.ToDoubleBiFunction;\n",
+      "after": "import net.godwand.skill.SilentGateSequence.Phase;\nimport net.minecraft.client.DeltaTracker;\nimport net.minecraft.client.Minecraft;\nimport net.minecraft.client.gui.GuiGraphicsExtractor;\nimport net.minecraft.network.chat.Component;\nimport net.minecraft.util.Mth;\nimport net.minecraft.world.phys.Vec3;\nimport com.mojang.blaze3d.platform.InputConstants;\n\nimport java.util.List;\nimport java.util.function.ToDoubleBiFunction;\n"
     },
     {
-      "before": "if (!menuOpen(client) && GLFW.glfwGetKey(client.getWindow().getWindow(), GLFW.GLFW_KEY_F5) == GLFW.GLFW_PRESS) skip();",
-      "after": "if (!menuOpen(client) && InputConstants.isKeyDown(InputConstants.KEY_F5)) skip();"
+      "before": "        return valid;\n    }\n    private static boolean directing() { return GodWandConfig.CLIENT.gateCutscene && !skipped; }\n    private static boolean menuOpen(Minecraft client) { return client.screen != null || !client.isWindowActive(); }\n\n    /** BUILD and WAIT always own the view; after the command only the directed cutscene does. */\n    public static boolean active() {\n",
+      "after": "        return valid;\n    }\n    private static boolean directing() { return GodWandConfig.CLIENT.gateCutscene && !skipped; }\n    private static boolean menuOpen(Minecraft client) { return client.gui.screen() != null || !client.isWindowActive(); }\n\n    /** BUILD and WAIT always own the view; after the command only the directed cutscene does. */\n    public static boolean active() {\n"
     },
     {
-      "before": "return client.screen != null || !client.isWindowActive();",
-      "after": "return client.gui.screen() != null || !client.isWindowActive();"
+      "before": "        if (!firstBeam && cmd >= 0 && !SilentGateRenderer.shots(frame.casterId()).isEmpty()) { firstBeam = true; GodWandCinematicEngine.addTrauma(.5f, 14); }\n        // Every beam that lands is felt, the nearer the lens the harder (owner, 2026-11-14: \"no weight\").\n        if (cmd >= 0) {\n            Vec3 lens = client.gameRenderer.getMainCamera().getPosition();\n            double now = frame.startedAt() + age, sum = 0;\n            for (Shot s : SilentGateRenderer.shots(frame.casterId())) {\n                double life = SilentGateRenderer.beamLife(s, now) - GateBeams.FALL_TICKS;\n",
+      "after": "        if (!firstBeam && cmd >= 0 && !SilentGateRenderer.shots(frame.casterId()).isEmpty()) { firstBeam = true; GodWandCinematicEngine.addTrauma(.5f, 14); }\n        // Every beam that lands is felt, the nearer the lens the harder (owner, 2026-11-14: \"no weight\").\n        if (cmd >= 0) {\n            Vec3 lens = client.gameRenderer.mainCamera().position();\n            double now = frame.startedAt() + age, sum = 0;\n            for (Shot s : SilentGateRenderer.shots(frame.casterId())) {\n                double life = SilentGateRenderer.beamLife(s, now) - GateBeams.FALL_TICKS;\n"
     },
     {
-      "before": "import net.minecraft.client.gui.GuiGraphics;",
-      "after": "import net.minecraft.client.gui.GuiGraphicsExtractor;"
+      "before": "        }\n        sneakHeld = sneak;\n        // ESC arrives through the keyboard mixin (cancel in WAIT); F5 only drops the director.\n        if (!menuOpen(client) && GLFW.glfwGetKey(client.getWindow().getWindow(), GLFW.GLFW_KEY_F5) == GLFW.GLFW_PRESS) skip();\n    }\n    private static long beatCast = Long.MIN_VALUE; private static double lastAge, lastHit, lastCmd; private static boolean firstBeam, sneakHeld;\n\n",
+      "after": "        }\n        sneakHeld = sneak;\n        // ESC arrives through the keyboard mixin (cancel in WAIT); F5 only drops the director.\n        if (!menuOpen(client) && InputConstants.isKeyDown(InputConstants.KEY_F5)) skip();\n    }\n    private static long beatCast = Long.MIN_VALUE; private static double lastAge, lastHit, lastCmd; private static boolean firstBeam, sneakHeld;\n\n"
     },
     {
-      "before": "public static void render(GuiGraphics graphics, DeltaTracker timer)",
-      "after": "public static void render(GuiGraphicsExtractor graphics, DeltaTracker timer)"
-    },
-    {
-      "before": "graphics.drawString(client.font, hint,",
-      "after": "graphics.text(client.font, hint,"
+      "before": "    }\n\n    /** The command hint in WAIT. */\n    public static void render(GuiGraphics graphics, DeltaTracker timer) {\n        float partial = timer.getGameTimeDeltaPartialTick(false);\n        var client = Minecraft.getInstance();\n        var frame = SilentGateRenderer.localFrame(partial);\n        if (menuOpen(client) || !present(client, frame)) return;\n        int width = graphics.guiWidth(), height = graphics.guiHeight();\n        if (frame.phase() == WAIT) {\n            String hint = Component.translatable(\"message.godwand.gate_command\").getString();\n            graphics.drawString(client.font, hint, (width - client.font.width(hint)) / 2, height - 62, 0xFFFFFFFF, true);\n        }\n        // How to get out, said quietly: through the first seconds of the build and the whole wait.\n        if (frame.phase() == WAIT || frame.phase() == 0 && frame.age() > 20 && frame.age() < 110) {\n            String out = Component.translatable(\"message.godwand.gate_cancel\").getString();\n            graphics.drawString(client.font, out, (width - client.font.width(out)) / 2, height - 50, 0xB0FFFFFF, true);\n        }\n    }\n}\n",
+      "after": "    }\n\n    /** The command hint in WAIT. */\n    public static void render(GuiGraphicsExtractor graphics, DeltaTracker timer) {\n        float partial = timer.getGameTimeDeltaPartialTick(false);\n        var client = Minecraft.getInstance();\n        var frame = SilentGateRenderer.localFrame(partial);\n        if (menuOpen(client) || !present(client, frame)) return;\n        int width = graphics.guiWidth(), height = graphics.guiHeight();\n        // The scope bars (drawn in the world pass on 1.21.1): this port draws them over the HUD.\n        int bar = (int) Math.round(bar(frame, (double) width / height) * height);\n        if (bar > 0) { graphics.fill(0, 0, width, bar, 0xFF000000); graphics.fill(0, height - bar, width, height, 0xFF000000); }\n        if (frame.phase() == WAIT) {\n            String hint = Component.translatable(\"message.godwand.gate_command\").getString();\n            graphics.text(client.font, hint, (width - client.font.width(hint)) / 2, height - 62, 0xFFFFFFFF, true);\n        }\n        // How to get out, said quietly: through the first seconds of the build and the whole wait.\n        if (frame.phase() == WAIT || frame.phase() == 0 && frame.age() > 20 && frame.age() < 110) {\n            String out = Component.translatable(\"message.godwand.gate_cancel\").getString();\n            graphics.text(client.font, out, (width - client.font.width(out)) / 2, height - 50, 0xB0FFFFFF, true);\n        }\n    }\n}\n"
     }
   ]
 }

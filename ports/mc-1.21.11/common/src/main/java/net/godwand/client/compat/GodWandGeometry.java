@@ -16,13 +16,15 @@ import java.util.*;
 
 /** Extracts authored meshes, then uploads and submits them on the world drawing stage. */
 public final class GodWandGeometry {
+    /** {@code func}: 0 translucent, 1 additive, 2 shade (darkens by the source colour: ZERO, ONE_MINUS_SRC_COLOR), 3 invert (ONE_MINUS_DST_COLOR, ONE_MINUS_SRC_COLOR). */
     private record Key(VertexFormat.Mode topology, boolean texture, boolean blend,
-                       boolean additive, boolean depth, boolean writeDepth, boolean cull) {}
+                       int func, boolean depth, boolean writeDepth, boolean cull, boolean colorWrite) {}
     private record Draw(MeshData mesh, Key key, Identifier texture, Vector4f color) {}
     private static final ByteBufferBuilder ARENA = new ByteBufferBuilder(2 * 1024 * 1024);
     private static final List<Draw> PENDING = new ArrayList<>();
     private static final Map<Key, RenderPipeline> PIPELINES = new HashMap<>();
-    private static boolean blend, additive, depth = true, writeDepth = true, cull = true, texture;
+    private static boolean blend, depth = true, writeDepth = true, cull = true, texture, colorWrite = true;
+    private static int func;
     private static Identifier textureId;
     private static Vector4f color = new Vector4f(1);
 
@@ -31,8 +33,14 @@ public final class GodWandGeometry {
     }
     public static void enableBlend() { blend = true; }
     public static void disableBlend() { blend = false; }
-    public static void defaultBlendFunc() { additive = false; }
-    public static void additiveBlend() { additive = true; }
+    public static void defaultBlendFunc() { func = 0; }
+    public static void additiveBlend() { func = 1; }
+    /** Silent Gate's smoke and storm: they darken what is behind them by their colour. */
+    public static void shadeBlend() { func = 2; }
+    /** Silent Gate's fallback impact frame: the view turned to its negative. */
+    public static void invertBlend() { func = 3; }
+    /** Off for a depth-only pass (Silent Gate stamps its gate's depth before the light is drawn). */
+    public static void colorWrite(boolean value) { colorWrite = value; }
     public static void enableDepthTest() { depth = true; }
     public static void disableDepthTest() { depth = false; }
     public static void depthMask(boolean value) { writeDepth = value; }
@@ -53,12 +61,15 @@ public final class GodWandGeometry {
                     .withLocation(Identifier.fromNamespaceAndPath("godwand", "geometry/" + PIPELINES.size()))
                     .withVertexShader(shader).withFragmentShader(shader)
                     .withVertexFormat(k.texture ? DefaultVertexFormat.POSITION_TEX_COLOR : DefaultVertexFormat.POSITION_COLOR, k.topology)
-                    .withCull(k.cull).withDepthWrite(k.writeDepth)
+                    .withCull(k.cull).withDepthWrite(k.writeDepth).withColorWrite(k.colorWrite)
                     .withDepthTestFunction(k.depth ? DepthTestFunction.LEQUAL_DEPTH_TEST : DepthTestFunction.NO_DEPTH_TEST);
             if (k.texture) builder.withSampler("Sampler0");
-            if (k.blend) builder.withBlend(k.additive
-                    ? new BlendFunction(SourceFactor.SRC_ALPHA, DestFactor.ONE)
-                    : BlendFunction.TRANSLUCENT);
+            if (k.blend) builder.withBlend(switch (k.func) {
+                case 1 -> new BlendFunction(SourceFactor.SRC_ALPHA, DestFactor.ONE);
+                case 2 -> new BlendFunction(SourceFactor.ZERO, DestFactor.ONE_MINUS_SRC_COLOR);
+                case 3 -> new BlendFunction(SourceFactor.ONE_MINUS_DST_COLOR, DestFactor.ONE_MINUS_SRC_COLOR);
+                default -> BlendFunction.TRANSLUCENT;
+            });
             else builder.withoutBlend();
             return builder.build();
         });
@@ -71,17 +82,21 @@ public final class GodWandGeometry {
                 VertexFormat.Mode.TRIANGLE_STRIP, VertexFormat.Mode.TRIANGLE_FAN})
             for (int style = 0; style < 3; style++)
                 for (boolean writing : new boolean[]{false,true})
-                    pipeline(new Key(topology,false,style != 0,style == 2,true,writing,false));
+                    pipeline(new Key(topology,false,style != 0,style == 2 ? 1 : 0,true,writing,false,true));
         // Textured quads in every blend style Fuga uses: its normal-blend layer and backdrop need these as much as the glow.
         for (int style = 0; style < 3; style++)
             for (boolean writing : new boolean[]{false,true})
-                pipeline(new Key(VertexFormat.Mode.QUADS,true,style != 0,style == 2,true,writing,false));
+                pipeline(new Key(VertexFormat.Mode.QUADS,true,style != 0,style == 2 ? 1 : 0,true,writing,false,true));
+        // Silent Gate: textured quads in all four blend functions, with and without the depth test, and its depth-only stamp.
+        for (int f = 0; f < 4; f++) for (boolean tested : new boolean[]{false,true}) for (boolean writing : new boolean[]{false,true})
+            pipeline(new Key(VertexFormat.Mode.QUADS,true,true,f,tested,writing,false,true));
+        pipeline(new Key(VertexFormat.Mode.QUADS,true,true,0,true,true,false,false));
         PIPELINES.values().forEach(register);
     }
 
     public static void draw(MeshData mesh) {
         if (mesh == null) return;
-        var key = new Key(mesh.drawState().mode(), texture, blend, additive, depth, writeDepth, cull);
+        var key = new Key(mesh.drawState().mode(), texture, blend, func, depth, writeDepth, cull, colorWrite);
         PENDING.add(new Draw(mesh,key,textureId,new Vector4f(color)));
     }
 

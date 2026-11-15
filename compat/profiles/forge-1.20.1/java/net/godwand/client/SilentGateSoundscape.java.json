@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "                SoundInstance.Attenuation.NONE, pos.x, pos.y, pos.z, false));\n    }\n\n    private static ResourceLocation id(String path) { return ResourceLocation.fromNamespaceAndPath(\"godwand\", path); }\n\n    private static void stop(Cast c) { for (Loop l : new Loop[]{c.wait, c.rain, c.build, c.end}) if (l != null) l.target = 0; }\n\n",
+      "after": "                SoundInstance.Attenuation.NONE, pos.x, pos.y, pos.z, false));\n    }\n\n    private static ResourceLocation id(String path) { return new ResourceLocation(\"godwand\", path); }\n\n    private static void stop(Cast c) { for (Loop l : new Loop[]{c.wait, c.rain, c.build, c.end}) if (l != null) l.target = 0; }\n\n"
+    }
+  ]
+}

@@ -12,6 +12,7 @@
   "client": [
     "AtomicCameraMixin",
     "AtomicPoseMixin",
+    "GatePoseMixin",
     "AtomicFacingMixin",
     "AtomicGuiMixin",
     "AtomicToastMixin",

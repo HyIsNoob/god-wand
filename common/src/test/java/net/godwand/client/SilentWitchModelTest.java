@@ -54,16 +54,17 @@ class SilentWitchModelTest {
             }
         }
 
-        // Verify holding origin (Y = 0) lies inside the grip section
-        var grip = solid.vertices.stream().filter(v -> v[3] == 0xC8 && v[4] == 0x9B && v[5] == 0x3C).toList();
-        assertFalse(grip.isEmpty(), "Grip section must exist");
-        assertTrue(grip.stream().anyMatch(v -> v[1] < 0), "Grip must extend below Y = 0");
-        assertTrue(grip.stream().anyMatch(v -> v[1] > 0), "Grip must extend above Y = 0");
-
         // Verify total height matches full-length mage staff proportions
         double maxY = solid.vertices.stream().mapToDouble(v -> v[1]).max().orElseThrow();
         double minY = solid.vertices.stream().mapToDouble(v -> v[1]).min().orElseThrow();
         double height = maxY - minY;
+
+        // Verify holding origin (Y = 0) lies inside the staff's solid grip: geometry close round it, above and below. (The metal is shaded per face now,
+        // so the grip can no longer be picked out by its exact vertex colour.)
+        var grip = solid.vertices.stream().filter(v -> Math.abs(v[1]) < .08 * height).toList();
+        assertFalse(grip.isEmpty(), "Grip section must exist");
+        assertTrue(grip.stream().anyMatch(v -> v[1] < 0), "Grip must extend below Y = 0");
+        assertTrue(grip.stream().anyMatch(v -> v[1] > 0), "Grip must extend above Y = 0");
         assertTrue(height * 0.44 >= 1.9 && height * 0.44 <= 2.65,
                 "Third-person staff height must match full-length staff proportions: " + (height * 0.44));
     }

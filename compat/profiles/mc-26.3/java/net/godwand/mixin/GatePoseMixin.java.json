@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n/** Silent Gate caster performance. A separate mixin so the Atomic/Fuga pose mixin and its adapters stay untouched. */\n@Mixin(HumanoidModel.class)\npublic abstract class GatePoseMixin {\n    @Shadow @Final public ModelPart rightArm;\n    @Shadow @Final public ModelPart leftArm;\n    @Shadow @Final public ModelPart body;\n    @Shadow @Final public ModelPart head;\n    @Shadow @Final public ModelPart hat;\n    @Inject(method=\"setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V\",at=@At(\"TAIL\"))\n    private void godwand$gatePose(LivingEntity entity,float walk,float stride,float time,float yaw,float pitch,CallbackInfo ci) {\n        if(net.godwand.client.GatePose.apply(entity.getId(),net.minecraft.util.Mth.clamp(time-entity.tickCount,0,1),rightArm,leftArm,body,head))hat.copyFrom(head);\n    }\n}\n",
+      "after": "import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n/** Silent Gate caster performance. A separate mixin so the Atomic/Fuga pose mixin and its adapters stay untouched. */\n@Mixin(value=HumanoidModel.class,remap=false)\npublic abstract class GatePoseMixin {\n    @Shadow @Final public ModelPart rightArm;\n    @Shadow @Final public ModelPart leftArm;\n    @Shadow @Final public ModelPart body;\n    @Shadow @Final public ModelPart head;\n    @Shadow @Final public ModelPart hat;\n    @Inject(method=\"setupAnim(Lnet/minecraft/client/renderer/entity/state/HumanoidRenderState;)V\",at=@At(\"TAIL\"))\n    private void godwand$gatePose(net.minecraft.client.renderer.entity.state.HumanoidRenderState state,CallbackInfo ci) {\n        if(net.godwand.client.GatePose.apply(net.godwand.client.AtomicPoseFrames.entityId(state),net.godwand.client.AtomicPoseFrames.partial(state),rightArm,leftArm,body,head))hat.loadPose(head.storePose());\n    }\n}\n"
+    }
+  ]
+}

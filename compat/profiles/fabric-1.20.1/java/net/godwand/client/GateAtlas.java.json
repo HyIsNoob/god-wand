@@ -1,0 +1,13 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "    static final float SOLID_U = SOLID.u(.5), SOLID_V = SOLID.v(.5);\n    private static final double TAU = Math.PI * 2;\n\n    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(\"godwand\", \"silent_gate_runes\");\n    private static boolean ready;\n    private static byte[] cache;\n\n",
+      "after": "    static final float SOLID_U = SOLID.u(.5), SOLID_V = SOLID.v(.5);\n    private static final double TAU = Math.PI * 2;\n\n    private static final ResourceLocation TEXTURE = new ResourceLocation(\"godwand\", \"silent_gate_runes\");\n    private static boolean ready;\n    private static byte[] cache;\n\n"
+    },
+    {
+      "before": "    static void bind() { upload(); RenderSystem.setShaderTexture(0, TEXTURE); }\n    /** The same atlas for the additive pass: opaque, grey = luminance x alpha (see {@link GateDraw#premultiplied}). */\n    static void bindGlow() { upload(); RenderSystem.setShaderTexture(0, GLOW_TEXTURE); }\n    private static final ResourceLocation GLOW_TEXTURE = ResourceLocation.fromNamespaceAndPath(\"godwand\", \"silent_gate_runes_glow\");\n    /** Building the atlas takes most of a second; done on the render thread at the first cast it froze the game (owner, 2026-11-15). It is started on a\n     *  background thread as soon as a world is joined, and the first bind only uploads what is already there. */\n    private static java.util.concurrent.CompletableFuture<byte[][]> pending;\n",
+      "after": "    static void bind() { upload(); RenderSystem.setShaderTexture(0, TEXTURE); }\n    /** The same atlas for the additive pass: opaque, grey = luminance x alpha (see {@link GateDraw#premultiplied}). */\n    static void bindGlow() { upload(); RenderSystem.setShaderTexture(0, GLOW_TEXTURE); }\n    private static final ResourceLocation GLOW_TEXTURE = new ResourceLocation(\"godwand\", \"silent_gate_runes_glow\");\n    /** Building the atlas takes most of a second; done on the render thread at the first cast it froze the game (owner, 2026-11-15). It is started on a\n     *  background thread as soon as a world is joined, and the first bind only uploads what is already there. */\n    private static java.util.concurrent.CompletableFuture<byte[][]> pending;\n"
+    }
+  ]
+}

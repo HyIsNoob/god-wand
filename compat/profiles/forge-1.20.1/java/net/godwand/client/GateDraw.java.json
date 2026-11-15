@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "        // Above the crack in the sky nothing of the gate exists yet: stone, glow, vapour and feathers alike fade out over CLIP_BAND blocks under it.\n        if (c.clipY != Double.MAX_VALUE) alpha *= clamp01((c.clipY - p.y) / CLIP_BAND);\n        double a = clamp01(alpha), k = premultiplied ? a : 1;\n        c.v.addVertex(c.m, (float) q.x, (float) q.y, (float) q.z)\n                .setColor((int) (((color >> 16) & 255) * k), (int) (((color >> 8) & 255) * k), (int) ((color & 255) * k), premultiplied ? 255 : (int) (a * 255)).setUv(u, v);\n    }\n\n    /** True while another quad fits the budget; callers check before emitting so a vertex run is never cut short. */\n",
+      "after": "        // Above the crack in the sky nothing of the gate exists yet: stone, glow, vapour and feathers alike fade out over CLIP_BAND blocks under it.\n        if (c.clipY != Double.MAX_VALUE) alpha *= clamp01((c.clipY - p.y) / CLIP_BAND);\n        double a = clamp01(alpha), k = premultiplied ? a : 1;\n        c.v.vertex(c.m, (float) q.x, (float) q.y, (float) q.z).uv(u, v)\n                .color((int) (((color >> 16) & 255) * k), (int) (((color >> 8) & 255) * k), (int) ((color & 255) * k), premultiplied ? 255 : (int) (a * 255)).endVertex();\n    }\n\n    /** True while another quad fits the budget; callers check before emitting so a vertex run is never cut short. */\n"
+    }
+  ]
+}
