@@ -70,6 +70,8 @@ final class GateModel {
         double angle = open * 1.45;
         Vec3 mid = pose.at(0, 36, 0);
         double dist = c.eye.distanceTo(mid);
+        // The stamp before the body is left out far off: there the depth buffer is too coarse for the inlays and they flickered (owner, 2026-11-15: the descent).
+        if (c.beforeBody && dist > 200) return;
         g.sides = dist < 90 * pose.s() ? 12 : dist < 170 * pose.s() ? 10 : 8;
         List<Piece> pieces = new ArrayList<>();
         pieces.add(new Piece(pose.at(-COLUMN_X, 36, 0), () -> g.column(-COLUMN_X)));
@@ -291,7 +293,7 @@ final class GateModel {
             double[] t = texels != null ? texels : project(q, nm.lengthSqr() < 1e-12 ? pose.d() : nm.normalize());
             cells(q, t, (cp, ct) -> {
                 float[] uv = uvFor(GateAtlas.PIX_VEIN, ct);
-                if (c.body()) GateDraw.shaded(c, cp, new int[]{ENGRAVE, ENGRAVE, ENGRAVE, ENGRAVE}, new double[]{.78, .78, .78, .78}, uv);
+                if (c.body() && !c.beforeBody) GateDraw.shaded(c, cp, new int[]{ENGRAVE, ENGRAVE, ENGRAVE, ENGRAVE}, new double[]{.78, .78, .78, .78}, uv);
                 if (c.glow() && vein > .02) {
                     double a = Math.min(1, vein) * .95;
                     GateDraw.shaded(c, cp, new int[]{VEIN, VEIN, VEIN, VEIN}, new double[]{a, a, a, a}, uv);
@@ -499,7 +501,7 @@ final class GateModel {
             for (int k = 0; k < 4; k++) {
                 double v0 = k / 4.0, v1 = (k + 1) / 4.0, a = Math.min(1, vein) * .95;
                 Vec3[] q = {b.p(x0, y0 + h * (1 - v0), zz), b.p(x0 + w, y0 + h * (1 - v0), zz), b.p(x0 + w, y0 + h * (1 - v1), zz), b.p(x0, y0 + h * (1 - v1), zz)};
-                if (c.body()) GateDraw.shaded(c, q, new int[]{ENGRAVE, ENGRAVE, ENGRAVE, ENGRAVE}, new double[]{.78, .78, .78, .78}, GateAtlas.PIX_PANEL, 0, 1, v0, v1);
+                if (c.body() && !c.beforeBody) GateDraw.shaded(c, q, new int[]{ENGRAVE, ENGRAVE, ENGRAVE, ENGRAVE}, new double[]{.78, .78, .78, .78}, GateAtlas.PIX_PANEL, 0, 1, v0, v1);
                 if (c.glow() && a > .02) GateDraw.shaded(c, q, new int[]{VEIN, VEIN, VEIN, VEIN}, new double[]{a, a, a, a}, GateAtlas.PIX_PANEL, 0, 1, v0, v1);
             }
         }

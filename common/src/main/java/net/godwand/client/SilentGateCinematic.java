@@ -136,12 +136,12 @@ public final class SilentGateCinematic {
     static double lens(double age, double commandAge, int barrageTicks) {
         if (commandAge >= 0) {
             int[] b = boundaries(barrageTicks);
-            if (commandAge >= b[3]) { double e = commandAge - b[3]; return e < 40 ? .4 : e < 80 ? 1.08 : .55; }
+            if (commandAge >= b[3]) { double e = commandAge - b[3]; return e < SilentGateSequence.END_CLOSE ? .4 : e < SilentGateSequence.END_RISE_FROM ? 1.08 : .55; }
             double tb = commandAge < SilentGateSequence.ACTIVATE_TICKS ? commandAge : SilentGateSequence.ACTIVATE_TICKS + (commandAge - SilentGateSequence.ACTIVATE_TICKS) * 200.0 / barrageTicks;
             // The command close; down on the field through a longer lens (it keeps the picture inside the loaded land); wide from the caster's feet up into the
             // rain; then the track over the ground and the far round.
             // Each shot holds one lens from its first frame to its last: the camera moves, the lens never zooms.
-            return tb < 14 ? .9 * (1 - .1 * Math.exp(-tb / 2.5)) : tb < 60 ? 1.1 : tb < 108 ? 1.1 : tb < 160 ? .95 : 1.02;
+            return tb < 14 ? .9 * (1 - .1 * Math.exp(-tb / 2.5)) : tb < 60 ? 1.1 : tb < B4_FROM ? 1.1 : tb < B4_TO ? .95 : 1.02;
         }
         // The first click kicks the lens once.
         if (age < 70) return .9 * (1 + .1 * smooth(age, 1, 3) * Math.exp(-Math.max(0, age - 3) / 3.5));
@@ -214,11 +214,8 @@ public final class SilentGateCinematic {
         Vec3 focus = directing() && frame.commandAge() >= 0 ? focus(client, frame, shots) : null;
         var shot = cameraFor(frame, feet, yaw, pitch, directing(), shots,
                 (x, z) -> level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, Mth.floor(x), Mth.floor(z)), focus);
-        if (shot == null) return null;
-        // Never move a detached shot into an unloaded chunk.
-        if (!FugaCinematic.hasChunk(client, shot.position()))
-            return frame.phase() <= WAIT ? shoulder(feet, yaw, pitch) : null;
-        // The camera keeps its path through blocks: being pushed aside by one skewed the shot (owner, 2026-11-14).
+        // The camera keeps its path through blocks (owner, 2026-11-14) and past the loaded chunks: the far shots (the orbit reaches 184 blocks out) fell back to
+        // the shoulder at a render distance of 8 and showed as a stray shot before the bloom (owner, 2026-11-15). Gate, sky and circles need no chunks.
         return shot;
     }
 
@@ -453,26 +450,29 @@ public final class SilentGateCinematic {
     /** Barrage shots in authored ticks after the command (a 200 tick barrage starts at 12; scaled with the barrage length). The owner's four, each one slow steady
      *  move with no cut inside it, in the owner's order (2026-11-15, second pass): up from the caster, down from the gate, a track over the ground (where the kill
      *  beam's impact frame falls), a slow round from far off. */
+    /** The shot over the ground, kept short around the kill (owner, 2026-11-15: one and a half seconds at 360 ticks of barrage, about one before the kill
+     *  beam lands and half a second after); the time went to the shots on either side. */
+    static final int B4_FROM = 125, B4_TO = 142;
     static final List<Cut> BARRAGE = List.of(
             new Cut("B1 command", 0, 14, Curve.LINEAR, (g, u, t) -> look(g.rel(3.4 - .3 * u, .5, 1.25), g.rel(0, 0, 1.55))),
             // The camera keeps its path through blocks here too (owner, 2026-11-15: lifted over the ground it jumped about): no shot is pushed by the terrain.
             // From the caster: low at their shoulder, looking up past them into the circles that fire overhead, rising a little toward them.
             new Cut("B2 from the caster, up", 14, 60, Curve.LINEAR, (g, u, t) -> look(g.rel(-2.6 + .8 * u, 1.5 - .5 * u, .55 + .15 * u), g.rel(22, -2, 30 + 14 * u))),
-            // From above (owner, 2026-11-15: see the gate and the firing both): high over the field behind the caster and to their right, at the height of the
-            // gate's doors, looking down the field to the gate: the doorway in the upper frame, the canopy and the strikes below it, drifting slowly in. Kept
-            // within 130 blocks of the caster so the land round them stays in render range.
-            new Cut("B3 from above, the gate ahead", 60, 108, Curve.LINEAR, (g, u, t) -> look(g.rel(-50 + 20 * u, 130 - 20 * u, 330 - 20 * u), g.rel(170 + 10 * u, 0, 200))),
+            // From the gate (owner, 2026-11-15, second pass: the other way round): beside the gate's right column, a little above its doors, looking down the
+            // field toward the caster: the canopy and the rain fall away below, drifting slowly down and in.
+            new Cut("B3 from the gate, down", 60, B4_FROM, Curve.LINEAR, (g, u, t) -> look(gateCorner(g, u), g.rel(70 - 10 * u, 0, 0))),
             // Over the ground: a low track across the field before the caster, the strikes going by on either hand, the gate far ahead; the kill beam lands here.
-            new Cut("B4 over the ground", 108, 160, Curve.LINEAR, (g, u, t) -> look(g.onField(30 + 8 * u, -34 + 76 * u, 4.5), g.onField(78, -18 + 76 * u, 10))),
+            new Cut("B4 over the ground", B4_FROM, B4_TO, Curve.LINEAR, (g, u, t) -> g.focus() != null ? killTrack(g, u)
+                    : look(g.onField(30 + 4 * u, -14 + 28 * u, 4.5), g.onField(78, -2 + 28 * u, 10))),
             // The whole of it to end on: far behind the caster and high, going slowly round; no zoom, only the move.
-            new Cut("B5 the far round", 160, 212, Curve.LINEAR, (g, u, t) -> panorama(g, u)));
+            new Cut("B5 the far round", B4_TO, 212, Curve.LINEAR, (g, u, t) -> panorama(g, u)));
 
     /** The ending (ticks after the barrage): the three setups of the build, in the order the build used them, each drifting slowly: none stands still. */
     static final List<Cut> ENDING = List.of(
-            new Cut("E1 doors close", 0, 40, Curve.LINEAR, (g, u, e) -> look(g.rel(40 + 3 * u, 88 - 5 * u, 3), g.door().add(0, -10, 0))),
-            new Cut("E2 circles unwrite", 40, 80, Curve.LINEAR, (g, u, e) -> look(g.rel(-2.5 - 1.5 * u, 1.6 + .4 * u, 1.7 + .5 * u), g.rel(GATE_AHEAD, 0, 169))),
+            new Cut("E1 doors close", 0, SilentGateSequence.END_CLOSE, Curve.LINEAR, (g, u, e) -> look(g.rel(40 + 3 * u, 88 - 5 * u, 3), g.door().add(0, -10, 0))),
+            new Cut("E2 circles unwrite", SilentGateSequence.END_CLOSE, SilentGateSequence.END_RISE_FROM, Curve.LINEAR, (g, u, e) -> look(g.rel(-2.5 - 1.5 * u, 1.6 + .4 * u, 1.7 + .5 * u), g.rel(GATE_AHEAD, 0, 169))),
             // The far camera follows the gate up into the crack and on to the great circle, drawing back as it goes.
-            new Cut("E3 gate returns", 80, SilentGateSequence.ENDING_TICKS, Curve.LINEAR, (g, u, e) -> look(g.rel(-70 - 18 * u, 16, 3), g.foot().add(0, Math.min(SilentGateSequence.CIRCLE_ALTITUDE - SilentGateSequence.GATE_BASE,
+            new Cut("E3 gate returns", SilentGateSequence.END_RISE_FROM, SilentGateSequence.ENDING_TICKS, Curve.LINEAR, (g, u, e) -> look(g.rel(-70 - 18 * u, 16, 3), g.foot().add(0, Math.min(SilentGateSequence.CIRCLE_ALTITUDE - SilentGateSequence.GATE_BASE,
                     88 + SilentGateSequence.gateRise(e) * SilentGateSequence.GATE_DROP * SilentGateSequence.SCALE), 0))));
 
     /** The waiting frame: in front of the caster pointing at the sky, low and almost square on, so the half ring of discs behind them stands symmetric (reference 10).
@@ -480,6 +480,13 @@ public final class SilentGateCinematic {
     private static AtomicCinematic.Pose waitShot(Rig g, double t) {
         Vec3 breath = g.r().scale(Math.sin(t * .045) * .3).add(0, Math.sin(t * .07 + 1) * .22, 0).add(g.f().scale(Math.sin(t * .031) * .35));
         return look(g.rel(5.2, .5, .75).add(breath), g.rel(-2, 0, 4.2));
+    }
+
+    /** B3's camera: just in front of the gate and outside its right column, a little above the doors' middle. */
+    private static Vec3 gateCorner(Rig g, double u) {
+        // Far enough out that the column stays at the frame's edge (owner: the gate must not cover the screen).
+        Vec3 p = g.rel(GATE_AHEAD - 40 - 10 * u, 108 - 8 * u, 0);
+        return new Vec3(p.x, g.door().y + 30 - 14 * u, p.z);
     }
 
     static AtomicCinematic.Pose buildShot(Frame frame, double age) { return buildShot(frame, age, NO_GROUND); }
@@ -506,17 +513,18 @@ public final class SilentGateCinematic {
         return play(BARRAGE, g, tb, false);
     }
 
-    /** Kill close-up (B4): {@value #KILL_DISTANCE} blocks from the target on the caster's side, just above its feet, looking up past it so the beams fall into the frame; a steady 0.4 deg/tick orbit. */
-    static final double KILL_DISTANCE = 5.5, KILL_CAM_HEIGHT = .6, KILL_LOOK_HEIGHT = 2.6;
-    private static AtomicCinematic.Pose killShot(Rig g, double t) {
-        Vec3 at = g.focus() != null ? g.focus() : densest(g.shots(), g.a().add(g.f().scale(40)));
+    /** B4 with a kill target (owner, 2026-11-15: the track went past and the mob's death was never seen): the same low sideways track, but
+     *  {@value #KILL_DISTANCE} blocks off the target on the caster's side and always looking at it, so it is square in frame when the kill beam lands. */
+    static final double KILL_DISTANCE = 16, KILL_CAM_HEIGHT = 3.5, KILL_LOOK_HEIGHT = 3;
+    private static AtomicCinematic.Pose killTrack(Rig g, double u) {
+        Vec3 at = g.focus();
         Vec3 toward = new Vec3(g.a().x - at.x, 0, g.a().z - at.z);
         toward = toward.lengthSqr() < 1 ? g.f().scale(-1) : toward.normalize();
-        Vec3 offset = toward.yRot((float) Math.toRadians(-10 + .4 * (t - 82))).scale(KILL_DISTANCE);
-        Vec3 cam = new Vec3(at.x + offset.x, at.y + KILL_CAM_HEIGHT, at.z + offset.z);
-        // Stay above the live surface: the hit's crater may already be dug out under the camera.
-        double floor = g.ground().applyAsDouble(cam.x, cam.z) + .5;
-        return look(cam.y < floor ? new Vec3(cam.x, floor, cam.z) : cam, at.add(0, KILL_LOOK_HEIGHT, 0));
+        Vec3 side = toward.cross(UP);
+        Vec3 cam = at.add(toward.scale(KILL_DISTANCE)).add(side.scale(-6 + 12 * u));
+        // Above the live surface: the strikes dig craters under the track.
+        double floor = g.ground().applyAsDouble(cam.x, cam.z) + 1.5;
+        return look(new Vec3(cam.x, Math.max(at.y + KILL_CAM_HEIGHT, floor), cam.z), at.add(0, KILL_LOOK_HEIGHT, 0));
     }
 
     /** The impact with the most other impacts within 12 blocks (the newest on ties); {@code none} without any. */
@@ -591,7 +599,7 @@ public final class SilentGateCinematic {
         } else {
             // Thinner bars in the shot from the caster's feet up into the rain (owner, 2026-11-15: see more of it).
             double tb = commandAge < SilentGateSequence.ACTIVATE_TICKS ? commandAge : SilentGateSequence.ACTIVATE_TICKS + (commandAge - SilentGateSequence.ACTIVATE_TICKS) * 200.0 / barrageTicks;
-            aspect -= .3 * smooth(tb, 14, 28) * (1 - smooth(tb, 46, 60));
+            aspect -= .3 * smooth(tb, 14, 34) * (1 - smooth(tb, 44, 60));
             int kill = SilentGateSequence.shotTick(SilentGateSequence.KILL_TICK, barrageTicks);
             if (sinceHit >= 0) { double o = smooth(sinceHit, 0, 10); aspect += .2 * (1 - o) - .2 * o * Math.exp(-Math.max(0, sinceHit - 10) / 25); }
             else aspect += .2 * smooth(commandAge, kill - 24, kill - 4) * (1 - smooth(commandAge, kill + 6, kill + 20));

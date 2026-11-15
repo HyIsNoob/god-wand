@@ -117,7 +117,7 @@ class SilentGateSequenceTest {
     @Test
     void buildIsThreeHundredAndSixtyTicksOfDirection() {
         assertEquals(480, SilentGateSequence.BUILD_TICKS);
-        assertEquals(220, SilentGateSequence.ENDING_TICKS);
+        assertEquals(250, SilentGateSequence.ENDING_TICKS);
         assertTrue(SilentGateSequence.STUCK_END - SilentGateSequence.OPEN_START >= 20, "stuck at least 1 s");
         assertTrue(SilentGateSequence.OPEN_END - SilentGateSequence.STUCK_END >= 45, "separation 365..412");
         assertTrue(SilentGateSequence.OPEN_END - SilentGateSequence.OPEN_FAST_END >= 15, "a long creep into the stop");
@@ -167,9 +167,10 @@ class SilentGateSequenceTest {
         }
         assertTrue(first < .02, "it starts slowly: " + first);
         assertEquals(0, SilentGateSequence.gateRise(74), 0);
-        assertEquals(2.2, SilentGateSequence.gateRise(170), 1e-9);
+        assertEquals(2.2, SilentGateSequence.gateRise(SilentGateSequence.END_RISE_TO), 1e-9);
         assertTrue(SilentGateSequence.END_RISE_TO - SilentGateSequence.END_RISE_FROM >= 90, "the gate climbs back slowly");
-        assertTrue(SilentGateSequence.gateRise(80) < .1, "slow start");
+        assertTrue(SilentGateSequence.gateRise(SilentGateSequence.END_RISE_FROM) < .1, "slow start");
+        assertTrue(SilentGateSequence.END_CLOSE >= 70, "the doors close slowly (owner, 2026-11-15)");
         assertTrue(SilentGateSequence.END_RISE_FROM >= SilentGateSequence.END_CLOSE, "the gate climbs only when the doors are shut");
         assertTrue(SilentGateSequence.END_UNWRITE_FROM > SilentGateSequence.END_RISE_FROM && SilentGateSequence.END_UNWRITE_FROM + 50 <= SilentGateSequence.ENDING_TICKS);
     }
@@ -206,7 +207,7 @@ class SilentGateSequenceTest {
     void shotTicksScaleWithBarrage() {
         assertEquals(140, SilentGateSequence.shotTick(140, 200));
         assertEquals(268, SilentGateSequence.shotTick(140, 400));
-        assertEquals(432, SilentGateSequence.endTick(200));
+        assertEquals(462, SilentGateSequence.endTick(200));
     }
 
     @Test

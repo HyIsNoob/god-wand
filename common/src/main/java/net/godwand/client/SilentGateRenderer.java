@@ -364,8 +364,10 @@ public final class SilentGateRenderer {
         gate(c, anchor, f.yaw(), age, f.commandAge(), e, front);
         // Beams from a circle's nozzle to the hit point. No circle moves: the beam leans as it must. The kill beam's circle gathers light first.
         // Flying over the scope bars is an accent, not a habit: only the first volley after the command and the kill beam do it.
-        boolean volley = f.commandAge() >= 0 && f.commandAge() < SilentGateSequence.ACTIVATE_TICKS + 30;
+        // Decided by when each beam fired, not by the clock: a live beam that switched layers dropped under the bars mid-flight (owner, 2026-11-15: "not smooth").
+        double commandAt = now - f.commandAge();
         for (Shot s : shots) {
+            boolean volley = f.commandAge() >= 0 && s.tick() - commandAt < SilentGateSequence.ACTIVATE_TICKS + 30;
             if (s.circle() < 0 || s.circle() >= count) continue;
             // The ground's light and scars stay in the picture, under the scope bars, whatever the beam itself does.
             if (!front && s.hit().distanceToSqr(eye) < 260 * 260) GateBeams.pool(c, s.hit(), beamLife(s, now) - GateBeams.FALL_TICKS,

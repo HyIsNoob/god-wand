@@ -225,8 +225,8 @@ class SilentGateVisualTest {
         Mesh half = new Mesh(), start = new Mesh(), end = new Mesh();
         double over = SilentGateSequence.ACTIVATE_TICKS + 200;
         emit(start, frame(480 + over, over, 48), List.of());
-        emit(half, frame(480 + over + 210, over + 210, 48), List.of());
-        assertEquals(0, emit(end, frame(480 + over + 220, over + 220, 48), List.of()));
+        emit(half, frame(480 + over + 240, over + 240, 48), List.of());
+        assertEquals(0, emit(end, frame(480 + over + 250, over + 250, 48), List.of()));
         assertTrue(half.vertices.stream().mapToDouble(p -> p[3]).max().orElseThrow()
                 < start.vertices.stream().mapToDouble(p -> p[3]).max().orElseThrow());
     }
@@ -291,10 +291,10 @@ class SilentGateVisualTest {
         double firstStart = 1e9, lastEnd = 0;
         for (int i = 0; i < n; i++) {
             assertEquals(1, GateMinor.formed(i, 700, 0), 0); assertEquals(1, GateMinor.formed(i, 700, 24.9), 0);
-            assertEquals(0, GateMinor.formed(i, 700, 90), 0, "every circle is gone by 90");
+            assertEquals(0, GateMinor.formed(i, 700, SilentGateSequence.END_RETRACT_TO), 0, "every circle is gone by the end of the retract");
             double start = GateMinor.unwriteStart(i);
             firstStart = Math.min(firstStart, start); lastEnd = Math.max(lastEnd, start + GateMinor.FORM);
-            assertTrue(start >= 25 && start + GateMinor.FORM <= 90, "circle " + i + " is unwritten inside 25..90: " + start);
+            assertTrue(start >= SilentGateSequence.END_RETRACT_FROM && start + GateMinor.FORM <= SilentGateSequence.END_RETRACT_TO, "circle " + i + " is unwritten inside the retract: " + start);
             // The reverse of the writing: the same stages run backwards.
             assertEquals(.3, GateMinor.formed(i, 700, start + GateMinor.FORM * .7), 1e-9);
         }
@@ -402,12 +402,12 @@ class SilentGateVisualTest {
         GateCircles.great(none, ANCHOR, SilentGateSequence.gateCenter(ANCHOR, 0f), 60, -1);
         assertTrue(thread.quads > 0 && none.quads == 0);
         assertEquals(1, GateCircles.scale(4, 480, 100), 1e-12, "untouched until the ending dissolves it");
-        // The ending: tiers shrink to the centre, outer first, all gone by 220.
-        assertTrue(GateCircles.scale(4, 560, 172) < GateCircles.scale(0, 560, 172));
-        for (int i = 0; i < tiers; i++) assertEquals(0, GateCircles.scale(i, 700, 220), 0);
+        // The ending: tiers shrink to the centre, outer first, all gone by its end.
+        assertTrue(GateCircles.scale(4, 560, 202) < GateCircles.scale(0, 560, 202));
+        for (int i = 0; i < tiers; i++) assertEquals(0, GateCircles.scale(i, 700, SilentGateSequence.ENDING_TICKS), 0);
         // Geometry: the mesh really turns from one tick to the next (also while it shrinks) and shrinks to the centre.
         Vec3 gate = SilentGateSequence.gateCenter(ANCHOR, 0f);
-        for (double[] ae : new double[][]{{300, -1}, {600, 170}, {640, 190}}) {
+        for (double[] ae : new double[][]{{300, -1}, {600, 200}, {640, 220}}) {
             Mesh a = new Mesh(), b = new Mesh();
             GateCircles.great(ctx(a, new Vec3(0, 130, -120), 0), ANCHOR, gate, ae[0], ae[1]);
             GateCircles.great(ctx(b, new Vec3(0, 130, -120), 0), ANCHOR, gate, ae[0] + 1, ae[1] < 0 ? -1 : ae[1] + 1);
@@ -416,7 +416,7 @@ class SilentGateVisualTest {
             for (int k = 0; k < a.vertices.size() && !moved; k++) moved = Math.abs(a.vertices.get(k)[0] - b.vertices.get(k)[0]) > 1e-4 || Math.abs(a.vertices.get(k)[2] - b.vertices.get(k)[2]) > 1e-4;
             assertTrue(moved, "turning at " + ae[0] + "/" + ae[1]);
         }
-        double rStart = maxRadius(480, 150, gate), rMid = maxRadius(560, 175, gate), rEnd = maxRadius(600, 200, gate);
+        double rStart = maxRadius(480, 180, gate), rMid = maxRadius(560, 205, gate), rEnd = maxRadius(600, 230, gate);
         assertTrue(rStart > 150 && rMid < rStart * .9 && rEnd < rMid && rEnd < 120, "dissolves toward the centre: " + rStart + " " + rMid + " " + rEnd);
     }
     private double maxRadius(double age, double e, Vec3 gate) {

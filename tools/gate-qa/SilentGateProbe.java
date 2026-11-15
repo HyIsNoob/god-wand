@@ -1,4 +1,4 @@
-﻿package net.godwand.qa;
+package net.godwand.qa;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -81,7 +81,8 @@ public final class SilentGateProbe implements ClientModInitializer {
             if (Files.exists(c.gameDirectory.toPath().getParent().resolve("nocrater"))) GodWandConfig.SERVER.gateTerrainDamage = false;
             c.getWindow().setWindowed(1280, 720);
             c.getWindow().setTitle("God Wand 1.5.0 - Silent Gate QA");
-            c.options.framerateLimit().set(60); c.options.renderDistance().set(16);
+            // build/fuga-qa/rd8: the owner's render distance (8), where far shots leave the loaded chunks.
+            c.options.framerateLimit().set(60); c.options.renderDistance().set(Files.exists(c.gameDirectory.toPath().getParent().resolve("rd8")) ? 8 : 16);
             c.options.guiScale().set(2); c.options.setCameraType(CameraType.FIRST_PERSON); c.options.broadcastOptions();
             GodWandConfig.CLIENT.gateCutscene = true;
             server.submit(() -> {
