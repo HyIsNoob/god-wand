@@ -127,7 +127,8 @@ public final class SilentGateProbe implements ClientModInitializer {
         if (stage == 3) { aftermath(c, server); return; }
         if (stage != 2) return;
         int age = ticks - clickAt;
-        if (age > 1200) throw new AssertionError("Gate QA timeout");
+        // Build 480 + wait + barrage 372 + ending 290 + return 15, with room to spare.
+        if (age > 1500) throw new AssertionError("Gate QA timeout");
         var f = SilentGateRenderer.localFrame(0);
         if (f != null) sawFrame = true;
         if (f == null && !sawFrame) return;

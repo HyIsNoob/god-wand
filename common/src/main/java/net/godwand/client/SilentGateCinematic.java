@@ -595,24 +595,16 @@ public final class SilentGateCinematic {
         return d < HIT_STOP_TICKS ? hit + d * HIT_STOP_SPEED : now - HIT_STOP_TICKS * (1 - HIT_STOP_SPEED);
     }
 
-    /** The scope bars breathe with the scene (they are drawn in the world pass, so light can fly over them): the share of the frame's height each bar covers.
-     *  Shut at the first frame, they part like a curtain; 2.39:1 as a rule; squeezed for a beat by the touchdown; drawn wide open while the doorway floods the
-     *  frame; squeezed again while the kill beam gathers and thrown open by its hit; and drawn back as the camera returns to the player. */
+    /** The scope bars: the share of the frame's height each bar covers (they are drawn in the world pass, so light can fly over them). Shut at the first frame,
+     *  they part like a curtain and close again as the camera returns to the player; in between they change only at a cut, never inside a shot (owner,
+     *  2026-11-15: they kept pulling in and out). 2.2:1 as a rule; more open for the doors and the canopy and for the shot up from the caster's feet. */
     static double bar(double age, double commandAge, double sinceHit, int barrageTicks, double frameAspect) {
-        // Owner, 2026-11-15: thinner bars overall (2.2:1, not 2.39:1), and every change of them slow: no jumps.
         double aspect = 2.2, k = 1;
         if (commandAge < 0) {
-            double d = age - SilentGateSequence.DESCENT_END;
-            aspect += .16 * smooth(d, -2, 6) * Math.exp(-Math.max(0, d - 6) / 14);
-            // The frame opens up for the doors and stays open through the canopy.
-            aspect -= .25 * smooth(age, SilentGateSequence.OPEN_END - 40, SilentGateSequence.OPEN_END + 10) * (1 - smooth(age, CANOPY_TO - 30, CANOPY_TO + 20));
+            if (age >= ORBIT_FROM && age < CANOPY_TO) aspect = 1.95;
         } else {
-            // Thinner bars in the shot from the caster's feet up into the rain (owner, 2026-11-15: see more of it).
             double tb = commandAge < SilentGateSequence.ACTIVATE_TICKS ? commandAge : SilentGateSequence.ACTIVATE_TICKS + (commandAge - SilentGateSequence.ACTIVATE_TICKS) * 200.0 / barrageTicks;
-            aspect -= .3 * smooth(tb, 14, 34) * (1 - smooth(tb, 44, 60));
-            int kill = SilentGateSequence.shotTick(SilentGateSequence.KILL_TICK, barrageTicks);
-            if (sinceHit >= 0) { double o = smooth(sinceHit, 0, 10); aspect += .2 * (1 - o) - .2 * o * Math.exp(-Math.max(0, sinceHit - 10) / 25); }
-            else aspect += .2 * smooth(commandAge, kill - 24, kill - 4) * (1 - smooth(commandAge, kill + 6, kill + 20));
+            if (tb >= 14 && tb < 60) aspect = 1.9;
             int end = SilentGateSequence.endTick(barrageTicks);
             if (commandAge > end - 10) k = 1 - smooth(commandAge, end - 10, end + SilentGateSequence.RETURN_TICKS);
         }

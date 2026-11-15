@@ -117,7 +117,7 @@ class SilentGateSequenceTest {
     @Test
     void buildIsThreeHundredAndSixtyTicksOfDirection() {
         assertEquals(480, SilentGateSequence.BUILD_TICKS);
-        assertEquals(250, SilentGateSequence.ENDING_TICKS);
+        assertEquals(290, SilentGateSequence.ENDING_TICKS);
         assertTrue(SilentGateSequence.STUCK_END - SilentGateSequence.OPEN_START >= 20, "stuck at least 1 s");
         assertTrue(SilentGateSequence.OPEN_END - SilentGateSequence.STUCK_END >= 45, "separation 365..412");
         assertTrue(SilentGateSequence.OPEN_END - SilentGateSequence.OPEN_FAST_END >= 15, "a long creep into the stop");
@@ -167,8 +167,8 @@ class SilentGateSequenceTest {
         }
         assertTrue(first < .02, "it starts slowly: " + first);
         assertEquals(0, SilentGateSequence.gateRise(74), 0);
-        assertEquals(2.2, SilentGateSequence.gateRise(SilentGateSequence.END_RISE_TO), 1e-9);
-        assertTrue(SilentGateSequence.END_RISE_TO - SilentGateSequence.END_RISE_FROM >= 90, "the gate climbs back slowly");
+        assertEquals(1.2, SilentGateSequence.gateRise(SilentGateSequence.END_RISE_TO), 1e-9);
+        assertTrue(SilentGateSequence.END_RISE_TO - SilentGateSequence.END_RISE_FROM >= 130, "the gate climbs back slowly (owner, 2026-11-15)");
         assertTrue(SilentGateSequence.gateRise(SilentGateSequence.END_RISE_FROM) < .1, "slow start");
         assertTrue(SilentGateSequence.END_CLOSE >= 70, "the doors close slowly (owner, 2026-11-15)");
         assertTrue(SilentGateSequence.END_RISE_FROM >= SilentGateSequence.END_CLOSE, "the gate climbs only when the doors are shut");
@@ -207,7 +207,7 @@ class SilentGateSequenceTest {
     void shotTicksScaleWithBarrage() {
         assertEquals(140, SilentGateSequence.shotTick(140, 200));
         assertEquals(268, SilentGateSequence.shotTick(140, 400));
-        assertEquals(462, SilentGateSequence.endTick(200));
+        assertEquals(502, SilentGateSequence.endTick(200));
     }
 
     @Test
@@ -263,8 +263,10 @@ class SilentGateSequenceTest {
     @Test void theCrackStaysOpenUntilTheGateHasGoneIn() {
         assertEquals(0, SilentGateSequence.endSlit(0), 0);
         assertEquals(0, SilentGateSequence.endSlit(SilentGateSequence.ENDING_TICKS), 1e-9);
-        // Open from the start of the climb until the gate has faded into the crack (rise 2.05).
-        for (double e = SilentGateSequence.END_RISE_FROM; e < SilentGateSequence.ENDING_TICKS; e += 2)
-            if (SilentGateSequence.gateRise(e) < 2.05) assertTrue(SilentGateSequence.endSlit(e) > .99, "open at " + e);
+        // Open from the start of the climb until the gate has gone through it (rise 1), shut soon after.
+        for (double e = SilentGateSequence.END_RISE_FROM; e < SilentGateSequence.ENDING_TICKS; e += 2) {
+            if (SilentGateSequence.gateRise(e) < 1) assertTrue(SilentGateSequence.endSlit(e) > .99, "open at " + e);
+            if (SilentGateSequence.gateRise(e) > 1.18) assertEquals(0, SilentGateSequence.endSlit(e), 0, "shut at " + e);
+        }
     }
 }

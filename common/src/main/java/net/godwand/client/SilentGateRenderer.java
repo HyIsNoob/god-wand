@@ -412,7 +412,7 @@ public final class SilentGateRenderer {
     private static void gate(Ctx c, Vec3 anchor, float yaw, double age, double commandAge, double e, boolean front) {
         double endK = e < 0 ? 0 : clamp01(e / SilentGateSequence.ENDING_TICKS);
         double descent = SilentGateSequence.gateDescent(age), rise = e < 0 ? 0 : SilentGateSequence.gateRise(e);
-        double fadeOut = e < 0 ? 1 : 1 - smooth((rise - 1.15) / .9);
+        double fadeOut = e < 0 ? 1 : 1 - smooth((rise - 1) / .2);
         double appear = smooth((age - SilentGateSequence.DESCENT_START) / 8);
         double slit = e < 0 ? smooth((age - SilentGateSequence.SLIT_START) / 14) * (1 - smooth((age - SilentGateSequence.DESCENT_END + 6) / 14)) : SilentGateSequence.endSlit(e);
         // The gate comes down out of a crack in the sky: a slit of light in the great circle's plane, across the gate's width. Above that plane the gate is not there yet.

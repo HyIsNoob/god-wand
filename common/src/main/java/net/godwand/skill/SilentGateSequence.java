@@ -6,7 +6,7 @@ import java.util.SplittableRandom;
 
 /** Silent Gate clocks, layout and barrage schedule. Pure functions shared by server and client. */
 public final class SilentGateSequence {
-    public static final int BUILD_TICKS = 480, ACTIVATE_TICKS = 12, ENDING_TICKS = 250, RETURN_TICKS = 15;
+    public static final int BUILD_TICKS = 480, ACTIVATE_TICKS = 12, ENDING_TICKS = 290, RETURN_TICKS = 15;
     /** Build beats (ticks from click 1), script v7: the caster raises a hand to the wand (0..70); the great circle is written 70..142 (tiers from the centre out);
      *  the sky splits 142..158; the gate comes out and down 158..220 (slowly: it is heavy; the view shakes, the gate does not), settles to 230, shockwave and wings 236; back on the caster 258..340 (the "shh", the wand
      *  spun, the discs behind); doors stuck 340..365, pushed apart 365..412 (heavy stop 412); the small circles bloom only 420..470. */
@@ -14,8 +14,8 @@ public final class SilentGateSequence {
     public static final int DESCENT_START = 158, DESCENT_END = 220, SETTLE_END = 230, SHOCK = 236, OPEN_START = 340, STUCK_END = 365,
             OPEN_FAST_END = 395, OPEN_END = 412, BLOOM_START = 420, BLOOM_END = 470;
     /** Ending (ticks after the barrage): doors close 0..70 (owner, 2026-11-15: slower), small circles shrink in place 55..120, the gate climbs slowly into the
-     *  great circle 110..200 (owner, 2026-11-15: "slower"), the great circle dissolves tier by tier 190..250 (each tier shrinks to its centre while it keeps turning). */
-    public static final int END_CLOSE = 70, END_RETRACT_FROM = 55, END_RETRACT_TO = 120, END_RISE_FROM = 110, END_RISE_TO = 200, END_UNWRITE_FROM = 190;
+     *  great circle 110..240 (owner, 2026-11-15, twice: "slower"), the great circle dissolves tier by tier 230..290 (each tier shrinks to its centre while it keeps turning). */
+    public static final int END_CLOSE = 70, END_RETRACT_FROM = 55, END_RETRACT_TO = 120, END_RISE_FROM = 110, END_RISE_TO = 240, END_UNWRITE_FROM = 230;
     /** Everything in the sky is built at SCALE times its design size, to stand next to Fuga and Atomic. */
     public static final double SCALE = 4;
     /** Gate design units (multiply by SCALE for blocks): frame 64 tall (finials reach 74), 36 wide over the outer columns, 22x44 door opening. */
@@ -166,12 +166,14 @@ public final class SilentGateSequence {
 
     /** Ending: the crack in the sky, open from just before the gate climbs until it has gone in (owner, 2026-11-15: it closed before the gate was taken). */
     public static double endSlit(double e) {
-        return smooth((e - END_RISE_FROM + 18) / 16) * (1 - smooth((e - END_RISE_TO + 8) / 18));
+        // At a rise of 1 the gate is back where it came out of the crack: wholly above it.
+        return smooth((e - END_RISE_FROM + 18) / 16) * (1 - smooth((gateRise(e) - 1) / .18));
     }
 
-    /** Ending: how far above its landed place the gate has climbed, in descent units (2 = at the great circle's plane); starts slowly. */
+    /** Ending: how far above its landed place the gate has climbed, in descent units (1 = back above the crack it came out of); starts slowly. It climbs
+     *  only just past the crack, so the whole climb is seen (owner, 2026-11-15: it went up too fast). */
     public static double gateRise(double e) {
-        return 2.2 * smooth((e - END_RISE_FROM) / (END_RISE_TO - END_RISE_FROM));
+        return 1.2 * smooth((e - END_RISE_FROM) / (END_RISE_TO - END_RISE_FROM));
     }
 
     /** Each circle fires every 25..36 ticks with its own phase, so the sky never pulses in unison. */

@@ -315,9 +315,9 @@ class SilentGateCinematicTest {
             assertEquals(0, p.position().distanceTo(pos(142)), 20, "E3 is the far camera of the gate");
             assertTrue(inFrame(p, SilentGateSequence.gateFoot(PLAYER, 0f, SilentGateSequence.gateRise(e)).add(0, 40 * SilentGateSequence.SCALE, 0), SilentGateCinematic.lens(700, endB + e, 200)), "the climbing gate is in frame at " + e);
         }
-        for (double e = 206; e < 250; e += 6) assertTrue(inFrame(barrage(endB + e, 200), circleCentre, SilentGateCinematic.lens(700, endB + e, 200)), "E3 ends on the great circle at " + e);
+        for (double e = 246; e < 290; e += 6) assertTrue(inFrame(barrage(endB + e, 200), circleCentre, SilentGateCinematic.lens(700, endB + e, 200)), "E3 ends on the great circle at " + e);
         int end = SilentGateSequence.endTick(200);
-        assertEquals(462, end);
+        assertEquals(502, end);
         assertNotNull(barrage(end + 15 - .01, 200));
         assertNull(barrage(end + 15, 200));
         int end4 = SilentGateSequence.endTick(400);
