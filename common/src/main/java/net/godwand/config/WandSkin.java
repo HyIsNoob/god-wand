@@ -6,7 +6,8 @@ public enum WandSkin {
     AUTO("auto", "skin.godwand.auto"),
     DEFAULT("default", "skin.godwand.default"),
     AQUA_HEARTIA("aqua_heartia", "skin.godwand.aqua_heartia"),
-    SHADOW_BLADE("shadow_blade", "skin.godwand.shadow_blade");
+    SHADOW_BLADE("shadow_blade", "skin.godwand.shadow_blade"),
+    SILENT_WITCH("silent_witch", "skin.godwand.silent_witch");
 
     private final String id;
     private final String translationKey;

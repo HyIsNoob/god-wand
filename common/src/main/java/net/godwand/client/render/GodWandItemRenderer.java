@@ -6,6 +6,7 @@ import net.godwand.GodWandMod;
 import net.godwand.client.model.AquaHeartiaModel;
 import net.godwand.client.model.GodWandModel;
 import net.godwand.client.model.ShadowBladeModel;
+import net.godwand.client.model.SilentWitchModel;
 import net.godwand.config.GodWandConfig;
 import net.godwand.config.WandSkin;
 import net.godwand.item.GodWandItem;
@@ -21,6 +22,7 @@ public class GodWandItemRenderer {
     private final GodWandModel model;
     private final AquaHeartiaModel aquaHeartiaModel;
     private final ShadowBladeModel shadowBladeModel;
+    private final SilentWitchModel silentWitchModel;
     private static ItemStack chargingStack, releasedStack;
     private static float previousCharge;
     private static long releaseTick = -100;
@@ -74,6 +76,7 @@ public class GodWandItemRenderer {
         this.model = new GodWandModel(GodWandModel.getTexturedModelData().bakeRoot());
         this.aquaHeartiaModel = new AquaHeartiaModel(AquaHeartiaModel.getTexturedModelData().bakeRoot());
         this.shadowBladeModel = new ShadowBladeModel(ShadowBladeModel.getTexturedModelData().bakeRoot());
+        this.silentWitchModel = new SilentWitchModel(SilentWitchModel.getTexturedModelData().bakeRoot());
     }
 
     public void render(ItemStack stack, ItemDisplayContext mode, PoseStack matrices,
@@ -135,6 +138,12 @@ public class GodWandItemRenderer {
                     *(1-net.godwand.skill.AtomicSequence.phase(swordFrame.age(),734,774));
             this.shadowBladeModel.setupProceduralAnimations(time, bladePower, currentMode);
             this.shadowBladeModel.renderBlade(matrices,
+                    () -> vertexConsumers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE)),
+                    () -> vertexConsumers.getBuffer(RenderType.entityTranslucentEmissive(TEXTURE)),
+                    light, overlay, coreColor(currentMode, chargeRatio));
+        } else if (activeSkin == WandSkin.SILENT_WITCH) {
+            this.silentWitchModel.setupProceduralAnimations(time, chargeRatio, currentMode);
+            this.silentWitchModel.renderWand(matrices,
                     () -> vertexConsumers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE)),
                     () -> vertexConsumers.getBuffer(RenderType.entityTranslucentEmissive(TEXTURE)),
                     light, overlay, coreColor(currentMode, chargeRatio));
@@ -251,11 +260,26 @@ public class GodWandItemRenderer {
         return 0.0F;
     }
 
-    /** Silent Gate: the default wand model with no display transform, glowing in the mana colours; the caller places and scales it. */
+    /** Silent Gate: the Silent Witch wand model (or manual skin override) with no display transform; the caller places and scales it. */
     public void renderFloating(PoseStack matrices, MultiBufferSource buffers, int light, float time) {
-        this.model.setupProceduralAnimations(time, .6f, GodWandItem.MODE_SILENT_GATE);
-        this.model.renderWand(matrices, () -> buffers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE)),
-                () -> buffers.getBuffer(RenderType.entityTranslucentEmissive(TEXTURE)), light,
-                net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, 0xFF5CD8FF);
+        int noOverlay = net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
+        WandSkin activeSkin = GodWandConfig.CLIENT.getActiveSkin(GodWandItem.MODE_SILENT_GATE);
+        if (activeSkin == WandSkin.AQUA_HEARTIA) {
+            this.aquaHeartiaModel.setupProceduralAnimations(time, .6f, GodWandItem.MODE_SILENT_GATE);
+            this.aquaHeartiaModel.renderWand(matrices, () -> buffers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE)),
+                    () -> buffers.getBuffer(RenderType.entityTranslucentEmissive(TEXTURE)), light, noOverlay, 0xFF5CD8FF);
+        } else if (activeSkin == WandSkin.SHADOW_BLADE) {
+            this.shadowBladeModel.setupProceduralAnimations(time, .6f, GodWandItem.MODE_SILENT_GATE);
+            this.shadowBladeModel.renderBlade(matrices, () -> buffers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE)),
+                    () -> buffers.getBuffer(RenderType.entityTranslucentEmissive(TEXTURE)), light, noOverlay, 0xFF5CD8FF);
+        } else if (activeSkin == WandSkin.DEFAULT) {
+            this.model.setupProceduralAnimations(time, .6f, GodWandItem.MODE_SILENT_GATE);
+            this.model.renderWand(matrices, () -> buffers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE)),
+                    () -> buffers.getBuffer(RenderType.entityTranslucentEmissive(TEXTURE)), light, noOverlay, 0xFF5CD8FF);
+        } else {
+            this.silentWitchModel.setupProceduralAnimations(time, .6f, GodWandItem.MODE_SILENT_GATE);
+            this.silentWitchModel.renderWand(matrices, () -> buffers.getBuffer(RenderType.entityCutoutNoCull(TEXTURE)),
+                    () -> buffers.getBuffer(RenderType.entityTranslucentEmissive(TEXTURE)), light, noOverlay, 0xFF5CD8FF);
+        }
     }
 }

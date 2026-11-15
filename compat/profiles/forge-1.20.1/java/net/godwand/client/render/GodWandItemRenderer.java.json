@@ -2,8 +2,8 @@
   "reason": "Explicit version/loader API adapter",
   "changes": [
     {
-      "before": "import net.minecraft.world.item.ItemStack;\n\npublic class GodWandItemRenderer {\n    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(GodWandMod.MOD_ID, \"textures/item/eclipse_materials.png\");\n    private final GodWandModel model;\n    private final AquaHeartiaModel aquaHeartiaModel;\n    private final ShadowBladeModel shadowBladeModel;\n",
-      "after": "import net.minecraft.world.item.ItemStack;\n\npublic class GodWandItemRenderer {\n    private static final ResourceLocation TEXTURE = new ResourceLocation(GodWandMod.MOD_ID, \"textures/item/eclipse_materials.png\");\n    private final GodWandModel model;\n    private final AquaHeartiaModel aquaHeartiaModel;\n    private final ShadowBladeModel shadowBladeModel;\n"
+      "before": "import net.minecraft.world.item.ItemStack;\n\npublic class GodWandItemRenderer {\n    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(GodWandMod.MOD_ID, \"textures/item/eclipse_materials.png\");\n    private final GodWandModel model;\n    private final AquaHeartiaModel aquaHeartiaModel;\n    private final ShadowBladeModel shadowBladeModel;\n    private final SilentWitchModel silentWitchModel;\n",
+      "after": "import net.minecraft.world.item.ItemStack;\n\npublic class GodWandItemRenderer {\n    private static final ResourceLocation TEXTURE = new ResourceLocation(GodWandMod.MOD_ID, \"textures/item/eclipse_materials.png\");\n    private final GodWandModel model;\n    private final AquaHeartiaModel aquaHeartiaModel;\n    private final ShadowBladeModel shadowBladeModel;\n    private final SilentWitchModel silentWitchModel;\n"
     },
     {
       "before": "            case 5 -> 0xD950FF;\n            default -> 0xFF2D55;\n        };\n        float t = .28f + Math.clamp(charge, 0, 1) * .72f;\n        int color = 0xFF000000;\n        for (int shift : new int[]{16, 8, 0}) {\n            int idle = (0xFF2048 >> shift) & 255;\n",

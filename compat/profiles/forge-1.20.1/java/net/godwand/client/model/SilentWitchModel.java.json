@@ -1,0 +1,13 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "    }\n\n    @Override\n    public void renderToBuffer(PoseStack matrices, VertexConsumer vertexConsumer, int light, int overlay, int color) {\n        renderQuads(matrices, vertexConsumer, GOLD_MAIN_QUADS, light, overlay, GOLD_MAIN);\n",
+      "after": "    }\n\n    @Override\n    public void renderToBuffer(PoseStack matrices, VertexConsumer vertexConsumer, int light, int overlay, float red, float green, float blue, float alpha) {\n        renderQuads(matrices, vertexConsumer, GOLD_MAIN_QUADS, light, overlay, GOLD_MAIN);\n"
+    },
+    {
+      "before": "        int g = (color >> 8) & 0xFF;\n        int b = color & 0xFF;\n\n        vertices.addVertex(pose, p0.x(), p0.y(), p0.z()).setColor(r, g, b, a).setUv(u0, v0)\n                .setOverlay(overlay).setLight(light).setNormal(entry, nx, ny, nz);\n        vertices.addVertex(pose, p1.x(), p1.y(), p1.z()).setColor(r, g, b, a).setUv(u0, v1)\n                .setOverlay(overlay).setLight(light).setNormal(entry, nx, ny, nz);\n        vertices.addVertex(pose, p2.x(), p2.y(), p2.z()).setColor(r, g, b, a).setUv(u1, v1)\n                .setOverlay(overlay).setLight(light).setNormal(entry, nx, ny, nz);\n        vertices.addVertex(pose, p3.x(), p3.y(), p3.z()).setColor(r, g, b, a).setUv(u1, v0)\n                .setOverlay(overlay).setLight(light).setNormal(entry, nx, ny, nz);\n    }\n\n    private static Vector3f pt(float x, float y, float z) {\n",
+      "after": "        int g = (color >> 8) & 0xFF;\n        int b = color & 0xFF;\n\n        vertices.vertex(pose, p0.x(), p0.y(), p0.z()).color(r, g, b, a).uv(u0, v0)\n                .overlayCoords(overlay).uv2(light).normal(entry.normal(), nx, ny, nz).endVertex();\n        vertices.vertex(pose, p1.x(), p1.y(), p1.z()).color(r, g, b, a).uv(u0, v1)\n                .overlayCoords(overlay).uv2(light).normal(entry.normal(), nx, ny, nz).endVertex();\n        vertices.vertex(pose, p2.x(), p2.y(), p2.z()).color(r, g, b, a).uv(u1, v1)\n                .overlayCoords(overlay).uv2(light).normal(entry.normal(), nx, ny, nz).endVertex();\n        vertices.vertex(pose, p3.x(), p3.y(), p3.z()).color(r, g, b, a).uv(u1, v0)\n                .overlayCoords(overlay).uv2(light).normal(entry.normal(), nx, ny, nz).endVertex();\n    }\n\n    private static Vector3f pt(float x, float y, float z) {\n"
+    }
+  ]
+}
