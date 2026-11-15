@@ -173,6 +173,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             AtomicRenderer.tick(client);
             net.godwand.client.FugaRenderer.tick(client);
             net.godwand.client.SilentGateRenderer.tick(client);
+            net.godwand.client.BlueRedInput.tick(client);
             net.godwand.client.FugaCinematic.tick(client);
             net.godwand.client.SilentGateCinematic.tick(client);
             net.godwand.client.SkillCooldownClient.tick(client);
@@ -189,6 +190,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             AtomicRenderer.reset();
             net.godwand.client.FugaRenderer.reset();
             net.godwand.client.SilentGateRenderer.reset();
+            net.godwand.client.BlueRedInput.reset();
             net.godwand.client.FugaCinematic.reset();
             net.godwand.client.SilentGateCinematic.reset();
             DrillWindRenderer.reset();
@@ -208,6 +210,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             AtomicRenderer.reset();
             net.godwand.client.FugaRenderer.reset();
             net.godwand.client.SilentGateRenderer.reset();
+            net.godwand.client.BlueRedInput.reset();
             net.godwand.client.FugaCinematic.reset();
             net.godwand.client.SilentGateCinematic.reset();
             StoneCannonWindSound.reset();

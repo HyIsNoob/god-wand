@@ -23,7 +23,8 @@
     "PostEffectProcessorAccessor",
     "AtomicInputMixin",
     "AtomicLocalMovementMixin",
-    "SkillCooldownUseMixin"
+    "SkillCooldownUseMixin",
+    "BlueRedAttackMixin"
   ],
   "injectors": {
     "defaultRequire": 1
