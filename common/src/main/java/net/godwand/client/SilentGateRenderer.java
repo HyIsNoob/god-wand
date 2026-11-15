@@ -42,7 +42,7 @@ public final class SilentGateRenderer {
         Vec3 anchor;
         float yaw;
         long seed;
-        final ArrayDeque<Shot> shots = new ArrayDeque<>();
+        final java.util.LinkedList<Shot> shots = new java.util.LinkedList<>();
     }
     private static final Map<Integer, Cast> CASTS = new LinkedHashMap<>();
     // Newest cast and the cast last cancelled per caster, so late or reordered packets cannot resurrect anything.
@@ -85,6 +85,22 @@ public final class SilentGateRenderer {
     }
 
     private static void trim(Cast cast, long now) { cast.shots.removeIf(s -> now - s.tick() > SHOT_MEMORY_TICKS); }
+
+    /** The kill beam is aimed where its target stood when it began to gather; a flyer (a phantom, a dragon) is well away by the time it lands, so the beam,
+     *  its strike and the kill shot's impact frame went to empty air. Until the beam lands its end follows the featured target ({@code centre} by entity id,
+     *  null when this client does not see it); after that it stays where it struck. */
+    static void followKillTargets(long now, java.util.function.IntFunction<Vec3> centre) {
+        for (Cast cast : CASTS.values()) {
+            if (cast.featured < 0) continue;
+            Vec3 at = null;
+            for (var it = cast.shots.listIterator(); it.hasNext(); ) {
+                Shot s = it.next();
+                if (!s.heavy() || now >= s.tick() + SilentGateSequence.HEAVY_CHARGE + GateBeams.FALL_TICKS) continue;
+                if (at == null && (at = centre.apply(cast.featured)) == null) break;
+                it.set(new Shot(s.circle(), at, s.tick(), true));
+            }
+        }
+    }
 
     /** Past this the camera is released and the cast is forgotten. */
     private static boolean over(Cast cast, double now) {
@@ -483,6 +499,7 @@ public final class SilentGateRenderer {
             return gone;
         });
         CASTS.values().forEach(c -> trim(c, now));
+        followKillTargets(now, id -> world.getEntity(id) instanceof net.minecraft.world.entity.LivingEntity e ? e.getBoundingBox().getCenter() : null);
         GateMana.tick(frames(0), world);
         SilentGateSoundscape.tick(client, frames(0));
         // The cast brings its own night (this viewer's sky only; the server's clock is never touched).

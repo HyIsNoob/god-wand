@@ -389,6 +389,18 @@ class SilentGateCinematicTest {
         assertTrue(lock.present());
     }
 
+    @Test void killBeamFollowsAFlyingTargetUntilItLands() {
+        int barrage = SilentGateSequence.Phase.BARRAGE.ordinal(), heavy = SilentGatePayload.HEAVY + 3;
+        SilentGateRenderer.accept(new SilentGatePayload(9, 5000, 5000, barrage, 4, 70, 8, 0f, 7L, 48, 200, new int[]{heavy}, new double[]{10, 90, 40}, 77), 5100);
+        SilentGateRenderer.followKillTargets(5104, id -> null);
+        assertEquals(new Vec3(10, 90, 40), SilentGateRenderer.shots(9).get(0).hit(), "target not seen by this client: the server's aim stands");
+        SilentGateRenderer.followKillTargets(5105, id -> id == 77 ? new Vec3(30, 95, 60) : null);
+        assertEquals(new Vec3(30, 95, 60), SilentGateRenderer.shots(9).get(0).hit(), "the phantom flew on: the beam follows it");
+        SilentGateRenderer.followKillTargets(5100 + SilentGateSequence.HEAVY_CHARGE + 3, id -> new Vec3(99, 99, 99));
+        assertEquals(new Vec3(30, 95, 60), SilentGateRenderer.shots(9).get(0).hit(), "landed: the strike stays where it struck");
+        SilentGateRenderer.accept(new SilentGatePayload(9, 5000, 5000, SilentGatePayload.CANCEL, 4, 70, 8, 0f, 7L, 48, 200, new int[0], new double[0]), 5130);
+    }
+
     @Test void killShotKeepsTheSameTargetForItsWholeWindow() {
         var lock = new SilentGateCinematic.KillLock();
         var zombie = new SilentGateCinematic.Candidate(1, 20, new Vec3(0, 70, 30));
