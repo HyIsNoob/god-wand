@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public record SkillCooldownPayload(int mode,int durationTicks,int remainingTicks,boolean recall) implements CustomPacketPayload {
     public SkillCooldownPayload {
-        if(mode<0||mode>=GodWandItem.TOTAL_MODES||durationTicks<0||durationTicks>SkillCooldownState.MAX_TICKS||remainingTicks<0||remainingTicks>durationTicks||recall&&mode!=1)throw new IllegalArgumentException("Invalid skill cooldown packet");
+        if(mode<0||mode>=net.godwand.skill.SkillCooldownState.SLOTS||durationTicks<0||durationTicks>SkillCooldownState.MAX_TICKS||remainingTicks<0||remainingTicks>durationTicks||recall&&mode!=1)throw new IllegalArgumentException("Invalid skill cooldown packet");
     }
     public static final Type<SkillCooldownPayload> ID=new Type<>(ResourceLocation.fromNamespaceAndPath("godwand","skill_cooldown"));
     public static final StreamCodec<RegistryFriendlyByteBuf,SkillCooldownPayload> CODEC=new StreamCodec<>() {

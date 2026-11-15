@@ -38,6 +38,8 @@
   "skill.godwand.6": "Fuga",
   "gui.godwand.config.fuga_cutscene": "Fuga Cutscene",
   "skill.godwand.7": "Silent Gate",
+  "skill.godwand.8": "Blue / Red",
+  "skill.godwand.9": "Red",
   "gui.godwand.config.gate_cutscene": "Silent Gate Cutscene",
   "message.godwand.gate_command": "Right-click to command the gate",
   "message.godwand.gate_cancel": "Sneak to stop the spell",

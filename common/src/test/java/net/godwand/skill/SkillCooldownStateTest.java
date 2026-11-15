@@ -14,7 +14,12 @@ class SkillCooldownStateTest {
   var otherPlayer=new SkillCooldownState();assertEquals(0,otherPlayer.remaining(5,100));
  }
  @Test void rejectsInvalidSkillAndTimerBounds() {
-  var timers=new SkillCooldownState();assertThrows(IllegalArgumentException.class,()->timers.set(8,20,20,0));
+  var timers=new SkillCooldownState();assertThrows(IllegalArgumentException.class,()->timers.set(SkillCooldownState.SLOTS,20,20,0));
   assertThrows(IllegalArgumentException.class,()->timers.set(0,20,21,0));assertThrows(IllegalArgumentException.class,()->timers.set(0,-1,0,0));
+ }
+ @Test void redSlotIsIndependent() {
+  assertEquals(9,SkillCooldownState.RED_SLOT);assertEquals(10,SkillCooldownState.SLOTS);
+  var timers=new SkillCooldownState();timers.set(SkillCooldownState.RED_SLOT,80,80,0);
+  assertEquals(70,timers.remaining(9,10));assertEquals(0,timers.remaining(8,10));
  }
 }

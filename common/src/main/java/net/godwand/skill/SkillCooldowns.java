@@ -25,7 +25,7 @@ public final class SkillCooldowns {
     }
     public static void reset(ServerPlayer player) {
         STATES.remove(player);
-        for(int mode=0;mode<net.godwand.item.GodWandItem.TOTAL_MODES;mode++)sync(player,mode);
+        for(int mode=0;mode<SkillCooldownState.SLOTS;mode++)sync(player,mode);
     }
     public static boolean ready(Player user,int mode) {
         if(!(user instanceof ServerPlayer player))return true;

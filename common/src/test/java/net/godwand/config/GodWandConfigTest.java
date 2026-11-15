@@ -61,6 +61,19 @@ class GodWandConfigTest {
         } finally { GodWandConfig.SERVER=previous; }
     }
 
+    @Test void blueRedClamps() {
+        var previous=GodWandConfig.SERVER;
+        try {
+            var s=new GodWandConfig.Server();GodWandConfig.SERVER=s;s.cooldownMultiplier=1;
+            assertEquals(60,GodWandConfig.skillCooldownTicks(8,1));assertEquals(80,GodWandConfig.skillCooldownTicks(9,1));
+            assertEquals(1200,s.purpleCooldownTicks);assertEquals(50,s.blueReadyDamage);assertEquals(24,s.purpleRadius);
+            s.blueReadyDamage=-1;s.purpleRadius=999;s.redRange=0;s.blueCoreDamage=Float.NaN;s.bluePullRadius=99;s.redChargeTicks=1;s.validate();
+            assertTrue(s.blueReadyDamage>0);assertTrue(s.purpleRadius<=48);assertTrue(s.redRange>=8);
+            assertEquals(3,s.blueCoreDamage);assertEquals(16,s.bluePullRadius);assertEquals(10,s.redChargeTicks);
+            assertTrue(s.blueTerrainDamage&&s.redTerrainDamage&&s.purpleTerrainDamage);
+        } finally { GodWandConfig.SERVER=previous; }
+    }
+
     @Test void olderPacksGainPerSkillAndChargeTierSettingsWithoutLosingExistingValues() throws Exception {
         Path file=directory.resolve("server.json");
         Files.writeString(file,"{\"damageMultiplier\":0.5,\"atomicDamage\":123,\"earthDrillTerrainDamage\":false}");

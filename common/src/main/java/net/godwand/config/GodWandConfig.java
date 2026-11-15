@@ -88,6 +88,25 @@ public final class GodWandConfig {
         public int gateSkyCircles = 220;
         public boolean gateTerrainDamage = true;
         public int gateCraterRadius = 3;
+        public int blueCooldownTicks = 60;
+        public int redCooldownTicks = 80;
+        public int purpleCooldownTicks = 1200;
+        public float blueReadyDamage = 50;
+        public float blueCoreDamage = 3;
+        public int bluePullRadius = 8;
+        public int blueEatRadius = 5;
+        public int blueChargeTicks = 160;
+        public int blueAnchorTicks = 300;
+        public int redChargeTicks = 50;
+        public float redDamage = 60;
+        public int redRange = 100;
+        public int redTunnelRadius = 2;
+        public int redCraterRadius = 5;
+        public int purpleRadius = 24;
+        public float purpleDamage = 9999;
+        public boolean blueTerrainDamage = true;
+        public boolean redTerrainDamage = true;
+        public boolean purpleTerrainDamage = true;
         public List<String> dimensionBlacklist = new ArrayList<>();
 
         public boolean isDimensionBlacklisted(String dimensionId) { return !isDimensionAllowed(dimensionId); }
@@ -108,6 +127,22 @@ public final class GodWandConfig {
             gateWaitTicks=Mth.clamp(gateWaitTicks,40,1200);
             gateSkyCircles=Mth.clamp(gateSkyCircles,8,256);
             gateCraterRadius=Mth.clamp(gateCraterRadius,0,6);
+            blueCooldownTicks=Mth.clamp(blueCooldownTicks,0,72000);
+            redCooldownTicks=Mth.clamp(redCooldownTicks,0,72000);
+            purpleCooldownTicks=Mth.clamp(purpleCooldownTicks,0,72000);
+            blueReadyDamage=finiteClamp(blueReadyDamage,1,1_000_000,50);
+            blueCoreDamage=finiteClamp(blueCoreDamage,0,1_000_000,3);
+            bluePullRadius=Mth.clamp(bluePullRadius,2,16);
+            blueEatRadius=Mth.clamp(blueEatRadius,0,8);
+            blueChargeTicks=Mth.clamp(blueChargeTicks,20,600);
+            blueAnchorTicks=Mth.clamp(blueAnchorTicks,20,1200);
+            redChargeTicks=Mth.clamp(redChargeTicks,10,200);
+            redDamage=finiteClamp(redDamage,0,1_000_000,60);
+            redRange=Mth.clamp(redRange,8,160);
+            redTunnelRadius=Mth.clamp(redTunnelRadius,0,4);
+            redCraterRadius=Mth.clamp(redCraterRadius,0,8);
+            purpleRadius=Mth.clamp(purpleRadius,0,48);
+            purpleDamage=finiteClamp(purpleDamage,0,1_000_000,9999);
             singularityCooldownTicks=validatedCooldowns(singularityCooldownTicks,new int[]{60,120,200});
             earthDrillCooldownTicks=validatedCooldowns(earthDrillCooldownTicks,new int[]{80,140,220,320});
             stoneCannonCooldownTicks=validatedCooldowns(stoneCannonCooldownTicks,new int[]{40,80,140,220});
@@ -231,6 +266,8 @@ public final class GodWandConfig {
             case 5 -> SERVER.atomicCooldownTicks;
             case 6 -> SERVER.fugaCooldownTicks;
             case 7 -> SERVER.gateCooldownTicks;
+            case 8 -> SERVER.blueCooldownTicks;
+            case 9 -> SERVER.redCooldownTicks;
             default -> 0;
         };
         return ticks==0?0:cooldownTicks(ticks);

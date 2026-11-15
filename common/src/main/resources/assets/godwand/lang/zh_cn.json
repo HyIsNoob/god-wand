@@ -38,6 +38,8 @@
   "skill.godwand.6": "Fuga（开）",
   "gui.godwand.config.fuga_cutscene": "Fuga 过场动画",
   "skill.godwand.7": "静默之门",
+  "skill.godwand.8": "蓝 / 红",
+  "skill.godwand.9": "红",
   "gui.godwand.config.gate_cutscene": "静默之门过场动画",
   "message.godwand.gate_command": "右键指挥之门",
   "message.godwand.gate_cancel": "潜行以中止",

@@ -4,7 +4,9 @@ import math
 from PIL import Image, ImageDraw
 
 COLORS = [(139, 216, 255), (72, 152, 255), (255, 100, 54),
-          (224, 62, 112), (176, 135, 89), (180, 99, 236), (255, 156, 56), (104, 214, 255)]
+          (224, 62, 112), (176, 135, 89), (180, 99, 236), (255, 156, 56), (104, 214, 255),
+          (90, 140, 255)]
+N = len(COLORS)
 
 
 
@@ -106,6 +108,19 @@ def icon(mode):
         d.polygon([(22,1),(16,3),(18,5),(20,7)],fill=(255,150,40))
         d.polygon([(21,2),(18,3),(20,5)],fill=(255,246,214))
         for x,y in [(3,11),(8,21),(13,18),(22,11)]: d.point((x,y),fill=(255,223,108))
+    elif mode == 8:  # Blue / Red: a big blue orb pulling, a small red orb with a black core, a purple spark between.
+        def put(x, y, c):
+            if 0 <= x < 24 and 0 <= y < 24: im.putpixel((x, y), c + (255,))
+        for y in range(24):
+            for x in range(24):
+                db = math.hypot(x - 8.5, y - 13.5)
+                if db <= 7.2:
+                    put(x, y, (232, 246, 255) if db < 2.2 else (120, 186, 255) if db < 4.6 else (40, 92, 220) if db < 6.4 else (20, 44, 140))
+                dr = math.hypot(x - 18.5, y - 5.5)
+                if dr <= 4.2:
+                    put(x, y, (8, 4, 6) if dr < 1.8 else (255, 72, 54) if dr < 3.2 else (150, 18, 22))
+        for x, y in [(14, 9), (15, 8), (13, 10)]: put(x, y, (200, 120, 255))
+        for x, y in [(1, 6), (3, 3), (16, 21), (21, 15)]: put(x, y, (150, 205, 255))
     else:  # Silent Gate: the winged gate of heaven, its doorway white (owner, 2026-11-15: "just the gate with wings").
         def put(x, y, c):
             if 0 <= x < 24 and 0 <= y < 24: im.putpixel((x, y), c + (255,))
@@ -133,7 +148,7 @@ def icon(mode):
 
 
 def build():
-    atlas = Image.new('RGBA', (320, 120))
+    atlas = Image.new('RGBA', (N * 40, 120))
     for mode in range(len(COLORS)):
         for state in range(3):
             tile = Image.new('RGBA', (40, 40))
@@ -150,6 +165,7 @@ def build():
                 [(132, 63, 185), (184, 90, 237), (211, 142, 255)],
                 [(179, 76, 28), (242, 137, 37), (255, 217, 144)],
                 [(61, 134, 190), (104, 214, 255), (214, 245, 255)],
+                [(52, 78, 170), (90, 140, 255), (255, 120, 110)],
             ]
             trim = trims[mode][state]
             d.rectangle((2, 2, 37, 37), outline=trim, width=2)
@@ -169,14 +185,14 @@ def build():
                 d.point((x, y), fill=tuple(min(255, c + 45) for c in color))
             tile.alpha_composite(icon(mode), (8, 8))
             atlas.alpha_composite(tile, (mode * 40, state * 40))
-    assert atlas.size == (320, 120)
+    assert atlas.size == (N * 40, 120)
     out = Path(__file__).resolve().parents[1] / 'common/src/main/resources/assets/godwand/textures/gui/skill_wheel.png'
     out.parent.mkdir(parents=True, exist_ok=True)
     atlas.save(out)
     print(out)
     if '--sectors' not in __import__('sys').argv:
         return
-    sectors = Image.new('RGBA', (2048, 224))
+    sectors = Image.new('RGBA', ((N + 1) * 224, 224))
     sector_pen = ImageDraw.Draw(sectors)
     for y in range(-112, 112, 2):
         for x in range(-112, 112, 2):
@@ -184,12 +200,12 @@ def build():
             if not 48 <= radius <= 112:
                 continue
             angle = math.atan2(y + 1, x + 1) + math.pi / 2
-            mode = math.floor(angle / (math.tau / 8) + .5) % 8
-            if abs(math.remainder(angle - mode * math.tau / 8, math.tau)) > math.pi / 8 - .025:
+            mode = math.floor(angle / (math.tau / N) + .5) % N
+            if abs(math.remainder(angle - mode * math.tau / N, math.tau)) > math.pi / N - .025:
                 continue
             idle = (18, 17, 20, 64)
             hover = (96, 87, 76, 105)
-            for column, paint in [(8, idle), (mode, hover)]:
+            for column, paint in [(N, idle), (mode, hover)]:
                 sector_pen.rectangle((column * 224 + x + 112, y + 112,
                                                    column * 224 + x + 113, y + 113), fill=paint)
     sectors.save(out.with_name('skill_sectors.png'))

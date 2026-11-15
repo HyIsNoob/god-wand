@@ -45,7 +45,8 @@ public class GodWandItem extends Item {
     public static final int MODE_ATOMIC = 5;
     public static final int MODE_FUGA = 6;
     public static final int MODE_SILENT_GATE = 7;
-    public static final int TOTAL_MODES = 8;
+    public static final int MODE_BLUE_RED = 8;
+    public static final int TOTAL_MODES = 9;
 
     public static String chargeMeter(int level, int maximum) {
         int filled = Mth.clamp(level, 0, maximum);
@@ -95,6 +96,7 @@ public class GodWandItem extends Item {
             if (mode == MODE_FUGA) user.displayClientMessage(Component.literal("§6Fuga"), true);
             if (mode == MODE_SILENT_GATE) user.displayClientMessage(Component.literal("§bSilent Gate"), true);
             if (mode == MODE_ATOMIC) user.displayClientMessage(Component.literal("§dI am Atomic"), true);
+            if (mode == MODE_BLUE_RED) user.displayClientMessage(Component.literal("§9Blue §7/ §cRed"), true);
             switch (mode) {
                 case MODE_SPATIAL_PATH -> {
                     user.displayClientMessage(Component.literal("§bSpatial Path"), true);
@@ -484,6 +486,7 @@ public class GodWandItem extends Item {
             case MODE_FUGA -> tooltip.add(Component.literal("§6Fuga §7(Hold to form a bow - Aim and release)"));
             case MODE_SILENT_GATE -> tooltip.add(Component.literal("§f§bSilent Gate §7(Click to summon - Click again to command)"));
             case MODE_ATOMIC -> tooltip.add(Component.literal("§dI am Atomic §7(Hold through ATOMIC - Release to detonate)"));
+            case MODE_BLUE_RED -> tooltip.add(Component.literal("§9Blue §7/ §cRed §7(Hold left: Blue - Hold right: Red)"));
         }
         super.appendHoverText(stack, context, tooltip, type);
     }

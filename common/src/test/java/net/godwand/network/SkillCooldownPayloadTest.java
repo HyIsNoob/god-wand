@@ -10,8 +10,12 @@ class SkillCooldownPayloadTest {
   try {var p=new SkillCooldownPayload(1,200,80,true);SkillCooldownPayload.CODEC.encode(buf,p);assertEquals(p,SkillCooldownPayload.CODEC.decode(buf));assertEquals(0,buf.readableBytes());}finally{buf.release();}
  }
  @Test void rejectsInvalidBounds() {
-  assertThrows(IllegalArgumentException.class,()->new SkillCooldownPayload(8,20,20,false));
+  assertThrows(IllegalArgumentException.class,()->new SkillCooldownPayload(10,20,20,false));
   assertThrows(IllegalArgumentException.class,()->new SkillCooldownPayload(0,20,21,false));
   assertThrows(IllegalArgumentException.class,()->new SkillCooldownPayload(0,20,10,true));
+ }
+ @Test void acceptsRedSlotRejectsBeyond() {
+  assertEquals(9,new SkillCooldownPayload(9,80,80,false).mode());
+  assertThrows(IllegalArgumentException.class,()->new SkillCooldownPayload(10,80,80,false));
  }
 }
