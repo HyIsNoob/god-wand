@@ -284,7 +284,7 @@ class SilentGateCinematicTest {
             assertTrue(p.position().y < PLAYER.y + 6 && p.position().z > PLAYER.z + 25 && Math.abs(p.pitch()) < 12, "low over the field at " + c + ": " + p.position() + " " + p.pitch());
         }
         assertTrue(Math.abs(barrage(SilentGateCinematic.B4_TO - .1, 200).position().x - barrage(SilentGateCinematic.B4_FROM, 200).position().x) > 20, "it crosses the field");
-        assertTrue((SilentGateCinematic.B4_TO - SilentGateCinematic.B4_FROM) * 1.8 <= 32, "a short shot: about 1.5 s at 360 ticks of barrage (owner, 2026-11-15)");
+        assertTrue((SilentGateCinematic.B4_TO - SilentGateCinematic.B4_FROM) * 1.8 <= 40, "a short shot: about 1.9 s at 360 ticks of barrage (owner, 2026-11-15)");
         int kill = SilentGateSequence.KILL_TICK;
         assertTrue(kill - 10 > SilentGateCinematic.B4_FROM && kill + 5 < SilentGateCinematic.B4_TO, "the kill beam and its squeeze of the bars stay inside the shot over the ground");
         // B5: the whole of it: far behind the caster, high and to the right, going slowly round in an arc, the gate in frame throughout, on one lens.

@@ -142,7 +142,7 @@ public final class SilentGateCinematic {
             // rain; then the track over the ground and the far round.
             // Each shot holds one lens from its first frame to its last: the camera moves, the lens never zooms.
             // The shot up from the caster's feet on a normal lens: a wide one stretched it (owner, 2026-11-15).
-            return tb < 14 ? .9 * (1 - .1 * Math.exp(-tb / 2.5)) : tb < 60 ? .8 : tb < B4_FROM ? 1.1 : tb < B4_TO ? .95 : 1.02;
+            return tb < 14 ? .9 * (1 - .1 * Math.exp(-tb / 2.5)) : tb < 60 ? .95 : tb < B4_FROM ? 1.1 : tb < B4_TO ? .95 : 1.02;
         }
         // The first click kicks the lens once.
         if (age < 70) return .9 * (1 + .1 * smooth(age, 1, 3) * Math.exp(-Math.max(0, age - 3) / 3.5));
@@ -452,14 +452,14 @@ public final class SilentGateCinematic {
      *  move with no cut inside it, in the owner's order (2026-11-15, second pass): up from the caster, down from the gate, a track over the ground (where the kill
      *  beam's impact frame falls), a slow round from far off. */
     /** The shot over the ground, kept short around the kill (owner, 2026-11-15: one and a half seconds at 360 ticks of barrage, about one before the kill
-     *  beam lands and half a second after); the time went to the shots on either side. */
-    static final int B4_FROM = 125, B4_TO = 142;
+     *  beam lands and half a second after, then 0.4 s more after the death); the time went to the shots on either side. */
+    static final int B4_FROM = 125, B4_TO = 146;
     static final List<Cut> BARRAGE = List.of(
             new Cut("B1 command", 0, 14, Curve.LINEAR, (g, u, t) -> look(g.rel(3.4 - .3 * u, .5, 1.25), g.rel(0, 0, 1.55))),
             // The camera keeps its path through blocks here too (owner, 2026-11-15: lifted over the ground it jumped about): no shot is pushed by the terrain.
             // From the caster: low at their shoulder, looking up past them into the circles that fire overhead, rising a little toward them.
-            // Owner, 2026-11-15: close to the caster, the caster in the picture, looking up: a few blocks behind them, low, their head and shoulders at the foot of the frame.
-            new Cut("B2 from the caster, up", 14, 60, Curve.LINEAR, (g, u, t) -> look(g.rel(-3.5 + .5 * u, 1.2 - .2 * u, .3 + .1 * u), g.rel(16, -1, 18 + 2 * u))),
+            // Owner, 2026-11-15: from by the caster's feet looking up, on a slightly wide lens: the caster whole, the ground at the foot of the frame, the rain above.
+            new Cut("B2 from the caster, up", 14, 60, Curve.LINEAR, (g, u, t) -> look(g.rel(-2.2 + .3 * u, .9 - .1 * u, .25), g.rel(16, -.5, 10 + 2 * u))),
             // From the gate (owner, 2026-11-15, second pass: the other way round): beside the gate's right column, a little above its doors, looking down the
             // field toward the caster: the canopy and the rain fall away below, drifting slowly down and in.
             new Cut("B3 from the gate, down", 60, B4_FROM, Curve.LINEAR, (g, u, t) -> look(gateCorner(g, u), g.rel(70 - 10 * u, 0, 0))),
