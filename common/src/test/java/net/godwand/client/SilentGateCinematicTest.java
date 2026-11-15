@@ -377,6 +377,18 @@ class SilentGateCinematicTest {
         }
     }
 
+    @Test void killLockFollowsANewTargetAndKnowsWhenItsOneIsGone() {
+        var zombie = new SilentGateCinematic.Candidate(1, 20, new Vec3(0, 70, 30));
+        var husk = new SilentGateCinematic.Candidate(4, 20, new Vec3(8, 70, 36));
+        var lock = new SilentGateCinematic.KillLock();
+        assertEquals(zombie.position(), lock.update(100, 60, 60, List.of(zombie, husk), PLAYER, 1));
+        assertTrue(lock.present());
+        lock.update(100, 61, 60, List.of(husk), PLAYER, 1);
+        assertFalse(lock.present(), "the zombie died to something else");
+        assertEquals(husk.position(), lock.update(100, 62, 60, List.of(husk), PLAYER, 4), "the server picked the husk: follow it");
+        assertTrue(lock.present());
+    }
+
     @Test void killShotKeepsTheSameTargetForItsWholeWindow() {
         var lock = new SilentGateCinematic.KillLock();
         var zombie = new SilentGateCinematic.Candidate(1, 20, new Vec3(0, 70, 30));

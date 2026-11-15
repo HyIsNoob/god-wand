@@ -218,12 +218,16 @@ public final class SilentGateManager {
                     e -> SilentGateTargets.eligible(e, task.caster, cfg.gateTargetMode));
         }
         boolean fresh = false;
-        if (!task.featuredPicked && !task.candidates.isEmpty()) {
+        int killAge = SilentGateSequence.killBarrageAge(task.barrageTicks);
+        // The target died or went away before the kill beam began to gather: pick another, so the kill shot never frames empty ground (owner, 2026-11-15).
+        if (task.featured != null && (!task.featured.isAlive() || task.featured.isRemoved()) && barrageAge < killAge - SilentGateSequence.HEAVY_CHARGE)
+            task.featuredPicked = false;
+        var alive = task.candidates.stream().filter(e -> e.isAlive() && !e.isRemoved()).toList();
+        if (!task.featuredPicked && !alive.isEmpty()) {
             task.featuredPicked = fresh = true;
-            task.featured = SilentGateTargets.featured(task.candidates, e -> e.getMaxHealth(), e -> e.position().distanceToSqr(task.anchor),
+            task.featured = SilentGateTargets.featured(alive, e -> e.getMaxHealth(), e -> e.position().distanceToSqr(task.anchor),
                     e -> task.world.canSeeSky(e.blockPosition()));
         }
-        int killAge = SilentGateSequence.killBarrageAge(task.barrageTicks);
         LivingEntity featured = task.featured != null && task.featured.isAlive() ? task.featured : null;
         float damage = cfg.gateBeamDamage * cfg.damageMultiplier;
         var shots = new ArrayList<Integer>();

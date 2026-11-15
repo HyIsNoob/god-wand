@@ -424,7 +424,8 @@ final class GateModel {
         /** The doorway itself: a plane of white nobody can look through, there as soon as the leaves part (owner, 2026-11-11: "the light of god, heaven's gate").
          *  Opaque and in the depth stamp, so nothing behind the gate shows in the opening. */
         void heaven(double k) {
-            if (!c.body() || c.beforeBody && k < .95) return;
+            if (!c.body()) return;
+            if (c.beforeBody && k < .95) { SilentGateRenderer.stampPartial = true; return; }
             Vec3[] p = {pose.at(-JAMB_X, OPENING_Y0, 1.2), pose.at(JAMB_X, OPENING_Y0, 1.2), pose.at(JAMB_X, OPENING_Y1, 1.2), pose.at(-JAMB_X, OPENING_Y1, 1.2)};
             GateDraw.shaded(c, p, new int[]{WHITE, WHITE, WHITE, WHITE}, new double[]{k, k, k, k}, null, 0, 1, 0, 1);
         }

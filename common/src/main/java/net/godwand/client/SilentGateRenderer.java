@@ -141,8 +141,9 @@ public final class SilentGateRenderer {
             // Body first; then, with the gate's depth stamped, the shade (smoke and storm darken what is behind them) and last the light, which adds over both.
             // The body is drawn over its own stamped depth too: only its nearest faces pass, else back faces painted over front ones made it look hollow.
             for (int layer : new int[]{0, 2, 1}) {
-                if (layer == 0) { depthPrepass(pose, camera, frames, true); RenderSystem.defaultBlendFunc(); }
-                else if (layer == 2) { depthPrepass(pose, camera, frames, false); RenderSystem.blendFunc(GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR); GateAtlas.bindGlow(); GateDraw.premultiplied = true; }
+                if (layer == 0) { stampPartial = false; depthPrepass(pose, camera, frames, true); RenderSystem.defaultBlendFunc(); }
+                // The stamp before the body already holds the gate's depth; it is stamped again only for what it left out (a fading gate, a doorway just opening).
+                else if (layer == 2) { if (stampPartial) depthPrepass(pose, camera, frames, false); RenderSystem.blendFunc(GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR); GateAtlas.bindGlow(); GateDraw.premultiplied = true; }
                 else additiveBlend();
                 for (Frame f : frames) {
                     BufferBuilder buffer = begin();
@@ -265,6 +266,8 @@ public final class SilentGateRenderer {
         buffers.endBatch();
     }
     /** The gate body is alpha blended without depth writes; stamp its depth so the additive layer (circle glow, rays) cannot shine through it. */
+    /** Set when the stamp before the body left part of a gate out, so the stamp before the shade must be drawn too. */
+    static boolean stampPartial;
     private static void depthPrepass(PoseStack pose, Camera camera, List<Frame> frames, boolean beforeBody) {
         RenderSystem.colorMask(false, false, false, false); RenderSystem.depthMask(true);
         try {
@@ -424,7 +427,7 @@ public final class SilentGateRenderer {
         if (appear <= 0 || fadeOut <= 0) return;
         double saved = c.fade;
         c.fade = saved * appear * fadeOut;
-        if (c.beforeBody && c.fade < .95) { c.fade = saved; return; }
+        if (c.beforeBody && c.fade < .95) { stampPartial = true; c.fade = saved; return; }
         // The stuck doors shudder the whole gate a little.
         double shake = e < 0 ? SilentGateSequence.gateShake(age) : 0;
         GateFx.Pose pose = GateFx.Pose.of(SilentGateSequence.gateFoot(anchor, yaw, descent + rise).add(0, shake * Math.sin(age * 2.3), 0), yaw);

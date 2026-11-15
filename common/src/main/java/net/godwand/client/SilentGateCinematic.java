@@ -98,8 +98,11 @@ public final class SilentGateCinematic {
         // Every shot of the barrage trembles (owner, 2026-11-15: "it needs shake to have force"), the one up from the caster's feet hardest: the ground under
         // them is taking the rain.
         if (cmd >= 0 && cmd < SilentGateSequence.ACTIVATE_TICKS + frame.barrageTicks() && (int) cmd % 3 == 0) {
-            boolean fromFeet = cmd >= SilentGateSequence.shotTick(14, frame.barrageTicks()) && cmd < SilentGateSequence.shotTick(60, frame.barrageTicks());
-            GodWandCinematicEngine.addTrauma(fromFeet ? .26f : .11f, 6);
+            int bt = frame.barrageTicks();
+            boolean fromFeet = cmd >= SilentGateSequence.shotTick(14, bt) && cmd < SilentGateSequence.shotTick(60, bt);
+            // The far shots (round the field, the far round) need more of it to feel the weight (owner, 2026-11-15).
+            boolean far = cmd >= SilentGateSequence.shotTick(60, bt) && cmd < SilentGateSequence.shotTick(B4_FROM, bt) || cmd >= SilentGateSequence.shotTick(B4_TO, bt);
+            GodWandCinematicEngine.addTrauma(fromFeet ? .26f : far ? .19f : .11f, 6);
         }
         lastAge = age; lastHit = hit; lastCmd = cmd;
         if (directing() && !menuOpen(client)) GodWandCinematicEngine.setFovPunch((float) lens(age, frame.commandAge(), frame.barrageTicks()), 2);
@@ -219,8 +222,9 @@ public final class SilentGateCinematic {
         var level = client.level;
         var shots = SilentGateRenderer.shots(frame.casterId());
         Vec3 focus = directing() && frame.commandAge() >= 0 ? focus(client, frame, shots) : null;
-        var shot = cameraFor(frame, feet, yaw, pitch, directing(), shots,
-                (x, z) -> level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, Mth.floor(x), Mth.floor(z)), focus);
+        // One ground function per level, so the shot lift below can be cached against it.
+        if (liveLevel != level) { liveLevel = level; liveGround = (x, z) -> level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, Mth.floor(x), Mth.floor(z)); }
+        var shot = cameraFor(frame, feet, yaw, pitch, directing(), shots, liveGround, focus);
         // The camera keeps its path through blocks (owner, 2026-11-14) and past the loaded chunks: the far shots (the orbit reaches 184 blocks out) fell back to
         // the shoulder at a render distance of 8 and showed as a stray shot before the bloom (owner, 2026-11-15). Gate, sky and circles need no chunks.
         return shot;
@@ -526,13 +530,20 @@ public final class SilentGateCinematic {
         var pose = play(BARRAGE, g, tb, false);
         int i = 0;
         while (i < BARRAGE.size() - 1 && tb >= BARRAGE.get(i).t1()) i++;
-        double lift = shotLift(BARRAGE.get(i), g);
+        // Once per shot: cheaper, and the craters the shot's own strikes dig cannot lower the camera inside it.
+        if (frame.startedAt() != liftCast || i != liftCut || g.ground() != liftGround) {
+            liftCast = frame.startedAt(); liftCut = i; liftGround = g.ground(); liftValue = shotLift(BARRAGE.get(i), g);
+        }
+        double lift = liftValue;
         return lift > 0 ? new AtomicCinematic.Pose(pose.position().add(0, lift, 0), pose.yaw(), pose.pitch()) : pose;
     }
 
     /** Real land (owner, 2026-11-15: the shots were made on a flat world): how far a whole shot is raised so that along its path the camera is never
      *  inside the ground and, where it looks out level, no hill in front hides the view. One height for the whole shot, so the camera never jumps inside
      *  it (being pushed about by the terrain was what the owner disliked before). At most 60 blocks. */
+    private static net.minecraft.world.level.Level liveLevel;
+    private static ToDoubleBiFunction<Double, Double> liveGround;
+    private static long liftCast = Long.MIN_VALUE; private static int liftCut = -1; private static Object liftGround; private static double liftValue;
     static double shotLift(Cut c, Rig g) {
         double lift = 0;
         for (int k = 0; k <= 10; k++) {
@@ -586,11 +597,15 @@ public final class SilentGateCinematic {
 
     /** Picks the server's featured target (else the highest max-health candidate) once, when the kill shot starts, and then follows that entity (its last position once it is gone). */
     static final class KillLock {
-        private long cast = Long.MIN_VALUE; private boolean locked; private int id; private Vec3 last;
+        private long cast = Long.MIN_VALUE; private boolean locked, present; private int id; private Vec3 last;
         int id() { return id; }
+        /** Whether the locked target was among the candidates at the last update (false once it has died and gone). */
+        boolean present() { return present; }
         Vec3 update(long castId, double commandAge, int lockAt, List<Candidate> candidates, Vec3 caster) { return update(castId, commandAge, lockAt, candidates, caster, -1); }
         Vec3 update(long castId, double commandAge, int lockAt, List<Candidate> candidates, Vec3 caster, int featured) {
             if (cast != castId) { cast = castId; locked = false; last = null; }
+            // The server picked another target (the first died before the kill beam): follow the new one.
+            if (locked && featured >= 0 && featured != id) { locked = false; last = null; }
             if (!locked && commandAge >= lockAt) {
                 Candidate best = null;
                 for (Candidate k : candidates) if (best == null || k.maxHealth() > best.maxHealth()
@@ -600,7 +615,8 @@ public final class SilentGateCinematic {
                 if (featured >= 0) { best = null; for (Candidate k : candidates) if (k.id() == featured) best = k; }
                 if (best != null) { id = best.id(); locked = true; }
             }
-            if (locked) for (Candidate k : candidates) if (k.id() == id) last = k.position();
+            present = false;
+            if (locked) for (Candidate k : candidates) if (k.id() == id) { last = k.position(); present = true; }
             return locked ? last : null;
         }
     }
@@ -620,7 +636,9 @@ public final class SilentGateCinematic {
         if (hitCast != frame.startedAt()) { hitCast = frame.startedAt(); hitAt = -1; }
         Shot heavy = null;
         for (Shot s : shots) if (s.heavy()) { heavy = s; break; }
-        // Out of the client's tracking range the target is not seen: frame where the kill beam lands instead.
+        // Out of the client's tracking range the target is not seen: frame where the kill beam lands instead. Gone before the kill beam was announced (it died
+        // to something else): nothing to show there, so no zoom into empty ground (owner, 2026-11-15); the server picks another target.
+        if (at != null && !LOCK.present() && heavy == null) at = null;
         if (at == null && heavy != null) at = heavy.hit();
         if (hitAt < 0 && heavy != null && at != null && heavy.hit().distanceToSqr(at) < 36) hitAt = heavy.tick() + SilentGateSequence.HEAVY_CHARGE;
         return at;
