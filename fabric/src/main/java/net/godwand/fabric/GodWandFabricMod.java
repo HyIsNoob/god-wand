@@ -90,6 +90,10 @@ public class GodWandFabricMod implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(SelectSkillPayload.ID, SelectSkillPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(net.godwand.network.AtomicSkipPayload.ID, net.godwand.network.AtomicSkipPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(net.godwand.network.SilentGateCancelPayload.ID, net.godwand.network.SilentGateCancelPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(net.godwand.network.BlueRedPayload.ID, net.godwand.network.BlueRedPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(net.godwand.network.BlueInputPayload.ID, net.godwand.network.BlueInputPayload.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.BlueInputPayload.ID, (payload, context) ->
+                context.server().execute(() -> net.godwand.skill.BlueRedManager.input(context.player(), payload.held())));
         ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.AtomicSkipPayload.ID, (payload, context) ->
                 context.server().execute(() -> net.godwand.skill.AtomicManager.releaseMovement(context.player(),payload.startedAt())));
         ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.SilentGateCancelPayload.ID, (payload, context) ->

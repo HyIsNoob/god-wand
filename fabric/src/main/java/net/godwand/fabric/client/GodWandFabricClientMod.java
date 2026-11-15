@@ -90,6 +90,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.FugaFxPayload.ID, (payload, context) ->
                 context.client().execute(() -> net.godwand.client.FugaRenderer.receive(payload)));
 
+        ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.BlueRedPayload.ID, (payload, context) ->
+                context.client().execute(() -> net.godwand.client.BlueRedRenderer.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.SilentGatePayload.ID, (payload, context) ->
                 context.client().execute(() -> net.godwand.client.SilentGateRenderer.receive(payload)));
 
