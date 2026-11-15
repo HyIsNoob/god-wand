@@ -31,7 +31,12 @@ class BlueRedManagerTest {
     MockedStatic<GodWandItem> modes;
     MockedStatic<SkillCooldowns> cooldowns;
 
+    net.godwand.config.GodWandConfig.Server previousConfig;
+
     @BeforeEach void setUp() {
+        previousConfig = net.godwand.config.GodWandConfig.SERVER;
+        net.godwand.config.GodWandConfig.SERVER = new net.godwand.config.GodWandConfig.Server();
+        net.godwand.config.GodWandConfig.SERVER.blueTerrainDamage = false; // terrain is BlueEaterTest's job
         BlueRedManager.clearAll();
         BlueRedManager.sender = (level, pos, payload) -> sent.add((BlueRedPayload) payload);
         BlueRedManager.finder = (level, box) -> new ArrayList<>(nearby);
@@ -49,7 +54,7 @@ class BlueRedManagerTest {
         cooldowns = mockStatic(SkillCooldowns.class);
         cooldowns.when(() -> SkillCooldowns.ready(any(), anyInt())).thenReturn(true);
     }
-    @AfterEach void tearDown() { modes.close(); cooldowns.close(); BlueRedManager.clearAll(); }
+    @AfterEach void tearDown() { modes.close(); cooldowns.close(); BlueRedManager.clearAll(); net.godwand.config.GodWandConfig.SERVER = previousConfig; }
 
     ServerPlayer player() {
         var p = mock(ServerPlayer.class);

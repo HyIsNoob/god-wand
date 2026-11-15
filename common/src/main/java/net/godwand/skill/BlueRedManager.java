@@ -35,6 +35,7 @@ public final class BlueRedManager {
         BlueState state = BlueState.CHARGING;
         int age, anchoredAge;
         float credited;
+        final List<BlueEater.Eaten> eaten = new ArrayList<>();
         Blue(ServerPlayer owner, ServerLevel level, Vec3 pos) { this.owner = owner; this.level = level; this.pos = pos; }
         boolean held() { return state != BlueState.ANCHORED; }
     }
@@ -91,6 +92,7 @@ public final class BlueRedManager {
     /** Blue is gone: tell clients and start the Blue cooldown for its owner. */
     static void remove(Blue blue) {
         BLUES.remove(blue);
+        BlueEater.retireAll(blue.eaten);
         send(blue.level, blue.pos, new BlueRedPayload(BlueRedPayload.BLUE_GONE, blue.owner.getId(), -1, 0, blue.pos.x, blue.pos.y, blue.pos.z, 0, 0, 0, 0));
         if (!blue.owner.hasDisconnected())
             SkillCooldowns.start(blue.owner, GodWandItem.MODE_BLUE_RED, GodWandConfig.skillCooldownTicks(GodWandItem.MODE_BLUE_RED, 1));
@@ -98,6 +100,9 @@ public final class BlueRedManager {
 
     public static void tick(ServerLevel level) {
         var cfg = GodWandConfig.SERVER;
+        // Shared terrain allowance for every Blue in this level this tick, like Fuga and Atomic.
+        int budget = 32768;
+        long deadline = System.nanoTime() + 8_000_000L;
         for (Blue blue : blues(level)) {
             blue.age++;
             if (blue.held()) {
@@ -108,6 +113,8 @@ public final class BlueRedManager {
             blue.state = BlueRedRules.atChargeLimit(blue.state, blue.age, cfg.blueChargeTicks);
             if (BlueRedRules.expired(blue.state, blue.age, blue.anchoredAge, cfg.blueChargeTicks, cfg.blueAnchorTicks)) { remove(blue); continue; }
             pullAndHurt(blue, blue.age % BlueRedRules.CORE_PERIOD == 0);
+            budget -= BlueEater.eat(level, blue.pos, cfg.blueEatRadius, budget, deadline, blue.eaten);
+            BlueEater.animate(blue.eaten, blue.pos);
             if (blue.state == BlueState.CHARGING && blue.credited >= cfg.blueReadyDamage) blue.state = BlueState.READY;
             if (blue.state != before || blue.age % 2 == 0) broadcast(blue);
         }
@@ -145,8 +152,12 @@ public final class BlueRedManager {
         Blue blue = blueOf(player);
         if (blue == null) return;
         BLUES.remove(blue);
+        BlueEater.retireAll(blue.eaten);
         send(blue.level, blue.pos, new BlueRedPayload(BlueRedPayload.BLUE_GONE, blue.owner.getId(), -1, 0, blue.pos.x, blue.pos.y, blue.pos.z, 0, 0, 0, 0));
     }
 
-    public static void clearAll() { BLUES.clear(); }
+    public static void clearAll() {
+        for (Blue blue : BLUES) BlueEater.retireAll(blue.eaten);
+        BLUES.clear();
+    }
 }
