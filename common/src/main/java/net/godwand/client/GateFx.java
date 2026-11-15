@@ -312,6 +312,7 @@ final class GateFx {
                 double edge = 1 - smooth((Math.sqrt(x * x + y * y + z * z) - box * .32) / (box * .16)), twinkle = .5 + .5 * Math.sin(age * (.06 + .05 * hash(i, 145)) + i * 2.1);
                 GateDraw.sprite(c, c.eye.add(x, y, z), .1 + .16 * hash(i, 146), .85 * k * edge * twinkle, i % 4 == 0 ? 0xFFE9B0 : i % 2 == 0 ? HOT : BLUE,
                         i % 3 == 0 ? GateAtlas.STAR : GateAtlas.GLOW, age * .02 + i);
+                if (i % 2 == 0) GateDraw.halo(c, c.eye.add(x, y, z), .6 + .5 * hash(i, 147), .3 * k * edge * twinkle, i % 4 == 0 ? 0xFFE9B0 : HOT);
             }
         } finally { c.nearMin = nMin; c.nearMax = nMax; }
     }

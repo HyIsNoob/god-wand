@@ -365,14 +365,13 @@ class SilentGateCinematicTest {
         assertEquals(77, SilentGateCinematic.warp(77.0, -1), 1e-9, "no hit: no stop");
     }
 
-    @Test void closeUpsStayAboveTheLiveGround() {
-        var shots = List.of(new SilentGateRenderer.Shot(3, new Vec3(5, 70, 40), 100));
-        int s60 = SilentGateCinematic.boundaries(200)[0], s125 = SilentGateCinematic.boundaries(200)[1];
-        for (double c = s60 + 1; c < s125; c += 5) {
+    @Test void barrageCameraPassesThroughTheTerrain() {
+        // Owner, 2026-11-15: lifted over the live ground the camera jumped about; it keeps its path through blocks, like every other shot.
+        for (double c = 14; c < 212; c += 7) {
             var f = frame(2, 480 + c, c, 200);
-            // A crater: the surface under the camera is 20 blocks above the planned shot.
-            var pose = SilentGateCinematic.cameraFor(f, PLAYER, 0f, 0f, true, shots, (x, z) -> PLAYER.y + 20);
-            assertTrue(pose.position().y >= PLAYER.y + 20.4 - 1e-6, "above ground at " + c);
+            var flat = SilentGateCinematic.cameraFor(f, PLAYER, 0f, 0f, true, List.of(), (x, z) -> Double.NEGATIVE_INFINITY);
+            var hills = SilentGateCinematic.cameraFor(f, PLAYER, 0f, 0f, true, List.of(), (x, z) -> PLAYER.y + 20 + 15 * Math.sin(x * .3));
+            assertEquals(0, flat.position().distanceTo(hills.position()), 1e-9, "the ground moves no shot at " + c);
         }
     }
 

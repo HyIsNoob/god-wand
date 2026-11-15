@@ -106,21 +106,28 @@ def icon(mode):
         d.polygon([(22,1),(16,3),(18,5),(20,7)],fill=(255,150,40))
         d.polygon([(21,2),(18,3),(20,5)],fill=(255,246,214))
         for x,y in [(3,11),(8,21),(13,18),(22,11)]: d.point((x,y),fill=(255,223,108))
-    else:  # Silent Gate: two stone-and-light pillars under a floating summoning circle.
-        pale, glow, stone = (214, 245, 255), (104, 214, 255), (92, 118, 142)
-        d.ellipse((4, 0, 19, 8), outline=glow)
-        d.ellipse((7, 2, 16, 6), outline=(61, 134, 190))
-        d.rectangle((11, 3, 12, 4), fill=pale)
-        d.point((3, 4), fill=pale); d.point((20, 4), fill=pale)
-        for x in (5, 16):
-            d.rectangle((x, 10, x + 2, 21), fill=stone)
-            d.line((x + 2, 11, x + 2, 21), fill=(60, 80, 104))
-            d.line((x, 11, x, 20), fill=glow)
-            d.rectangle((x - 1, 9, x + 3, 10), fill=pale)
-            d.rectangle((x - 1, 21, x + 3, 22), fill=(130, 158, 182))
-        for y, c in [(12, (61, 134, 190)), (15, glow), (18, (61, 134, 190))]:
-            d.line((9, y, 14, y), fill=c)
-        d.line((11, 11, 12, 20), fill=pale)
+    else:  # Silent Gate: the winged gate of heaven, its doorway white (owner, 2026-11-15: "just the gate with wings").
+        def put(x, y, c):
+            if 0 <= x < 24 and 0 <= y < 24: im.putpixel((x, y), c + (255,))
+        ring, pale, white, halo = (104, 214, 255), (214, 245, 255), (255, 255, 255), (40, 96, 150)
+        stone, stone_d, stone_l, gold = (126, 150, 176), (62, 80, 106), (186, 206, 226), (255, 214, 130)
+        # The left wing, spread level beside the gate (owner, 2026-11-15), mirrored for the right: W leading edge, P feathers, C seams and tips.
+        wing = ["WWW....", "PPWWWW.", "PPPPPWW", "CPPPPPP", "PCPCPPP", "C.C.PCP", "..C..C."]
+        paint = {'W': white, 'P': pale, 'C': ring}
+        for y, row in enumerate(wing):
+            for x, ch in enumerate(row):
+                if ch in paint: put(x, y + 6, paint[ch]); put(23 - x, y + 6, paint[ch])
+        # The gate in front: a lintel with gold studs, pillars lit on their inner edge, the doorway white with a glowing rim, a step.
+        top = 5  # a tall gate, its wings spread level from the top of its pillars
+        for x in range(6, 18): put(x, top, stone_l); put(x, top + 1, stone); put(x, 22, stone_l); put(x, 23, stone_d)
+        for x in (6, 11, 12, 17): put(x, top, gold)
+        for y in range(top + 2, 22):
+            put(7, y, stone_d); put(8, y, stone); put(15, y, stone); put(16, y, stone_d)
+            for x in range(9, 15):
+                if y == top + 2 and x in (9, 14): put(x, y, stone); continue
+                put(x, y, ring if x in (9, 14) else pale if x in (10, 13) or y == top + 2 else white)
+        for x in (3, 4, 19, 20): put(x, 23, ring)
+        for x, y in [(1, 23), (22, 23), (2, 18), (21, 18)]: put(x, y, halo)
     return im
 
 

@@ -80,7 +80,7 @@ final class GateCircles {
             double lit = (age - SEAL_START) / 14;
             if (lit < 1) GateDraw.sprite(c, ctr, (6 + 22 * lit) * S, .8 * Math.sin(Math.PI * lit), HOT);
             // Wide faint disc of light above the circle, and the shafts it throws down once the gate arrives.
-            fan(c, ctr.add(0, 6 * S, 0), 70 * S * scale(TIER_COUNT - 1, age, e), GLOW_BLUE, .15 * whole * breath * (1 - endK));
+            fan(c, ctr.add(0, 6 * S, 0), 70 * S * scale(TIER_COUNT - 1, age, e), GLOW_BLUE, .22 * whole * breath * (1 - endK));
             shafts(c, ctr, age, 1 - endK);
         }
         if (c.body()) underlay(c, ctr, 58 * S * scale(TIER_COUNT - 1, age, e), whole * (1 - endK));
@@ -167,11 +167,11 @@ final class GateCircles {
                 if (t.second() != null) band(c, o, split, r1, w0, w1, t.second(), p0, p1, 0, 1, t.color(), .9 * k, .9 * k);
             }
             if (c.glow()) {
-                double g = Math.min(.8, .5 * k);
+                double g = Math.min(1, .72 * k);
                 band(c, o, r0, split, w0, w1, t.region(), p0, p1, 0, 1, GLOW_BLUE, g, g);
                 if (t.second() != null) band(c, o, split, r1, w0, w1, t.second(), p0, p1, 0, 1, GLOW_BLUE, g, g);
                 // Soft halo: light that spills past both edges of the band.
-                double m = Math.min(.5, .17 * haloGain * k);
+                double m = Math.min(.7, .26 * haloGain * k);
                 GateDraw.gradient(c, o.pt(r0 - hw, w0), o.pt(r0 - hw, w1), o.pt(mid, w1), o.pt(mid, w0), GLOW_BLUE, 0, 0, m, m);
                 GateDraw.gradient(c, o.pt(mid, w0), o.pt(mid, w1), o.pt(r1 + hw, w1), o.pt(r1 + hw, w0), GLOW_BLUE, m, m, 0, 0);
             }

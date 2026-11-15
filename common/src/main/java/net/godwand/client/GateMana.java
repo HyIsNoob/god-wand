@@ -221,6 +221,7 @@ final class GateMana {
                     .add(0, 1.45 + Math.sin(ring) * rad * .8 + .9 * life * life, 0);
             double alpha = gain * Math.sin(Math.PI * Math.pow(life, .7)) * (.45 + .55 * Math.abs(Math.sin(time * .13 + i)));
             GateDraw.sprite(c, at, .022 + .04 * hash(i, 65), alpha, dustColor(i));
+            if (i % 6 == 0) GateDraw.halo(c, at, .3 + .25 * hash(i, 66), .35 * alpha, dustColor(i));
         }
     }
     /** And long bands of it, wide and thin as gauze, ride the same wind. */
@@ -277,6 +278,7 @@ final class GateMana {
             Vec3 at = from.add(Math.cos(a) * Math.cos(b) * out, Math.sin(b) * out + .25 * phase, Math.sin(a) * Math.cos(b) * out).add(fwd.scale(-(.6 * phase + 2.2 * phase * phase)));
             GateDraw.sprite(c, at, (along == 0 ? .03 : .022) + .045 * hash(i, 87) * (1 - .5 * phase), gain * (1 - phase) * (.5 + .5 * Math.abs(Math.sin(time * .2 + i))), dustColor(i),
                     i % 5 == 0 ? GateAtlas.STAR : GateAtlas.GLOW, time * .05 + i);
+            if (i % 6 == 0) GateDraw.halo(c, at, .3 + .25 * hash(i, 88), .35 * gain * (1 - phase), dustColor(i));
         }
     }
 
@@ -292,6 +294,7 @@ final class GateMana {
             double alpha = gain * Math.pow(twinkle, 1.6) * (1 - .6 * u);
             if (alpha < .02) continue;
             GateDraw.sprite(c, at, (g % 4 == 0 ? .09 : .035) + .07 * hash(k * 5 + g, 17), alpha, mix(0xCFF8FF, 0xFFFFFF, hash(k, g + 30)), GateAtlas.STAR, time * .03 + g);
+            if (g % 4 == 0) GateDraw.halo(c, at, .45, .35 * alpha, 0xCFF8FF);
         }
     }
 }

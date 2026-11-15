@@ -72,7 +72,9 @@ final class GateMinor {
         }
         if (c.glow()) {
             // Soft luminous fill under each tier, tinted by the circle.
-            disc(c, at.add(0, -.05, 0), 4.2 * s * (.3 + .7 * rim), .46 * alpha * rim, tint);
+            disc(c, at.add(0, -.05, 0), 4.2 * s * (.3 + .7 * rim), .62 * alpha * rim, tint);
+            // A halo round the whole circle, so it glows in the sky and not only on its own plate.
+            GateDraw.halo(c, at.add(0, -.8 * s, 0), 7.5 * s, .26 * alpha * rim, tint);
             if (d1 > 0 && !far) disc(c, t1, 2.9 * s * d1, .3 * alpha * d1, tint);
             if (d2 > 0 && !far) disc(c, t2, 1.8 * s * d2, .34 * alpha * d2, tint);
             GateDraw.sprite(c, at.add(0, -1.1 * s, 0), 4.6 * s, .2 * alpha * f, tint == JADE ? JADE : GateCircles.GLOW_BLUE);
@@ -129,7 +131,8 @@ final class GateMinor {
                 if (outer > 0) ring(c, o, 4.0, 4.25, spin * .45, GateAtlas.RIM, 1, 48, a * outer, color, 1);
             }
             if (!c.glow()) return;
-            disc(c, o, 5.2, .28 * f, GateCircles.GLOW_BLUE);
+            disc(c, o, 5.2, .45 * f, GateCircles.GLOW_BLUE);
+            GateDraw.halo(c, o.add(0, .6, 0), 6.5, .25 * f, GateCircles.GLOW_BLUE);
             if (rim > 0 && rim < 1) for (int side = -1; side <= 1; side += 2) GateDraw.sprite(c, pt(o, 3.3, spin * .7 + side * rim * Math.PI), .5, .95, 0xFFFFFF, GateAtlas.STAR, age * .3);
             for (int i = 0; i < 18; i++) {
                 double life = (hash(i + 40) + age * (.008 + .006 * hash(i + 80))) % 1, ang = hash(i + 120) * TAU + age * .01, r = 1 + 3 * hash(i + 160);
@@ -219,7 +222,8 @@ final class GateMinor {
             }
         }
         if (c.glow()) {
-            GateDraw.sprite(c, at, radius * 1.25, .34 * alpha, color);
+            GateDraw.sprite(c, at, radius * 1.25, .5 * alpha, color);
+            GateDraw.halo(c, at, radius * 2.6, .2 * alpha, color);
             // A pillar of light standing on the disc (reference 10): rayed, fading upwards.
             GateDraw.shaft(c, at.add(0, radius * .4, 0), at.add(0, radius * .4 + 20, 0), radius * .6, radius * .9, color, .16 * alpha, 0, age * .012 + index);
         }

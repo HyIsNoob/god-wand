@@ -47,6 +47,8 @@ final class GateDraw {
         c.quads++;
     }
     /** Quad with an alpha per corner on the solid texel: gradients (halos, cones). Always proximity-faded. */
+    /** A soft halo of light round a point (owner, 2026-11-15: circles and particles "need more glow", with or without a shaderpack, which turns the bloom off). */
+    static void halo(Ctx c, Vec3 at, double size, double alpha, int color) { sprite(c, at, size, alpha, color, GateAtlas.GLOW, 0); }
     static void gradient(Ctx c, Vec3 a, Vec3 b, Vec3 d, Vec3 e, int color, double aa, double ab, double ad, double ae) {
         if (!room(c)) return;
         double k = c.fade * proximity(c, a, b, d, e);

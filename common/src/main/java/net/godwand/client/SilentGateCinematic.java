@@ -346,10 +346,6 @@ public final class SilentGateCinematic {
         double k = Math.min(1, 1.6 * lens(t, -1, 200));
         return new AtomicCinematic.Pose(p.position(), (float) (p.yaw() + shake[0] * k), (float) (p.pitch() + shake[1] * k));
     }
-    private static AtomicCinematic.Pose lift(Rig g, AtomicCinematic.Pose p, double clearance) {
-        Vec3 q = g.above(p.position(), clearance);
-        return q == p.position() ? p : new AtomicCinematic.Pose(q, p.yaw(), p.pitch());
-    }
 
     // One axis for the whole cast: the camera stays on the caster's right of the caster-to-gate line and never crosses it. The gate is shot from far off on long
     // lenses (the flattened perspective is what makes it enormous), the sky on wide ones; the only reverse angles are the caster's own beats (face, waiting frame, command).
@@ -438,16 +434,17 @@ public final class SilentGateCinematic {
      *  beam's impact frame falls), a slow round from far off. */
     static final List<Cut> BARRAGE = List.of(
             new Cut("B1 command", 0, 14, Curve.LINEAR, (g, u, t) -> look(g.rel(3.4 - .3 * u, .5, 1.25), g.rel(0, 0, 1.55))),
+            // The camera keeps its path through blocks here too (owner, 2026-11-15: lifted over the ground it jumped about): no shot is pushed by the terrain.
             // From the caster: low at their shoulder, looking up past them into the circles that fire overhead, rising a little toward them.
-            new Cut("B2 from the caster, up", 14, 60, Curve.LINEAR, (g, u, t) -> lift(g, look(g.rel(-2.6 + .8 * u, 1.5 - .5 * u, .55 + .15 * u), g.rel(22, -2, 30 + 14 * u)), .4)),
+            new Cut("B2 from the caster, up", 14, 60, Curve.LINEAR, (g, u, t) -> look(g.rel(-2.6 + .8 * u, 1.5 - .5 * u, .55 + .15 * u), g.rel(22, -2, 30 + 14 * u))),
             // From above (owner, 2026-11-15: see the gate and the firing both): high over the field behind the caster and to their right, at the height of the
             // gate's doors, looking down the field to the gate: the doorway in the upper frame, the canopy and the strikes below it, drifting slowly in. Kept
             // within 130 blocks of the caster so the land round them stays in render range.
             new Cut("B3 from above, the gate ahead", 60, 108, Curve.LINEAR, (g, u, t) -> look(g.rel(-50 + 20 * u, 130 - 20 * u, 330 - 20 * u), g.rel(170 + 10 * u, 0, 200))),
             // Over the ground: a low track across the field before the caster, the strikes going by on either hand, the gate far ahead; the kill beam lands here.
-            new Cut("B4 over the ground", 108, 160, Curve.LINEAR, (g, u, t) -> lift(g, look(g.rel(30 + 8 * u, -34 + 76 * u, 4.5), g.rel(78, -18 + 76 * u, 10)), 1.6)),
+            new Cut("B4 over the ground", 108, 160, Curve.LINEAR, (g, u, t) -> look(g.rel(30 + 8 * u, -34 + 76 * u, 4.5), g.rel(78, -18 + 76 * u, 10))),
             // The whole of it to end on: far behind the caster and high, going slowly round; no zoom, only the move.
-            new Cut("B5 the far round", 160, 212, Curve.LINEAR, (g, u, t) -> lift(g, panorama(g, u), 2)));
+            new Cut("B5 the far round", 160, 212, Curve.LINEAR, (g, u, t) -> panorama(g, u)));
 
     /** The ending (ticks after the barrage): the three setups of the build, in the order the build used them, each drifting slowly: none stands still. */
     static final List<Cut> ENDING = List.of(
@@ -592,11 +589,6 @@ public final class SilentGateCinematic {
         if (frame.phase() == WAIT) {
             String hint = Component.translatable("message.godwand.gate_command").getString();
             graphics.drawString(client.font, hint, (width - client.font.width(hint)) / 2, height - 62, 0xFFFFFFFF, true);
-        }
-        // How to get out, said quietly: through the first seconds of the build and the whole wait.
-        if (frame.phase() == WAIT || frame.phase() == 0 && frame.age() > 20 && frame.age() < 110) {
-            String out = Component.translatable("message.godwand.gate_cancel").getString();
-            graphics.drawString(client.font, out, (width - client.font.width(out)) / 2, height - 50, 0xB0FFFFFF, true);
         }
     }
 }
