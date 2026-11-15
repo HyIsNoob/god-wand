@@ -101,10 +101,10 @@ class SilentGateManagerTest {
         SilentGateManager.click(p, InteractionHand.MAIN_HAND);
         assertFalse(SilentGateManager.movementLocked(p));
         assertTrue(SilentGateManager.invulnerable(p));
-        tickTo(1480 + 12 + 200);
+        tickTo(1480 + 12 + 360);
         assertEquals(END.ordinal(), lastPhase());
         assertTrue(SilentGateManager.invulnerable(p));
-        tickTo(1480 + SilentGateSequence.endTick(200) + SilentGateSequence.RETURN_TICKS);
+        tickTo(1480 + SilentGateSequence.endTick(360) + SilentGateSequence.RETURN_TICKS);
         assertFalse(SilentGateManager.invulnerable(p));
         cooldowns.verify(() -> SkillCooldowns.start(eq(p), eq(7), anyInt()));
     }
@@ -149,7 +149,7 @@ class SilentGateManagerTest {
         assertFalse(SilentGateManager.invulnerable(moved));
     }
 
-    @Test void clientCancelNeedsMatchingStartAndEarlyPhase() {
+    @Test void clientCancelNeedsMatchingStartAndOnlyWorksBeforeTheGateFires() {
         var p = player();
         SilentGateManager.click(p, InteractionHand.MAIN_HAND);
         SilentGateManager.cancelFromClient(p, 999);
@@ -160,7 +160,8 @@ class SilentGateManagerTest {
         SilentGateManager.click(p, InteractionHand.MAIN_HAND);
         tickTo(1480); SilentGateManager.click(p, InteractionHand.MAIN_HAND);
         SilentGateManager.cancelFromClient(p, 1000);
-        assertTrue(SilentGateManager.invulnerable(p), "barrage cannot be cancelled by the client");
+        assertTrue(SilentGateManager.invulnerable(p), "once the gate fires it cannot be called back");
+        assertNotEquals(SilentGatePayload.CANCEL, lastPhase());
     }
 
     @Test void craterBudgetIsSharedWithinATickAndResetsNextTick() {

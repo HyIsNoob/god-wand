@@ -21,7 +21,11 @@ final class GateAtlas {
             RIM = new Region(0, 192, 512, 64), SEAL = new Region(0, 256, 256, 256), FILIGREE = new Region(256, 256, 256, 64),
             GLOW = new Region(256, 320, 64, 64), CLOUD = new Region(384, 320, 128, 128), FIBRE = new Region(256, 448, 256, 56), SOLID = new Region(504, 504, 8, 8),
             /** Mana silk (U along the ribbon, V across it) and the four-point glint. */
-            SILK = new Region(0, 512, 256, 64), STAR = new Region(0, 576, 64, 64);
+            SILK = new Region(0, 512, 256, 64), STAR = new Region(0, 576, 64, 64),
+            /** A feather (quill at V 0, tip at V 1): what the gate's wings shed. */
+            FEATHER = new Region(64, 576, 64, 64),
+            /** Billowing smoke with fine detail (for large puffs), a long wisp of it (U along the wisp), and the rays of a shaft of light (U across the shaft, V along it). */
+            SMOKE = new Region(0, 640, 256, 256), WISP = new Region(256, 640, 256, 128), RAYS = new Region(256, 768, 128, 256);
     /** Pixel-art tiles of the gate: 16x16 texels drawn 8 atlas pixels each and repeated 3x3, so any quad up to 32 texels wide samples one run
      *  without wrapping and the (bilinear) filter only softens a texel edge by an eighth of a texel. */
     static final int TEXEL = 8, TILE = 16, REPEAT = 3;
@@ -43,6 +47,43 @@ final class GateAtlas {
         x %= TILE; y %= TILE;
         return y == 7 || (x % 4 == 1 && (y == 5 || y == 6)) || (x % 4 == 3 && (y == 8 || y == 9));
     }
+    /** The ornament of a door panel, one texel to a block like the stone ({@value #PANEL_TEXEL} atlas pixels each), row 0 at the top. */
+    static final int PANEL_W = 28, PANEL_H = 76, PANEL_TEXEL = 4;
+    static final Region PIX_PANEL = new Region(896, 0, PANEL_W * PANEL_TEXEL, PANEL_H * PANEL_TEXEL);
+    private static boolean[] panelArt;
+    /** True where the door panel ornament has a line at texel (x, y), y up from the panel's foot: a double arched frame, inside it a tree whose boughs curl
+     *  like fern heads, roots at its foot, a rayed sun in the arch (reference 5: the leaves of the gate are filigree, not bare slabs). Mirrored about the middle. */
+    static boolean panel(int x, int y) {
+        if (x < 0 || y < 0 || x >= PANEL_W || y >= PANEL_H) return false;
+        if (panelArt == null) {
+            boolean[] g = new boolean[PANEL_W * PANEL_H];
+            double mid = (PANEL_W - 1) / 2.0;
+            int spring = 61;
+            for (int inset = 0; inset <= 2; inset += 2) {
+                for (int yy = inset; yy <= spring; yy++) g[yy * PANEL_W + inset] = true;
+                for (int xx = inset; xx <= mid; xx++) g[inset * PANEL_W + xx] = true;
+                for (int i = 0; i <= 90; i++) { double a = Math.PI / 2 * i / 90; mark(g, mid - (mid - inset) * Math.cos(a), spring + (mid - inset) * Math.sin(a)); }
+            }
+            for (int yy = 5; yy <= 53; yy++) g[yy * PANEL_W + 13] = true;
+            int[][] roots = {{12, 4}, {11, 4}, {10, 3}, {9, 3}};
+            for (int[] r : roots) g[r[1] * PANEL_W + r[0]] = true;
+            double[][] boughs = {{12, 4}, {23, 4}, {34, 3.5}, {44, 3}};
+            for (double[] b : boughs) for (int i = 0; i <= 70; i++) {
+                double t = i / 70.0, a = TAU * 1.25 * t, rho = b[1] * (1 - .78 * t);
+                mark(g, 12.5 - b[1] + rho * Math.cos(a), b[0] + rho * Math.sin(a));
+            }
+            for (int i = 0; i <= 40; i++) { double a = Math.PI * i / 40 + Math.PI / 2; mark(g, mid + 4 * Math.cos(a), 58 + 4 * Math.sin(a)); }
+            for (int k = 0; k < 8; k++) for (double r = 5.6; r <= 7.6; r += .5) mark(g, mid + r * Math.cos(k * TAU / 8), 58 + r * Math.sin(k * TAU / 8));
+            g[58 * PANEL_W + 13] = g[57 * PANEL_W + 13] = true;
+            for (int yy = 0; yy < PANEL_H; yy++) for (int xx = 0; xx < PANEL_W / 2; xx++) g[yy * PANEL_W + PANEL_W - 1 - xx] = g[yy * PANEL_W + xx];
+            panelArt = g;
+        }
+        return panelArt[y * PANEL_W + x];
+    }
+    private static void mark(boolean[] g, double x, double y) {
+        int xi = (int) Math.round(x), yi = (int) Math.round(y);
+        if (xi >= 0 && yi >= 0 && xi < PANEL_W && yi < PANEL_H) g[yi * PANEL_W + xi] = true;
+    }
     static final Region[] STRIPS = {SWIRL, RUNES, DASH, RIM, FILIGREE};
     static final float SOLID_U = SOLID.u(.5), SOLID_V = SOLID.v(.5);
     private static final double TAU = Math.PI * 2;
@@ -55,13 +96,15 @@ final class GateAtlas {
     static byte[] alpha() {
         if (cache != null) return cache;
         Canvas c = new Canvas();
-        swirl(c); runes(c); dash(c); rim(c); filigree(c); seal(c); glow(c); cloud(c); silk(c); star(c);
+        swirl(c); runes(c); dash(c); rim(c); filigree(c); seal(c); glow(c); cloud(c); silk(c); star(c); smoke(c); wisp(c); rays(c); feather(c);
         for (int y = 0; y < FIBRE.h; y++) for (int x = 0; x < FIBRE.w; x++) c.a[(FIBRE.y + y) * SIZE + FIBRE.x + x] = FugaRenderer.flameAlpha(x, y) / 255f;
         for (int y = 0; y < SOLID.h; y++) for (int x = 0; x < SOLID.w; x++) c.a[(SOLID.y + y) * SIZE + SOLID.x + x] = 1;
         for (int y = 0; y < PIX_STONE.h; y++) for (int x = 0; x < PIX_STONE.w; x++) {
             c.a[(PIX_STONE.y + y) * SIZE + PIX_STONE.x + x] = 1;
             if (vein(x / TEXEL, y / TEXEL)) c.a[(PIX_VEIN.y + y) * SIZE + PIX_VEIN.x + x] = 1;
         }
+        for (int y = 0; y < PIX_PANEL.h; y++) for (int x = 0; x < PIX_PANEL.w; x++)
+            c.a[(PIX_PANEL.y + y) * SIZE + PIX_PANEL.x + x] = panel(x / PANEL_TEXEL, PANEL_H - 1 - y / PANEL_TEXEL) ? 1 : 0;
         byte[] out = new byte[SIZE * SIZE];
         for (int i = 0; i < out.length; i++) out[i] = (byte) Math.round(Math.min(1, c.a[i]) * 255);
         return cache = out;
@@ -78,17 +121,31 @@ final class GateAtlas {
         return lumCache = out;
     }
 
-    static void bind() {
-        if (!ready) {
+    static void bind() { upload(); RenderSystem.setShaderTexture(0, TEXTURE); }
+    /** The same atlas for the additive pass: opaque, grey = luminance x alpha (see {@link GateDraw#premultiplied}). */
+    static void bindGlow() { upload(); RenderSystem.setShaderTexture(0, GLOW_TEXTURE); }
+    private static final ResourceLocation GLOW_TEXTURE = ResourceLocation.fromNamespaceAndPath("godwand", "silent_gate_runes_glow");
+    /** Building the atlas takes most of a second; done on the render thread at the first cast it froze the game (owner, 2026-11-15). It is started on a
+     *  background thread as soon as a world is joined, and the first bind only uploads what is already there. */
+    private static java.util.concurrent.CompletableFuture<byte[][]> pending;
+    static void prepare() { if (pending == null) pending = java.util.concurrent.CompletableFuture.supplyAsync(() -> new byte[][]{alpha(), lum()}); }
+    private static void upload() {
+        if (ready) return;
+        prepare();
+        byte[][] bytes = pending.join();
+        byte[] a = bytes[0], l = bytes[1];
+        for (int glow = 0; glow < 2; glow++) {
             var pixels = new com.mojang.blaze3d.platform.NativeImage(SIZE, SIZE, false);
-            byte[] a = alpha(), l = lum();
-            for (int y = 0; y < SIZE; y++) for (int x = 0; x < SIZE; x++) { int g = l[y * SIZE + x] & 255; pixels.setPixelRGBA(x, y, ((a[y * SIZE + x] & 255) << 24) | g << 16 | g << 8 | g); }
+            for (int y = 0; y < SIZE; y++) for (int x = 0; x < SIZE; x++) {
+                int al = a[y * SIZE + x] & 255, g = l[y * SIZE + x] & 255;
+                if (glow == 1) { g = g * al / 255; al = 255; }
+                pixels.setPixelRGBA(x, y, al << 24 | g << 16 | g << 8 | g);
+            }
             var texture = new net.minecraft.client.renderer.texture.DynamicTexture(pixels);
             texture.setFilter(true, false);
-            Minecraft.getInstance().getTextureManager().register(TEXTURE, texture);
-            ready = true;
+            Minecraft.getInstance().getTextureManager().register(glow == 1 ? GLOW_TEXTURE : TEXTURE, texture);
         }
-        RenderSystem.setShaderTexture(0, TEXTURE);
+        ready = true;
     }
 
     // ---- strips -----------------------------------------------------------------------------------------------
@@ -213,7 +270,7 @@ final class GateAtlas {
     private static void silk(Canvas c) {
         for (int y = 0; y < SILK.h; y++) for (int x = 0; x < SILK.w; x++) {
             double u = (x + .5) / SILK.w, v = (y + .5) / SILK.h, m = Math.abs(2 * v - 1);
-            double edge = Math.pow(Math.max(0, 1 - m), .45) * (1 - m * m * m);
+            double edge = Math.pow(Math.max(0, 1 - m), 1.6);
             double crease = .5 + .5 * Math.sin(TAU * (2 * u + .18 * Math.sin(TAU * u)) + v * 7 + 1.3 * Math.sin(v * 11));
             double fibres = 0;
             for (int k = 0; k < 3; k++) {
@@ -254,12 +311,62 @@ final class GateAtlas {
     private static void cloud(Canvas c) {
         for (int y = 0; y < CLOUD.h; y++) for (int x = 0; x < CLOUD.w; x++) {
             double dx = (x + .5 - 64) / 62, dy = (y + .5 - 64) / 62, d = Math.hypot(dx, dy);
-            double n = .55 * vnoise(x / 22.0, y / 22.0, 1) + .3 * vnoise(x / 11.0, y / 11.0, 2) + .15 * vnoise(x / 5.5, y / 5.5, 3);
+            double n = .45 * vnoise(x / 22.0, y / 22.0, 1) + .25 * vnoise(x / 11.0, y / 11.0, 2) + .15 * vnoise(x / 5.5, y / 5.5, 3) + .1 * vnoise(x / 2.7, y / 2.7, 4) + .05 * vnoise(x / 1.4, y / 1.4, 5);
             double f = clamp01Soft((1 - d) * 1.5 + (n - .5) * .9);
             c.a[(CLOUD.y + y) * SIZE + CLOUD.x + x] = (float) (f * f * (3 - 2 * f) * .95);
         }
     }
     private static double clamp01Soft(double v) { return Math.max(0, Math.min(1, v)); }
+    /** Five octaves of value noise, 0..1. */
+    private static double fbm(double x, double y, int salt) {
+        double sum = 0, amp = .5, norm = 0;
+        for (int o = 0; o < 5; o++) { sum += amp * vnoise(x, y, salt + o); norm += amp; x *= 2.03; y *= 2.03; amp *= .5; }
+        return sum / norm;
+    }
+    private static double step01(double x) { x = clamp01Soft(x); return x * x * (3 - 2 * x); }
+    /** Smoke: a mass of rounded billows (ridged noise, domain-warped so it curls) whose density thins out through an eroded, uneven edge and is zero at the tile's border. */
+    private static void smoke(Canvas c) {
+        for (int y = 0; y < SMOKE.h; y++) for (int x = 0; x < SMOKE.w; x++) {
+            double u = (x + .5) / SMOKE.w * 2 - 1, v = (y + .5) / SMOKE.h * 2 - 1;
+            double wx = x / 46.0 + 1.7 * (fbm(x / 60.0, y / 60.0, 41) - .5), wy = y / 46.0 + 1.7 * (fbm(x / 60.0 + 9, y / 60.0 + 4, 47) - .5);
+            double billow = 1 - Math.abs(2 * fbm(wx, wy, 53) - 1), detail = fbm(x / 13.0, y / 13.0, 61);
+            double edge = Math.hypot(u, v) + .55 * (fbm(x / 34.0, y / 34.0, 67) - .5);
+            double mass = step01((.92 - edge) / .6);
+            c.a[(SMOKE.y + y) * SIZE + SMOKE.x + x] = (float) (mass * clamp01Soft(.25 + .85 * billow * billow + .35 * (detail - .5)));
+        }
+    }
+    /** A feather: a pointed vane with slanting barbs either side of a bright shaft. */
+    private static void feather(Canvas c) {
+        for (int y = 0; y < FEATHER.h; y++) for (int x = 0; x < FEATHER.w; x++) {
+            double u = (x + .5) / FEATHER.w * 2 - 1, v = (y + .5) / FEATHER.h;
+            double half = .44 * Math.pow(Math.sin(Math.PI * Math.pow(Math.min(1, v * 1.04), .75)), .7) * (1 - .3 * v);
+            double vane = step01((half - Math.abs(u)) / .14) * (.5 + .4 * (.5 + .5 * Math.sin((v * 30 - Math.abs(u) * 16) * 1.6)));
+            double shaft = Math.exp(-u * u / .004) * step01((v - .02) / .08) * step01((.99 - v) / .08);
+            c.a[(FEATHER.y + y) * SIZE + FEATHER.x + x] = (float) clamp01Soft(vane + .85 * shaft);
+        }
+    }
+    /** A wisp: smoke drawn out along U, thick in the middle of the strip and torn at its edges; both ends fade to nothing. */
+    private static void wisp(Canvas c) {
+        for (int y = 0; y < WISP.h; y++) for (int x = 0; x < WISP.w; x++) {
+            double u = (x + .5) / WISP.w, v = (y + .5) / WISP.h * 2 - 1;
+            double centre = .45 * (fbm(x / 70.0, 3, 71) - .5), strand = fbm(x / 90.0, y / 9.0, 73), fine = fbm(x / 20.0, y / 5.0, 79);
+            double across = step01((.8 - Math.abs(v - centre) - .5 * (strand - .5)) / .55);
+            c.a[(WISP.y + y) * SIZE + WISP.x + x] = (float) (across * Math.pow(Math.sin(Math.PI * u), .7) * clamp01Soft(.3 + .9 * strand * (.6 + .8 * fine)));
+        }
+    }
+    /** Rays: fine bright lines running along V at uneven spacing and strength, each fading in and out along its length, under a soft envelope across U. */
+    private static void rays(Canvas c) {
+        for (int y = 0; y < RAYS.h; y++) for (int x = 0; x < RAYS.w; x++) {
+            double u = (x + .5) / RAYS.w, v = (y + .5) / RAYS.h;
+            double lines = 0;
+            for (int k = 0; k < 9; k++) {
+                double centre = .08 + .84 * lattice(k, 3, 83) + .02 * Math.sin(v * 5 + k), width = .012 + .03 * lattice(k, 5, 83), d = (u - centre) / width;
+                lines = Math.max(lines, Math.exp(-d * d) * (.35 + .65 * vnoise(v * 3.5 + k * 7.1, k, 89)));
+            }
+            double haze = .5 * fbm(x / 9.0, y / 70.0, 97);
+            c.a[(RAYS.y + y) * SIZE + RAYS.x + x] = (float) (Math.pow(Math.sin(Math.PI * u), 1.3) * clamp01Soft(.12 + haze * .5 + .8 * lines));
+        }
+    }
     private static double lattice(int x, int y, int salt) {
         double h = Math.sin(x * 127.1 + y * 311.7 + salt * 74.7) * 43758.5453;
         return h - Math.floor(h);

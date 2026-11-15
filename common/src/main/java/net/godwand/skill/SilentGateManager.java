@@ -110,6 +110,8 @@ public final class SilentGateManager {
 
     public static void cancelFromClient(ServerPlayer player, long startedAt) {
         Task task = TASKS.get(player.getUUID());
+        // Only while it is built or waits (the earlier skills stop when the button is let go; this one is clicked, so it has its own way out): once the gate
+        // fires it cannot be called back (owner, 2026-11-14).
         if (task != null && task.started == startedAt && (task.phase == Phase.BUILD || task.phase == Phase.WAIT)) cancel(task);
     }
 
@@ -174,10 +176,10 @@ public final class SilentGateManager {
                 task.caster.fallDistance = 0;
                 if (task.caster.position().distanceToSqr(task.anchor) > .0001)
                     task.caster.connection.teleport(task.anchor.x, task.anchor.y, task.anchor.z, task.caster.getYRot(), task.caster.getXRot());
-                if (task.phase == Phase.BUILD && age == SilentGateSequence.DESCENT_END) fx(task, CinematicFxPayload.EVENT_TRAUMA_SHAKE, .6f, 20);
+                // Gentle: the director shoots the gate on long lenses, which magnify every degree of shake.
+                if (task.phase == Phase.BUILD && age == SilentGateSequence.DESCENT_END) fx(task, CinematicFxPayload.EVENT_TRAUMA_SHAKE, .4f, 20);
                 if (task.phase == Phase.BUILD && age == SilentGateSequence.SHOCK) {
-                    fx(task, CinematicFxPayload.EVENT_TRAUMA_SHAKE, 1f, 24);
-                    fx(task, CinematicFxPayload.EVENT_FOV_PUNCH, .9f, 8);
+                    fx(task, CinematicFxPayload.EVENT_TRAUMA_SHAKE, .5f, 24);
                 }
             } else if (task.phase == Phase.BARRAGE) barrage(task, age);
             if (!early) runPending(task, now);
@@ -191,9 +193,9 @@ public final class SilentGateManager {
         drain(world);
     }
 
-    /** A beam whose circle is still gliding over its target: the damage and crater land when it has arrived. */
+    /** The kill beam while its circle gathers light: the damage and crater land when it fires. */
     private record Pending(long at, LivingEntity target, float damage) {}
-    /** Per task: circles that are gliding or firing (index to the tick they are free again), strikes waiting for their circle, the kill beam sent. */
+    /** Per task: circles that are charging or firing (index to the tick they are free again), the kill strike waiting for its beam, the kill beam sent. */
     private static final class Work {
         final Map<Integer, Long> busy = new HashMap<>();
         final List<Pending> pending = new ArrayList<>();
@@ -204,7 +206,7 @@ public final class SilentGateManager {
         var cfg = GodWandConfig.SERVER;
         var work = task.work;
         long now = task.world.getGameTime();
-        int total = SilentGateSequence.skyTotal(task.skyCircles), barrageAge = (int) age - SilentGateSequence.ACTIVATE_TICKS;
+        int barrageAge = (int) age - SilentGateSequence.ACTIVATE_TICKS;
         if (barrageAge < 0) return;
         if (barrageAge % 10 == 0) {
             var box = new AABB(task.anchor, task.anchor).inflate(cfg.gateTargetRadius);
@@ -223,22 +225,23 @@ public final class SilentGateManager {
         var shots = new ArrayList<Integer>();
         var hits = new ArrayList<Double>();
         var used = new HashSet<Integer>();
-        // The decisive beam: one circle glides over the featured target during the first second of the kill shot, then a single heavy beam kills it.
-        int heavyStart = killAge - SilentGateSequence.HEAVY_GLIDE;
+        // The decisive beam: the circle nearest the featured target gathers light during the first second of the kill shot, then a single heavy beam kills it.
+        int heavyStart = killAge - SilentGateSequence.HEAVY_CHARGE;
         if (featured != null && !work.heavyDone && barrageAge >= heavyStart && barrageAge <= killAge - 4) {
             Vec3 centre = featured.getBoundingBox().getCenter();
             int c = SilentGateSequence.nearestCircle(task.anchor, task.yaw, task.seed, task.skyCircles, centre, i -> work.busy.getOrDefault(i, 0L) <= now);
             if (c >= 0) {
                 work.heavyDone = true;
-                work.busy.put(c, now + SilentGateSequence.HEAVY_GLIDE + SilentGateSequence.BEAM_TICKS + SilentGateSequence.GLIDE_BACK);
+                work.busy.put(c, now + SilentGateSequence.HEAVY_CHARGE + SilentGateSequence.BEAM_TICKS);
                 used.add(c);
-                work.pending.add(new Pending(now + SilentGateSequence.HEAVY_GLIDE, featured, damage * SilentGateSequence.HEAVY_DAMAGE_MULT));
+                work.pending.add(new Pending(now + SilentGateSequence.HEAVY_CHARGE, featured, damage * SilentGateSequence.HEAVY_DAMAGE_MULT));
                 shots.add(SilentGatePayload.HEAVY + c);
                 hits.add(centre.x); hits.add(centre.y); hits.add(centre.z);
             }
         }
         var firing = new LinkedHashSet<Integer>();
-        for (int i = 0; i < total + SilentGateSequence.GROUND_RING; i++)
+        // Only the sky fires: the discs behind the caster are the caster's own.
+        for (int i = 0; i < task.skyCircles; i++)
             if (SilentGateSequence.fires(i, barrageAge, task.barrageTicks, task.seed)) firing.add(i);
         var pool = featured != null && SilentGateSequence.withheld(barrageAge, killAge)
                 ? task.candidates.stream().filter(e -> e != featured).toList() : task.candidates;
@@ -259,35 +262,33 @@ public final class SilentGateManager {
     }
 
     /**
-     * One ordinary beam. With a target it comes from the sky circle horizontally nearest to it that is free this tick; that circle glides over the target first when the
-     * beam would lean more than 8 degrees (the shot is announced now, the strike lands when it has arrived). Without a target the circle fires straight down.
+     * One ordinary beam. No circle ever moves: with a target the beam comes from a free sky circle close above it ({@link SilentGateSequence#beamCircle}) and leans only
+     * as much as it must to reach it; without a target the circle fires straight down.
      */
     private static void fire(Task task, int index, LivingEntity target, float damage, List<Integer> shots, List<Double> hits, Set<Integer> used, long now) {
         var work = task.work;
-        int total = SilentGateSequence.skyTotal(task.skyCircles);
         if (target == null) {
             if (used.contains(index) || work.busy.getOrDefault(index, 0L) > now) return;
-            Vec3 from = index < total ? SilentGateSequence.skyCircle(task.anchor, task.yaw, task.seed, index, task.skyCircles)
-                    : SilentGateSequence.groundCircle(task.anchor, task.yaw, index - total);
-            Vec3 ground = groundBelow(task.world, task.caster, from);
-            if (ground == null) return;
+            Vec3 above = SilentGateSequence.skyCircle(task.anchor, task.yaw, task.seed, index, task.skyCircles);
+            Vec3 ground = groundBelow(task.world, task.caster, above);
             used.add(index);
             shots.add(index);
+            // A circle too far out to touch the world still fires, for show: every circle in the sky is seen to shoot (owner, 2026-11-12).
+            if (ground == null) { hits.add(above.x); hits.add(task.anchor.y); hits.add(above.z); return; }
             hits.add(ground.x); hits.add(ground.y); hits.add(ground.z);
             crater(task, ground);
             return;
         }
         Vec3 centre = target.getBoundingBox().getCenter();
-        int c = SilentGateSequence.nearestCircle(task.anchor, task.yaw, task.seed, task.skyCircles, centre, i -> !used.contains(i) && work.busy.getOrDefault(i, 0L) <= now);
-        if (c < 0) return;
-        Vec3 home = SilentGateSequence.skyCircle(task.anchor, task.yaw, task.seed, c, task.skyCircles);
-        int glide = SilentGateSequence.glideTicks(home, centre);
+        int c = SilentGateSequence.beamCircle(task.anchor, task.yaw, task.seed, task.skyCircles, centre, i -> !used.contains(i) && work.busy.getOrDefault(i, 0L) <= now);
+        // No free circle near this target (others stand close to it): the scheduled circle fires straight down instead. Returning here dropped the shot, so the
+        // rain was thin whenever creatures stood in a bunch and thick with none about (owner, 2026-11-14: "each cast fires a different amount").
+        if (c < 0) { fire(task, index, null, damage, shots, hits, used, now); return; }
         used.add(c);
-        work.busy.put(c, now + glide + SilentGateSequence.BEAM_TICKS + (glide > 0 ? SilentGateSequence.GLIDE_BACK : 0));
+        work.busy.put(c, now + SilentGateSequence.BEAM_TICKS);
         shots.add(c);
         hits.add(centre.x); hits.add(centre.y); hits.add(centre.z);
-        if (glide == 0) strike(task, target, damage);
-        else work.pending.add(new Pending(now + glide, target, damage));
+        strike(task, target, damage);
     }
 
     /** Damage and crater of a beam that has reached its target. */

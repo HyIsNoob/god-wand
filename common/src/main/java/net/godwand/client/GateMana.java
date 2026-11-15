@@ -14,7 +14,7 @@ import java.util.Map;
  */
 final class GateMana {
     private GateMana() {}
-    static final int STRANDS = 8, POINTS = 24, GLINTS = 5, QUAD_BUDGET = 1500;
+    static final int STRANDS = 8, POINTS = 24, GLINTS = 24, FLOW = 2100, BANDS = 26, TRAIL = 44, SHED = 900, QUAD_BUDGET = 4200;
     /** Body cylinder the points stay out of, and ribbon width (root, tail is a point). */
     static final double AVOID = .8, CYL_R = .45, CYL_H = 1.9, WIDTH = .15;
     private static final double DAMP = .78, FOLLOW = .14, CURL = .003, WIND = .08, UNDULATE = .004, MAX_STRETCH = 1.7;
@@ -159,7 +159,7 @@ final class GateMana {
         return out;
     }
 
-    /** Emits the ribbons and glints of one caster; returns the quads added. Silk goes to the body layer, glints to the additive layer. */
+    /** Emits the ribbons and glints of one caster; returns the quads added. All of it is light: additive, so the wisps are soft and glow where they cross. */
     static int emit(Ctx c, Sim s, Frame f) {
         if (!s.ready || c.fade <= 0) return 0;
         double gain = GatePose.manaGain(f);
@@ -169,17 +169,17 @@ final class GateMana {
         Vec3[] roots = roots(f.age(), f.commandAge(), GatePose.endStart(f), feet, s.yaw(p));
         int before = c.quads;
         double nMin = c.nearMin, nMax = c.nearMax;
-        c.nearMin = .25; c.nearMax = 1.4;
+        c.nearMin = .8; c.nearMax = 4;
         try {
-            for (int k = 0; k < STRANDS && c.quads - before < QUAD_BUDGET; k++) {
-                Vec3[] pts = strand(s, k, p, roots[k]);
-                Vec3[] cen = new Vec3[SAMPLES];
-                for (int i = 0; i < POINTS - 1; i++) for (int j = 0; j < SUB; j++)
-                    cen[i * SUB + j] = catmull(pts[Math.max(0, i - 1)], pts[i], pts[i + 1], pts[Math.min(POINTS - 1, i + 2)], j / (double) SUB);
-                cen[SAMPLES - 1] = pts[POINTS - 1];
-                double w0 = WIDTH * (.85 + .3 * hash(k, 5));
-                if (c.body()) ribbon(c, cen, k, w0, gain, time);
-                if (c.glow()) glints(c, cen, k, w0, gain, time);
+            // shortcut: the strand simulation above is still stepped (its feet and yaw place the wand) but no longer drawn: the ribbons whipped about when the wand
+            // spun (owner, 2026-11-12). The mana is all particles now; delete the strands once nothing reads them.
+            if (c.glow()) {
+                // Thick while the spell is built, thinned once the barrage has begun (the frame is full of beams then).
+                double load = f.commandAge() < 0 ? 1 : .4;
+                Vec3 fwd = Vec3.directionFromRotation(0, (float) s.yaw(p));
+                flow(c, feet, fwd, gain, time, (int) (FLOW * load));
+                bands(c, feet, fwd, gain, time);
+                wandTrail(c, f, feet, s.yaw(p), gain, time, load);
             }
         } finally { c.nearMin = nMin; c.nearMax = nMax; }
         return c.quads - before;
@@ -206,18 +206,92 @@ final class GateMana {
         }
     }
     /** Opacity along the ribbon: strong at the source, fading to nothing at the tail. */
-    static double alpha(double u, double gain) { return gain * .85 * Math.pow(1 - u, .9); }
+    static double alpha(double u, double gain) { return gain * .7 * Math.pow(1 - u, .9); }
+
+    private static final int DUST_GREEN = 0x8CFFD0, DUST_TEAL = 0x9FE8FF;
+    private static int dustColor(int i) { return i % 4 == 0 ? 0xFFFFFF : i % 2 == 0 ? DUST_GREEN : DUST_TEAL; }
+    /** The mana is a wind (owner, 2026-11-12): born about the wand before the caster, it streams back past them and away behind, widening and lifting as it goes;
+     *  a river of fine specks. Fixed to where the caster stands, so nothing the wand does can whip it. */
+    private static void flow(Ctx c, Vec3 feet, Vec3 f, double gain, double time, int count) {
+        Vec3 r = f.cross(new Vec3(0, 1, 0));
+        for (int i = 0; i < count && GateDraw.room(c); i++) {
+            double h = hash(i, 61), life = (hash(i, 62) + time * (.006 + .006 * h)) % 1, back = -1.6 + 12 * life;
+            double ring = hash(i, 63) * 6.2831853 + .6 * Math.sin(time * .02 + i), rad = (.25 + 1.5 * hash(i, 64)) * (.5 + 1.3 * life);
+            Vec3 at = feet.add(f.scale(-back)).add(r.scale(Math.cos(ring) * rad + .25 * Math.sin(life * 9 + i * 1.7 + time * .05)))
+                    .add(0, 1.45 + Math.sin(ring) * rad * .8 + .9 * life * life, 0);
+            double alpha = gain * Math.sin(Math.PI * Math.pow(life, .7)) * (.45 + .55 * Math.abs(Math.sin(time * .13 + i)));
+            GateDraw.sprite(c, at, .022 + .04 * hash(i, 65), alpha, dustColor(i));
+        }
+    }
+    /** And long bands of it, wide and thin as gauze, ride the same wind. */
+    private static void bands(Ctx c, Vec3 feet, Vec3 f, double gain, double time) {
+        Vec3 r = f.cross(new Vec3(0, 1, 0));
+        for (int i = 0; i < BANDS; i++) {
+            double life = (hash(i, 91) + time * (.004 + .003 * hash(i, 92))) % 1, back = -1 + 11 * life, len = 3 + 3.5 * hash(i, 93);
+            double side = (hash(i, 94) - .5) * 3.2 * (.5 + life), y = .5 + 2.4 * hash(i, 95) + .8 * life;
+            Vec3 a = feet.add(f.scale(-back)).add(r.scale(side)).add(0, y, 0);
+            Vec3 b = a.add(f.scale(-len)).add(r.scale(.5 * Math.sin(time * .03 + i))).add(0, .35 * Math.sin(time * .04 + i * 2), 0);
+            GateDraw.streamer(c, a, b, .4 + .5 * hash(i, 96), i % 3 == 0 ? 0xFFFFFF : i % 3 == 1 ? DUST_GREEN : DUST_TEAL, .42 * gain * Math.sin(Math.PI * life), (hash(i, 97) - .5) * 2);
+        }
+    }
+    /** The wand writes in the air (owner, 2026-11-12): its head and its pommel each leave a ribbon of light along the path they have just travelled, and shed specks
+     *  all the while, thickest at the head, thick at the pommel, thin along the shaft; the specks drift off and are taken by the wind going back. When the wand is spun
+     *  the two ribbons are arcs chasing each other round the hand, in a wheel of sparks. Where the wand was is known exactly: its pose is a function of the cast clock. */
+    private static void wandTrail(Ctx c, Frame f, Vec3 feet, double yaw, double gain, double time, double load) {
+        double dt = .65;
+        Vec3[] tip = new Vec3[TRAIL], pom = new Vec3[TRAIL];
+        for (int j = 0; j < TRAIL; j++) {
+            double back = j * dt;
+            var w = GatePose.wand(Math.max(0, f.age() - back), f.commandAge() < 0 ? -1 : Math.max(0, f.commandAge() - back), GatePose.endStart(f), feet, yaw);
+            tip[j] = w.tip(); pom[j] = w.pommel();
+        }
+        // The ribbons: the last 16 samples of each end, bright at the wand and gone at their tails; nothing while the wand hangs still.
+        int n = 16;
+        for (int end = 0; end < 2; end++) {
+            Vec3[] p = end == 0 ? tip : pom;
+            double moved = Math.min(1, p[0].distanceTo(p[n - 1]) * 1.5);
+            for (int j = 0; j + 1 < n && moved > .02; j++) {
+                Vec3 side = p[j + 1].subtract(p[j]).cross(p[j].subtract(c.eye));
+                if (side.lengthSqr() < 1e-10) continue;
+                side = side.normalize();
+                double k0 = 1 - (double) j / n, k1 = 1 - (double) (j + 1) / n, a = gain * moved;
+                for (int layer = 0; layer < 2; layer++) {
+                    double w = layer == 0 ? .22 : .06, al = layer == 0 ? .4 : .95;
+                    int col = layer == 0 ? (end == 0 ? DUST_TEAL : DUST_GREEN) : 0xFFFFFF;
+                    GateDraw.gradient(c, p[j].subtract(side.scale(w * k0)), p[j], p[j + 1], p[j + 1].subtract(side.scale(w * k1)), col, 0, al * a * k0, al * a * k1, 0);
+                    GateDraw.gradient(c, p[j], p[j].add(side.scale(w * k0)), p[j + 1].add(side.scale(w * k1)), p[j + 1], col, al * a * k0, 0, 0, al * a * k1);
+                }
+            }
+        }
+        // The specks: each was shed some ticks ago from where the wand then was, and has drifted since.
+        Vec3 fwd = Vec3.directionFromRotation(0, (float) yaw);
+        double period = (TRAIL - 1) * dt;
+        int count = (int) (SHED * load);
+        for (int i = 0; i < count && GateDraw.room(c); i++) {
+            double phase = (hash(i, 81) + time / period) % 1, since = phase * period;
+            int j = Math.min(TRAIL - 1, (int) (since / dt));
+            // 45% from the head, 35% from the pommel, the rest from along the shaft.
+            double pick = hash(i, 82), along = pick < .45 ? 0 : pick < .8 ? 1 : hash(i, 83);
+            Vec3 from = tip[j].lerp(pom[j], along);
+            double a = hash(i, 84) * 6.2831853, b = hash(i, 85) * 3.14159 - 1.5708, out = (.05 + .5 * hash(i, 86)) * Math.sqrt(phase);
+            Vec3 at = from.add(Math.cos(a) * Math.cos(b) * out, Math.sin(b) * out + .25 * phase, Math.sin(a) * Math.cos(b) * out).add(fwd.scale(-(.6 * phase + 2.2 * phase * phase)));
+            GateDraw.sprite(c, at, (along == 0 ? .03 : .022) + .045 * hash(i, 87) * (1 - .5 * phase), gain * (1 - phase) * (.5 + .5 * Math.abs(Math.sin(time * .2 + i))), dustColor(i),
+                    i % 5 == 0 ? GateAtlas.STAR : GateAtlas.GLOW, time * .05 + i);
+        }
+    }
 
     private static void glints(Ctx c, Vec3[] cen, int k, double w0, double gain, double time) {
         for (int g = 0; g < GLINTS; g++) {
             double u = (hash(k * 7 + g, 11) * .9 + time * (.0035 + .002 * hash(k, g))) % 1 * .92;
             double pos = u * (SAMPLES - 1);
             int j = Math.min(SAMPLES - 2, (int) pos);
-            Vec3 at = cen[j].lerp(cen[j + 1], pos - j);
+            // Scattered off the strand, wider toward the tail: a cloud of glitter round each wisp.
+            double spread = (.04 + .4 * u) * (g % 4 == 0 ? 0 : 1);
+            Vec3 at = cen[j].lerp(cen[j + 1], pos - j).add((hash(k * 3 + g, 41) - .5) * spread, (hash(k * 3 + g, 43) - .5) * spread, (hash(k * 3 + g, 47) - .5) * spread);
             double twinkle = Math.max(0, Math.sin(time * (.30 + .15 * hash(k + g, 13)) + hash(k, 20 + g) * 6.28));
             double alpha = gain * Math.pow(twinkle, 1.6) * (1 - .6 * u);
             if (alpha < .02) continue;
-            GateDraw.sprite(c, at, .09 + .08 * hash(k * 5 + g, 17), alpha, mix(0xCFF8FF, 0xFFFFFF, hash(k, g + 30)), GateAtlas.STAR, time * .03 + g);
+            GateDraw.sprite(c, at, (g % 4 == 0 ? .09 : .035) + .07 * hash(k * 5 + g, 17), alpha, mix(0xCFF8FF, 0xFFFFFF, hash(k, g + 30)), GateAtlas.STAR, time * .03 + g);
         }
     }
 }

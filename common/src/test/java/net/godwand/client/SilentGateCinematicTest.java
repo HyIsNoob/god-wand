@@ -11,7 +11,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Script v3 (docs/superpowers/plans/2026-11-09-silent-gate-script-v3.md): the eighteen build shots, B1..B6 and E1..E4. */
+/** Script v5 (docs/superpowers/plans/2026-11-10-silent-gate-script-v4.md, section v5): fourteen build shots, B1..B5 and E1..E3, on one side of the caster-to-gate line. */
 class SilentGateCinematicTest {
     private static final Vec3 PLAYER = new Vec3(4, 70, 8);
     private static final Vec3 EYE = PLAYER.add(0, 1.62, 0);
@@ -36,195 +36,178 @@ class SilentGateCinematicTest {
     private static final double ALT = SilentGateSequence.circleAltitude(PLAYER.y);
 
     private static Vec3 pos(double age) { return build(age < SilentGateSequence.BUILD_TICKS ? 0 : 1, age).position(); }
-    private static SilentGateCinematic.Cut shot(int n) { return SilentGateCinematic.CUTS.get(n - 1); }
-    private static double mid(SilentGateCinematic.Cut c) { return (c.t0() + c.t1()) / 2.0; }
+    /** The shot by its script number (S04 is the first since the waking shots 1..3 were cut). */
+    private static SilentGateCinematic.Cut shot(int n) {
+        for (var c : SilentGateCinematic.CUTS) if (c.name().startsWith(String.format("S%02d ", n))) return c;
+        throw new AssertionError("no shot " + n);
+    }
+    private static double lens(double t) { return SilentGateCinematic.lens(t, -1, 200); }
 
     /** True when {@code p} is inside a 16:9 frame of a 70 degree vertical field of view looking from {@code pose}. */
-    private static boolean inFrame(AtomicCinematic.Pose pose, Vec3 p) {
+    private static boolean inFrame(AtomicCinematic.Pose pose, Vec3 p) { return inFrame(pose, p, 1); }
+    /** As above through a lens: the field of view is {@code lens} times 70 degrees. */
+    private static boolean inFrame(AtomicCinematic.Pose pose, Vec3 p, double lens) {
         Vec3 f = Vec3.directionFromRotation(pose.pitch(), pose.yaw()), right = f.cross(new Vec3(0, 1, 0)).normalize(), up = right.cross(f);
         Vec3 d = p.subtract(pose.position());
-        double z = d.dot(f), v = Math.tan(Math.toRadians(35));
+        double z = d.dot(f), v = Math.tan(Math.toRadians(35 * lens));
         return z > 0 && Math.abs(d.dot(up) / z) <= v && Math.abs(d.dot(right) / z) <= v * 16 / 9;
     }
 
-    @Test void shotTableIsScriptV3() {
+    @Test void shotTableIsScriptV7() {
         var cuts = SilentGateCinematic.CUTS;
-        assertEquals(18, cuts.size());
-        assertArrayEquals(new int[]{0, 15, 45, 55, 62, 92, 125, 160, 200, 232, 262, 292, 312, 337, 387, 420, 452, 470}, cuts.stream().mapToInt(SilentGateCinematic.Cut::t0).toArray());
+        assertArrayEquals(new int[]{0, 70, 142, 258, 290, 340, 420, 468}, cuts.stream().mapToInt(SilentGateCinematic.Cut::t0).toArray());
         for (int i = 1; i < cuts.size(); i++) assertEquals(cuts.get(i - 1).t1(), cuts.get(i).t0(), cuts.get(i).name());
-        assertEquals(480, cuts.get(17).t1(), "shot 18 holds from 470 on into the wait");
+        assertEquals(480, cuts.get(cuts.size() - 1).t1(), "the waiting frame holds from 468 on into the wait");
         var bar = SilentGateCinematic.BARRAGE;
-        assertArrayEquals(new int[]{0, 14, 50, 82, 125, 162}, bar.stream().mapToInt(SilentGateCinematic.Cut::t0).toArray());
-        assertEquals(212, bar.get(5).t1());
-        for (int i = 1; i < 6; i++) assertEquals(bar.get(i - 1).t1(), bar.get(i).t0());
+        assertArrayEquals(new int[]{0, 14, 60, 108, 160}, bar.stream().mapToInt(SilentGateCinematic.Cut::t0).toArray());
+        assertEquals(212, bar.get(4).t1(), "the command and four shots for the whole barrage, each a slow move: no cutting about");
+        for (int i = 1; i < bar.size(); i++) assertEquals(bar.get(i - 1).t1(), bar.get(i).t0());
         var end = SilentGateCinematic.ENDING;
-        assertArrayEquals(new int[]{0, 40, 80, 125}, end.stream().mapToInt(SilentGateCinematic.Cut::t0).toArray());
-        assertEquals(SilentGateSequence.ENDING_TICKS, end.get(3).t1());
-        for (var c : cuts) if (c.t1() <= 470) assertTrue(c.t1() - c.t0() >= 7, c.name());
-        for (var c : cuts) if (c.t0() >= 62 && c.t1() <= 470) assertTrue(c.t1() - c.t0() >= 18, c.name() + " lasts as long as the table says");
-        // The script's events sit inside their shots.
-        assertTrue(shot(8).t0() == SilentGateSequence.CIRCLE_START && shot(9).t1() == SilentGateSequence.CIRCLE_FULL && shot(10).t0() == SilentGateSequence.SLIT_START);
-        assertTrue(shot(11).t0() == SilentGateSequence.DESCENT_START && SilentGateSequence.DESCENT_END > shot(11).t1() && SilentGateSequence.DESCENT_END < shot(12).t1());
-        assertTrue(SilentGateSequence.SHOCK > shot(13).t0() && SilentGateSequence.SHOCK < shot(13).t1());
-        assertTrue(SilentGateSequence.OPEN_START == shot(14).t0() + 3 && SilentGateSequence.STUCK_END > shot(14).t0() && SilentGateSequence.OPEN_END > shot(15).t0() && SilentGateSequence.OPEN_END < shot(15).t1());
-        assertEquals(SilentGateSequence.BLOOM_START, shot(16).t0());
+        assertArrayEquals(new int[]{0, 40, 80}, end.stream().mapToInt(SilentGateCinematic.Cut::t0).toArray());
+        assertEquals(SilentGateSequence.ENDING_TICKS, end.get(2).t1());
+        // Few cuts: every shot of the build is held for at least a second and a half.
+        for (var c : cuts) if (c.t1() <= 468) assertTrue(c.t1() - c.t0() >= 30, c.name() + " is held");
+        // The order the owner asked for: the hand is raised; the gate is made and comes down in one shot and has spread its wings before we return to the caster;
+        // the "shh", the spin and the discs; only then the doors.
+        assertTrue(shot(2).t0() == SilentGateSequence.CIRCLE_START && shot(2).t1() == SilentGateSequence.CIRCLE_FULL && shot(3).t0() == SilentGateSequence.SLIT_START);
+        assertTrue(shot(3).t0() <= SilentGateSequence.DESCENT_START && shot(3).t1() >= SilentGateSequence.SHOCK + 22, "crack, descent and wings in one shot");
+        assertTrue(SilentGateSequence.OPEN_START >= shot(5).t1(), "the doors wait for the caster");
+        assertTrue(SilentGateSequence.OPEN_START >= shot(6).t0() && SilentGateSequence.OPEN_END < shot(6).t1(), "one shot from the stuck doors to the flood");
+        assertEquals(SilentGateSequence.BLOOM_START, shot(13).t0());
     }
 
-    @Test void firstPersonShotsSitAtTheEye() {
-        for (int n = 1; n <= 4; n++) for (double t = shot(n).t0(); t < shot(n).t1(); t += 1) {
+    @Test void casterShots() {
+        Vec3 face = PLAYER.add(0, 1.62, 0);
+        // The hand is raised: seen from the caster's right side, close by and low, so the wind of mana streams across the frame.
+        for (double t = 0; t < 70; t += 5) {
             var p = build(0, t);
-            assertTrue(p.position().distanceTo(EYE) <= .35, "shot " + n + " at the eye, tick " + t + ": " + p.position().distanceTo(EYE));
-            assertEquals(0, p.yaw(), 1, "looks where the caster looks");
-            assertTrue(Math.abs(p.pitch()) < 5);
+            assertTrue(p.position().x < PLAYER.x - 2.5 && p.position().distanceTo(face) < 6 && p.position().y < PLAYER.y + 2 && inFrame(p, face, lens(t)), "beside the caster at " + t + ": " + p.position());
         }
-        // The wand floats 1.5 blocks before the face at eye height (the same frame is the camera's centre).
-        var wand = GatePose.wand(30, -1, 212, PLAYER, 0);
-        assertEquals(1.5, wand.pos().z - PLAYER.z, .05);
-        assertEquals(EYE.y, wand.pos().y, .25);
-    }
-
-    @Test void farShotShowsASmallCasterInTheField() {
-        for (double t = 62; t < 92; t += 3) {
+        // Back on the caster: close before the face while the finger comes to the lips.
+        for (double t = 258; t < 290; t += 4) {
             var p = build(0, t);
-            double behind = PLAYER.z - p.position().z, dist = p.position().distanceTo(PLAYER.add(0, 1, 0));
-            assertTrue(behind > 20 && behind < 30 && dist > 22 && dist < 32, "about 25 blocks behind, off to the side, at " + t + ": " + behind + " / " + dist);
-            assertTrue(p.position().y > PLAYER.y + 3 && p.position().y < PLAYER.y + 10, "slightly high");
-            assertTrue(inFrame(p, PLAYER.add(0, 1, 0)), "the caster is in the frame");
+            assertTrue(p.position().distanceTo(face) < 2.6 && p.position().z > PLAYER.z + 1 && inFrame(p, face, lens(t)), "close before the face at " + t);
         }
-    }
-
-    @Test void closeShotsStayCloseAndSmallShotsStaySmall() {
-        for (double t = 92; t < 125; t += 4) {
-            double d = build(0, t).position().distanceTo(PLAYER.add(0, 1.4, 0));
-            assertTrue(d > 3.5 && d < 7, "medium three-quarter " + d);
-            assertTrue(build(0, t).position().z > PLAYER.z + 2, "in front of the caster");
-        }
-        for (double t = 125; t < 160; t += 4) assertTrue(build(0, t).position().distanceTo(PLAYER.add(0, 1.62, 0)) < 3.1, "face close-up at " + t);
-        assertTrue(build(0, 159.9).position().distanceTo(PLAYER.add(0, 1.62, 0)) < 1.9);
-    }
-
-    @Test void greatCircleShotsLookUpFromBelow() {
-        for (double t = 160; t < 200; t += 2) {
-            var p = build(0, t);
-            assertTrue(p.position().y < PLAYER.y + .5 && p.position().distanceTo(new Vec3(PLAYER.x, p.position().y, PLAYER.z)) < 6, "shot 8 at the caster's feet, tick " + t);
-            assertTrue(p.pitch() < -45, "looking steeply up: " + p.pitch());
-        }
-        assertEquals(.25 * 39, Math.abs(build(0, 199).yaw() - build(0, 160).yaw()), .5, "the yaw turns slowly");
-        for (double t = 200; t < 232; t += 2) {
-            var p = build(0, t);
-            double rim = PLAYER.y + ALT + 3.2 * 3;
-            assertEquals(20, rim - p.position().y, 1.5, "shot 9: 20 blocks under the outer tier");
-            assertTrue(p.pitch() < -30);
-            // The camera sits where the outer tier's band ends up (150 blocks from the circle's centre), drifting inward.
-            Vec3 centre = SilentGateSequence.gateCenter(PLAYER, 0f);
-            double r = Math.hypot(p.position().x - centre.x, p.position().z - centre.z);
-            assertTrue(r > 146 && r < 152, "under the band: " + r);
-        }
-    }
-
-    @Test void gateShotsFrameTheGate() {
-        // Shot 10: level with the slit, about 30 blocks from it.
-        Vec3 slitMid = SilentGateSequence.gateFoot(PLAYER, 0f, 1).add(0, 126, 0);
-        for (double t = 232; t < 262; t += 3) {
-            var p = build(0, t);
-            assertEquals(30, Math.hypot(p.position().x - slitMid.x, p.position().z - slitMid.z), 1.5, "about 30 blocks from the slit");
-            assertTrue(Math.abs(p.position().y - slitMid.y) < 25 && inFrame(p, slitMid));
-        }
-        // Shot 11: still camera beside the spike's path; the gate passes through the frame.
-        assertEquals(0, pos(262).distanceTo(pos(291.9)), 1e-9, "still");
-        Vec3 spike = SilentGateSequence.gateFoot(PLAYER, 0f, 1);
-        var still = build(0, 270);
-        assertTrue(inFrame(still, SilentGateSequence.gateFoot(PLAYER, 0f, SilentGateSequence.gateDescent(270)).add(0, 60, 0)), "the gate comes through the frame");
-        assertTrue(Math.abs(still.position().x - spike.x) < 12 && still.position().distanceTo(FOOT.add(0, 20, 0)) < 60, "beside its path");
-        // Shot 12: medium wide from the ground, looking up at the whole gate, before and after the touchdown at 300 (the view rings like a spring).
-        for (double t : new double[]{294, 296, 308, 311}) {
-            var p = build(0, t);
-            assertTrue(p.position().y <= PLAYER.y + 4 && p.pitch() < -20, "from the ground looking up at " + t + ": " + p.pitch());
-            assertTrue(inFrame(p, DOOR) && inFrame(p, FOOT.add(0, 10, 0)) && inFrame(p, FOOT.add(0, 190, 0)), "the whole gate is in frame at " + t);
-        }
-        assertEquals(0, pos(292).distanceTo(pos(311.9)), 1e-9);
-        double ring = 0; for (double t = 300; t < 312; t += .5) ring = Math.max(ring, Math.abs(build(0, t).pitch() - build(0, 295).pitch()));
-        assertTrue(ring > 1, "the touchdown shakes the view: " + ring);
-        assertEquals(0, build(0, 299).pitch() - build(0, 295).pitch(), 1e-3, "calm until it lands");
-        // Shot 13: extreme wide, 110 behind and 40 up, the caster tiny but in frame, the gate in frame, the shockwave starts at 318.
-        for (double t = 312; t < 337; t += 3) {
-            var p = build(0, t);
-            assertEquals(110, PLAYER.z - p.position().z, 6, "110 blocks behind");
-            assertEquals(40, p.position().y - PLAYER.y, 3, "40 blocks up");
-            assertTrue(inFrame(p, PLAYER.add(0, 1, 0)) && inFrame(p, PLAYER.add(0, .2, 0)), "the caster is within the frame at " + t);
-            assertTrue(inFrame(p, DOOR), "the gate is in frame");
-        }
-        // Shot 14: 25 blocks from the seam, at its middle, a slow arc; shot 15 close to the light, then backing off.
-        for (double t = 337; t < 387; t += 3) {
-            var p = build(0, t);
-            assertEquals(25, p.position().distanceTo(DOOR.add(0, -2, 0)), .5, "25 blocks from the door's middle");
-            assertTrue(inFrame(p, DOOR));
-        }
-        double arc = Math.abs(Mth.wrapDegrees(build(0, 386.9).yaw() - build(0, 337).yaw()));
-        assertEquals(16, arc, 1.5, "a slow arc round the seam");
-        double d15a = build(0, 387).position().distanceTo(DOOR), d15b = build(0, 419.9).position().distanceTo(DOOR);
-        assertTrue(d15a < 18 && d15b > d15a + 2, "close to the light, backing off when the doors stop: " + d15a + " -> " + d15b);
-    }
-
-    @Test void canopyShotIsHighAndLooksDown() {
-        for (double t = 420; t < 452; t += 2) {
-            var p = build(0, t);
-            assertTrue(p.position().y >= PLAYER.y + 200, "shot 16 camera height at least anchor+200: " + (p.position().y - PLAYER.y));
-            assertTrue(p.position().y < PLAYER.y + ALT, "under the great circle");
-            assertTrue(p.pitch() > 10 && p.pitch() < 45, "looking down: " + p.pitch());
-            assertTrue(inFrame(p, DOOR) && inFrame(p, PLAYER.add(0, 110, 100)), "gate and the canopy in frame");
-            // Every height tier of the canopy (55..215) is below the camera.
-            assertTrue(p.position().y > PLAYER.y + 215);
-        }
-    }
-
-    @Test void diveFliesLowAndFastUnderTheCanopyThenCutsToTheWaitingFrame() {
+        assertEquals(GatePose.LIPS.lp(), GatePose.joints(288, -1, 1000).lp(), .05);
+        assertTrue(GatePose.joints(252, -1, 1000).lp() > GatePose.LIPS.lp() + .5, "the finger comes up inside the shot");
+        // Then it only ever draws back, most of the way while the wand is spun; the discs behind the caster are made in this shot.
         double prev = 0;
-        for (double t = 453; t < 470; t += 1) {
-            var p = build(0, t);
-            assertTrue(p.position().y < PLAYER.y + 8, "low under the canopy at " + t);
-            assertTrue(p.pitch() < -30 && p.pitch() > -45, "looking up at the circles overhead and ahead: " + p.pitch());
-            double v = pos(t + .5).distanceTo(pos(t - .5));
-            assertTrue(v >= prev - 1e-6 && v <= 3.0, "accelerates continuously to at most 3 blocks per tick: " + v);
-            prev = v;
-        }
-        assertEquals(0, pos(452).distanceTo(SilentGateSequence.flight(PLAYER, 0f, 0).add(0, 0, 0)), 1.5);
-        assertTrue(prev > 2.5, "reaches nearly full speed: " + prev);
-        var held = build(1, 480);
-        assertTrue(held.position().z - PLAYER.z > 4 && held.position().distanceTo(PLAYER) < 9, "medium frame in front of the caster: " + held.position());
-        assertEquals(0, pos(470).distanceTo(held.position()), .3, "shot 18 starts on the waiting frame");
-        assertEquals(0, pos(479.99).distanceTo(held.position()), .3);
-        for (double age : new double[]{480, 520, 800}) assertTrue(build(1, age).position().distanceTo(held.position()) <= .6, "WAIT holds the frame at " + age);
+        for (double t = 290; t < 340; t += 1) { double d = build(0, t).position().distanceTo(face); assertTrue(d >= prev - 1e-9, "never closer again at " + t); prev = d; }
+        assertTrue(prev > 3 && prev < 4.5, "drawn back, but not far: " + prev);
+        // Square on to the caster from the "shh" to the end of the draw-back.
+        for (double t = 258; t < 340; t += 4) assertEquals(PLAYER.x, build(0, t).position().x, .02, "square on at " + t);
+        assertTrue(GateMinor.DISCS_FROM >= 290 && GateMinor.DISCS_FROM + 2.2 * 7 + 16 <= 340);
+        assertTrue(GatePose.spinAngle(GatePose.poseClock(295)) < .2 && GatePose.spinAngle(GatePose.poseClock(331)) > 6, "the wand is spun while the camera draws back");
     }
 
-    /** Camera speed per shot: at most 0.15 blocks per tick everywhere in the script except the dive (3), turning at most 0.5 degrees per tick (except the shaking shots). */
-    @Test void everyShotMovesSlowly() {
-        for (int n = 1; n <= 18; n++) {
-            var c = shot(n);
-            double max = 0, turn = 0;
-            for (double t = c.t0(); t + 1 < Math.min(c.t1(), 480); t += 1) {
-                max = Math.max(max, pos(t + 1).distanceTo(pos(t)));
-                var a = build(0, t); var b = build(0, t + 1);
-                turn = Math.max(turn, Math.max(Math.abs(Mth.wrapDegrees(b.yaw() - a.yaw())), Math.abs(b.pitch() - a.pitch())));
+    /** From the first shot on the camera stays on the caster's right of the caster-to-gate line: the line is never crossed. */
+    @Test void everyShotKeepsToOneSideOfTheLine() {
+        for (double t = 0; t < 468; t += 4) assertTrue(build(0, t).position().x <= PLAYER.x + 1e-6, "never left of the line at " + t + ": " + build(0, t).position());
+        // The great circle: the caster's head in the foreground at first, a tilt up to the circle while the camera creeps forward.
+        assertTrue(inFrame(build(0, 82), PLAYER.add(0, 1.7, 0)));
+        assertTrue(build(0, 82).pitch() - build(0, 141.99).pitch() > 18, "tilts up some 20 degrees (after the glide in)");
+        assertTrue(pos(70).distanceTo(pos(141)) > 2, "and moves");
+    }
+
+    @Test void gateShotsFollowTheGate() {
+        double k = SilentGateSequence.SCALE;
+        // The gate comes down in one shot from the ground far behind the caster, looking up: it holds the crack, then tilts down with the gate, riding in slowly.
+        Vec3 crack = new Vec3(FOOT.x, PLAYER.y + ALT, FOOT.z);
+        for (double t = 142; t < 258; t += 6) {
+            var p = build(0, t);
+            assertTrue(p.position().y < PLAYER.y + 10 && p.pitch() < -15 && PLAYER.z - p.position().z > 50, "on the ground behind the caster, looking up at " + t + ": " + p.position() + " " + p.pitch());
+            if (t < SilentGateSequence.DESCENT_START) assertTrue(inFrame(p, crack, lens(t)), "the crack is in frame at " + t);
+            Vec3 foot = SilentGateSequence.gateFoot(PLAYER, 0f, SilentGateSequence.gateDescent(t));
+            if (t >= SilentGateSequence.DESCENT_END - 10) assertTrue(inFrame(p, foot.add(0, 150, 0), lens(t)), "the gate is in frame at " + t);
+        }
+        assertTrue(build(0, 222).pitch() > build(0, 150).pitch() + 5, "tilts down with the gate");
+        assertTrue(lens(200) < .45 && lens(250) > .9, "close on the gate while it sinks, thrown wide when the wings burst open");
+        assertTrue(lens(SilentGateSequence.SHOCK + 8) - lens(SilentGateSequence.SHOCK) > .35, "most of it in the first half second");
+        assertTrue(lens(257.9) > lens(254) && lens(254) > lens(250), "and still opening when the shot is cut: it never arrives and stands");
+        var wide = build(0, 250);
+        assertTrue(inFrame(wide, FOOT, lens(250)) && inFrame(wide, FOOT.add(54 * k, 70 * k, 0), lens(250)) && inFrame(wide, FOOT.add(-54 * k, 70 * k, 0), lens(250)), "the winged gate in frame");
+        // The doors: one shot, in the air under the gate on the caster's right, going slowly round it from the stuck doors to the flood, the door in frame.
+        double first = 0, lastAngle = 0;
+        for (double t = 340; t < 420; t += 4) {
+            var p = build(0, t);
+            assertTrue(p.position().y > PLAYER.y + 100 && p.position().y < FOOT.y && inFrame(p, DOOR, lens(t)), "under the gate at " + t + ": " + p.position());
+            double angle = Math.toDegrees(Math.atan2(PLAYER.x - p.position().x, FOOT.z - p.position().z));
+            if (t == 340) first = angle; else assertTrue(angle > lastAngle, "going round at " + t);
+            lastAngle = angle;
+        }
+        assertTrue(lastAngle - first > 20 && lastAngle - first < 40, "a slow arc of " + (lastAngle - first) + " degrees");
+        assertTrue(lens(418) < lens(390) - .05, "a gentle push in as the doors give");
+    }
+
+    @Test void canopyShotHoldsTheCasterAndTheGateForTwoSecondsAndMore() {
+        assertTrue(shot(13).t1() - shot(13).t0() >= 48);
+        for (double t = 420; t < 468; t += 4) {
+            var p = build(0, t);
+            assertTrue(inFrame(p, DOOR, lens(t)) && PLAYER.z - p.position().z > 1 && p.position().distanceTo(PLAYER) < 8, "over the shoulder, the gate ahead at " + t);
+        }
+    }
+
+    /** A camera that is always slowly on its way somewhere: no shot of the build stands still, none races. */
+    @Test void shotsMoveSlowlyButNeverStandStill() {
+        double[] limit = {.1, .15, .4, .1, .15, 1.4, .15};
+        for (int n = 0; n < SilentGateCinematic.CUTS.size() - 1; n++) {
+            var c = SilentGateCinematic.CUTS.get(n);
+            double max = 0;
+            // The glide in from a neighbouring setup is checked on its own: smooth, and never a whip.
+            double glide = n > 0 && pos(c.t0() - .01).distanceTo(pos(c.t0())) < .05 ? SilentGateCinematic.glideTicks(SilentGateCinematic.GLIDE_REACH) : 0, whip = 0;
+            for (double t = c.t0(); t + 1 < c.t1(); t += 1) {
+                double v = pos(t + 1).distanceTo(pos(t));
+                if (t < c.t0() + glide) whip = Math.max(whip, v); else max = Math.max(max, v);
             }
-            assertTrue(max <= (n == 17 ? 3.0 : .15), "shot " + n + " speed " + max + " blocks/tick");
-            if (n != 12 && n != 14 && n != 15 && n != 17) assertTrue(turn <= .5, "shot " + n + " turns " + turn + " deg/tick");
-            else assertTrue(turn <= 4, "shot " + n + " shake " + turn + " deg/tick");
+            assertTrue(max <= limit[n], c.name() + " speed " + max + " blocks/tick");
+            assertTrue(whip < .7, c.name() + " glide speed " + whip);
+            assertTrue(pos(c.t0()).distanceTo(pos(c.t1() - .01)) > .1, c.name() + " moves");
         }
         assertEquals(480, SilentGateSequence.BUILD_TICKS);
-        String[] names = {"B1", "B2", "B3", "B4", "B5", "B6"};
-        for (int n = 0; n < 6; n++) {
+        double[] barrage = {.15, .1, 1.1, 1.8, 1.3};
+        for (int n = 0; n < SilentGateCinematic.BARRAGE.size(); n++) {
             var c = SilentGateCinematic.BARRAGE.get(n);
-            double max = 0;
-            for (double t = c.t0(); t + 1 < c.t1(); t += 1) max = Math.max(max, barrage(t + 1, 200).position().distanceTo(barrage(t, 200).position()));
-            assertTrue(max <= .15, names[n] + " speed " + max + " blocks/tick");
+            double max = 0, min = Double.MAX_VALUE;
+            double from = n > 0 && barrage(c.t0() - .01, 200).position().distanceTo(barrage(c.t0(), 200).position()) < .05 ? c.t0() + SilentGateCinematic.glideTicks(SilentGateCinematic.GLIDE_REACH) : c.t0();
+            for (double t = from; t + 1 < c.t1(); t += 1) {
+                double v = barrage(t + 1, 200).position().distanceTo(barrage(t, 200).position());
+                max = Math.max(max, v); min = Math.min(min, v);
+            }
+            assertTrue(max <= barrage[n], c.name() + " speed " + max + " blocks/tick");
+            assertTrue(min > .2 * max, c.name() + " never rests: " + min + " .. " + max);
         }
-        for (int n = 0; n < 4; n++) {
-            var c = SilentGateCinematic.ENDING.get(n);
-            double max = 0;
-            for (double t = c.t0(); t + 1 < c.t1(); t += 1) max = Math.max(max, barrage(212 + t + 1, 200).position().distanceTo(barrage(212 + t, 200).position()));
-            assertTrue(max <= .15, "E" + (n + 1) + " speed " + max + " blocks/tick");
+        // Nor does anything in the build, the wait or the ending come to a stand: every shot is still moving in its last tick.
+        for (var c : SilentGateCinematic.CUTS) assertTrue(pos(c.t1() - 1).distanceTo(pos(c.t1() - .01)) > 1e-4, c.name() + " is still moving when it is cut");
+        assertTrue(pos(600).distanceTo(pos(601)) > 1e-4, "the waiting frame sways");
+        for (double e = 1; e < SilentGateSequence.ENDING_TICKS - 1; e += 13)
+            assertTrue(barrage(212 + e, 200).position().distanceTo(barrage(213 + e, 200).position()) > 1e-4, "the ending drifts at " + e);
+    }
+
+    @Test void impactFramesAndLensFollowTheBeats() {
+        assertArrayEquals(new double[]{0, 0}, SilentGateCinematic.flash(SilentGateSequence.DESCENT_END - .1, -1, -1), 0, "nothing before the touchdown");
+        assertEquals(1, SilentGateCinematic.flash(3.5, -1, -1)[0], 0, "the first click is an impact frame: white on black");
+        assertEquals(2, SilentGateCinematic.flash(4.5, -1, -1)[0], 0, "then black on white");
+        assertEquals(1, SilentGateCinematic.flash(700, .5, -1)[0], 0, "and so is the command");
+        assertEquals(2, SilentGateCinematic.flash(700, 1.5, -1)[0], 0);
+        assertEquals(1, SilentGateCinematic.flash(SilentGateSequence.DESCENT_END + 1, -1, -1)[0], 0, "the touchdown is inked");
+        assertEquals(0, SilentGateCinematic.flash(SilentGateSequence.DESCENT_END + 3, -1, -1)[0], 0, "for two and a half ticks only");
+        assertTrue(SilentGateCinematic.flash(SilentGateSequence.DESCENT_END + 3, -1, -1)[1] > .3 && SilentGateCinematic.flash(SilentGateSequence.DESCENT_END + 30, -1, -1)[1] == 0, "then a small flash that dies away");
+        assertTrue(SilentGateCinematic.flash(412.5, -1, -1)[1] > .25 && SilentGateCinematic.flash(412.5, -1, -1)[0] == 0, "the doors' stop only flashes");
+        assertEquals(1, SilentGateCinematic.flash(700, 100, .1)[0], 0, "the kill beam is inked during the hit-stop");
+        assertEquals(0, SilentGateCinematic.flash(700, 100, 30)[1], 0);
+        for (double t = 0; t < 480; t += 1) {
+            double l = SilentGateCinematic.lens(t, -1, 200);
+            assertTrue(l >= .2 && l <= 1.15, "lens " + l + " at " + t);
+            // Inside a shot the lens only creeps (a slow zoom); it jumps at cuts alone.
+            boolean cut = false; for (var c : SilentGateCinematic.CUTS) cut |= c.t0() == t + 1;
+            // The one fast zoom: the view is thrown wide as the wings open, and goes on opening to the cut.
+            boolean wings = t >= SilentGateSequence.SHOCK - 1 && t < 258;
+            // And the kick of the first click.
+            if (!cut) assertEquals(l, SilentGateCinematic.lens(t + 1, -1, 200), wings ? .085 : t < 12 ? .06 : .012, "zoom speed at " + t);
         }
+        assertTrue(lens(30) <= .91 && lens(160) < .7 && lens(200) < .7 && lens(280) <= .85, "long lenses on the gate (it looks enormous) and on the face");
+        assertTrue(lens(100) >= 1 && lens(440) > 1 && lens(360) > .7 && lens(360) < .85, "wide on the sky and on the canopy; the orbit is close, on a wider lens");
+        for (double c = 0; c < 372; c += 3) assertTrue(SilentGateCinematic.lens(480 + c, c, 200) >= .35 && SilentGateCinematic.lens(480 + c, c, 200) <= 1.15);
     }
 
     @Test void curvesAreNotTheDefaultEaseInOut() {
@@ -234,11 +217,14 @@ class SilentGateCinematicTest {
         assertTrue(out.u(1) - out.u(.9) < .005, "stops very slowly");
         var in = SilentGateCinematic.Curve.EASE_IN;
         assertTrue(in.u(.1) < .02 && in.u(1) - in.u(.9) > .15, "accelerates to the end");
-        // The dive: from rest, speed grows linearly (u = k^2).
-        assertEquals(0, SilentGateSequence.flightU(SilentGateSequence.FLIGHT_START), 1e-12);
-        assertEquals(1, SilentGateSequence.flightU(SilentGateSequence.FLIGHT_END), 1e-12);
-        assertEquals(.25, SilentGateSequence.flightU(461), 1e-12);
-        assertEquals(461, SilentGateSequence.flightTime(SilentGateSequence.flightU(461)), 1e-9, "inverse");
+        // The glide: from rest to rest, symmetric, with no jerk at either end.
+        var glide = SilentGateCinematic.Curve.GLIDE;
+        assertEquals(0, glide.u(0), 0); assertEquals(1, glide.u(1), 1e-12); assertEquals(.5, glide.u(.5), 1e-12);
+        assertTrue(glide.u(.02) < 1e-4 && 1 - glide.u(.98) < 1e-4, "at rest at both ends");
+        // The flow: under way at both ends, a little faster in the middle, never at rest.
+        var flow = SilentGateCinematic.Curve.FLOW;
+        assertEquals(0, flow.u(0), 0); assertEquals(1, flow.u(1), 1e-12); assertEquals(.5, flow.u(.5), 1e-12);
+        assertTrue(flow.u(.02) > .01 && 1 - flow.u(.98) > .01 && flow.u(.51) - flow.u(.49) < .03, "moving at both ends, no rush between");
         // Hermite key moves: velocity continuous through a key, and a rest key stops dead.
         var keys = List.of(new SilentGateCinematic.Key(0, new Vec3(0, 0, 0), Vec3.ZERO, true), new SilentGateCinematic.Key(10, new Vec3(10, 0, 0), Vec3.ZERO, false),
                 new SilentGateCinematic.Key(20, new Vec3(20, 0, 0), Vec3.ZERO, true));
@@ -251,70 +237,77 @@ class SilentGateCinematicTest {
     @Test void stuckDoorsTrembleThenJoltAndTheTouchdownRings() {
         assertEquals(0, Math.hypot(SilentGateCinematic.rattle(SilentGateSequence.OPEN_START - 1)[0], SilentGateCinematic.rattle(SilentGateSequence.OPEN_START - 1)[1]), 1e-9);
         double stuck = 0, jolt = 0;
-        for (double t = 345; t < 362; t += .5) stuck = Math.max(stuck, Math.abs(SilentGateCinematic.rattle(t)[1]));
+        for (double t = SilentGateSequence.OPEN_START + 4; t < SilentGateSequence.STUCK_END - 3; t += .5) stuck = Math.max(stuck, Math.abs(SilentGateCinematic.rattle(t)[1]));
         for (double t = SilentGateSequence.OPEN_END + 1; t < SilentGateSequence.OPEN_END + 5; t += .25) jolt = Math.max(jolt, Math.abs(SilentGateCinematic.rattle(t)[1]));
         assertTrue(stuck > .3 && stuck < 2, "tremble " + stuck);
         assertTrue(jolt > 1.2, "stop jolt " + jolt);
         assertEquals(0, SilentGateCinematic.rattle(SilentGateSequence.OPEN_END + 25)[1], .05, "calm again");
-        assertEquals(0, SilentGateCinematic.landing(299)[1], 0);
-        assertTrue(Math.abs(SilentGateCinematic.landing(302)[1]) > .5, "the touchdown shakes the view");
-        assertEquals(0, SilentGateCinematic.landing(330)[1], .05, "a spring that dies away");
+        assertEquals(0, SilentGateCinematic.landing(SilentGateSequence.DESCENT_END - 1)[1], 0);
+        assertTrue(Math.abs(SilentGateCinematic.landing(SilentGateSequence.DESCENT_END + 2)[1]) > .5, "the touchdown shakes the view");
+        assertEquals(0, SilentGateCinematic.landing(SilentGateSequence.DESCENT_END + 30)[1], .05, "a spring that dies away");
     }
 
     @Test void barrageShotsFollowTheScript() {
-        assertArrayEquals(new int[]{82, 125, 162, 212}, SilentGateCinematic.boundaries(200));
-        assertArrayEquals(new int[]{12 + 140, 12 + 226, 12 + 300, 412}, SilentGateCinematic.boundaries(400), "scaled with the barrage length");
-        // B1: close on the casting arm from its side, 3 blocks away.
+        assertArrayEquals(new int[]{46, 125, 162, 212}, SilentGateCinematic.boundaries(200));
+        assertArrayEquals(new int[]{12 + 68, 12 + 226, 12 + 300, 412}, SilentGateCinematic.boundaries(400), "scaled with the barrage length");
+        // B1: close in front of the caster as the hand comes down.
         for (double c = 0; c < 14; c += 2) {
             var p = barrage(c, 200);
-            assertEquals(3.1, p.position().distanceTo(PLAYER.add(0.25, 1.3, 0)), .5, "B1 close at " + c);
+            assertTrue(p.position().distanceTo(PLAYER.add(0, 1.5, 0)) < 4.6 && p.position().z > PLAYER.z + 3, "B1 close, in front, at " + c);
             assertTrue(inFrame(p, PLAYER.add(.37, 1.3, .5)), "the hand is in frame at " + c);
         }
-        // B2: wide and low toward the gate, the whole gate in frame.
-        for (double c = 14; c < 50; c += 4) {
+        // B2: from the caster. Low at their shoulder, looking steeply up into the circles that fire overhead (after the glide in from the command).
+        for (double c = 32; c < 60; c += 4) {
             var p = barrage(c, 200);
-            assertTrue(p.position().y < PLAYER.y + 5 && p.pitch() < -15, "low, looking up toward the gate: " + p.pitch());
-            assertTrue(inFrame(p, DOOR) && inFrame(p, FOOT.add(0, 190, 0)), "the gate in frame");
+            assertTrue(p.position().distanceTo(PLAYER) < 4 && p.position().y < PLAYER.y + 1 && p.pitch() < -45, "at the caster's feet, looking up at " + c + ": " + p.position() + " " + p.pitch());
         }
-        // B3: 24 blocks under a circle, looking up at its face.
-        var rig = new SilentGateCinematic.Rig(frame(2, 500, 20, 200), (x, z) -> Double.NEGATIVE_INFINITY, List.of(), null);
-        int circle = SilentGateCinematic.firingCircle(rig);
-        assertTrue(circle >= 0 && circle % 4 == 0, "a low-tier circle in front of the caster");
-        Vec3 home = SilentGateSequence.skyCircle(PLAYER, 0f, 7L, circle, 48);
-        int fires = 0; for (int a = 38; a < 70; a++) if (SilentGateSequence.fires(circle, a, 200, 7L)) fires++;
-        assertTrue(fires >= 1, "it fires during B3");
-        for (double c = 50; c < 82; c += 4) {
+        // B3: from above. High over the field behind and to the right of the caster, inside render range of them, looking down the field to the gate: the
+        // doorway and the struck ground in one frame.
+        for (double c = 60; c < 108; c += 4) {
+            var p = barrage(c, 200); double lens = SilentGateCinematic.lens(480 + c, c, 200);
+            assertTrue(p.position().y > PLAYER.y + 250 && Math.hypot(p.position().x - PLAYER.x, p.position().z - PLAYER.z) < 140 && p.pitch() > 20,
+                    "high over the field, looking down at " + c + ": " + p.position() + " " + p.pitch());
+            assertTrue(inFrame(p, DOOR, lens) && inFrame(p, PLAYER.add(0, 0, 150), lens), "the gate and the field in frame at " + c);
+        }
+        // B4: over the ground. A low track across the field before the caster, from one side of the line to the other, looking on toward the gate's side; the
+        // kill beam and its impact frame fall in it.
+        for (double c = 108; c < 160; c += 4) {
             var p = barrage(c, 200);
-            assertEquals(24, home.y - p.position().y, .5);
-            assertEquals(11, Math.hypot(p.position().x - home.x, p.position().z - home.z), .5);
-            assertTrue(p.pitch() < -55, "looking up at the face: " + p.pitch());
+            assertTrue(p.position().y < PLAYER.y + 6 && p.position().z > PLAYER.z + 25 && Math.abs(p.pitch()) < 12, "low over the field at " + c + ": " + p.position() + " " + p.pitch());
         }
-        // B5: high over the crater field, looking steeply down.
-        for (double c = 125; c < 162; c += 6) {
+        assertTrue(Math.abs(barrage(159.9, 200).position().x - barrage(108, 200).position().x) > 60, "it crosses the field");
+        int kill = SilentGateSequence.KILL_TICK;
+        assertTrue(kill - 12 > 108 && kill + 6 < 160, "the kill beam and its squeeze of the bars stay inside the shot over the ground");
+        // B5: the whole of it: far behind the caster, high and to the right, going slowly round in an arc, the gate in frame throughout, on one lens.
+        double arc0 = 0, arc1 = 0;
+        for (double c = 160; c < 212; c += 4) {
             var p = barrage(c, 200);
-            assertTrue(p.position().y > PLAYER.y + 200 && p.pitch() > 45, "from high looking down: " + p.pitch());
+            assertTrue(p.position().y > PLAYER.y + 50 && PLAYER.z - p.position().z > 60 && p.position().x < PLAYER.x, "far behind, high, to the right at " + c + ": " + p.position());
+            assertTrue(inFrame(p, DOOR, SilentGateCinematic.lens(480 + c, c, 200)), "the gate in frame at " + c);
+            assertEquals(SilentGateCinematic.lens(640, 160, 200), SilentGateCinematic.lens(480 + c, c, 200), 0, "no zoom in the far round");
+            double angle = Math.toDegrees(Math.atan2(PLAYER.x - p.position().x, PLAYER.z - p.position().z));
+            if (c == 160) arc0 = angle;
+            arc1 = angle;
         }
-        // B6: low behind the caster, looking up.
-        for (double c = 163; c < 211; c += 6) {
-            var p = barrage(c, 200);
-            assertTrue(p.position().y < PLAYER.y + 8 && PLAYER.z - p.position().z > 10 && p.pitch() < -20, "low behind, looking up at " + c + ": " + p.pitch());
-        }
-        // The ending: E1 medium on the closing doors, E2 high and wide, E3 low looking steeply up at the gate flying into the circle, E4 wide on the dissolving circle.
+        assertTrue(arc1 - arc0 > 15 && arc1 - arc0 < 30, "a slow arc of " + (arc1 - arc0) + " degrees");
+        // Shot changes: to a setup close by the camera glides (no jump at the cut, it settles into the new shot), to one far away it cuts hard.
+        assertEquals(0, barrage(13.99, 200).position().distanceTo(barrage(14, 200).position()), .05, "the command glides into the shot from the caster");
+        assertTrue(barrage(59.99, 200).position().distanceTo(barrage(60, 200).position()) > 100, "the caster to the sky: a hard cut");
+        assertEquals(0, pos(69.99).distanceTo(pos(70)), .05, "the raised hand glides into the great circle's shot");
+        assertTrue(pos(257.99).distanceTo(pos(258)) > 50, "the gate to the face: a hard cut");
+        // The ending reuses the build's setups, each drifting: E1 the doors, E2 the canopy wide, E3 the far camera following the gate up into the great circle.
         int endB = SilentGateCinematic.boundaries(200)[3];
-        assertEquals(55, barrage(endB + 1, 200).position().distanceTo(DOOR), 8, "E1 medium on the doors");
-        assertTrue(barrage(endB + 60, 200).position().y > PLAYER.y + 200 && barrage(endB + 60, 200).pitch() > 15, "E2 high, looking down at the circles shrinking");
-        Vec3 circleCentre = SilentGateSequence.gateCenter(PLAYER, 0f).add(0, ALT - 135, 0);
-        for (double e = 82; e < 125; e += 6) {
+        assertTrue(barrage(endB, 200).position().y < PLAYER.y + 10 && inFrame(barrage(endB, 200), DOOR, SilentGateCinematic.lens(700, endB, 200)), "E1 is the door shot from the ground");
+        assertEquals(0, barrage(endB + 60, 200).position().distanceTo(pos(420)), 1.5, "E2 is the canopy wide");
+        Vec3 circleCentre = new Vec3(FOOT.x, PLAYER.y + ALT, FOOT.z);
+        for (double e = 82; e < 112; e += 6) {
             var p = barrage(endB + e, 200);
-            assertTrue(p.position().y < PLAYER.y + 5 && p.pitch() < -35, "E3 low, looking steeply up: " + p.pitch());
-            assertTrue(inFrame(p, SilentGateSequence.gateFoot(PLAYER, 0f, SilentGateSequence.gateRise(e)).add(0, 100, 0)), "the climbing gate is in frame at " + e);
+            assertEquals(0, p.position().distanceTo(pos(142)), 20, "E3 is the far camera of the gate");
+            assertTrue(inFrame(p, SilentGateSequence.gateFoot(PLAYER, 0f, SilentGateSequence.gateRise(e)).add(0, 40 * SilentGateSequence.SCALE, 0), SilentGateCinematic.lens(700, endB + e, 200)), "the climbing gate is in frame at " + e);
         }
-        for (double e = 126; e < 160; e += 6) {
-            var p = barrage(endB + e, 200);
-            assertTrue(p.pitch() < -35 && inFrame(p, circleCentre), "E4 wide on the great circle at " + e);
-        }
+        for (double e = 176; e < 220; e += 6) assertTrue(inFrame(barrage(endB + e, 200), circleCentre, SilentGateCinematic.lens(700, endB + e, 200)), "E3 ends on the great circle at " + e);
         int end = SilentGateSequence.endTick(200);
-        assertEquals(372, end);
+        assertEquals(432, end);
         assertNotNull(barrage(end + 15 - .01, 200));
         assertNull(barrage(end + 15, 200));
         int end4 = SilentGateSequence.endTick(400);
@@ -324,20 +317,6 @@ class SilentGateCinematicTest {
     }
     private static AtomicCinematic.Pose shotAt(double c, List<SilentGateRenderer.Shot> shots, Vec3 focus) {
         return SilentGateCinematic.cameraFor(frame(2, 480 + c, c, 200), PLAYER, 0f, 0f, true, shots, (x, z) -> Double.NEGATIVE_INFINITY, focus);
-    }
-
-    @Test void killShotOrbitsTheTargetAtFivePointFiveBlocks() {
-        var shots = List.of(new SilentGateRenderer.Shot(3, new Vec3(5, 70, 40), 100));
-        Vec3 target = new Vec3(6, 70, 50);
-        for (double c = 83; c < 124; c += 2) {
-            var pose = shotAt(c, shots, target);
-            assertEquals(5.5, Math.hypot(pose.position().x - target.x, pose.position().z - target.z), .01, "5.5 blocks at " + c);
-            assertEquals(target.y + .6, pose.position().y, 1e-9, "just above its feet, under its 1.6 eye at " + c);
-            assertTrue(pose.pitch() < -15 && pose.pitch() > -30, "looking a bit up so the beams fall into the frame: " + pose.pitch());
-        }
-        double a0 = Math.atan2(shotAt(82.5, shots, target).position().x - target.x, shotAt(82.5, shots, target).position().z - target.z);
-        double a1 = Math.atan2(shotAt(124.5, shots, target).position().x - target.x, shotAt(124.5, shots, target).position().z - target.z);
-        assertEquals(.4 * 42, Math.abs(Math.IEEEremainder(Math.toDegrees(a1 - a0), 360)), 1.0, "0.4 deg/tick orbit");
     }
 
     @Test void killShotKeepsTheSameTargetForItsWholeWindow() {
@@ -393,7 +372,7 @@ class SilentGateCinematicTest {
             var f = frame(2, 480 + c, c, 200);
             // A crater: the surface under the camera is 20 blocks above the planned shot.
             var pose = SilentGateCinematic.cameraFor(f, PLAYER, 0f, 0f, true, shots, (x, z) -> PLAYER.y + 20);
-            assertTrue(pose.position().y >= PLAYER.y + 20.5 - 1e-6, "above ground at " + c);
+            assertTrue(pose.position().y >= PLAYER.y + 20.4 - 1e-6, "above ground at " + c);
         }
     }
 

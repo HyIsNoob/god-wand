@@ -1,4 +1,4 @@
-package net.godwand.qa;
+﻿package net.godwand.qa;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -89,7 +89,7 @@ public final class SilentGateProbe implements ClientModInitializer {
                 var level = p.serverLevel();
                 p.setGameMode(GameType.CREATIVE);
                 level.getGameRules().getRule(net.minecraft.world.level.GameRules.RULE_DOMOBSPAWNING).set(false, server);
-                level.setDayTime(13000); level.setWeatherParameters(60000, 0, false, false);
+                level.setDayTime(6000); level.setWeatherParameters(60000, 0, false, false);
                 ground = level.getHeight(Heightmap.Types.WORLD_SURFACE, OX, OZ);
                 var rnd = new Random(7);
                 for (int i = 0; i < 14; i++) {
@@ -133,20 +133,20 @@ public final class SilentGateProbe implements ClientModInitializer {
         if (f != null && f.phase() <= 1 && f.commandAge() < 0) {
             // BUILD/WAIT: every fourth cast tick (contact sheet) plus the reference ticks, named by cast age.
             int fa = (int) Math.floor(f.age());
-            if (fa != lastBuild && (fa % 4 == 0 || REFERENCE.contains(fa))) {
+            if (fa != lastBuild && (fa % 2 == 0 || REFERENCE.contains(fa))) {
                 lastBuild = fa;
-                Screenshot.grab(c.gameDirectory, "gate-" + run + "/b-" + String.format(Locale.ROOT, "%03d", fa) + ".png", c.getMainRenderTarget(), m -> {});
+                if (!Files.exists(c.gameDirectory.toPath().getParent().resolve("noshots"))) Screenshot.grab(c.gameDirectory, "gate-" + run + "/b-" + String.format(Locale.ROOT, "%03d", fa) + ".png", c.getMainRenderTarget(), m -> {});
             }
         }
         // Barrage: every third command tick (c-NNN) plus the shot middles; ending: every third tick after the barrage (e-NNN) plus the shot middles.
         if (f != null && f.phase() >= 2 && f.commandAge() >= 0) {
             int cmd = (int) f.commandAge(), endAt = 12 + f.barrageTicks();
-            if (cmd < endAt && cmd != lastCmd && (cmd % 3 == 0 || BARRAGE_MID.contains(cmd))) {
+            if (cmd < endAt && cmd != lastCmd && (cmd % 3 == 0 || BARRAGE_MID.contains(cmd) || cmd >= 138 && cmd <= 150)) {
                 lastCmd = cmd;
-                Screenshot.grab(c.gameDirectory, "gate-" + run + "/c-" + String.format(Locale.ROOT, "%03d", cmd) + ".png", c.getMainRenderTarget(), m -> {});
+                if (!Files.exists(c.gameDirectory.toPath().getParent().resolve("noshots"))) Screenshot.grab(c.gameDirectory, "gate-" + run + "/c-" + String.format(Locale.ROOT, "%03d", cmd) + ".png", c.getMainRenderTarget(), m -> {});
             } else if (cmd >= endAt && cmd - endAt != lastEnd && ((cmd - endAt) % 3 == 0 || END_MID.contains(cmd - endAt))) {
                 lastEnd = cmd - endAt;
-                Screenshot.grab(c.gameDirectory, "gate-" + run + "/e-" + String.format(Locale.ROOT, "%03d", cmd - endAt) + ".png", c.getMainRenderTarget(), m -> {});
+                if (!Files.exists(c.gameDirectory.toPath().getParent().resolve("noshots"))) Screenshot.grab(c.gameDirectory, "gate-" + run + "/e-" + String.format(Locale.ROOT, "%03d", cmd - endAt) + ".png", c.getMainRenderTarget(), m -> {});
             }
         }
         if (f == null) {
@@ -236,11 +236,11 @@ public final class SilentGateProbe implements ClientModInitializer {
             }).join();
         }
         if (t == 40 || t == 90)
-            Screenshot.grab(c.gameDirectory, "gate-" + run + "/aftermath-" + (t == 40 ? "top" : "oblique") + ".png", c.getMainRenderTarget(), m -> {});
+            if (!Files.exists(c.gameDirectory.toPath().getParent().resolve("noshots"))) Screenshot.grab(c.gameDirectory, "gate-" + run + "/aftermath-" + (t == 40 ? "top" : "oblique") + ".png", c.getMainRenderTarget(), m -> {});
         if (t > 100) { System.out.println("GATE_QA DONE"); c.stop(); }
     }
 
     private void grab(Minecraft c) {
-        Screenshot.grab(c.gameDirectory, "gate-" + run + "/f-" + String.format(Locale.ROOT, "%04d", frame++) + ".png", c.getMainRenderTarget(), m -> {});
+        if (!Files.exists(c.gameDirectory.toPath().getParent().resolve("noshots"))) Screenshot.grab(c.gameDirectory, "gate-" + run + "/f-" + String.format(Locale.ROOT, "%04d", frame++) + ".png", c.getMainRenderTarget(), m -> {});
     }
 }

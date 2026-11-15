@@ -11,10 +11,11 @@ class GatePoseTest {
     private static GatePose.Joints at(double old) { return GatePose.joints(GatePose.fromOld(old), -1, END); }
 
     @Test void beatAnglesAtTheKeyTicks() {
-        var hover = at(5);
-        assertEquals(-.30, hover.rp(), .03); assertEquals(-.30, hover.lp(), .03);
+        var hover = at(2);
+        assertEquals(-.30, hover.rp(), .03); assertEquals(GatePose.REST.lp(), hover.lp(), .03, "only the right hand is raised");
         var spin = at(35);
-        assertEquals(GatePose.FACE.rp(), spin.rp(), .03); assertTrue(spin.lp() > -.2);
+        assertEquals(GatePose.FACE.rp(), spin.rp(), .03); assertEquals(GatePose.LIPS.lp(), spin.lp(), .03, "the finger is at the lips before the wand is spun");
+        assertEquals(GatePose.REST.lp(), at(10).lp(), .03, "and not before the camera is back on the caster");
         var shh = at(100);
         assertEquals(GatePose.LIPS.lp(), shh.lp(), .03); assertEquals(GatePose.HIP.rp(), shh.rp(), .03); assertEquals(.20, shh.head(), .03);
         assertEquals(GatePose.LIPS.lp(), at(240).lp(), .03);
@@ -74,18 +75,18 @@ class GatePoseTest {
 
     @Test void scriptV3BeatsInCastTicks() {
         Vec3 feet = new Vec3(0, 70, 0);
-        // Spin: a wind-up before 95, one full turn ending at 120; the wand is back in the hand after the catch.
-        assertEquals(0, GatePose.spinAngle(GatePose.poseClock(85)), 1e-9);
-        assertTrue(GatePose.spinAngle(GatePose.poseClock(96)) < 0.1);
-        assertEquals(2 * Math.PI, GatePose.spinAngle(GatePose.poseClock(120)), 1e-6);
-        double prev = GatePose.spinAngle(GatePose.poseClock(100));
-        for (double t = 101; t <= 112; t++) { double a = GatePose.spinAngle(GatePose.poseClock(t)); assertTrue(a > prev, "turning at " + t); prev = a; }
-        // Shh: the finger reaches the lips by tick 132 and stays there.
-        assertEquals(GatePose.LIPS.lp(), GatePose.joints(132, -1, END).lp(), .03);
-        assertTrue(GatePose.joints(110, -1, END).lp() > GatePose.LIPS.lp() + .5, "not yet at the lips at 110");
-        assertEquals(GatePose.LIPS.lp(), GatePose.joints(300, -1, END).lp(), .03);
+        // Spin: after the "shh", while the camera draws back (305..330): a wind-up, then one full turn; the wand is back in the hand after the catch.
+        assertEquals(0, GatePose.spinAngle(GatePose.poseClock(280)), 1e-9);
+        assertTrue(GatePose.spinAngle(GatePose.poseClock(306)) < 0.1);
+        assertEquals(2 * Math.PI, GatePose.spinAngle(GatePose.poseClock(330)), 1e-6);
+        double prev = GatePose.spinAngle(GatePose.poseClock(310));
+        for (double t = 311; t <= 322; t++) { double a = GatePose.spinAngle(GatePose.poseClock(t)); assertTrue(a > prev, "turning at " + t); prev = a; }
+        // Shh: the finger reaches the lips by tick 286, before the spin, and stays there.
+        assertEquals(GatePose.LIPS.lp(), GatePose.joints(288, -1, END).lp(), .03);
+        assertTrue(GatePose.joints(250, -1, END).lp() > GatePose.LIPS.lp() + .5, "not yet at the lips at 250");
+        assertEquals(GatePose.LIPS.lp(), GatePose.joints(380, -1, END).lp(), .03);
         // The arm points at the sky from ~440 on.
-        assertTrue(GatePose.joints(440, -1, END).rp() < -2.6, "rising: " + GatePose.joints(440, -1, END).rp());
+        assertTrue(GatePose.joints(450, -1, END).rp() < -2.6, "rising: " + GatePose.joints(450, -1, END).rp());
         assertEquals(GatePose.POINT.rp(), GatePose.joints(470, -1, END).rp(), .03);
         assertTrue(GatePose.joints(400, -1, END).rp() > -1);
         // First person: until 62 the wand hangs 1.5 blocks before the eyes at eye height; it then drifts beside the caster.
@@ -95,12 +96,12 @@ class GatePoseTest {
             assertEquals(71.5, w.pos().y, .1);
             assertTrue(Math.abs(w.pos().x) < .1);
         }
-        assertTrue(GatePose.wand(90, -1, END, feet, 0).pos().z < 1.3, "away from the face by 90");
+        assertTrue(GatePose.wand(320, -1, END, feet, 0).pos().z < 1.3, "away from the face by 320");
     }
 
     @Test void manaGainShape() {
         assertEquals(0, GatePose.manaGain(frame(0, -1)), 1e-9);
-        double strong = GatePose.manaGain(frame(40, -1)), calm = GatePose.manaGain(frame(310, -1)), gone = GatePose.manaGain(frame(640, 372));
+        double strong = GatePose.manaGain(frame(40, -1)), calm = GatePose.manaGain(frame(440, -1)), gone = GatePose.manaGain(frame(640, 432));
         assertTrue(strong > .95 && calm < strong && calm > .4 && gone < 1e-6, strong + " " + calm + " " + gone);
     }
     private static SilentGateRenderer.Frame frame(double age, double cmd) {

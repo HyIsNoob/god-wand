@@ -1,0 +1,60 @@
+{
+  "targets": [
+    "gate_scene",
+    {"name": "gate_emit", "width": 1, "height": 1},
+    {"name": "gate_blur_x", "width": 1, "height": 1},
+    {"name": "gate_blur_y", "width": 1, "height": 1}
+  ],
+  "passes": [
+    {
+      "name": "color_convolve",
+      "intarget": "minecraft:main",
+      "outtarget": "gate_emit",
+      "use_linear_filter": true,
+      "uniforms": [
+        {"name": "ColorScale", "values": [2.2, 2.2, 2.2]},
+        {"name": "Offset", "values": [-1.2, -1.2, -1.2]},
+        {"name": "Saturation", "values": [1.4]}
+      ]
+    },
+    {
+      "name": "godwand_bloom",
+      "intarget": "gate_emit",
+      "outtarget": "gate_blur_x",
+      "uniforms": [{"name": "BlurAxis", "values": [1.0, 0.0]}],
+      "use_linear_filter": true
+    },
+    {
+      "name": "godwand_bloom",
+      "intarget": "gate_blur_x",
+      "outtarget": "gate_blur_y",
+      "uniforms": [{"name": "BlurAxis", "values": [0.0, 1.0]}],
+      "use_linear_filter": true
+    },
+    {
+      "name": "godwand_bloom",
+      "intarget": "gate_blur_y",
+      "outtarget": "gate_blur_x",
+      "uniforms": [{"name": "BlurAxis", "values": [1.0, 0.0]}],
+      "use_linear_filter": true
+    },
+    {
+      "name": "godwand_bloom",
+      "intarget": "gate_blur_x",
+      "outtarget": "gate_blur_y",
+      "uniforms": [{"name": "BlurAxis", "values": [0.0, 1.0]}],
+      "use_linear_filter": true
+    },
+    {
+      "name": "godwand_nova_composite",
+      "intarget": "minecraft:main",
+      "outtarget": "gate_scene",
+      "auxtargets": [{"name": "BloomSampler", "id": "gate_blur_y", "bilinear": true}]
+    },
+    {
+      "name": "godwand_gate_ink",
+      "intarget": "gate_scene",
+      "outtarget": "minecraft:main"
+    }
+  ]
+}

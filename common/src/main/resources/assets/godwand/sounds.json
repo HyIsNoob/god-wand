@@ -26,6 +26,30 @@
       }
     ]
   },
+  "gate_build": {
+    "sounds": [{"name":"godwand:gate_build","stream":true}]
+  },
+  "gate_end": {
+    "sounds": [{"name":"godwand:gate_end","stream":true}]
+  },
+  "gate_wait": {
+    "sounds": [{"name":"godwand:gate_wait"}]
+  },
+  "gate_rain": {
+    "sounds": [{"name":"godwand:gate_rain"}]
+  },
+  "gate_command": {
+    "sounds": [{"name":"godwand:gate_command"}]
+  },
+  "gate_strike": {
+    "sounds": [{"name":"godwand:gate_strike_1"}, {"name":"godwand:gate_strike_2"}, {"name":"godwand:gate_strike_3"}, {"name":"godwand:gate_strike_4"}]
+  },
+  "gate_strike_far": {
+    "sounds": [{"name":"godwand:gate_strike_far_1"}, {"name":"godwand:gate_strike_far_2"}, {"name":"godwand:gate_strike_far_3"}]
+  },
+  "gate_kill": {
+    "sounds": [{"name":"godwand:gate_kill"}]
+  },
   "earth_drill_sequence": {
     "sounds": [
       {

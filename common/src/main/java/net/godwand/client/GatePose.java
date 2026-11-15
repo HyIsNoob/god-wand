@@ -50,16 +50,18 @@ public final class GatePose {
     static double heavy(double t, double a, double b) { return heavy((t - a) / (b - a)); }
     static double smoother(double t, double a, double b) { double x = Mth.clamp((t - a) / (b - a), 0, 1); return x * x * x * (x * (6 * x - 15) + 10); }
     private record Key(double t, Joints pose) {}
-    private static Joints track(double t, Key... keys) {
+    private static Joints track(double t, Key... keys) { return track(t, true, keys); }
+    /** {@code heavy} false: every move eases in and out with no overshoot. */
+    private static Joints track(double t, boolean heavy, Key... keys) {
         if (t <= keys[0].t) return keys[0].pose;
         for (int i = 1; i < keys.length; i++)
-            if (t < keys[i].t) return keys[i - 1].pose.mix(keys[i].pose, heavy(t, keys[i - 1].t, keys[i].t));
+            if (t < keys[i].t) return keys[i - 1].pose.mix(keys[i].pose, heavy ? heavy(t, keys[i - 1].t, keys[i].t) : smoother(t, keys[i - 1].t, keys[i].t));
         return keys[keys.length - 1].pose;
     }
 
     /** Cast ticks (BUILD = 480) to the pose timeline authored for 300 (script v3): the wand floats before the eyes until 62 and beside the caster until 80,
-     *  spins round the hand 95..120, the finger goes to the lips by 132 (shh), and the arm rises to the sky 410..455 (pointing from ~440 on). */
-    private static final double[] NEW_T = {0, 80, 120, 132, 400, 455}, OLD_T = {0, 12, 46, 70, 250, 296};
+     *  spins round the hand 95..120, the finger goes to the lips by 132 (shh), and the arm rises to the sky 385..455, slowly (the caster is never in a hurry: owner, 2026-11-11). */
+    private static final double[] NEW_T = {0, 290, 330, 340, 400, 455}, OLD_T = {0, 12, 46, 70, 250, 296};
     static double poseClock(double t) {
         for (int i = 1; i < NEW_T.length; i++) if (t < NEW_T[i]) return OLD_T[i - 1] + (t - NEW_T[i - 1]) * (OLD_T[i] - OLD_T[i - 1]) / (NEW_T[i] - NEW_T[i - 1]);
         return OLD_T[OLD_T.length - 1] + (t - NEW_T[NEW_T.length - 1]);
@@ -72,11 +74,14 @@ public final class GatePose {
 
     /** First click to the command: hover, spin, shh, release, point at the sky. Right arm from {@code r}, left arm and head from {@code l}. */
     private static Joints build(double age) {
-        Joints r = track(age, new Key(0, HOVER), new Key(12, HOVER), new Key(30, FACE), new Key(46, FACE), new Key(68, HIP),
+        // Script v7: the right hand is raised to the wand afloat before the caster (cast ticks 0..25) and held there while the gate comes down; back on the caster
+        // the finger goes to the lips (256..286), then the wand is taken and spun (290..330) and brought to the hip.
+        Joints r = track(age, false, new Key(0, REST), new Key(1, HOVER), new Key(12, HOVER), new Key(30, FACE), new Key(46, FACE), new Key(68, HIP),
                 new Key(258, HIP), new Key(296, POINT));
-        Joints l = track(age, new Key(0, HOVER), new Key(14, HOVER), new Key(34, REST), new Key(48, REST), new Key(70, LIPS),
+        // The finger goes to the lips first (cast tick 20..60); the wand is taken and spun only after the camera has drawn back (owner, 2026-11-12).
+        Joints l = track(age, false, new Key(0, REST), new Key(10.59, REST), new Key(11.83, LIPS),
                 new Key(250, LIPS), new Key(276, REST));
-        float head = (float) (.20 * heavy(age, 48, 72) * (1 - sm(age, 250, 276)) - .14 * heavy(age, 262, 296));
+        float head = (float) (.20 * smoother(age, 10.59, 11.83) * (1 - sm(age, 250, 276)) - .14 * smoother(age, 262, 296));
         return new Joints(r.rp, r.ry, r.rr, l.lp, l.ly, l.lr, head);
     }
     /**
@@ -173,7 +178,7 @@ public final class GatePose {
         Vec3 f = Vec3.directionFromRotation(0, (float) bodyYawDeg), r = f.cross(UP);
         Vec3 chest = feet.add(f.scale(1.05)).add(r.scale(.05)).add(0, 1.30 + .045 * Math.sin(age * .12), 0);
         // First person (until 62): the wand floats 1.5 blocks before the eyes, face toward the caster; it then drifts to the chest hover while turning its face round.
-        double leave = heavy(raw, 62, 84);
+        double leave = smoother(raw, 286, 302);
         Vec3 front = feet.add(f.scale(1.5)).add(0, 1.50 + .03 * Math.sin(raw * .05), 0);
         chest = front.lerp(chest, leave);
         Vec3 side = feet.add(r.scale(.85)).add(f.scale(.12)).add(0, 1.15 + .05 * Math.sin(age * .1), 0);
@@ -195,13 +200,13 @@ public final class GatePose {
         Vec3 spinAxis = lateral.scale(Math.cos(theta)).add(normal.scale(Math.sin(theta))).normalize();
         Vec3 spinPos = hand.pos.add(a.scale(.10));
         Vec3 gripAxis = r.scale(.99).add(0, .14, 0).normalize();
-        double take = heavy(age, 12, 30), catchK = heavy(age, 46, 56);
+        double take = smoother(age, 12, 30), catchK = smoother(age, 46, 56);
         pos = chest.lerp(spinPos, take).lerp(hand.pos, catchK);
         axis = slerp(slerp(hoverAxis, spinAxis, take), gripAxis, catchK);
         double flat = sm(age, 16, 26);
         face = faceFor(axis, a.scale(flat).add(f.scale(1 - flat)), r, roll * (1 - flat) + Math.PI * (1 - leave) * (1 - flat));
         // Release into the float beside the caster while the left hand lowers.
-        double rel = heavy(age, 248, 272);
+        double rel = smoother(age, 248, 272);
         if (rel > 0) {
             pos = pos.lerp(side, rel);
             axis = slerp(axis, hoverAxis, rel);
@@ -213,7 +218,7 @@ public final class GatePose {
 
     /** Mana strength of the cast: strong through the build, calm in the wait, present in the barrage, gone with the ending. */
     public static double manaGain(Frame f) {
-        double a = f.age(), g = sm(a, 0, 22) * (1 - .45 * sm(a, 160, 250)) * (1 - .6 * sm(a, 152, 166) * (1 - sm(a, 236, 262)));
+        double a = f.age(), g = sm(a, 0, 22) * (1 - .45 * sm(a, 360, 420));
         if (f.commandAge() >= 0) {
             double end = endStart(f);
             g = Math.max(g, .7 * sm(f.commandAge(), 0, 8)) * (1 - sm(f.commandAge(), end, end + net.godwand.skill.SilentGateSequence.ENDING_TICKS - 5));

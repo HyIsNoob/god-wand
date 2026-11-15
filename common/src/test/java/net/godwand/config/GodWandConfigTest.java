@@ -173,6 +173,7 @@ class GodWandConfigTest {
         assertEquals(WandSkin.DEFAULT, client.getActiveSkin(3));
         assertEquals(WandSkin.AQUA_HEARTIA, client.getActiveSkin(4));
         assertEquals(WandSkin.SHADOW_BLADE, client.getActiveSkin(5));
+        assertEquals(WandSkin.SILENT_WITCH, client.getActiveSkin(7));
 
         client.wandSkin = WandSkin.AQUA_HEARTIA;
         assertEquals(WandSkin.AQUA_HEARTIA, client.getActiveSkin(0));

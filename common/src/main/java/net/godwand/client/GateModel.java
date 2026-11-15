@@ -23,11 +23,14 @@ final class GateModel {
     static final int PORCELAIN = 0xEEF2F8, SHADOW = 0x6A7892, ENGRAVE = 0x44526C, RIM = 0xA8DFFF, VEIN = 0x7FE8FF, WHITE = 0xFFFFFF;
     private static final double BODY_ALPHA = .96, TAU = Math.PI * 2;
     /** Column axis from the centre line: outer edge GATE_WIDTH/2 minus the 4.5 reach of the capital. */
-    static final double COLUMN_X = SilentGateSequence.GATE_WIDTH / 2.0 - 4.5, JAMB_X = SilentGateSequence.GATE_INNER_WIDTH / 2.0 - 1.2;
+    static final double COLUMN_X = SilentGateSequence.GATE_WIDTH / 2.0 - 3.4, JAMB_X = SilentGateSequence.GATE_INNER_WIDTH / 2.0 - 1.2;
     static final double OPENING_Y0 = 15, OPENING_Y1 = OPENING_Y0 + SilentGateSequence.GATE_INNER_HEIGHT, TOP_Y = SilentGateSequence.GATE_HEIGHT;
     /** Radius profile of a column, tip first. Bands (engraved inlay) sit on rows 19-23, 30-32.5 and 40-44. */
     private static final double[] COL_Y = {0, 1.2, 3, 5, 7.5, 9.5, 11.5, 13, 14, 14.4, 15.4, 15.8, 17, 18.4, 19, 23, 23.6, 26, 29.4, 30, 32.5, 33.1, 36, 39.4, 40, 44, 44.6, 50, 56, 57, 58.5, 59.5, 60.5, 62.5, 64, 65, 66.5, 68.5, 71, 74},
             COL_R = {0, .5, 1.5, 2.9, 4, 4.2, 3.6, 2.8, 2.6, 3.2, 3.2, 2.6, 2.5, 2.5, 3.3, 3.3, 2.5, 2.4, 2.4, 3.1, 3.1, 2.4, 2.4, 2.4, 3.1, 3.1, 2.4, 2.4, 2.4, 2.9, 3.1, 2.7, 3.6, 4, 3.4, 2.4, 1.2, .8, .45, 0};
+    /** The columns are 1.3 times as thick as first drawn (owner, 2026-11-11). */
+    static final double COL_K = 1.3;
+    private static final double[] COL_RK = java.util.Arrays.stream(COL_R).map(r -> r * COL_K).toArray();
     private static final Band[] COL_BANDS = {new Band(19, 23, GateAtlas.FILIGREE), new Band(30, 32.5, GateAtlas.RUNES), new Band(40, 44, GateAtlas.FILIGREE)};
     private static final double[] SPIKE_Y = {-10, -4, 0, 3, 6, 7, 8.5, 10, 11, 12}, SPIKE_R = {0, .35, .55, .8, 1.0, 1.45, 1.2, 1.6, 2.1, .9};
     private static final double[] SPIRE_Y = {68.8, 69.8, 71.3, 72.7, 74}, SPIRE_R = {1.7, 1.3, .85, .4, 0};
@@ -51,7 +54,18 @@ final class GateModel {
     }
 
     /** Draws one gate whose foot (lowest column tip) is {@code pose.foot()}; {@code open} 0..1 swings the leaves, {@code vein} 0..1.4 lights the inlay. */
-    static void draw(Ctx c, Pose pose, double age, double open, double vein) {
+    static void draw(Ctx c, Pose pose, double age, double open, double vein) { draw(c, pose, age, open, vein, 0); }
+
+    /** How far the wings are open: folded along the columns while the gate comes down, thrown open with the shockwave (past the mark and back: they settle),
+     *  folded again when the doors have shut in the ending ({@code e} ticks after the barrage, -1 before). */
+    static double spread(double age, double e) {
+        double t = clamp01((age - SilentGateSequence.SHOCK) / 22.0), back = t - 1;
+        double u = t <= 0 ? 0 : 1 + 2.70158 * back * back * back + 1.70158 * back * back;
+        return e < 0 ? u : u * (1 - smooth((e - SilentGateSequence.END_CLOSE + 10) / 40));
+    }
+
+    /** As above with the wings {@code spread} 0 (folded) .. 1. */
+    static void draw(Ctx c, Pose pose, double age, double open, double vein, double spread) {
         Pen g = new Pen(c, pose, vein);
         double angle = open * 1.45;
         Vec3 mid = pose.at(0, 36, 0);
@@ -69,7 +83,11 @@ final class GateModel {
         for (int side = -1; side <= 1; side += 2) {
             int s = side;
             pieces.add(new Piece(pose.at(s * JAMB_X / 2, 37, 0), () -> g.leaf(s, angle)));
+            // Sorted as if it stood behind its column: the wing is on the far side of the gate from the caster.
+            pieces.add(new Piece(pose.at(s * COLUMN_X, 50, 14), () -> g.wing(s, spread, age)));
         }
+        double door = smooth(open * 5);
+        if (door > 0) pieces.add(new Piece(pose.at(0, 37, 1.2), () -> g.heaven(door)));
         // Far to near, so what is behind is blended first.
         pieces.sort(Comparator.comparingDouble((Piece p) -> p.at().distanceToSqr(c.eye)).reversed());
         for (Piece p : pieces) p.run().run();
@@ -178,7 +196,22 @@ final class GateModel {
         }
 
         // ---- surfaces of revolution ----------------------------------------------------------------------------------
-        void column(double cx) { lathe(cx, 0, COL_Y, COL_R, sides, 14, 56, COL_BANDS, 1); bulbRing(cx); }
+        void column(double cx) {
+            lathe(cx, 0, COL_Y, COL_RK, sides, 14, 56, COL_BANDS, 1); bulbRing(cx);
+            int side = cx > 0 ? 1 : -1;
+            // Wing ornaments on the column, front and back (references 2, 5): a raised one under the capital, a hanging one above the bulb.
+            for (int f = -1; f <= 1; f += 2) { plume(cx, side, 58, 55, 150, 7.5, f * 4.4); plume(cx, side, 24, 20, 85, 5.5, f * 4.4); }
+        }
+        /** A small wing carved on a column's outer side at height {@code y}: a scroll and five feathers fanned from {@code a0} to {@code a1} degrees (0 hangs
+         *  straight down, 90 points outward), the longest {@code len}. */
+        void plume(double cx, int side, double y, double a0, double a1, double len, double z) {
+            double x = cx + side * 3.3;
+            hook(x + side * 1.5, y + 1.6, x, y, side, 1.1, .55, .18, z);
+            for (int i = 0; i < 5; i++) {
+                double s = i / 4.0, phi = Math.toRadians(a0 + (a1 - a0) * s);
+                feather(x + side * (.6 + .5 * s), y + 1.1 * s, z + (z > 0 ? -.03 : .03) * i, side * Math.sin(phi), -Math.cos(phi), len * (.55 + .45 * s), .85, i % 2, i == 4);
+            }
+        }
 
         /** Glowing ring round the column's bulb and a halo that carries at long range; a faint glow at rest, full with the veins. */
         void bulbRing(double cx) {
@@ -187,11 +220,11 @@ final class GateModel {
             int n = 20;
             for (int i = 0; i < n; i++) {
                 double a0 = TAU * i / n, a1 = TAU * (i + 1) / n;
-                Vec3[] in = {pose.at(cx + 4.1 * Math.cos(a0), y, 4.1 * Math.sin(a0)), pose.at(cx + 4.1 * Math.cos(a1), y, 4.1 * Math.sin(a1))};
-                Vec3[] out = {pose.at(cx + 7.5 * Math.cos(a0), y, 7.5 * Math.sin(a0)), pose.at(cx + 7.5 * Math.cos(a1), y, 7.5 * Math.sin(a1))};
+                Vec3[] in = {pose.at(cx + 5.3 * Math.cos(a0), y, 5.3 * Math.sin(a0)), pose.at(cx + 5.3 * Math.cos(a1), y, 5.3 * Math.sin(a1))};
+                Vec3[] out = {pose.at(cx + 9.6 * Math.cos(a0), y, 9.6 * Math.sin(a0)), pose.at(cx + 9.6 * Math.cos(a1), y, 9.6 * Math.sin(a1))};
                 GateDraw.gradient(c, in[0], in[1], out[1], out[0], VEIN, .8 * lit, .8 * lit, 0, 0);
             }
-            GateDraw.sprite(c, pose.at(cx, y, 0), 9 * pose.s(), .3 * lit, VEIN);
+            GateDraw.sprite(c, pose.at(cx, y, 0), 11.5 * pose.s(), .3 * lit, VEIN);
         }
         void spike() {
             lathe(0, 0, SPIKE_Y, SPIKE_R, Math.min(sides, 8), 1e9, 1e9, new Band[0], 1);
@@ -319,8 +352,13 @@ final class GateModel {
         }
         void jambs() {
             Basis b = main();
-            for (int s = -1; s <= 1; s += 2)
-                box(b, s > 0 ? JAMB_X : -JAMB_X - 1.9, s > 0 ? JAMB_X + 1.9 : -JAMB_X, OPENING_Y0, OPENING_Y1, -1.3, 1.3, .25);
+            for (int s = -1; s <= 1; s += 2) {
+                double x0 = s > 0 ? JAMB_X : -JAMB_X - 1.9, x1 = x0 + 1.9;
+                box(b, x0, x1, OPENING_Y0, OPENING_Y1, -1.3, 1.3, .25);
+                // Base and capital blocks, so the jamb reads as a pilaster and not a plank.
+                box(b, x0 - .35, x1 + .35, OPENING_Y0, OPENING_Y0 + 1.6, -1.75, 1.75, .3);
+                box(b, x0 - .35, x1 + .35, OPENING_Y1 - 1.6, OPENING_Y1, -1.75, 1.75, .3);
+            }
         }
         void crown() {
             Basis b = main();
@@ -329,6 +367,16 @@ final class GateModel {
             box(b, -8, 8, TOP_Y, TOP_Y + 2.6, -1.5, 1.5, .5);
             for (int s = -1; s <= 1; s += 2) strip(b, -6.5, 6.5, TOP_Y + .6, TOP_Y + 2, s * 1.5, s, GateAtlas.DASH, 1);
             box(b, -4.4, 4.4, TOP_Y + 2.6, TOP_Y + 4.8, -1.2, 1.2, .4);
+            for (int s = -1; s <= 1; s += 2) box(b, s > 0 ? 9.6 : -12.5, s > 0 ? 12.5 : -9.6, TOP_Y, TOP_Y + 1.5, -1.5, 1.5, .4);
+            // The keystone hangs into the opening; its eye is a jewel that wakes with the veins.
+            box(b, -2.2, 2.2, OPENING_Y1 - 1.4, TOP_Y + .5, -2.1, 2.1, .5);
+            if (c.glow()) for (int s = -1; s <= 1; s += 2) {
+                Vec3 eye = b.p(0, (OPENING_Y1 + TOP_Y) / 2 - .4, s * 2.25);
+                if (b.z().scale(s).dot(c.eye.subtract(eye)) <= 0) continue;
+                double lit = .25 + .75 * Math.min(1, vein);
+                GateDraw.sprite(c, eye, 2.6 * pose.s(), .8 * lit, WHITE, GateAtlas.STAR, 0);
+                GateDraw.sprite(c, eye, 4.5 * pose.s(), .35 * lit, VEIN);
+            }
             lathe(0, 0, SPIRE_Y, SPIRE_R, Math.min(sides, 12), 1e9, 1e9, new Band[0], 1);
         }
 
@@ -360,6 +408,54 @@ final class GateModel {
                 face(new Vec3[]{P[i][s], P[i][s + 1], P[i + 1][s + 1], P[i + 1][s]}, new Vec3[]{N[i][s], N[i][s + 1], N[i + 1][s + 1], N[i + 1][s]}, null, 1);
         }
 
+        // ---- the light of heaven and the wings ------------------------------------------------------------------------
+        /** The doorway itself: a plane of white nobody can look through, there as soon as the leaves part (owner, 2026-11-11: "the light of god, heaven's gate").
+         *  Opaque and in the depth stamp, so nothing behind the gate shows in the opening. */
+        void heaven(double k) {
+            if (!c.body()) return;
+            Vec3[] p = {pose.at(-JAMB_X, OPENING_Y0, 1.2), pose.at(JAMB_X, OPENING_Y0, 1.2), pose.at(JAMB_X, OPENING_Y1, 1.2), pose.at(-JAMB_X, OPENING_Y1, 1.2)};
+            GateDraw.shaded(c, p, new int[]{WHITE, WHITE, WHITE, WHITE}, new double[]{k, k, k, k}, null, 0, 1, 0, 1);
+        }
+
+        /** Root reach and longest feather of a wing, design units; depth of the wing plane behind the gate. */
+        static final double WING_REACH = 18, WING_FEATHER = 24, WING_Z = 3.4;
+        /** A wing of stone feathers on the back of a column: three rows (primaries longest and farthest back, coverts short and on top) hung from an arm that
+         *  lies folded along the column at {@code u} 0 and arches out and up at 1, the outer feathers raised past the horizontal. */
+        void wing(int side, double u, double age) {
+            double sx = side * (COLUMN_X + 2.4), sy = 50, breath = u > .5 ? Math.sin(age * .045 + side) : 0;
+            int n = 10;
+            for (int row = 0; row < 3; row++) for (int i = 0; i < n; i++) {
+                double s = (i + .5 * (row % 2)) / (n - .5), k = row == 0 ? 1 : row == 1 ? .62 : .34;
+                double rx = sx + side * WING_REACH * s * (.2 + .8 * u), ry = sy + (11 * Math.sin(Math.PI * .55 * s) + 5 * s) * u - 6 * s * (1 - u);
+                double phi = Math.toRadians((6 + 10 * s) * (1 - u) + (14 + 111 * Math.pow(s, 1.2) + 2.5 * breath * s) * u);
+                feather(rx, ry, WING_Z - .35 * row + .02 * i, side * Math.sin(phi), -Math.cos(phi), (11 + (WING_FEATHER - 11) * Math.pow(s, .8)) * k, row == 2 ? 1.8 : 2.1, (i + row) % 2, row == 0);
+            }
+            if (!c.glow() || u <= .05) return;
+            // The open wing is lit from within: a halo behind it.
+            double lit = Math.min(1, u) * (.35 + .65 * Math.min(1, vein));
+            GateDraw.sprite(c, pose.at(sx + side * 17, sy + 16, WING_Z + 1), 34 * pose.s(), .22 * lit, VEIN);
+            GateDraw.sprite(c, pose.at(sx + side * 9, sy + 8, WING_Z + 1), 20 * pose.s(), .16 * lit, WHITE);
+        }
+        /** One feather in the gate's plane from root (x, y) along (dx, dy): three slabs stepping in toward the tip, and on a primary the glowing quill with a glint at its tip. */
+        void feather(double x, double y, double z, double dx, double dy, double len, double w, int dark, boolean quill) {
+            double px = -dy, py = dx;
+            double[] cut = {0, .55, .82, 1}, wid = {1, .72, .42};
+            Vec3 mid = pose.at(x + dx * len / 2, y + dy * len / 2, z);
+            double sign = pose.d().dot(c.eye.subtract(mid)) > 0 ? 1 : -1;
+            Vec3 nrm = pose.d().scale(sign);
+            for (int k = 0; k < 3; k++) {
+                double a = len * cut[k], b = len * cut[k + 1], h = w * wid[k];
+                Vec3[] p = {pose.at(x + dx * a - px * h, y + dy * a - py * h, z), pose.at(x + dx * a + px * h, y + dy * a + py * h, z),
+                        pose.at(x + dx * b + px * h, y + dy * b + py * h, z), pose.at(x + dx * b - px * h, y + dy * b - py * h, z)};
+                face(p, new Vec3[]{nrm, nrm, nrm, nrm}, new double[]{dark, dark, dark, dark}, 2);
+            }
+            if (!quill || !c.glow() || vein <= .02) return;
+            double zz = z + sign * .08, h = .16, a = Math.min(1, vein) * .9;
+            Vec3[] q = {pose.at(x - px * h, y - py * h, zz), pose.at(x + px * h, y + py * h, zz), pose.at(x + dx * len + px * h, y + dy * len + py * h, zz), pose.at(x + dx * len - px * h, y + dy * len - py * h, zz)};
+            GateDraw.shaded(c, q, new int[]{VEIN, VEIN, VEIN, VEIN}, new double[]{a, a, a * .4, a * .4}, null, 0, 1, 0, 1);
+            GateDraw.sprite(c, pose.at(x + dx * len, y + dy * len, zz), 1.6 * pose.s(), .7 * a, WHITE, GateAtlas.STAR, 0);
+        }
+
         // ---- doors ------------------------------------------------------------------------------------------------
         /** One leaf hinged on a jamb; {@code angle} swings it out towards the caster. */
         void leaf(int side, double angle) {
@@ -375,14 +471,32 @@ final class GateModel {
             box(b, .9, width - .9, 0, 1.6, -.9, .9, .25);
             box(b, .9, width - .9, height - 1.6, height, -.9, .9, .25);
             box(b, .9, width - .9, rail, rail + 1.2, -.9, .9, .25);
+            // Each panel carries the ornament (reference 5), centred between its rails; a jewelled stud sits where rail meets stile.
+            double pw = GateAtlas.PANEL_W / pose.s(), ph = GateAtlas.PANEL_H / pose.s(), px = (width - pw) / 2, up = rail + 1.2;
+            double[] studY = {.8, rail + .6, height - .8};
+            for (double y : studY) for (int e = 0; e < 2; e++) {
+                double x = e == 0 ? .45 : width - .45;
+                box(b, x - .5, x + .5, y - .5, y + .5, -1.3, 1.3, .22);
+            }
             for (int s = -1; s <= 1; s += 2) {
-                double z = s * .55, up = rail + 1.2;
-                strip(b, 1.2, width - 1.2, height - 4.2, height - 2.2, z, s, GateAtlas.FILIGREE, 1);
-                double seal = width - 2.4, y0 = up + (height - 1.6 - up) / 2 - seal / 2 - .4;
-                strip(b, 1.2, 1.2 + seal, y0, y0 + seal, z, s, GateAtlas.SEAL, 1);
-                strip(b, 1.2, width - 1.2, up + 1.2, up + 3.2, z, s, GateAtlas.RUNES, 1);
-                strip(b, 1.2, width - 1.2, rail - 3.2, rail - 1.2, z, s, GateAtlas.FILIGREE, 1);
-                strip(b, 1.2, width - 1.2, 2.6, 4.6, z, s, GateAtlas.RUNES, 1);
+                ornament(b, px, 1.6 + (rail - 1.6 - ph) / 2, s * .55, s);
+                ornament(b, px, up + (height - 1.6 - up - ph) / 2, s * .55, s);
+                if (c.glow() && b.z().scale(s).dot(c.eye.subtract(b.p(width / 2, height / 2, 0))) > 0)
+                    for (double y : studY) for (int e = 0; e < 2; e++)
+                        GateDraw.sprite(c, b.p(e == 0 ? .45 : width - .45, y, s * 1.4), 1.3 * pose.s(), (.2 + .6 * Math.min(1, vein)), VEIN, GateAtlas.STAR, 0);
+            }
+        }
+
+        /** The pixel ornament of a door panel on a face of {@code b}, its lower left corner at (x0, y0): engraved dark, the glowing vein over it. */
+        void ornament(Basis b, double x0, double y0, double z, int sign) {
+            double w = GateAtlas.PANEL_W / pose.s(), h = GateAtlas.PANEL_H / pose.s(), zz = z + sign * .05;
+            if (b.z().scale(sign).dot(c.eye.subtract(b.p(x0 + w / 2, y0 + h / 2, z))) <= 0) return;
+            // In bands, so a close camera fades the part it is in and not the whole panel.
+            for (int k = 0; k < 4; k++) {
+                double v0 = k / 4.0, v1 = (k + 1) / 4.0, a = Math.min(1, vein) * .95;
+                Vec3[] q = {b.p(x0, y0 + h * (1 - v0), zz), b.p(x0 + w, y0 + h * (1 - v0), zz), b.p(x0 + w, y0 + h * (1 - v1), zz), b.p(x0, y0 + h * (1 - v1), zz)};
+                if (c.body()) GateDraw.shaded(c, q, new int[]{ENGRAVE, ENGRAVE, ENGRAVE, ENGRAVE}, new double[]{.78, .78, .78, .78}, GateAtlas.PIX_PANEL, 0, 1, v0, v1);
+                if (c.glow() && a > .02) GateDraw.shaded(c, q, new int[]{VEIN, VEIN, VEIN, VEIN}, new double[]{a, a, a, a}, GateAtlas.PIX_PANEL, 0, 1, v0, v1);
             }
         }
     }

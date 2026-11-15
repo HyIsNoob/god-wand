@@ -35,6 +35,7 @@ public final class GodWandConfig {
             return switch (skillMode) {
                 case 2, 4 -> WandSkin.AQUA_HEARTIA;
                 case 5 -> WandSkin.SHADOW_BLADE;
+                case 7 -> WandSkin.SILENT_WITCH;
                 default -> WandSkin.DEFAULT;
             };
         }
@@ -82,7 +83,7 @@ public final class GodWandConfig {
         public float gateBeamDamage = 80;
         public int gateTargetRadius = 160;
         public String gateTargetMode = "hostile";
-        public int gateBarrageTicks = 200;
+        public int gateBarrageTicks = 360;
         public int gateWaitTicks = 300;
         public int gateSkyCircles = 220;
         public boolean gateTerrainDamage = true;

@@ -58,7 +58,9 @@ class GateManaTest {
             assertEquals(n * 4, mesh.vertices.size());
             assertTrue(n <= GateMana.QUAD_BUDGET, "layer " + layer + " quads " + n);
             worst = Math.max(worst, n);
-            if (layer == 0) assertEquals(GateMana.STRANDS * (GateMana.POINTS - 1) * 2, n);
+            // Mana is light: nothing in the alpha-blended body, a wisp and its soft halo per strand in the glow.
+            if (layer == 0) assertEquals(0, n);
+            if (layer == 1) assertTrue(n >= GateMana.STRANDS * (GateMana.POINTS - 1) * 2 * 2, "glow quads " + n);
         }
         assertTrue(worst > 300);
     }
@@ -78,20 +80,5 @@ class GateManaTest {
             double cov = sum / 255.0 / (r.w() * r.h());
             assertTrue(cov > .008 && cov < .6, r + " " + cov);
         }
-    }
-
-    @Test void eyelidsOpenCloseAndReopen() {
-        for (double t = 0; t <= 15; t += 1) assertEquals(0, GateEyelids.openness(t), 1e-9, "black until 15 at " + t);
-        double prev = 0;
-        for (double t = 15; t <= 45; t += .5) { double v = GateEyelids.openness(t); assertTrue(v >= prev - 1e-12, "opens smoothly 15..45 at " + t); prev = v; }
-        assertEquals(1, GateEyelids.openness(45), 1e-9);
-        for (double t = 45; t <= 55; t += .5) { double v = GateEyelids.openness(t); assertTrue(v <= prev + 1e-12, "closes smoothly 45..55 at " + t); prev = v; }
-        assertEquals(0, GateEyelids.openness(55), 1e-9, "shut at 55");
-        assertEquals(.5, GateEyelids.openness(50), .01, "half shut in the middle of the blink");
-        for (double t = 55; t <= 62; t += .25) { double v = GateEyelids.openness(t); assertTrue(v >= prev - 1e-12, "opens again 55..62 at " + t); prev = v; }
-        assertEquals(1, GateEyelids.openness(62), 1e-9);
-        assertEquals(1, GateEyelids.openness(200), 1e-9);
-        assertEquals(0, GateEyelids.vignette(62), 1e-9);
-        assertTrue(GateEyelids.half(.5, 0, 100) > GateEyelids.half(.5, 1, 100), "almond: widest in the middle");
     }
 }

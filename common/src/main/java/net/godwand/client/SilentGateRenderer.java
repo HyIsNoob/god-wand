@@ -134,18 +134,107 @@ public final class SilentGateRenderer {
     public static void render(PoseStack pose, Camera camera, float partial) {
         List<Frame> frames = frames(partial);
         if (frames.isEmpty()) return;
+        GateDraw.farPlane = Minecraft.getInstance().gameRenderer.getDepthFar();
+        planBloom(pose, camera, frames, partial);
         setup();
         try {
-            for (int pass = 0; pass < 2; pass++) {
-                if (pass == 1) { depthPrepass(pose, camera, frames); additiveBlend(); } else RenderSystem.defaultBlendFunc();
+            // Body first; then, with the gate's depth stamped, the shade (smoke and storm darken what is behind them) and last the light, which adds over both.
+            for (int layer : new int[]{0, 2, 1}) {
+                if (layer == 0) RenderSystem.defaultBlendFunc();
+                else if (layer == 2) { depthPrepass(pose, camera, frames); RenderSystem.blendFunc(GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR); GateAtlas.bindGlow(); GateDraw.premultiplied = true; }
+                else additiveBlend();
                 for (Frame f : frames) {
                     BufferBuilder buffer = begin();
-                    emitScene(buffer, pose.last().pose(), f, shots(f.casterId()), camera.getPosition(), pass);
+                    emitScene(buffer, pose.last().pose(), f, shots(f.casterId()), camera.getPosition(), layer);
                     draw(buffer);
                 }
             }
-        } finally { teardown(); }
-        wands(pose, camera, frames);
+            // The floating wand belongs to the picture: drawn before the impact frames and the scope bars, so they cover it (it showed through the bars).
+            teardown(); wands(pose, camera, frames); setup();
+            flash(pose, camera, partial);
+            bars(pose, partial);
+            // What flies over the bars: beams, sparks, feathers, the motes and the mana. Drawn after them, it comes out of the frame.
+            GateDraw.premultiplied = true; GateAtlas.bindGlow(); additiveBlend(); RenderSystem.enableDepthTest();
+            for (Frame f : frames) {
+                BufferBuilder buffer = begin();
+                emitScene(buffer, pose.last().pose(), f, shots(f.casterId()), camera.getPosition(), 3);
+                draw(buffer);
+            }
+        } finally { GateDraw.premultiplied = false; RenderSystem.enableDepthTest(); teardown(); }
+    }
+    /** The scope bars of the local cast, as black quads right before the lens: in the world pass, so the pop-out layer can be drawn over them. */
+    private static void bars(PoseStack pose, float partial) {
+        var window = Minecraft.getInstance().getWindow();
+        if (window.getHeight() <= 0) return;
+        float bar = (float) SilentGateCinematic.bar(localFrame(partial), (double) window.getWidth() / window.getHeight());
+        inkBar = bar;
+        if (bar <= 0) return;
+        GateDraw.premultiplied = false; GateAtlas.bind(); RenderSystem.disableDepthTest(); RenderSystem.defaultBlendFunc();
+        Matrix4f inverse = new Matrix4f(RenderSystem.getProjectionMatrix()).mul(RenderSystem.getModelViewMatrix()).mul(pose.last().pose()).invert();
+        BufferBuilder b = begin();
+        for (int top = 0; top < 2; top++) {
+            float y0 = top == 0 ? -1 : 1 - 2 * bar, y1 = top == 0 ? -1 + 2 * bar : 1;
+            float[][] ndc = {{-1, y0}, {1, y0}, {1, y1}, {-1, y1}};
+            for (float[] p : ndc) {
+                var q = inverse.transformProject(p[0], p[1], 0, new org.joml.Vector3f());
+                b.addVertex(pose.last().pose(), q.x, q.y, q.z).setColor(0, 0, 0, 255).setUv(GateAtlas.SOLID_U, GateAtlas.SOLID_V);
+            }
+        }
+        draw(b);
+    }
+    /** Bloom of this frame, read by {@link #flushDeferred} once the level is drawn: strength, shafts, the light's place on screen (0..1), partial tick. */
+    private static float[] bloom;
+    /** The light spills from the great circle until the doors open, then from the doorway; it comes up with the circle and goes with the ending. */
+    private static void planBloom(PoseStack pose, Camera camera, List<Frame> frames, float partial) {
+        Frame f = localFrame(partial);
+        if (f == null) f = frames.get(0);
+        double age = f.age();
+        if (f.anchor() == null || !Double.isFinite(age)) return;
+        int endStart = SilentGateSequence.ACTIVATE_TICKS + f.barrageTicks();
+        double e = f.commandAge() >= endStart ? f.commandAge() - endStart : -1;
+        double on = smooth((age - 20) / 60) * (e < 0 ? 1 : clamp01(1 - smooth((e - (SilentGateSequence.ENDING_TICKS - 25)) / 25)));
+        double open = e < 0 ? SilentGateSequence.gateOpen(age) : SilentGateSequence.closingOpen(e);
+        Vec3 gate = SilentGateSequence.gateCenter(f.anchor(), f.yaw());
+        GateFx.Pose doorway = GateFx.Pose.of(SilentGateSequence.gateFoot(f.anchor(), f.yaw(), SilentGateSequence.gateDescent(age) + (e < 0 ? 0 : SilentGateSequence.gateRise(e))), f.yaw());
+        Vec3 door = doorway.at(0, 37, 0);
+        Vec3 src = (open > .02 ? door : GateCircles.center(f.anchor(), gate)).subtract(camera.getPosition());
+        var clip = new org.joml.Vector4f((float) src.x, (float) src.y, (float) src.z, 1)
+                .mul(pose.last().pose()).mul(RenderSystem.getModelViewMatrix()).mul(RenderSystem.getProjectionMatrix());
+        boolean seen = clip.w > .001f;
+        // The open doorway floods the frame (reference 5): nothing holds the bloom back.
+        double volley = f.commandAge() >= 0 ? 1 - .45 * (1 - smooth((f.commandAge() - 30) / 20)) : 1;
+        double settle = age > SilentGateSequence.OPEN_END ? .38 + .62 * Math.exp(-(age - SilentGateSequence.OPEN_END) / 30) : 1;
+        open *= settle;
+        bloom = new float[]{(float) (net.godwand.config.GodWandConfig.CLIENT.bloomStrength * (1.35 + .5 * open) * on * volley),
+                seen ? (float) (on * (.3 * smooth((age - SilentGateSequence.CIRCLE_FULL) / 40) + .8 * open)) : 0,
+                seen ? clip.x / clip.w * .5f + .5f : .5f, seen ? clip.y / clip.w * .5f + .5f : .5f, partial};
+    }
+    /** Ink stage (0 none, 1 white on black, 2 black on white) and scope bar of this frame, read by {@link #flushDeferred} for the post chain. */
+    private static float ink, inkBar;
+    /** The local cast's impact frames: the view inked in two tones for two ticks (click, touchdown, command, kill beam) by the post chain, then a small flash of
+     *  warm white that dies away (one quad right before the lens). Where the post chain cannot run (post effects off, a shaderpack) the view is inverted instead. */
+    private static void flash(PoseStack pose, Camera camera, float partial) {
+        Frame f = localFrame(partial);
+        ink = 0;
+        if (f == null) return;
+        double[] fx = SilentGateCinematic.flash(f.age(), f.commandAge(), SilentGateCinematic.sinceHit(f));
+        boolean invert = fx[0] > 0 && net.godwand.config.GodWandConfig.CLIENT.impactFrames;
+        if (invert && GatePostFx.ready()) { ink = (float) fx[0]; invert = false; }
+        if (!invert && fx[1] < .01) return;
+        var look = camera.getLookVector(); var up = camera.getUpVector(); var left = camera.getLeftVector();
+        GateDraw.premultiplied = false; GateAtlas.bind(); RenderSystem.disableDepthTest();
+        for (int layer = invert ? 0 : 1; layer < 2; layer++) {
+            if (layer == 1 && fx[1] < .01) break;
+            if (layer == 0) RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE_MINUS_DST_COLOR, GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR); else additiveBlend();
+            double w = layer == 0 ? 1 : Math.min(1, fx[1]);
+            BufferBuilder b = begin();
+            for (int i = 0; i < 4; i++) {
+                float x = i == 0 || i == 3 ? -3 : 3, y = i < 2 ? -3 : 3;
+                b.addVertex(pose.last().pose(), look.x() * .5f + left.x() * x + up.x() * y, look.y() * .5f + left.y() * x + up.y() * y, look.z() * .5f + left.z() * x + up.z() * y)
+                        .setColor((int) (255 * w), (int) (250 * w), (int) (236 * w), 255).setUv(GateAtlas.SOLID_U, GateAtlas.SOLID_V);
+            }
+            draw(b);
+        }
     }
     /** True while any cast is visible: the in-hand wand of Silent Gate wands is hidden then, the floating one is drawn instead. */
     public static boolean holdsWand() { return !CASTS.isEmpty(); }
@@ -196,7 +285,12 @@ public final class SilentGateRenderer {
     }
     public static void flushDeferred() {
         var d = deferred; deferred = null;
-        if (d == null) return;
+        if (d != null) drawDeferred(d);
+        float[] b = bloom; bloom = null;
+        if (b != null) GatePostFx.process(b[0], b[1], b[2], b[3], b[4], ink, inkBar);
+        else if (CASTS.isEmpty()) GatePostFx.close();
+    }
+    private static void drawDeferred(Deferred d) {
         Minecraft.getInstance().getMainRenderTarget().bindWrite(false);
         var stack = RenderSystem.getModelViewStack();
         stack.pushMatrix(); stack.set(d.modelView()); RenderSystem.applyModelViewMatrix();
@@ -223,13 +317,15 @@ public final class SilentGateRenderer {
     /** Pure geometry for one cast with both layers (tests). */
     static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye) { return emitScene(v, m, f, shots, eye, -1); }
 
-    /** Geometry of one layer (0 body, 1 additive glow, -1 both); returns the quads emitted (never more than {@link #QUAD_BUDGET}). */
+    /** Geometry of one layer (0 body, 1 additive glow, 2 shade, -1 all); returns the quads emitted (never more than {@link #QUAD_BUDGET}). */
     static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye, int layer) { return emitScene(v, m, f, shots, eye, layer, false); }
 
     static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye, int layer, boolean solidOnly) {
         if (!Double.isFinite(f.age()) || f.age() < 0 || f.anchor() == null || !Double.isFinite(f.anchor().x + f.anchor().y + f.anchor().z)
                 || !Double.isFinite(eye.x + eye.y + eye.z)) return 0;
-        Ctx c = new Ctx(); c.v = v; c.m = m; c.eye = eye; c.layer = layer; c.gain = layer == 1 ? GLOW_GAIN : 1; c.solidOnly = solidOnly;
+        // Layer 3 is the pop-out pass: the light that is drawn after the scope bars. It is left out of the ordinary glow pass (1).
+        boolean front = layer == 3;
+        Ctx c = new Ctx(); c.v = v; c.m = m; c.eye = eye; c.layer = front ? 1 : layer; c.gain = c.layer == 1 ? GLOW_GAIN : 1; c.solidOnly = solidOnly;
         int endStart = SilentGateSequence.ACTIVATE_TICKS + f.barrageTicks();
         // Ending ticks after the barrage (-1 before); everything dims only in the last 25 ticks, the sequence itself is staged by e.
         double e = f.commandAge() >= endStart ? f.commandAge() - endStart : -1;
@@ -243,73 +339,84 @@ public final class SilentGateRenderer {
             gate(c, anchor, f.yaw(), age, f.commandAge(), e);
             return c.quads;
         }
-        GateSky.dome(c, gate, age);
-        GateSky.clouds(c, GateCircles.center(anchor, gate), age, endK);
-        GateCircles.great(c, anchor, gate, age, e);
-        int count = Math.max(0, Math.min(f.skyCircles(), 256)), sky = SilentGateSequence.skyTotal(count);
+        int count = Math.max(0, Math.min(f.skyCircles(), SilentGateSequence.MAX_CIRCLES));
         double wave = f.commandAge() >= 0 ? f.commandAge() * GateMinor.WAVE_SPEED : -1;
         double now = f.startedAt() + age;
-        // The latest beam of each circle: while it is announced and firing the circle glides over its target (eased there and back).
-        Map<Integer, Shot> latest = new HashMap<>();
-        for (Shot s : shots) if (s.circle() >= 0 && s.circle() < sky) latest.merge(s.circle(), s, (x, y) -> x.tick() >= y.tick() ? x : y);
-        for (int i = 0; i < sky; i++) {
-            Vec3 at = circlePosition(anchor, f, i, count, latest.get(i), now);
-            GateMinor.sky(c, at, i, age, SilentGateSequence.circleBorn(i, count, f.seed()), gate, wave, e);
-        }
+        if (!front) {
+        GateSky.dome(c, gate, age);
+        Vec3 sky = GateCircles.center(anchor, gate);
+        GateSky.clouds(c, sky, age, endK);
+        GateSky.arms(c, sky, age, endK);
+        GateSky.lightning(c, sky, age, endK, f.commandAge() >= 0 && e < 0);
+        // The aurora comes with the finished circle and brightens when the doors have opened.
+        GateSky.aurora(c, sky, age, (f.commandAge() >= 0 && e < 0 ? 1.15 + .3 * Math.sin(age * .22) : 1) * smooth((age - 60) / 80) * (.6 + .4 * smooth((age - SilentGateSequence.OPEN_END) / 30)) * (1 - smooth(endK / .6)));
+        GateCircles.great(c, anchor, gate, age, e);
+        for (int i = 0; i < count; i++) GateMinor.sky(c, SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), i, count), i, age, gate, wave, e);
         for (int i = 0; i < SilentGateSequence.GROUND_RING; i++)
             GateMinor.ground(c, SilentGateSequence.groundCircle(anchor, f.yaw(), i), anchor, i, age, SilentGateSequence.groundCircleGold(i), gate, wave, e);
+        GateMinor.aura(c, anchor, age, e);
+        GateFx.castBurst(c, anchor, age - 3, 1);
+        if (f.commandAge() >= 0) GateFx.castBurst(c, anchor, f.commandAge(), 1.8);
         GateMinor.wave(c, gate, f.yaw(), wave);
-        gate(c, anchor, f.yaw(), age, f.commandAge(), e);
-        // Beams from circle to hit point: they start when the circle has arrived over the target and live for BEAM_TICKS.
-        int total = SilentGateSequence.skyTotal(f.skyCircles());
+        }
+        gate(c, anchor, f.yaw(), age, f.commandAge(), e, front);
+        // Beams from a circle's nozzle to the hit point. No circle moves: the beam leans as it must. The kill beam's circle gathers light first.
+        // Flying over the scope bars is an accent, not a habit: only the first volley after the command and the kill beam do it.
+        boolean volley = f.commandAge() >= 0 && f.commandAge() < SilentGateSequence.ACTIVATE_TICKS + 30;
         for (Shot s : shots) {
-            if (s.circle() < 0) continue;
-            Vec3 home = s.circle() < total ? SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), s.circle(), f.skyCircles())
-                    : SilentGateSequence.groundCircle(anchor, f.yaw(), s.circle() - total);
-            int glide = s.circle() < total ? glideOf(s, home) : 0;
-            double life = now - s.tick() - glide;
+            if (s.circle() < 0 || s.circle() >= count) continue;
+            // The ground's light and scars stay in the picture, under the scope bars, whatever the beam itself does.
+            if (!front && s.hit().distanceToSqr(eye) < 260 * 260) GateBeams.pool(c, s.hit(), beamLife(s, now) - GateBeams.FALL_TICKS,
+                    s.heavy() ? GateBeams.KILL : s.circle() % 2 == 0 ? GateMinor.JADE : GateCircles.GLOW_BLUE, s.tick() * 31L + s.circle(), s.heavy() ? 2 : 1);
+            if ((layer == 1 || front) && (s.heavy() || volley) != front) continue;
+            Vec3 from = SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), s.circle(), count).add(0, -GateMinor.NOZZLE, 0);
+            double life = beamLife(s, now);
+            if (s.heavy() && life < 0) GateBeams.charge(c, from, 1 + life / SilentGateSequence.HEAVY_CHARGE);
+            int tint = s.heavy() ? GateBeams.KILL : s.circle() % 2 == 0 ? GateMinor.JADE : GateCircles.GLOW_BLUE;
+            // Far from the lens the smoke and the sparks of a strike are a pixel or two: they are left out (220 circles firing must fit the quad budget).
+            double reach = s.hit().distanceToSqr(eye);
+            if (reach < 150 * 150) GateBeams.smoke(c, s.hit(), life - GateBeams.FALL_TICKS, tint, s.tick() * 31L + s.circle(), s.heavy() ? 2 : 1);
+            if (reach < 100 * 100) GateBeams.sparks(c, s.hit(), life - GateBeams.FALL_TICKS, tint, s.tick() * 31L + s.circle(), s.heavy() ? 2 : 1);
             if (life < 0 || life >= BEAM_TICKS) continue;
             int stacked = 0;
-            for (Shot o : shots) {
-                if (o.circle() < 0) continue;
-                Vec3 oh = o.circle() < total ? SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), o.circle(), f.skyCircles()) : home;
-                double ol = now - o.tick() - (o.circle() < total ? glideOf(o, oh) : 0);
-                if (ol >= 0 && ol < BEAM_TICKS && o.hit().distanceToSqr(s.hit()) < 64) stacked++;
-            }
-            Vec3 from = glide > 0 ? home.add(SilentGateSequence.slide(home, s.hit(), s.heavy())) : home;
-            GateBeams.shot(c, from, s.hit(), life, s.heavy() ? GateCircles.HOT : s.circle() < total ? (s.circle() % 2 == 0 ? GateMinor.JADE : GateCircles.GLOW_BLUE)
-                    : SilentGateSequence.groundCircleGold(s.circle() - total) ? GateMinor.GOLD : GateMinor.GREEN, s.tick() * 31L + s.circle(), now,
+            for (Shot o : shots) { double ol = beamLife(o, now); if (o.circle() >= 0 && ol >= 0 && ol < BEAM_TICKS && o.hit().distanceToSqr(s.hit()) < 64) stacked++; }
+            GateBeams.shot(c, from, s.hit(), life, tint, s.tick() * 31L + s.circle(), now,
                     s.heavy() ? 1 : 1 / Math.max(1, stacked * .6), s.heavy() ? 2 : 1);
         }
-        var sim = GateMana.sim(f.casterId());
-        if (sim != null) GateMana.emit(c, sim, f);
-        lastQuads = c.quads;
+        if (!front) {
+            GateFx.motes(c, age, smooth((age - SilentGateSequence.CIRCLE_START) / 70) * (1 - smooth(endK / .8)));
+            var sim = GateMana.sim(f.casterId());
+            if (sim != null) GateMana.emit(c, sim, f);
+        }
+        if (!front) lastQuads = c.quads;
         return c.quads;
     }
-    /** Where sky circle {@code i} is at {@code now}: always where it bloomed, except for a short local slide (at most 20 blocks, sideways) while it lines a beam up with its target. */
-    static Vec3 circlePosition(Vec3 anchor, Frame f, int i, int count, Shot s, double now) {
-        Vec3 home = SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), i, count);
-        if (s == null) return home;
-        return home.add(SilentGateSequence.slide(home, s.hit(), s.heavy()).scale(SilentGateSequence.glideK(now - s.tick(), glideOf(s, home))));
-    }
-
-    /** Ticks the circle of {@code s} glides over its target before the beam fires. */
-    static int glideOf(Shot s, Vec3 home) { return s.heavy() ? SilentGateSequence.HEAVY_GLIDE : SilentGateSequence.glideTicks(home, s.hit()); }
+    /** Ticks since the beam of {@code s} fired (the kill beam fires HEAVY_CHARGE ticks after it is announced); negative before. */
+    static double beamLife(Shot s, double now) { return now - s.tick() - (s.heavy() ? SilentGateSequence.HEAVY_CHARGE : stagger(s)); }
+    /** The server fires in ticks: five or six circles on the same instant, twenty times a second, which reads as volleys. Each beam is held back by its own
+     *  fraction of {@value #STAGGER_TICKS} ticks, so they leave one after the other, a running fire (owner, 2026-11-12). Looks only: the hit is the server's. */
+    static final double STAGGER_TICKS = 2.4;
+    static double stagger(Shot s) { double h = Math.sin(s.circle() * 12.9898 + s.tick() * 78.233) * 43758.5453; return (h - Math.floor(h)) * STAGGER_TICKS; }
 
     /** Quads of the last emitted cast (dev statistic read by the QA probe). */
     public static volatile int lastQuads;
 
     /** The gate: slit it climbs out of, descent wind and dust, the sculpted model, shockwave, pressure rings and the opening light; in the ending
      *  (e = ticks after the barrage) the doors close, the gate climbs back into the slit and on into the great circle. */
-    private static void gate(Ctx c, Vec3 anchor, float yaw, double age, double commandAge, double e) {
+    private static void gate(Ctx c, Vec3 anchor, float yaw, double age, double commandAge, double e) { gate(c, anchor, yaw, age, commandAge, e, false); }
+    /** {@code front}: only what the gate throws over the scope bars (its feathers). */
+    private static void gate(Ctx c, Vec3 anchor, float yaw, double age, double commandAge, double e, boolean front) {
         double endK = e < 0 ? 0 : clamp01(e / SilentGateSequence.ENDING_TICKS);
         double descent = SilentGateSequence.gateDescent(age), rise = e < 0 ? 0 : SilentGateSequence.gateRise(e);
         double fadeOut = e < 0 ? 1 : 1 - smooth((rise - 1.15) / .9);
         double appear = smooth((age - SilentGateSequence.DESCENT_START) / 8);
-        double slit = e < 0 ? smooth((age - SilentGateSequence.SLIT_START) / 24) * (1 - smooth((age - 282) / 16)) : Math.sin(Math.PI * clamp01((e - 70) / 60));
-        Vec3 start = SilentGateSequence.gateFoot(anchor, yaw, 1);
-        GateFx.Pose slitPose = GateFx.Pose.of(start, yaw);
-        if (!c.solidOnly) GateFx.slit(c, slitPose, slit, SilentGateSequence.GATE_HEIGHT + 20);
+        double slit = e < 0 ? smooth((age - SilentGateSequence.SLIT_START) / 14) * (1 - smooth((age - SilentGateSequence.DESCENT_END + 6) / 14)) : Math.sin(Math.PI * clamp01((e - 70) / 60));
+        // The gate comes down out of a crack in the sky: a slit of light in the great circle's plane, across the gate's width. Above that plane the gate is not there yet.
+        GateFx.Pose slitPose = GateFx.Pose.of(SilentGateSequence.gateFoot(anchor, yaw, 0), yaw);
+        double plane = anchor.y + SilentGateSequence.circleAltitude(anchor.y);
+        Vec3 crack = new Vec3(slitPose.foot().x, plane, slitPose.foot().z);
+        if (!c.solidOnly && !front) GateFx.slit(c, crack, slitPose.r(), slitPose.d(), slit, SilentGateSequence.GATE_WIDTH * .7 * SilentGateSequence.SCALE);
+        if (!c.solidOnly && !front && e < 0) GateFx.strain(c, crack, slitPose.r(), slitPose.d(), age, SilentGateSequence.GATE_WIDTH * .7 * SilentGateSequence.SCALE);
         if (appear <= 0 || fadeOut <= 0) return;
         double saved = c.fade;
         c.fade = saved * appear * fadeOut;
@@ -318,12 +425,30 @@ public final class SilentGateRenderer {
         GateFx.Pose pose = GateFx.Pose.of(SilentGateSequence.gateFoot(anchor, yaw, descent + rise).add(0, shake * Math.sin(age * 2.3), 0), yaw);
         double speed = (SilentGateSequence.gateDescent(age - .5) - SilentGateSequence.gateDescent(age + .5)) * SilentGateSequence.GATE_DROP;
         double open = e < 0 ? SilentGateSequence.gateOpen(age) : SilentGateSequence.closingOpen(e);
-        GateModel.draw(c, pose, age, open, GateModel.vein(age, commandAge, endK));
+        double spread = GateModel.spread(age, e);
+        // The feathers fly over the scope bars only in the burst of the wings; after that they fall inside the picture.
+        boolean burst = age >= SilentGateSequence.SHOCK && age < SilentGateSequence.SHOCK + 70;
+        if (front) { c.clipY = plane; if (burst) GateFx.feathers(c, pose, age, spread, endK); c.clipY = Double.MAX_VALUE; c.fade = saved; return; }
+        double travel = (1 - descent) * SilentGateSequence.GATE_DROP;
+        c.clipY = plane;
+        GateModel.draw(c, pose, age, open, GateModel.vein(age, commandAge, endK), spread);
         if (!c.solidOnly) {
-            GateFx.wind(c, pose, age, Math.max(0, speed));
+            GateFx.wind(c, pose, age, Math.max(0, speed), travel);
+            GateFx.smoke(c, pose, age, Math.max(0, speed), travel, open, endK);
+            if (c.layer != 1 || !burst) GateFx.feathers(c, pose, age, spread, endK);
+            c.clipY = Double.MAX_VALUE;
+            if (e < 0) GateFx.groundWave(c, new Vec3(pose.foot().x, anchor.y, pose.foot().z), age - SilentGateSequence.SHOCK);
             if (e < 0) {
                 GateFx.dust(c, pose, age, SilentGateSequence.DESCENT_END, 1);
                 GateFx.shockwave(c, pose, age, SilentGateSequence.SHOCK, 120, 34, 1);
+                // The same blow runs through the cloud deck across the whole sky, and again when the command is given.
+                GateFx.shockwave(c, pose, age, SilentGateSequence.SHOCK, 190, 80, .75);
+                if (commandAge >= 0) {
+                    GateFx.shockwave(c, pose, commandAge, 0, 190, 80, .6);
+                    // While it rains the sky beats: a ring runs out through the cloud deck every two seconds.
+                    int beat = (int) (commandAge / 40) * 40;
+                    if (beat > 0) GateFx.shockwave(c, pose, commandAge, beat, 190, 80, .3);
+                }
                 // The doors meet their stops: dust off the sill and a short ring of light at door height.
                 GateFx.dust(c, pose, age, SilentGateSequence.OPEN_END, .55);
                 GateFx.shockwave(c, pose, age, SilentGateSequence.OPEN_END, 46, 37, .6);
@@ -333,11 +458,14 @@ public final class SilentGateRenderer {
                 GateFx.shockwave(c, pose, e, SilentGateSequence.END_CLOSE, 46, 37, .6);
             }
             GateFx.pressure(c, pose, age, endK);
+            GateFx.grace(c, pose, anchor, anchor.y + SilentGateSequence.circleAltitude(anchor.y), anchor.y, age,
+                    smooth((age - SilentGateSequence.SHOCK) / 40) * (1 - smooth(endK / .5)));
         }
         c.fade = saved;
     }
 
     public static void tick(Minecraft client) {
+        GateAtlas.prepare();
         if (client.level != world || client.player == null) { reset(); return; }
         long now = world.getGameTime();
         CASTS.entrySet().removeIf(e -> {
@@ -348,9 +476,19 @@ public final class SilentGateRenderer {
         });
         CASTS.values().forEach(c -> trim(c, now));
         GateMana.tick(frames(0), world);
+        SilentGateSoundscape.tick(client, frames(0));
+        // The cast brings its own night (this viewer's sky only; the server's clock is never touched).
+        GateNight.tick(world, night(client, 0));
         vanillaClouds(client, CASTS.values().stream().anyMatch(c -> c.anchor != null && c.anchor.distanceToSqr(client.player.position()) < RENDER_RANGE * RENDER_RANGE));
     }
 
+    /** How deep the night is for this viewer at {@code partial}: the deepest of any cast in range. */
+    static double night(Minecraft client, float partial) {
+        double night = 0;
+        if (client.player == null) return 0;
+        for (Frame f : frames(partial)) if (f.anchor() != null && f.anchor().distanceToSqr(client.player.position()) < RENDER_RANGE * RENDER_RANGE) night = Math.max(night, GateNight.depth(f));
+        return night;
+    }
     /** The cast replaces the sky with its own vortex, so vanilla clouds are switched off while one is in range and put back after. */
     private static final double RENDER_RANGE = 600;
     private static net.minecraft.client.CloudStatus savedClouds;
@@ -360,7 +498,7 @@ public final class SilentGateRenderer {
         else if (!cast && savedClouds != null) { option.set(savedClouds); savedClouds = null; }
     }
     public static void reset() {
-        CASTS.clear(); LATEST.clear(); CLOSED.clear(); world = null;
+        CASTS.clear(); LATEST.clear(); CLOSED.clear(); world = null; GateNight.reset(); SilentGateSoundscape.reset();
         if (savedClouds != null) vanillaClouds(Minecraft.getInstance(), false);
     }
 }
