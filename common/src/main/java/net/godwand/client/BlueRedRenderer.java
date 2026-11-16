@@ -143,14 +143,14 @@ public final class BlueRedRenderer {
         if (!PURPLES.isEmpty()) {
             Purple p = PURPLES.get(PURPLES.size() - 1);
             double age = now - p.at();
-            light = p.pos(); strength = 1;
+            light = p.pos(); strength = .65;
             burst = .55 * (1 - clamp01((age - BlueRedRules.PURPLE_DETONATE) / 24.0)) * (age >= BlueRedRules.PURPLE_DETONATE ? 1 : 0)
                     + .35 * smooth((age - (BlueRedRules.PURPLE_VOID_END - 14)) / 14.0) * (age < BlueRedRules.PURPLE_VOID_END + 10 ? 1 : 0);
         } else {
             double best = Double.MAX_VALUE;
             for (BlueView b : BLUES.values()) { double d = b.pos.distanceToSqr(camera.getPosition()); if (d < best) { best = d; light = b.pos; } }
             for (Flight f : FLIGHTS) if (f.end == null) { light = BlueRedVisual.redHead(f.origin, f.dir, now - f.at, 160, null); break; }
-            if (light != null || !CHARGES.isEmpty() || !BURSTS.isEmpty()) strength = .8;
+            if (light != null || !CHARGES.isEmpty() || !BURSTS.isEmpty()) strength = .45;
         }
         if (strength <= 0) return;
         float sx = .5f, sy = .5f;
@@ -168,7 +168,7 @@ public final class BlueRedRenderer {
         planBloom(pose, camera, partial);
         if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && PURPLES.isEmpty() && IMPACTS.isEmpty()) return;
         RenderSystem.enableBlend(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
-        BlueRedAtlas.bind(); RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+        BlueRedAtlas.bind(); BlueRedShader.bind((float) (((clock + partial) / 20.0) % 3600));
         try {
             for (int layer : new int[]{0, 1}) {
                 if (layer == 0) RenderSystem.defaultBlendFunc();
@@ -189,7 +189,7 @@ public final class BlueRedRenderer {
         Overlay o = overlay; overlay = null;
         if (o == null || IMPACTS.isEmpty() && !(PurpleCinematic.inVoid() && !PURPLES.isEmpty())) return;
         RenderSystem.enableBlend(); RenderSystem.disableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
-        BlueRedAtlas.bind(); RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+        BlueRedAtlas.bind(); BlueRedShader.bind((float) (((clock + o.partial()) / 20.0) % 3600));
         try {
             var look = o.camera().getLookVector();
             Vec3 lookVec = new Vec3(look.x(), look.y(), look.z()), eye = o.camera().getPosition();

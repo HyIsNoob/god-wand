@@ -28,7 +28,7 @@ class BlueRedDrawTest {
     @Test void blueHasDenseBlueFlamesInTheBodyPass() {
         var body = ctx(0);
         BlueRedDraw.blue(body, AT, false, 30, -1);
-        assertTrue(body.quads >= 24, "solid blue flame licks, not just glow: " + body.quads);
+        assertTrue(body.quads >= 20, "the orb, its flame tongues and smoke, not just glow: " + body.quads);
     }
 
     @Test void readyBlueLooksClearlyDifferent() {

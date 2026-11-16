@@ -8,15 +8,17 @@ import java.util.Random;
 import static net.godwand.client.GateDraw.*;
 
 /**
- * Geometry of Blue, Red and Purple (owner references in docs/ideas/refs-1.6.0). Everything samples BlueRedAtlas.
- * Saturated colours (deep blue flames, pure red, ink) go in the alpha pass so they hold their colour in daylight; light goes in the additive pass.
- * Orbs are real 3D spheres with a scrolling plasma surface and a fresnel rim, so they read as glowing glass balls rather than flat discs.
+ * Geometry of Blue, Red and Purple (owner references in docs/ideas/refs-1.6.0). Most of the look is computed per pixel by the godwand_bluered shader
+ * (see BlueRedShader): fx* quads carry an effect id in their UV, so orbs churn, ribbons stream and flames rise every frame instead of being pasted
+ * pictures. Saturated colours (deep blue, pure red, ink) go in the alpha pass so they hold in daylight; light goes in the additive pass, and bloom
+ * spreads what is near white.
  */
 final class BlueRedDraw {
     static final int DEEP_BLUE = 0x0C24E8, ROYAL = 0x1E46FF, INDIGO = 0x0A12B4, CYAN = 0x46D2FF, ICE = 0xEAF8FF, SMOKE_WHITE = 0xE4EEFA;
-    /** Red is laid down in the alpha pass (RED_BODY): additive red over a bright sky turns pink. Only thin hot cores are additive. */
     static final int RED = 0xFF0A28, RED_BODY = 0xD4001A, RED_DEEP = 0x8A0010, RED_LIGHT = 0xFF4A60, RED_CORE = 0xFFD6DC, RED_DARK = 0x16000A;
     static final int VIOLET = 0x9A2CFF, ORCHID = 0xF064FF, PALE = 0xF6D8FF, NIGHT = 0x2A0650, VOID = 0x07020F, INK = 0x050002;
+    /** Shader effects (godwand_bluered.fsh). ORB seeds: % 4 == 0 blue fire, 1 red plasma, 2 purple storm. */
+    static final int ORB = 0, FLOW = 1, FLAME = 2, SMOKE = 3, SHOCK = 4, BOLT = 5, SPARK = 6, RAYS = 7, NEBULA = 8;
 
     private BlueRedDraw() {}
 
@@ -26,56 +28,42 @@ final class BlueRedDraw {
         double r = BlueRedVisual.blueRadius(ready ? BlueRedRules.BlueState.READY : BlueRedRules.BlueState.CHARGING, age);
         double appear = smooth(age / 6), beat = ready ? BlueRedVisual.heartbeat(age) : 0, flash = BlueRedVisual.flash(sinceReady);
         double speed = ready ? 1.8 : 1;
-        // The orb itself: a deep blue glass ball of churning plasma with a bright cyan rim.
-        if (c.body()) sphere(c, at, r * .92, DEEP_BLUE, .45 * appear, .95 * appear, age * .006 * speed, true);
-        if (c.glow()) sphere(c, at, r * .95, CYAN, .12 * appear, (.85 + .15 * beat) * appear, -age * .009 * speed, false);
-        // Flame tongues licking up and round it, saturated blue, a lighter cyan heart in the glow pass.
-        int tongues = ready ? 30 : 22;
-        for (int i = 0; i < tongues; i++) {
-            double life = 18 + (i % 5) * 3, phase = (age * speed / life + i * .618034) % 1;
-            double a = i * 2.39996 + age * .04 * speed, tilt = Math.sin(i * 1.7) * .8;
-            Vec3 out = new Vec3(Math.cos(a) * Math.cos(tilt), Math.sin(tilt), Math.sin(a) * Math.cos(tilt));
-            Vec3 swirl = new Vec3(-Math.sin(a), 0, Math.cos(a));
-            Vec3 dir = out.scale(.6).add(0, .55, 0).add(swirl.scale(.9)).normalize();
-            double grow = Math.sin(Math.PI * phase), len = r * (.45 + .75 * grow) * (ready ? 1.15 : 1);
-            Vec3 base = at.add(out.scale(r * .9));
-            GateAtlas.Region tex = BlueRedAtlas.FLAME[i % 4];
-            int deep = i % 3 == 0 ? DEEP_BLUE : i % 3 == 1 ? ROYAL : INDIGO;
-            if (c.body()) {
-                tongue(c, base, dir, len, r * .5 * (.6 + .4 * grow), tex, deep, .85 * grow * appear);
-                // A billow of blue fire riding each tongue, so the mass reads as flame rather than spikes.
-                sprite(c, base.add(dir.scale(len * (.3 + .5 * phase))), r * .8 * (.5 + .5 * grow), .8 * grow * appear, deep, BlueRedAtlas.SMOKE[i % 4], a + phase * 3);
+        if (c.body()) {
+            // Living blue fire: churning plasma, its corona licking upward (shader ORB, blue fire).
+            fxSprite(c, at, r * 1.6 * (1.15 + .1 * beat), ORB, 0, ROYAL, appear, 0);
+            // Tongues of deep blue flame rising and curling round it.
+            for (int i = 0; i < (ready ? 20 : 16); i++) {
+                double life = 20 + (i % 5) * 4, phase = (age * speed / life + i * .618034) % 1, grow = Math.sin(Math.PI * phase);
+                double a = i * 2.39996 + age * .04 * speed, tilt = Math.sin(i * 1.7) * .7;
+                Vec3 out = new Vec3(Math.cos(a) * Math.cos(tilt), Math.sin(tilt), Math.sin(a) * Math.cos(tilt));
+                Vec3 dir = out.scale(.55).add(0, .8, 0).add(new Vec3(-Math.sin(a), 0, Math.cos(a)).scale(.45)).normalize();
+                fxTongue(c, at.add(out.scale(r * .8)), dir, r * (1.1 + 1.3 * grow), r * .65, FLAME, i, i % 2 == 0 ? DEEP_BLUE : ROYAL, .95 * grow * appear);
             }
-            if (c.glow()) tongue(c, base, dir, len * .8, r * .25, tex, CYAN, .3 * grow * appear);
-        }
-        // White slashes whirling round it like a vortex (refs 13, 14), and white smoke churning at its waist.
-        for (int i = 0; i < (ready ? 8 : 5); i++) {
-            double tilt = .25 + .35 * Math.sin(i * 1.9), spin = age * (.32 + .04 * i) * speed + i * 1.7;
-            Vec3[] uw = basis(new Vec3(Math.sin(i * 2.3) * tilt, 1, Math.cos(i * 2.3) * tilt).normalize());
-            Vec3 centre = at.add(0, (i % 3 - 1) * r * .25, 0);
-            double rad = r * (1.3 + .22 * (i % 4));
-            if (c.body()) arc(c, centre, uw[0], uw[1], rad, spin, 2.1, r * .22, 0xF4FAFF, .8 * appear, BlueRedAtlas.SLASH[i % 2]);
-            if (c.glow()) arc(c, centre, uw[0], uw[1], rad, spin, 2.1, r * .1, CYAN, .8 * appear, BlueRedAtlas.SLASH[i % 2]);
-        }
-        for (int i = 0; i < 12; i++) {
-            double a = i * Math.PI * 2 / 12 + age * .09 * speed, wobble = Math.sin(age * .07 + i) * .25;
-            if (c.body()) sprite(c, at.add(Math.cos(a) * r * 1.5, -r * .45 + wobble, Math.sin(a) * r * 1.5), r * .55, .3 * appear, SMOKE_WHITE, BlueRedAtlas.SMOKE[i % 4], a * 2);
+            for (int i = 0; i < 10; i++) {
+                double a = i * Math.PI * 2 / 10 + age * .09 * speed;
+                fxSprite(c, at.add(Math.cos(a) * r * 1.5, -r * .5 + Math.sin(age * .07 + i) * .25, Math.sin(a) * r * 1.5), r * .7, SMOKE, 20 + i, SMOKE_WHITE, .45 * appear, a);
+            }
         }
         if (!c.glow()) return;
-        glow(c, at, r * 3.6, (.28 + .15 * beat) * appear, ROYAL);
-        glow(c, at, r * 1.9, (.4 + .2 * beat) * appear, CYAN);
-        glow(c, at, r * (ready ? 1.05 : .85), appear, ICE);
-        sparkles(c, at, r * 1.15, age, ready ? 40 : 26, ICE, CYAN, 7);
-        motes(c, at, r, age, CYAN, 30);
+        // The vortex: white-cyan energy ribbons streaming round it (refs 13, 14), inner ones crossing its face.
+        for (int i = 0; i < (ready ? 12 : 8); i++) {
+            double tilt = .2 + .45 * Math.sin(i * 1.9), spin = age * (.3 + .05 * (i % 5)) * speed * (i % 3 == 0 ? -1 : 1) + i * 1.7;
+            Vec3[] uw = basis(new Vec3(Math.sin(i * 2.3) * tilt, 1, Math.cos(i * 2.3) * tilt).normalize());
+            double rad = r * (i % 4 == 0 ? .75 : 1.2 + .25 * (i % 3));
+            fxArc(c, at.add(0, (i % 3 - 1) * r * .2, 0), uw[0], uw[1], rad, spin, 2.4, r * (.18 + .08 * (i % 2)), FLOW, 40 + i, i % 3 == 0 ? ICE : CYAN, (i % 3 == 0 ? .45 : .65) * appear);
+        }
+        glow(c, at, r * 3.4, (.25 + .15 * beat) * appear, ROYAL);
+        glow(c, at, r * .7, (.5 + .2 * beat) * appear, ICE);
+        sparks(c, at, r * 1.3, age, ready ? 44 : 30, ICE, 60);
         if (ready) {
             for (int k = 0; k < 2; k++) {
                 double spin = age * (.07 + .03 * k) + k * 2.1;
                 orbit(c, at, new Vec3(Math.cos(spin), .6 * Math.sin(spin * .7 + k), Math.sin(spin)).normalize(), r * (1.25 + .15 * k), .05, ICE, .7 * appear);
             }
             Random rand = new Random((long) Math.floor(age / 3) * 7919L);
-            for (int b = 0; b < 5; b++) {
+            for (int b = 0; b < 6; b++) {
                 Vec3 d = gauss(rand).normalize();
-                bolt(c, rand, at.add(d.scale(r * .9)), d, r * (.6 + .6 * rand.nextDouble()), 5, .3, .06, CYAN, .95, 1);
+                bolt(c, rand, at.add(d.scale(r * .9)), d, r * (.6 + .6 * rand.nextDouble()), 5, .3, .07, CYAN, .95, 1);
             }
         }
         if (flash > 0) { glow(c, at, r * 7, flash, 0xFFFFFF); glow(c, at, r * 3, flash, 0xFFFFFF); }
@@ -83,73 +71,61 @@ final class BlueRedDraw {
 
     // ---- Red ----
 
-    /** Red's orb: a small sphere of pure red plasma, bright red and black ink strokes whirling round it, glowing and dark orbs, particles sucked in. */
+    /** Red's orb: churning red plasma, red and ink energy ribbons whirling round it, sparks sucked in. */
     static void redOrb(Ctx c, Vec3 at, double size, double age) {
-        double reach = size * 3.2;
-        if (c.body()) sphere(c, at, size, RED_BODY, .7, 1, age * .02, true);
-        if (c.glow()) sphere(c, at, size * 1.02, RED_LIGHT, .15, .8, -age * .03, false);
-        for (int i = 0; i < 8; i++) {
-            double spin = age * (.28 + .05 * i) * (i % 2 == 0 ? 1 : -1) + i * 1.05;
-            Vec3[] uw = basis(new Vec3(Math.sin(i * 1.9 + age * .02), Math.cos(i * 1.3), Math.sin(i * .7 + 1)).normalize());
-            double radius = reach * (.75 + .3 * Math.sin(i * 2.3 + age * .1));
-            boolean dark = i % 3 == 2;
-            GateAtlas.Region ink = BlueRedAtlas.INK[i % 4];
-            if (c.body()) arc(c, at, uw[0], uw[1], radius * (dark ? 1.1 : 1), spin + (dark ? 1.4 : 0), dark ? 1.6 : 1.9, size * .55, dark ? RED_DARK : RED_BODY, .95, ink);
-            if (!dark && c.glow()) arc(c, at, uw[0], uw[1], radius, spin, 1.9, size * .2, RED_CORE, .45, ink);
-        }
-        Random rand = new Random(31);
-        for (int i = 0; i < 16; i++) {
-            double a = i * 2.39996 + age * (.06 + .02 * (i % 3)), rr = reach * (.8 + .9 * rand.nextDouble()), y = (rand.nextDouble() - .5) * reach * 1.4;
-            Vec3 p = at.add(Math.cos(a) * rr, y, Math.sin(a) * rr);
-            if (p.distanceTo(c.eye) < 1.2) continue;
-            boolean dark = i % 3 == 0;
-            if (c.body()) sprite(c, p, size * (dark ? .2 : .24), .95, dark ? RED_DARK : RED_BODY, BlueRedAtlas.GLOW);
-            if (!dark && c.glow()) glow(c, p, size * .12, .9, RED_CORE);
-        }
+        double reach = size * 2.8;
         if (c.body()) {
-            sprite(c, at, size * 4.5, .2, RED_DEEP, BlueRedAtlas.GLOW);
-            motes(c, at, reach * .7, age * 2.4, RED_BODY, 50);
-        }
-        if (!c.glow()) return;
-        glow(c, at, size * 1.3, .55, RED);
-        glow(c, at, size * .45, .95, RED_CORE);
-        for (int i = 0; i < 10; i++) {
-            double a = i * 2.1 + age * .3;
-            spark(c, at.add(new Vec3(Math.cos(a), Math.sin(a * 1.3), Math.sin(a)).scale(reach * .9)), size * .25, .8, RED_LIGHT, a);
-        }
-    }
-
-    /** Red in flight: the orb at the head, spiralling red and ink ribbons along the path behind it, sparks. */
-    static void redFlight(Ctx c, Vec3 origin, Vec3 dir, Vec3 head, double age, double fade, long seed, boolean flying) {
-        if (fade <= 0) return;
-        double travelled = head.distanceTo(origin), tailLength = Math.min(travelled, 22);
-        Vec3[] uw = basis(dir);
-        if (c.body()) beam(c, head.subtract(dir.scale(tailLength)), head, .04, .6, RED_BODY, .1 * fade, .95 * fade);
-        if (c.glow()) beam(c, head.subtract(dir.scale(Math.min(travelled, 9))), head, .03, .25, RED_CORE, .15 * fade, .85 * fade);
-        // Three helices twist round the path, tight near the head and loosening behind it: two red, one ink.
-        for (int h = 0; h < 3; h++) {
-            if (!c.body()) continue;
-            boolean dark = h == 2;
-            Vec3 prev = null;
-            int n = 28;
-            for (int i = 0; i <= n; i++) {
-                double t = (double) i / n, back = t * tailLength, turn = h * 2.0944 - age * .9 + back * .55;
-                double radius = (.25 + .9 * t) * (dark ? 1.25 : 1);
-                Vec3 p = head.subtract(dir.scale(back)).add(uw[0].scale(Math.cos(turn) * radius)).add(uw[1].scale(Math.sin(turn) * radius));
-                if (prev != null) {
-                    double a = (1 - t) * fade, w = .18 * (1 - t) + .03;
-                    beam(c, prev, p, w, w, dark ? RED_DARK : h == 0 ? RED_BODY : RED_DEEP, a, a);
-                }
-                prev = p;
+            fxSprite(c, at, size * 1.6, ORB, 1, RED_BODY, 1, 0);
+            for (int i = 0; i < 8; i++) {
+                double spin = age * (.3 + .05 * i) * (i % 2 == 0 ? 1 : -1) + i * 1.05;
+                Vec3[] uw = basis(new Vec3(Math.sin(i * 1.9 + age * .02), Math.cos(i * 1.3), Math.sin(i * .7 + 1)).normalize());
+                double radius = reach * (.75 + .3 * Math.sin(i * 2.3 + age * .1));
+                boolean dark = i % 3 == 2;
+                fxArc(c, at, uw[0], uw[1], radius * (dark ? 1.1 : 1), spin + (dark ? 1.4 : 0), dark ? 1.7 : 2.1, size * (dark ? .6 : .5), FLOW, 70 + i, dark ? INK : RED_BODY, .95);
+            }
+            for (int i = 0; i < 8; i++) {
+                double a = i * 2.39996 + age * .07;
+                Vec3 p = at.add(Math.cos(a) * reach * 1.1, Math.sin(a * 1.4) * reach * .6, Math.sin(a) * reach * 1.1);
+                if (p.distanceTo(c.eye) > 1.2) fxSprite(c, p, size * .35, SMOKE, 80 + i, INK, .9, a);
             }
         }
-        if (flying) redOrb(c, head, .5, age);
+        if (!c.glow()) return;
+        for (int i = 0; i < 4; i++) {
+            Vec3[] uw = basis(new Vec3(Math.sin(i * 1.9 + age * .02), Math.cos(i * 1.3), Math.sin(i * .7 + 1)).normalize());
+            fxArc(c, at, uw[0], uw[1], reach * .8, age * .4 * (i % 2 == 0 ? 1 : -1) + i * 1.6, 2.2, size * .2, FLOW, 90 + i, RED_LIGHT, .35);
+        }
+        glow(c, at, size * 1.2, .5, RED);
+        glow(c, at, size * .4, .95, RED_CORE);
+        sparks(c, at, reach, age * 1.6, 36, RED_LIGHT, 100);
+    }
+
+    /** Red in flight: the orb at the head, energy ribbons spiralling round the path behind it (two red, one ink), a hot core streak, sparks. */
+    static void redFlight(Ctx c, Vec3 origin, Vec3 dir, Vec3 head, double age, double fade, long seed, boolean flying) {
+        if (fade <= 0) return;
+        double tailLength = Math.min(head.distanceTo(origin), 24);
+        Vec3[] uw = basis(dir);
+        for (int h = 0; h < 4; h++) {
+            boolean dark = h == 3;
+            if (h == 2 ? !c.glow() : !c.body()) continue;
+            int n = 26;
+            Vec3[] pts = new Vec3[n + 1];
+            double[] widths = new double[n + 1];
+            for (int i = 0; i <= n; i++) {
+                double t = (double) i / n, back = (1 - t) * tailLength, turn = h * 1.5708 - age * .9 + back * .5;
+                double radius = (.2 + .9 * (1 - t)) * (dark ? 1.3 : 1);
+                pts[i] = head.subtract(dir.scale(back)).add(uw[0].scale(Math.cos(turn) * radius)).add(uw[1].scale(Math.sin(turn) * radius));
+                widths[i] = .12 + .3 * t;
+            }
+            fxRibbon(c, pts, widths, FLOW, 120 + h, dark ? INK : h == 2 ? RED_LIGHT : RED_BODY, fade);
+        }
+        if (c.glow()) fxBeam(c, head.subtract(dir.scale(Math.min(tailLength, 10))), head, .06, .4, BOLT, 130, RED_LIGHT, fade);
+        if (flying) redOrb(c, head, .55, age);
         if (!c.glow()) return;
         Random rand = new Random(seed);
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 34; i++) {
             double t = rand.nextDouble(), drift = Math.max(0, age - t * 6) * .07;
             Vec3 p = head.subtract(dir.scale(t * tailLength)).add(gauss(rand).scale(drift + .2));
-            if (p.distanceTo(c.eye) > 1.2) spark(c, p, .08 + .07 * rand.nextDouble(), .9 * fade * (1 - t * .6), i % 4 == 0 ? RED_CORE : RED, rand.nextDouble() * 6);
+            if (p.distanceTo(c.eye) > 1.2) fxSprite(c, p, .12 + .1 * rand.nextDouble(), SPARK, 140 + i, i % 4 == 0 ? RED_CORE : RED, .9 * fade * (1 - t * .6), 0);
         }
     }
 
@@ -160,32 +136,28 @@ final class BlueRedDraw {
         if (fade <= 0) return;
         Random rand = new Random(blue ? 91 : 97);
         if (c.body()) {
-            // Blue's flames, or Red's ink, flung outward.
             for (int i = 0; i < 18; i++) {
                 Vec3 d = gauss(rand).normalize();
                 Vec3 p = at.add(d.scale(1 + age * (.6 + .5 * rand.nextDouble())));
-                if (blue) sprite(c, p, 1 + age * .08, .8 * fade, i % 2 == 0 ? DEEP_BLUE : ROYAL, BlueRedAtlas.SMOKE[i % 4], i + age * .2);
-                else sprite(c, p, .5 + rand.nextDouble() * .7, .95 * fade, INK, BlueRedAtlas.SMOKE[i % 4], i);
+                if (blue) fxSprite(c, p, 1 + age * .1, FLAME, 150 + i, i % 2 == 0 ? DEEP_BLUE : ROYAL, .85 * fade, i);
+                else fxSprite(c, p, .6 + rand.nextDouble() * .7, SMOKE, 150 + i, INK, .95 * fade, i);
             }
-            if (!blue) flat(c, at.add(0, -.9, 0), 2 + age * .9, BlueRedAtlas.SHOCK, RED_BODY, .7 * fade);
+            if (!blue) fxFlat(c, at.add(0, -.9, 0), 2.5 + age * 1.1, SHOCK, 170, RED_BODY, .8 * fade);
         }
         if (!c.glow()) return;
-        int color = blue ? CYAN : RED;
-        glow(c, at, 2 + age * (blue ? .8 : 1), fade, color);
+        int color = blue ? CYAN : RED_LIGHT;
+        fxSprite(c, at, 2 + age * 1.3, SHOCK, 171, blue ? ICE : RED_LIGHT, fade, 0);
+        fxSprite(c, at, 3 + age * 1.6, RAYS, 172, color, fade, age * .05);
         glow(c, at, 1 + age * .35, fade, blue ? ICE : RED_CORE);
-        sprite(c, at, 2 + age * 1.2, fade, blue ? ICE : RED_LIGHT, BlueRedAtlas.SHOCK, age * .05);
-        if (!blue) {
-            sprite(c, at, 3 + age * 1.5, .8 * fade, RED_LIGHT, BlueRedAtlas.RAYS, age * .03);
-            for (int i = 0; i < 6; i++) {
-                Vec3[] uw = basis(new Vec3(Math.sin(i * 1.3), Math.cos(i * 2.1), Math.sin(i * .7 + 1)).normalize());
-                arc(c, at, uw[0], uw[1], 1.5 + age * 1.3, i * 1.05 + age * .2, 1.6, .6 * fade, RED, fade, BlueRedAtlas.INK[i % 4]);
-            }
+        for (int i = 0; i < 6; i++) {
+            Vec3[] uw = basis(new Vec3(Math.sin(i * 1.3), Math.cos(i * 2.1), Math.sin(i * .7 + 1)).normalize());
+            fxArc(c, at, uw[0], uw[1], 1.5 + age * 1.3, i * 1.05 + age * .2, 1.8, .7 * fade, FLOW, 180 + i, color, fade);
         }
     }
 
     // ---- Purple ----
 
-    /** Purple in the world: grows from the merged orbs into a huge sphere of violet plasma crawling with lightning, then detonates. */
+    /** Purple in the world: grows from the merged orbs into a huge sphere of violet storm, dense with streaming ribbons and lightning, then detonates. */
     static void purple(Ctx c, Vec3 at, double age, Vec3 eye, Vec3 look) {
         int detonate = BlueRedRules.PURPLE_DETONATE, end = BlueRedRules.PURPLE_CINEMATIC, merge = BlueRedRules.PURPLE_MERGE;
         double blast = clamp01((age - detonate) / 18.0);
@@ -204,34 +176,36 @@ final class BlueRedDraw {
         Random rand = new Random((long) Math.floor(age / 2) * 104729L);
         if (age < detonate) {
             double grow = smooth((age - merge) / (double) (detonate - merge)), s = 2.5 + 9.5 * grow;
-            if (c.body()) sphere(c, at, s, VIOLET, .55, .95, age * .008, true);
+            if (c.body()) {
+                fxSprite(c, at, s * 1.6 * 1.2, ORB, 2, VIOLET, 1, 0);
+                fxSprite(c, at, s * 1.6 * .62, ORB, 6, ORCHID, .9, 1.3);
+            }
             if (c.glow()) {
-                sphere(c, at, s * 1.01, ORCHID, .15, .9, -age * .012, false);
-                glow(c, at, s * 3, .45, VIOLET);
-                glow(c, at, s * 1.4, .6, ORCHID);
-                glow(c, at, s * .7, 1, 0xFFFFFF);
-                sparkles(c, at, s, age, 90, PALE, ORCHID, 11);
-                for (int b = 0; b < 9; b++) {
+                stormRibbons(c, at, s, age, 26, 1);
+                glow(c, at, s * 3, .4, VIOLET);
+                glow(c, at, s * .45, .55, 0xFFFFFF);
+                sparks(c, at, s * 1.2, age, 90, PALE, 200);
+                for (int b = 0; b < 8; b++) {
                     Vec3 d = gauss(rand).normalize();
-                    bolt(c, rand, at.add(d.scale(s * .98)), d.cross(gauss(rand)).normalize(), s * .9, 6, .35, .08 + .04 * grow, ORCHID, .95, 1);
+                    bolt(c, rand, at.add(d.scale(s * .98)), d.cross(gauss(rand)).normalize(), s * .9, 6, .35, .1 + .05 * grow, ORCHID, .95, 1);
                 }
                 for (int b = 0; b < 4 + (int) (6 * grow); b++) {
                     Vec3 d = gauss(rand).normalize();
-                    bolt(c, rand, at.add(d.scale(s)), d, s * (1 + rand.nextDouble()), 9, .45, .14, ORCHID, 1, 2);
+                    bolt(c, rand, at.add(d.scale(s)), d, s * (1 + rand.nextDouble()), 9, .45, .16, ORCHID, 1, 2);
                 }
             }
             return;
         }
-        // Detonation: a white dome swelling out, a shockwave on the ground, rays, lightning hurled to the horizon.
+        // Detonation: the storm sphere bursting out, a shockwave on the ground, rays, ribbons flung outward, lightning hurled to the horizon.
         double dome = 12 + 42 * Math.sqrt(blast);
-        if (c.body()) flat(c, at.add(0, -1, 0), dome * 1.6, BlueRedAtlas.SHOCK, PALE, .6 * (1 - blast));
+        if (c.body()) fxSprite(c, at, dome * 1.6, ORB, 2, VIOLET, (1 - blast * .8) * fade, 0);
         if (c.glow()) {
-            sphere(c, at, dome, PALE, .25 * (1 - blast * .7) * fade, .95 * fade, age * .01, false);
-            glow(c, at, dome * 2, .5 * fade, VIOLET);
-            glow(c, at, dome * 1.1, .9 * fade, ORCHID);
+            fxFlat(c, at.add(0, -1, 0), dome * 1.8, SHOCK, 210, PALE, (1 - blast) * fade);
+            fxSprite(c, at, dome * 2.4, RAYS, 211, PALE, (1 - blast * .7) * fade, age * .01);
+            fxSprite(c, at, dome * 1.3, SHOCK, 212, ORCHID, (1 - blast) * fade, 0);
+            stormRibbons(c, at, dome * .9, age, 20, fade);
             glow(c, at, dome * .7, (1 - blast * .6) * fade, 0xFFFFFF);
-            sprite(c, at, dome * 2.2, (1 - blast) * fade, PALE, BlueRedAtlas.RAYS, age * .01);
-            sparkles(c, at, dome * .8, age, 70, PALE, ORCHID, 13);
+            sparks(c, at, dome, age, 80, PALE, 220);
             Random fixed = new Random(424242L + (long) Math.floor(age / 3));
             for (int b = 0; b < 22; b++) {
                 double a = b * Math.PI * 2 / 22 + fixed.nextGaussian() * .12, up = .05 + .55 * fixed.nextDouble();
@@ -240,9 +214,21 @@ final class BlueRedDraw {
                 bolt(c, fixed, at.add(d.scale(dome * .6)), d, reach, 18, .3, .6, ORCHID, fade, 2);
             }
         }
-        double white = 1 - clamp01((age - detonate) / 6.0);
-        if (white > 0 && c.body()) sprite(c, eye.add(look.scale(.8)), 6, .92 * white, 0xFFFFFF, BlueRedAtlas.SOLID);
-        if (white > 0 && c.glow()) sprite(c, eye.add(look.scale(.8)), 6, .6 * white, PALE, BlueRedAtlas.SOLID);
+        double white = 1 - clamp01((age - detonate) / 4.0);
+        if (white > 0 && c.body()) sprite(c, eye.add(look.scale(.8)), 6, .85 * white * white, 0xFFFFFF, BlueRedAtlas.SOLID);
+    }
+
+    /** Streaming violet, orchid and white ribbons on many orbits, inside and around a sphere of radius s: the storm swirling in Purple. */
+    static void stormRibbons(Ctx c, Vec3 at, double s, double age, int count, double alpha) {
+        for (int i = 0; i < count; i++) {
+            double drift = age * (.008 + .004 * (i % 3));
+            Vec3 n = new Vec3(Math.sin(i * 1.91 + drift), Math.cos(i * 2.37 - drift), Math.sin(i * .73 + 1 + drift)).normalize();
+            Vec3[] uw = basis(n);
+            double rad = s * (i % 3 == 0 ? .45 + .2 * Math.sin(i) : .85 + .35 * ((i * .37) % 1));
+            double spin = age * (.16 + .05 * (i % 4)) * (i % 2 == 0 ? 1 : -1) + i * 2.1;
+            int color = i % 5 == 0 ? PALE : i % 2 == 0 ? ORCHID : VIOLET;
+            fxArc(c, at, uw[0], uw[1], rad, spin, 2 + (i % 3) * .5, s * (.07 + .04 * (i % 3)), FLOW, 230 + i, color, (i % 5 == 0 ? .5 : .75) * alpha);
+        }
     }
 
     /** Black over the world for Purple's two players: fades in as Red strikes Blue, holds, fades out into the world after the merge. */
@@ -252,7 +238,7 @@ final class BlueRedDraw {
         return 1 - smooth((age - end) / 12);
     }
 
-    /** Purple's first act: struck, the two orbs (the same size) recoil apart against black, hang facing each other as purple smoke streams past,
+    /** Purple's first act: struck, the two orbs (the same size) recoil apart against a drifting nebula, hang facing each other as smoke streams past,
      *  lightning leaps between them, they rush together and merge in a white burst. */
     static void purpleVoid(Ctx c, Vec3 at, double age, Vec3 eye, Vec3 look) {
         int end = BlueRedRules.PURPLE_VOID_END;
@@ -264,20 +250,23 @@ final class BlueRedDraw {
         double recoil = smooth(age / 14), approach = smooth((age - 14) / 44.0), meet = smooth((age - (end - 14)) / 14.0);
         double d = 5.2 * recoil * (1 - approach) + .2, r = 2;
         if (c.body()) {
-            sprite(c, eye.add(look.scale(.5)), 4, back, VOID, BlueRedAtlas.SOLID);
-            for (int i = 0; i < 22; i++) {
+            Vec3[] uw = basis(look);
+            Vec3 o = eye.add(look.scale(.5));
+            fxQuad(c, o.subtract(uw[0].scale(4)).subtract(uw[1].scale(4)), o.add(uw[0].scale(4)).subtract(uw[1].scale(4)), o.add(uw[0].scale(4)).add(uw[1].scale(4)),
+                    o.subtract(uw[0].scale(4)).add(uw[1].scale(4)), NEBULA, 250, 0xFFFFFF, back, back, back, back, 0, 1);
+            for (int i = 0; i < 18; i++) {
                 double x = ((i * .37 + age * .012 * (1 + i % 3)) % 1) * 2 - 1, y = Math.sin(i * 2.1 + age * .03) * 2.5;
-                int color = x < -.3 ? 0x2E0818 : x > .3 ? 0x0C1650 : 0x320C5C;
-                sprite(c, at.subtract(view.scale(3 + i % 4)).add(axis.scale(x * 14)).add(0, y, 0), 3 + (i % 3), .6 * back, color, BlueRedAtlas.SMOKE[i % 4], i + age * .01);
+                int color = x < -.3 ? 0x5A1030 : x > .3 ? 0x182A90 : 0x4A1888;
+                fxSprite(c, at.subtract(view.scale(3 + i % 4)).add(axis.scale(x * 14)).add(0, y, 0), 3 + (i % 3), SMOKE, 260 + i, color, .55 * back, i);
             }
         }
         Vec3 red = at.subtract(axis.scale(d)), blue = at.add(axis.scale(d));
         double orbs = (1 - meet) * clamp01(back * 1.5);
         if (orbs > .02) {
             if (c.body()) for (int j = 0; j < 8; j++) {
-                double f = .55 * (1 - j / 8.0) * orbs;
-                sprite(c, red.subtract(axis.scale(j * 1.1 + .8)), 2 - j * .15, f, RED_DEEP, BlueRedAtlas.SMOKE[j % 4], j + age * .05);
-                sprite(c, blue.add(axis.scale(j * 1.1 + .8)), 2.2 - j * .15, f, INDIGO, BlueRedAtlas.SMOKE[j % 4], -j - age * .05);
+                double f = .6 * (1 - j / 8.0) * orbs;
+                fxSprite(c, red.subtract(axis.scale(j * 1.1 + 1)), 2 - j * .15, SMOKE, 280 + j, RED_BODY, f, j);
+                fxSprite(c, blue.add(axis.scale(j * 1.1 + 1)), 2.2 - j * .15, SMOKE, 290 + j, ROYAL, f, -j);
             }
             redOrb(c, red, r, age);
             blue(c, blue, true, age + 40, -1);
@@ -287,27 +276,26 @@ final class BlueRedDraw {
             if (approach > .3) {
                 int bolts = (int) (2 + 9 * approach);
                 for (int b = 0; b < bolts; b++)
-                    bolt(c, rand, red.add(axis.scale(r)), axis.add(gauss(rand).scale(.25)).normalize(), Math.max(.6, d * 2 - r * 2 + .4), 7, .4, .07, ORCHID, .95 * back, 1);
+                    bolt(c, rand, red.add(axis.scale(r)), axis.add(gauss(rand).scale(.25)).normalize(), Math.max(.6, d * 2 - r * 2 + .4), 7, .4, .08, ORCHID, .95 * back, 1);
             }
             for (int i = 0; i < 14; i++) {
                 double y = ((i * .29 + age * .006) % 1) * 6 - 3;
                 sprite(c, at.add(axis.scale(Math.sin(i * 1.7) * 7)).add(0, y, 0).subtract(view.scale(1)), .2, .7 * back, ORCHID, BlueRedAtlas.BUBBLE);
             }
             if (meet > 0) {
-                sphere(c, at, 1.5 + 4 * meet, ORCHID, .2 * meet, meet, age * .02, false);
-                glow(c, at, 4 + 22 * meet, .6 * meet, VIOLET);
-                glow(c, at, 2 + 12 * meet, meet, ORCHID);
+                fxSprite(c, at, (1.5 + 4.5 * meet) * 1.6, ORB, 2, ORCHID, meet, 0);
+                stormRibbons(c, at, 2 + 5 * meet, age, 18, meet);
+                fxSprite(c, at, 6 + 18 * meet, RAYS, 300, PALE, meet, age * .02);
                 glow(c, at, 1 + 6 * meet, meet, 0xFFFFFF);
-                sprite(c, at, 6 + 16 * meet, meet, PALE, BlueRedAtlas.RAYS, age * .02);
                 for (int b = 0; b < 12; b++) {
                     Vec3 dir = gauss(rand).normalize();
                     bolt(c, rand, at.add(dir.scale(1 + 3 * meet)), dir, 3 + 9 * meet, 8, .4, .12, ORCHID, meet, 1);
                 }
-                sparkles(c, at, 2 + 6 * meet, age, 50, PALE, ORCHID, 17);
+                sparks(c, at, 2 + 6 * meet, age, 50, PALE, 310);
             }
         }
         // The burst whites the screen out at the meeting; the white then thins with the black, uncovering the world.
-        double white = age < end ? smooth((age - (end - 5)) / 5.0) : 1 - smooth((age - end) / 10.0);
+        double white = age < end ? smooth((age - (end - 3)) / 3.0) : 1 - smooth((age - end) / 5.0);
         if (white > 0 && c.body()) sprite(c, eye.add(look.scale(.45)), 4, white, 0xFFFFFF, BlueRedAtlas.SOLID);
     }
 
@@ -321,101 +309,119 @@ final class BlueRedDraw {
         int back = frame < 3 ? impactColor(frame) : RED_BODY, stroke = back == INK ? RED_BODY : INK;
         sprite(c, eye.add(look.scale(.5)), 4, a, back, BlueRedAtlas.SOLID);
         double dist = Math.max(1, at.distanceTo(eye));
-        sprite(c, at, dist * .9, a, stroke, BlueRedAtlas.RAYS, frame * .7);
+        fxSprite(c, at, dist * .9, RAYS, 320 + frame, stroke, a, frame * .7);
         Vec3[] uw = basis(look);
         for (int i = 0; i < 10; i++)
-            arc(c, at, uw[0], uw[1], dist * (.12 + .05 * i), i * .63 + frame * .4, 1.3, dist * .05, stroke, a, BlueRedAtlas.INK[i % 4]);
+            fxArc(c, at, uw[0], uw[1], dist * (.12 + .05 * i), i * .63 + frame * .4, 1.4, dist * .05, FLOW, 330 + i, stroke, a);
         if (frame < 3) sprite(c, at, dist * .12, a, stroke, BlueRedAtlas.GLOW);
     }
 
-    // ---- shapes ----
+    // ---- shader quads ----
 
-    static void glow(Ctx c, Vec3 at, double size, double alpha, int color) { sprite(c, at, size, alpha, color, BlueRedAtlas.GLOW, 0); }
-    static void spark(Ctx c, Vec3 at, double size, double alpha, int color, double roll) { sprite(c, at, size, alpha, color, BlueRedAtlas.STAR, roll); }
-
-    /** A sphere of plasma: latitude/longitude quads over the SURFACE tile scrolling round it, alpha rising from core to rim (fresnel). frontOnly keeps
-     *  the alpha pass from darkening it twice. */
-    static void sphere(Ctx c, Vec3 at, double radius, int color, double core, double rim, double scroll, boolean frontOnly) {
-        int lat = 10, lon = 20;
-        GateAtlas.Region tex = BlueRedAtlas.SURFACE;
-        double s = scroll - Math.floor(scroll);
-        for (int i = 0; i < lat; i++) {
-            double t0 = Math.PI * i / lat, t1 = Math.PI * (i + 1) / lat;
-            for (int j = 0; j < lon; j++) {
-                double p0 = Math.PI * 2 * j / lon, p1 = Math.PI * 2 * (j + 1) / lon;
-                Vec3 n00 = unit(t0, p0), n01 = unit(t0, p1), n11 = unit(t1, p1), n10 = unit(t1, p0);
-                Vec3 mid = n00.add(n11).normalize(), toEye = c.eye.subtract(at.add(mid.scale(radius))).normalize();
-                if (frontOnly && mid.dot(toEye) < 0) continue;
-                double u0 = (j / (double) lon + s) * .5, u1 = u0 + .5 / lon;
-                if (u1 > 1) { u0 -= .5; u1 -= .5; }
-                tex(c, at.add(n00.scale(radius)), at.add(n01.scale(radius)), at.add(n11.scale(radius)), at.add(n10.scale(radius)), tex,
-                        u0, u1, i / (double) lat, (i + 1) / (double) lat, color,
-                        fresnel(c, at, n00, radius, core, rim), fresnel(c, at, n01, radius, core, rim), fresnel(c, at, n11, radius, core, rim), fresnel(c, at, n10, radius, core, rim));
-            }
-        }
+    /** One quad of a shader effect: corners a (0,0), b (1,0), d (1,1), e (0,1) in the effect's local space; u0..u1 is the run along it. */
+    static void fxQuad(Ctx c, Vec3 a, Vec3 b, Vec3 d, Vec3 e, int effect, int seed, int color, double aa, double ab, double ad, double ae, double u0, double u1) {
+        if (!room(c)) return;
+        float U0 = seed + .001f + (float) (u0 * .998), U1 = seed + .001f + (float) (u1 * .998);
+        float V0 = 2 + effect + .001f, V1 = 2 + effect + .999f;
+        vertex(c, a, color, aa, U0, V0); vertex(c, b, color, ab, U1, V0);
+        vertex(c, d, color, ad, U1, V1); vertex(c, e, color, ae, U0, V1);
+        c.quads++;
     }
 
-    private static Vec3 unit(double theta, double phi) { return new Vec3(Math.sin(theta) * Math.cos(phi), Math.cos(theta), Math.sin(theta) * Math.sin(phi)); }
-
-    private static double fresnel(Ctx c, Vec3 at, Vec3 n, double radius, double core, double rim) {
-        Vec3 p = at.add(n.scale(radius));
-        double f = 1 - Math.abs(n.dot(c.eye.subtract(p).normalize()));
-        return core + (rim - core) * f * f;
+    private static void vertex(Ctx c, Vec3 p, int color, double alpha, float u, float v) {
+        Vec3 q = pull(p.subtract(c.eye), farPlane);
+        int k = (int) Math.round(clamp01(alpha * c.fade) * 255);
+        c.v.addVertex(c.m, (float) q.x, (float) q.y, (float) q.z).setColor((color >> 16) & 255, (color >> 8) & 255, color & 255, k).setUv(u, v);
     }
 
-    /** A flame tongue from base along dir, camera-facing, textured base (V 1) to tip (V 0). */
-    static void tongue(Ctx c, Vec3 base, Vec3 dir, double length, double width, GateAtlas.Region tex, int color, double alpha) {
+    /** A camera-facing shader quad (rolled), half size {@code size}. */
+    static void fxSprite(Ctx c, Vec3 at, double size, int effect, int seed, int color, double alpha, double roll) {
+        Vec3 look = at.subtract(c.eye);
+        if (look.lengthSqr() < 1e-6 || alpha <= 0) return;
+        Vec3 right = look.cross(new Vec3(0, 1, 0));
+        right = (right.lengthSqr() < 1e-8 ? new Vec3(1, 0, 0) : right.normalize()).scale(size);
+        Vec3 up = right.cross(look).normalize().scale(size);
+        if (roll != 0) { Vec3 r0 = right; right = r0.scale(Math.cos(roll)).add(up.scale(Math.sin(roll))); up = up.scale(Math.cos(roll)).subtract(r0.scale(Math.sin(roll))); }
+        fxQuad(c, at.subtract(right).add(up), at.add(right).add(up), at.add(right).subtract(up), at.subtract(right).subtract(up), effect, seed, color, alpha, alpha, alpha, alpha, 0, 1);
+    }
+
+    /** A shader quad lying flat on the ground (shockwaves). */
+    static void fxFlat(Ctx c, Vec3 at, double half, int effect, int seed, int color, double alpha) {
+        if (alpha <= 0) return;
+        fxQuad(c, at.add(-half, 0, -half), at.add(half, 0, -half), at.add(half, 0, half), at.add(-half, 0, half), effect, seed, color, alpha, alpha, alpha, alpha, 0, 1);
+    }
+
+    /** A flame from base along dir, camera-facing sideways: the FLAME effect's base (local y 1) at base, tip (y 0) at the far end. */
+    static void fxTongue(Ctx c, Vec3 base, Vec3 dir, double length, double width, int effect, int seed, int color, double alpha) {
         if (alpha <= 0) return;
         Vec3 tip = base.add(dir.scale(length));
         Vec3 side = dir.cross(base.add(tip).scale(.5).subtract(c.eye));
         if (side.lengthSqr() < 1e-10) return;
         side = side.normalize().scale(width);
-        tex(c, tip.subtract(side), tip.add(side), base.add(side), base.subtract(side), tex, 0, 1, 0, 1, color, alpha, alpha, alpha, alpha);
+        fxQuad(c, tip.subtract(side), tip.add(side), base.add(side), base.subtract(side), effect, seed, color, alpha, alpha, alpha, alpha, 0, 1);
     }
 
-    /** A camera-facing beam from a to b, wa/wb half wide at its ends, on the LIGHT strip: sharp core, soft edges. */
-    static void beam(Ctx c, Vec3 a, Vec3 b, double wa, double wb, int color, double alphaA, double alphaB) {
+    /** A camera-facing shader strip from a to b (local x along, y across). */
+    static void fxBeam(Ctx c, Vec3 a, Vec3 b, double wa, double wb, int effect, int seed, int color, double alpha) {
         Vec3 side = b.subtract(a).cross(a.add(b).scale(.5).subtract(c.eye));
-        if (side.lengthSqr() < 1e-10 || alphaA <= 0 && alphaB <= 0) return;
+        if (side.lengthSqr() < 1e-10 || alpha <= 0) return;
         side = side.normalize();
-        tex(c, a.subtract(side.scale(wa)), b.subtract(side.scale(wb)), b.add(side.scale(wb)), a.add(side.scale(wa)), BlueRedAtlas.LIGHT, 0, 1, 0, 1,
-                color, alphaA, alphaB, alphaB, alphaA);
+        fxQuad(c, a.subtract(side.scale(wa)), b.subtract(side.scale(wb)), b.add(side.scale(wb)), a.add(side.scale(wa)), effect, seed, color, alpha, alpha, alpha, alpha, 0, 1);
     }
 
-    /** A flat textured quad lying on the ground (shockwaves, the red glow spreading under an explosion). */
-    static void flat(Ctx c, Vec3 at, double half, GateAtlas.Region tex, int color, double alpha) {
-        if (alpha <= 0) return;
-        tex(c, at.add(-half, 0, -half), at.add(half, 0, -half), at.add(half, 0, half), at.add(-half, 0, half), tex, 0, 1, 0, 1, color, alpha, alpha, alpha, alpha);
-    }
-
-    /** A brush stroke along an arc of the circle (u, w) round center: thin at its tail, full at its head, camera-facing, U along the stroke. */
-    static void arc(Ctx c, Vec3 center, Vec3 u, Vec3 w, double radius, double a0, double sweep, double width, int color, double alpha, GateAtlas.Region tex) {
-        int n = 14;
+    /** A camera-facing shader ribbon through points (tail first), local x running 0..1 along it. */
+    static void fxRibbon(Ctx c, Vec3[] pts, double[] widths, int effect, int seed, int color, double alpha) {
+        int n = pts.length - 1;
         Vec3 pl = null, pr = null;
-        double prevAlpha = 0;
         for (int i = 0; i <= n; i++) {
-            double t = (double) i / n, a = a0 + sweep * t;
-            Vec3 p = center.add(u.scale(Math.cos(a) * radius)).add(w.scale(Math.sin(a) * radius));
-            Vec3 tangent = w.scale(Math.cos(a)).subtract(u.scale(Math.sin(a)));
-            Vec3 side = tangent.cross(p.subtract(c.eye));
+            Vec3 tangent = pts[Math.min(n, i + 1)].subtract(pts[Math.max(0, i - 1)]);
+            Vec3 side = tangent.cross(pts[i].subtract(c.eye));
             if (side.lengthSqr() < 1e-10) continue;
-            side = side.normalize().scale(width * (.35 + .65 * Math.sin(Math.PI * Math.min(1, t * 1.15))));
-            double k = alpha * (.3 + .7 * t);
-            Vec3 l = p.subtract(side), r = p.add(side);
-            if (pl != null) tex(c, pl, l, r, pr, tex, t - 1.0 / n, t, 0, 1, color, prevAlpha, k, k, prevAlpha);
-            pl = l; pr = r; prevAlpha = k;
+            side = side.normalize().scale(widths[i]);
+            Vec3 l = pts[i].subtract(side), r = pts[i].add(side);
+            if (pl != null) fxQuad(c, pl, l, r, pr, effect, seed, color, alpha, alpha, alpha, alpha, (i - 1) / (double) n, i / (double) n);
+            pl = l; pr = r;
         }
     }
 
-    /** A jagged lightning bolt: a soft wide glow and a white-hot core on the LIGHT strip; it may fork (depth). Fades out right against the eye. */
+    /** A ribbon along an arc of the circle (u, w) round center, camera-facing. */
+    static void fxArc(Ctx c, Vec3 center, Vec3 u, Vec3 w, double radius, double a0, double sweep, double width, int effect, int seed, int color, double alpha) {
+        int n = 16;
+        Vec3[] pts = new Vec3[n + 1];
+        double[] widths = new double[n + 1];
+        for (int i = 0; i <= n; i++) {
+            double a = a0 + sweep * i / n;
+            pts[i] = center.add(u.scale(Math.cos(a) * radius)).add(w.scale(Math.sin(a) * radius));
+            widths[i] = width;
+        }
+        fxRibbon(c, pts, widths, effect, seed, color, alpha);
+    }
+
+    // ---- other shapes ----
+
+    static void glow(Ctx c, Vec3 at, double size, double alpha, int color) { sprite(c, at, size, alpha, color, BlueRedAtlas.GLOW, 0); }
+
+    /** Twinkling shader stars scattered through a sphere. */
+    static void sparks(Ctx c, Vec3 at, double radius, double age, int count, int color, int seed) {
+        Random rand = new Random(seed);
+        for (int i = 0; i < count; i++) {
+            Vec3 d = gauss(rand).normalize();
+            double rr = radius * Math.cbrt(rand.nextDouble()), spin = age * (.02 + .03 * rand.nextDouble());
+            Vec3 p = at.add(new Vec3(d.x * Math.cos(spin) - d.z * Math.sin(spin), d.y + Math.sin(age * .05 + i) * .1, d.x * Math.sin(spin) + d.z * Math.cos(spin)).scale(rr));
+            if (p.distanceTo(c.eye) < 1.2) continue;
+            fxSprite(c, p, .12 + .16 * rand.nextDouble(), SPARK, seed + i, i % 3 == 0 ? 0xFFFFFF : color, .95, i);
+        }
+    }
+
+    /** A jagged lightning bolt on the shader's flickering BOLT strip; it may fork (depth). Fades out right against the eye. */
     static void bolt(Ctx c, Random rand, Vec3 from, Vec3 dir, double length, int segments, double jitter, double width, int color, double alpha, int depth) {
         Vec3 p = from, d = dir;
         double step = length / segments;
+        int seed = 400 + rand.nextInt(200);
         for (int s = 0; s < segments; s++) {
             Vec3 q = p.add(d.scale(step)).add(gauss(rand).scale(jitter * step));
             double k = alpha * (1 - .5 * s / segments) * clamp01((Math.min(p.distanceTo(c.eye), q.distanceTo(c.eye)) - 2) / 3);
-            beam(c, p, q, width * 4, width * 4, color, k * .6, k * .6);
-            beam(c, p, q, width, width, 0xFFFFFF, k, k);
+            fxBeam(c, p, q, width * 4, width * 4, BOLT, seed + s, color, k);
             if (depth > 0 && rand.nextDouble() < .3)
                 bolt(c, rand, q, d.add(gauss(rand).scale(.8)).normalize(), length * .4, Math.max(2, segments / 2), jitter, width * .6, color, alpha * .8, depth - 1);
             d = d.add(gauss(rand).scale(.2)).normalize();
@@ -423,48 +429,12 @@ final class BlueRedDraw {
         }
     }
 
-    /** Glittering four-point stars inside a sphere, twinkling. */
-    static void sparkles(Ctx c, Vec3 at, double radius, double age, int count, int bright, int tint, long seed) {
-        Random rand = new Random(seed);
-        for (int i = 0; i < count; i++) {
-            Vec3 d = gauss(rand).normalize();
-            double rr = radius * Math.cbrt(rand.nextDouble()), spin = age * (.02 + .03 * rand.nextDouble());
-            Vec3 p = at.add(new Vec3(d.x * Math.cos(spin) - d.z * Math.sin(spin), d.y, d.x * Math.sin(spin) + d.z * Math.cos(spin)).scale(rr));
-            double tw = .5 + .5 * Math.sin(age * (.4 + rand.nextDouble()) + i);
-            spark(c, p, .1 + .14 * rand.nextDouble(), .9 * tw, i % 3 == 0 ? tint : bright, i);
-        }
-    }
-
-    /** Pixel motes spiralling into the core from up to radius * 2.2 (debris and energy being swallowed). */
-    static void motes(Ctx c, Vec3 at, double radius, double age, int color, int count) {
-        for (int i = 0; i < count; i++) {
-            double phase = (i * .618034 + age * (.018 + .006 * (i % 4))) % 1;
-            double r = radius * (2.2 - 1.9 * phase), a = i * 2.39996 + phase * 7;
-            Vec3[] uw = basis(new Vec3(Math.sin(i * 1.3), Math.cos(i * 2.1), Math.sin(i * .7 + 1)).normalize());
-            Vec3 p = at.add(uw[0].scale(Math.cos(a) * r)).add(uw[1].scale(Math.sin(a) * r));
-            if (p.distanceTo(c.eye) < 1.2) continue;
-            sprite(c, p, .04 + .05 * (1 - phase), .35 + .6 * phase, i % 5 == 0 ? 0xFFFFFF : color, BlueRedAtlas.SOLID, a);
-        }
-    }
-
-    /** Camera-facing ring with soft edges. */
-    static void ring(Ctx c, Vec3 at, double radius, double width, int color, double alpha) {
-        Vec3 look = at.subtract(c.eye);
-        if (look.lengthSqr() < 1e-6) return;
-        Vec3[] uw = basis(look.normalize());
-        band(c, at, uw[0], uw[1], radius, width, color, alpha);
-    }
-
     static void orbit(Ctx c, Vec3 at, Vec3 n, double radius, double width, int color, double alpha) {
         Vec3[] uw = basis(n);
-        band(c, at, uw[0], uw[1], radius, width, color, alpha);
-    }
-
-    static void band(Ctx c, Vec3 at, Vec3 u, Vec3 w, double radius, double width, int color, double alpha) {
-        int n = 40;
-        for (int i = 0; i < n; i++) {
-            double a0 = Math.PI * 2 * i / n, a1 = Math.PI * 2 * (i + 1) / n;
-            Vec3 d0 = u.scale(Math.cos(a0)).add(w.scale(Math.sin(a0))), d1 = u.scale(Math.cos(a1)).add(w.scale(Math.sin(a1)));
+        int segs = 40;
+        for (int i = 0; i < segs; i++) {
+            double a0 = Math.PI * 2 * i / segs, a1 = Math.PI * 2 * (i + 1) / segs;
+            Vec3 d0 = uw[0].scale(Math.cos(a0)).add(uw[1].scale(Math.sin(a0))), d1 = uw[0].scale(Math.cos(a1)).add(uw[1].scale(Math.sin(a1)));
             gradient(c, at.add(d0.scale(radius - width)), at.add(d1.scale(radius - width)), at.add(d1.scale(radius)), at.add(d0.scale(radius)), color, 0, 0, alpha, alpha);
             gradient(c, at.add(d0.scale(radius)), at.add(d1.scale(radius)), at.add(d1.scale(radius + width)), at.add(d0.scale(radius + width)), color, alpha, alpha, 0, 0);
         }
