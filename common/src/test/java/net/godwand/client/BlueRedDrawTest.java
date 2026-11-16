@@ -12,7 +12,8 @@ class BlueRedDrawTest {
     static final class Sink implements VertexConsumer {
         public VertexConsumer addVertex(float x, float y, float z) { return this; }
         public VertexConsumer setColor(int r, int g, int b, int a) { return this; }
-        public VertexConsumer setUv(float u, float v) { return this; }
+        final java.util.List<float[]> uv = new java.util.ArrayList<>();
+        public VertexConsumer setUv(float u, float v) { uv.add(new float[]{u, v}); return this; }
         public VertexConsumer setUv1(int u, int v) { return this; }
         public VertexConsumer setUv2(int u, int v) { return this; }
         public VertexConsumer setNormal(float x, float y, float z) { return this; }
@@ -25,23 +26,39 @@ class BlueRedDrawTest {
         return c;
     }
 
-    @Test void blueHasDenseBlueFlamesInTheBodyPass() {
+    /** Shader ORB seeds drawn into c (effect 0): each quad's first vertex, decoded as the shader decodes it. */
+    static java.util.List<Integer> orbs(GateDraw.Ctx c) {
+        java.util.List<Integer> out = new java.util.ArrayList<>();
+        var uv = ((Sink) c.v).uv;
+        for (int i = 0; i < uv.size(); i += 4) {
+            float u = uv.get(i)[0], v = uv.get(i)[1];
+            if (v >= 2 && (int) Math.floor(v) - 2 == BlueRedDraw.ORB) out.add((int) Math.floor(u));
+        }
+        return out;
+    }
+
+    @Test void blueIsOneBlueEnergyOrb() {
         var body = ctx(0);
         BlueRedDraw.blue(body, AT, false, 30, -1);
-        assertTrue(body.quads >= 20, "the orb, its flame tongues and smoke, not just glow: " + body.quads);
+        assertEquals(java.util.List.of(0), orbs(body), "one blue orb, calm");
+        var ready = ctx(0);
+        BlueRedDraw.blue(ready, AT, true, 30, 20);
+        assertEquals(java.util.List.of(4), orbs(ready), "the ready Blue is the charged orb");
     }
 
-    @Test void readyBlueLooksClearlyDifferent() {
-        var plain = ctx(1); BlueRedDraw.blue(plain, AT, false, 30, -1);
-        var ready = ctx(1); BlueRedDraw.blue(ready, AT, true, 30, 20);
-        assertTrue(ready.quads > plain.quads + 40, plain.quads + " vs " + ready.quads);
+    @Test void redIsOneRedOrb() {
+        var body = ctx(0);
+        BlueRedDraw.redOrb(body, AT, .4, 20);
+        assertEquals(java.util.List.of(1), orbs(body));
     }
 
-    @Test void redHasBrightAndDarkSwirlStrokes() {
-        var body = ctx(0); BlueRedDraw.redOrb(body, AT, .4, 20);
-        var glow = ctx(1); BlueRedDraw.redOrb(glow, AT, .4, 20);
-        assertTrue(body.quads > 20, "dark strokes and dark orbs: " + body.quads);
-        assertTrue(glow.quads > 80, "bright strokes, orbs and swirling particles: " + glow.quads);
+    @Test void purpleSwellsAsOneStormOrbAndBursts() {
+        var swell = ctx(0);
+        BlueRedDraw.purple(swell, AT, BlueRedRules.PURPLE_MERGE + 5, EYE, LOOK);
+        assertEquals(java.util.List.of(2), orbs(swell));
+        var blast = ctx(0);
+        BlueRedDraw.purple(blast, AT, BlueRedRules.PURPLE_DETONATE + 3, EYE, LOOK);
+        assertEquals(java.util.List.of(2 + 4 * 2), orbs(blast), "the bursting orb");
     }
 
     @Test void purpleGrowsAndDetonatesWithinBudget() {
@@ -58,7 +75,7 @@ class BlueRedDrawTest {
     @Test void voidShowsBothOrbsMergingOverBlack() {
         var body = ctx(0);
         BlueRedDraw.purpleVoid(body, AT, 10, AT.add(0, 0, -10), LOOK);
-        assertTrue(body.quads > 30, "backdrop, smoke and the two orbs: " + body.quads);
+        assertTrue(body.quads > 20, "backdrop, smoke and the two orbs: " + body.quads);
         var merge = ctx(1);
         BlueRedDraw.purpleVoid(merge, AT, BlueRedRules.PURPLE_VOID_END - 8, AT.add(0, 0, -10), LOOK);
         var early = ctx(1);

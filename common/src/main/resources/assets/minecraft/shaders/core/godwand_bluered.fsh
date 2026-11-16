@@ -44,6 +44,8 @@ vec3 ramp(vec3 tint, float v) {
     return v < 0.5 ? mix(dark, tint, v * 2.0) : mix(tint, hot, (v - 0.5) * 2.0);
 }
 
+float ridge(float n) { return 1.0 - abs(n * 2.0 - 1.0); }
+
 mat2 rot(float a) {
     float c = cos(a), s = sin(a);
     return mat2(c, -s, s, c);
@@ -66,36 +68,83 @@ void main() {
     float a = 0.0;
 
     if (effect == 0) {
-        // ORB on a camera-facing quad 1.6 sphere radii across its half: churning plasma inside, a fresnel rim, a corona outside.
-        // seed mod 4: 0 blue fire (corona licks upward), 1 red plasma (tight), 2 purple storm (electric veins), 3 plain.
-        float variant = mod(seed, 4.0);
-        float d = length(q) * 1.6;
-        if (d < 1.0) {
-            float z = sqrt(1.0 - d * d);
-            vec3 n = vec3(q * 1.6, z);
-            n.xz *= rot(t * 0.35);
-            n.xy *= rot(t * 0.21);
-            vec3 w = n * 2.2 + vec3(0.0, 0.0, t * 0.4);
-            float warp = fbm(w + fbm(w * 1.7 + t * 0.3) * 1.6);
-            float swirl = fbm(vec3(rot(t * 0.8 + d * 3.0) * q * 3.0, t * 0.5));
-            float core = pow(z, 2.5);
-            float fres = pow(1.0 - z, 2.2);
-            float v = core * 0.75 + warp * 0.75 + swirl * 0.25 + fres * 0.95 - 0.25;
-            if (variant == 2.0) {
-                float vein = 1.0 - abs(fbm(w * 2.5 + t) * 2.0 - 1.0);
-                v += pow(vein, 8.0) * 1.3;
+        // ORB (owner references 28-34): one designed sphere per quad. A thin crisp rim ring, a deep interior with fine streaks spiralling
+        // into a white-hot core, thin bright filaments, and fine shards torn off round the outside. Sphere radius = 1/1.55 of the quad half.
+        // seed mod 4: 0 blue energy (bright body, folds, lens flare), 1 red (dark, spiral flakes, rim flames), 2 purple (dark, wound strands,
+        // purple and ink shards). floor(seed / 4) = level: 1 ready / charged (busier), 2 bursting (core floods the sphere).
+        float variant = mod(seed, 4.0), level = floor(seed / 4.0);
+        bool isBlue = variant == 0.0, isRed = variant == 1.0, isPurple = variant == 2.0;
+        float R = 1.0 / 1.55;
+        float d = length(q) / R;
+        float ang = atan(q.y, q.x);
+        vec2 dir = vec2(cos(ang), sin(ang));
+        float wob = (fbm(vec3(dir * 2.5, t * 0.8)) - 0.5) * (isBlue ? 0.14 : 0.03);
+        float dd = d - wob;
+        vec3 hot = mix(tint, vec3(1.0), 0.6);
+        float rimLine = exp(-pow((dd - 1.0) / (isBlue ? 0.035 : 0.022), 2.0));
+        if (dd < 1.0) {
+            float dz = clamp(d, 0.0, 0.999);
+            float z = sqrt(1.0 - dz * dz);
+            vec3 n3 = vec3(q / R, z);
+            n3.xz *= rot(t * 0.3);
+            n3.yz *= rot(t * 0.17);
+            float fres = pow(1.0 - z, 3.0);
+            // Fine streaks along log spirals, flowing in towards the core.
+            float sp = ang - (isRed ? 2.6 : 1.8) * log(max(d, 0.03)) + t * (isRed ? 1.1 : 0.7);
+            float flakes = fbm(vec3(cos(sp) * 5.5, sin(sp) * 5.5, log(max(d, 0.03)) * 2.2 + t * 1.6));
+            flakes = smoothstep(0.5, 0.8, flakes) * smoothstep(0.0, 0.25, d);
+            // Thin bright filaments (ridged noise) drifting through the volume.
+            float fil = pow(ridge(fbm(n3 * 2.2 + vec3(0.0, 0.0, t * 0.6))), isBlue ? 10.0 : 16.0);
+            float coreK = level >= 2.0 ? 1.4 : isPurple ? 6.0 : isBlue ? 9.0 : 5.0;
+            float core = exp(-d * d * coreK);
+            vec3 body;
+            if (isBlue) {
+                float folds = fbm(n3 * 1.6 + t * 0.35);
+                // Deep blue at the edge, cyan folds, white only in thin creases and the core (refs 33, 34).
+                body = mix(tint * 0.28, tint * 0.85, folds * 0.7 + (1.0 - fres) * 0.25);
+                body += mix(tint, vec3(0.55, 0.95, 1.0), 0.6) * pow(ridge(fbm(n3 * 1.3 - t * 0.25)), 7.0) * 0.8;
+            } else {
+                body = tint * (0.07 + 0.22 * fres) + tint * 0.12 * fbm(n3 * 2.0 + t * 0.2);
             }
-            col = ramp(tint, clamp(v, 0.0, 1.0)) + vec3(max(v - 1.0, 0.0));
-            a = smoothstep(1.0, 0.95, d);
+            vec3 c3 = body + tint * flakes * (isBlue ? 0.3 : 1.25) + hot * fil * (isBlue ? 0.7 : 0.65 + 0.4 * level);
+            if (isPurple) {
+                // Strands wound round the ball (ref 30), lit from within between the dark coils.
+                vec3 m = n3;
+                m.xy *= rot(0.5);
+                float lat = asin(clamp(m.y, -1.0, 1.0)), lon = atan(m.z, m.x);
+                float coil = sin(lat * 26.0 + lon * 1.5 + fbm(m * 2.5 + t * 0.3) * 6.0 - t * 2.2);
+                c3 += hot * pow(max(coil, 0.0), 22.0) * (0.35 + 0.65 * z) * 1.3;
+            }
+            c3 += vec3(1.0, 0.97, 1.0) * core * (1.1 + 0.6 * level);
+            c3 += hot * rimLine * 1.5 + tint * fres * 0.35;
+            col = c3;
+            a = smoothstep(1.0, 0.975, dd);
         } else {
-            float ang = atan(q.y, q.x);
-            float speed = variant == 0.0 ? 1.6 : 0.6;
-            float corona = fbm(vec3(cos(ang) * 2.0 + t * 0.2, sin(ang) * 2.0, d * 3.0 - t * speed));
-            float fall = exp(-(d - 1.0) * (variant == 0.0 ? 2.6 : 5.0));
-            if (variant == 0.0) fall *= mix(0.5, 1.7, smoothstep(-1.0, 1.0, q.y));
-            float v = fall * (0.5 + corona * 0.95);
-            col = ramp(tint, clamp(v, 0.0, 1.0));
-            a = clamp(v * 1.15 - 0.1, 0.0, 1.0);
+            float od = dd - 1.0;
+            float corona = fbm(vec3(dir * 2.2, od * 4.0 - t * 1.4));
+            float glowF = exp(-od * (isBlue ? 7.0 : 11.0)) * (0.35 + 0.5 * corona);
+            // Fine shards torn off the rim and spun away (ref 28): thin bands of noise along the angle.
+            float shardN = fbm(vec3(dir.x * 3.0 + t * 0.15, dir.y * 3.0, od * 3.0 - t * 1.1));
+            float spin = ang + od * 3.0 - t * 0.8;
+            float thin = pow(ridge(noise(vec3(cos(spin) * 7.0, sin(spin) * 7.0, od * 2.0 + t))), 18.0);
+            float shards = smoothstep(0.55, 0.66, shardN) * thin * smoothstep(0.5, 0.06, od) * (0.6 + 0.4 * level);
+            float ink = isPurple ? smoothstep(0.6, 0.7, fbm(vec3(dir * 3.5 - t * 0.1, od * 3.0 + 7.0))) * smoothstep(0.42, 0.08, od) * 0.85 : 0.0;
+            float flames = isRed ? smoothstep(0.58, 0.82, fbm(vec3(dir * 4.0, od * 7.0 - t * 3.0))) * exp(-od * 9.0) : 0.0;
+            if (isBlue) {
+                float fire = fbm(vec3(q.x * 4.0, q.y * 2.4 - t * 2.8, t * 0.35 + 3.0));
+                fire = smoothstep(0.48, 0.78, fire) * exp(-od * 2.6) * (0.35 + smoothstep(-0.7, 1.0, q.y) * 1.1);
+                flames = max(flames, fire);
+            }
+            float v = rimLine * 1.4 + glowF + shards * 1.3 + flames * 1.2;
+            col = mix(tint * 1.1, hot, clamp(rimLine + shards, 0.0, 1.0));
+            col = mix(col, vec3(0.03, 0.0, 0.05), ink);
+            a = clamp(max(v, ink), 0.0, 1.0);
+        }
+        if (isBlue) {
+            // A horizontal lens flare through the core (ref 33).
+            float fl = exp(-abs(q.y) * 70.0) * exp(-abs(q.x) * 2.0) * (0.55 + 0.35 * level);
+            col += vec3(fl);
+            a = max(a, clamp(fl, 0.0, 1.0));
         }
     } else if (effect == 1) {
         // FLOW: an energy ribbon, x along (tail 0, head 1), y across; noise streams along it and eats its edges.
@@ -153,7 +202,24 @@ void main() {
         float v = r * smoothstep(0.05, 0.25, d) * smoothstep(1.0, 0.5, d) * 1.5 + exp(-d * d * 20.0) * 0.8;
         col = ramp(tint, clamp(v, 0.0, 1.0));
         a = clamp(v, 0.0, 1.0);
-    } else {
+    } else if (effect == 9) {
+        // SPEEDLINES: anime speed lines streaming out from the centre of the view, a dark vignette closing in.
+        float ang = atan(q.y, q.x);
+        float d = length(q);
+        float lines = pow(noise(vec3(ang * 46.0, t * 9.0, seed)), 10.0) * smoothstep(0.25, 0.95, d);
+        float vign = smoothstep(0.55, 1.35, d);
+        col = mix(vec3(0.0), tint, lines);
+        a = clamp(lines * 1.6 + vign * 0.75, 0.0, 1.0);
+    } else if (effect == 10) {
+        // DEBRIS: a jagged shard, dark with a lit rim on one side.
+        float d = length(q);
+        float ang = atan(q.y, q.x);
+        float edge = 0.55 + 0.35 * noise(vec3(ang * 1.6, seed, 0.0)) + 0.1 * noise(vec3(ang * 5.0, seed + 3.0, 0.0));
+        float inside = smoothstep(edge, edge - 0.06, d);
+        float lit = smoothstep(edge - 0.2, edge, d) * smoothstep(-0.2, 0.8, q.x - q.y);
+        col = mix(tint * 0.12, mix(tint, vec3(1.0), 0.4), lit * 0.8);
+        a = inside;
+    } else if (effect == 8) {
         // NEBULA: the void behind the merge, dark smoke drifting, red on the left, blue on the right, violet between.
         vec2 s = q * 2.0;
         float n1 = fbm(vec3(s + vec2(t * 0.05, 0.0), t * 0.04));
@@ -162,6 +228,8 @@ void main() {
         neb = mix(neb, vec3(0.26, 0.02, 0.07), smoothstep(0.2, -1.0, q.x) * 0.6);
         col = vec3(0.02, 0.005, 0.05) + neb * pow(n2, 1.8) * 2.2;
         a = 1.0;
+    } else {
+        discard;
     }
     fragColor = vec4(col, a * vertexColor.a) * ColorModulator;
     if (fragColor.a < 0.003) discard;

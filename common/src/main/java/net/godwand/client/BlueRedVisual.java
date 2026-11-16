@@ -10,7 +10,7 @@ final class BlueRedVisual {
 
     /** Blue is big from the start; the ready form changes how it looks, never how big it is. Only a slow breath. */
     static double blueRadius(BlueState state, double age) {
-        return BlueRedRules.BLUE_RADIUS * (1 + .035 * Math.sin(age * (state == BlueState.CHARGING ? .25 : .5)));
+        return BlueRedRules.BLUE_RADIUS;
     }
 
     /** White flash when Blue turns ready: full at once, gone after three ticks. */
@@ -35,9 +35,9 @@ final class BlueRedVisual {
         return origin.add(dir.scale(Math.min(range, age * BlueRedRules.RED_SPEED)));
     }
 
-    /** Red's charging orb swells as the charge fills, then holds. */
+    /** Red's charging orb snaps into being in a few ticks and then holds its size (owner, 2026-11-16: no scaling animation). */
     static double redChargeSize(double age, double chargeTicks) {
-        double k = Math.max(0, Math.min(1, age / chargeTicks));
+        double k = Math.max(0, Math.min(1, age / 6));
         return .12 + .3 * k * k * (3 - 2 * k);
     }
 }

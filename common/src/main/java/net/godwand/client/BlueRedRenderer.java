@@ -111,6 +111,8 @@ public final class BlueRedRenderer {
     public static void reset() { BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); PURPLES.clear(); IMPACTS.clear(); clock = 0; }
 
     private static void detonated(Vec3 at) {
+        var me = Minecraft.getInstance().player;
+        if (GodWandConfig.CLIENT.impactFrames && me != null && me.position().distanceTo(at) < 120) { IMPACTS.clear(); IMPACTS.add(new Burst(at, clock, true)); }
         sound(at, SoundEvents.GENERIC_EXPLODE.value(), 6f, .5f);
         sound(at, SoundEvents.WARDEN_SONIC_BOOM, 6f, .6f);
         var player = Minecraft.getInstance().player;
@@ -202,7 +204,7 @@ public final class BlueRedRenderer {
                     Purple p = PURPLES.get(PURPLES.size() - 1);
                     BlueRedDraw.purpleVoid(c, p.pos(), clock + o.partial() - p.at(), eye, lookVec);
                 }
-                for (Burst b : IMPACTS) BlueRedDraw.impact(c, b.pos(), (int) (clock - b.at()), eye, lookVec);
+                for (Burst b : IMPACTS) BlueRedDraw.impact(c, b.pos(), (int) (clock - b.at()), eye, lookVec, b.blue());
                 var mesh = buffer.build();
                 if (mesh != null) BufferUploader.drawWithShader(mesh);
             }
