@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.4.4]
+
+### Fixed
+
+- Fuga's configured radius now limits damage, shockwave, slowness and terrain changes around the impact. Its shockwave previously reached up to 230 blocks regardless of the radius setting.
+- Fuga no longer places spreading fire blocks.
+
+### Added
+
+- Server options for Fuga shockwave damage, entity ignition, knockback and slowness. Visual effects remain fully available.
+
 ## [1.4.3]
 
 ### Fixed

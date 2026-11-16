@@ -77,6 +77,10 @@ public final class GodWandConfig {
         public boolean fugaTerrainDamage = true;
         public int fugaTerrainRadius = (int)net.godwand.skill.FugaSequence.RADIUS;
         public float fugaDamage = 9999;
+        public float fugaShockwaveDamageMultiplier = .08f;
+        public boolean fugaIgniteEntities = true;
+        public boolean fugaShockwaveKnockback = true;
+        public boolean fugaSlowness = true;
         public List<String> dimensionBlacklist = new ArrayList<>();
 
         public boolean isDimensionBlacklisted(String dimensionId) { return !isDimensionAllowed(dimensionId); }
@@ -89,6 +93,7 @@ public final class GodWandConfig {
             fugaCooldownTicks=Mth.clamp(fugaCooldownTicks,0,72000);
             fugaTerrainRadius=Mth.clamp(fugaTerrainRadius,0,64);
             fugaDamage=finiteClamp(fugaDamage,0,1_000_000,9999);
+            fugaShockwaveDamageMultiplier=finiteClamp(fugaShockwaveDamageMultiplier,0,1000,.08f);
             singularityCooldownTicks=validatedCooldowns(singularityCooldownTicks,new int[]{60,120,200});
             earthDrillCooldownTicks=validatedCooldowns(earthDrillCooldownTicks,new int[]{80,140,220,320});
             stoneCannonCooldownTicks=validatedCooldowns(stoneCannonCooldownTicks,new int[]{40,80,140,220});

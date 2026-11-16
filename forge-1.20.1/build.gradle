@@ -47,6 +47,9 @@ minecraft {
 }
 
 dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testImplementation 'org.mockito:mockito-core:5.14.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
@@ -101,3 +104,12 @@ tasks.register('atomicSelfCheck', JavaExec) {
     mainClass = 'net.godwand.skill.AtomicPortSelfCheck'
 }
 tasks.named('check') { dependsOn tasks.named('atomicSelfCheck') }
+
+// Exercise the shared Fuga safety regression against this port's mapped server classes.
+tasks.named('compileTestJava') {
+    source '../common/src/test/java/net/godwand/skill/FugaSafetyTest.java'
+}
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    systemProperty 'net.bytebuddy.experimental', 'true'
+}

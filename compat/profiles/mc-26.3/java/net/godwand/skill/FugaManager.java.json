@@ -34,8 +34,8 @@
       "after": "        player.setDeltaMovement(kick.x,Math.max(.12,kick.y*.3),kick.z);player.syncVelocity=true;\n"
     },
     {
-      "before": "                entity.hurtMarked=true;\n",
-      "after": "                entity.syncVelocity=true;\n"
+      "before": "                    entity.hurtMarked=true;\n",
+      "after": "                    entity.syncVelocity=true;\n"
     },
     {
       "before": "            entity.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN,30,3,false,false));\n",

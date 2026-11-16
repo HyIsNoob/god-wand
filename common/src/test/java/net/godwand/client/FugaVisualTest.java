@@ -23,6 +23,25 @@ class FugaVisualTest {
     private static FugaRenderer.Frame frame(int phase,double age) {
         return new FugaRenderer.Frame(1,100,phase,phase==2?impactTick(age):phase==0?age*5/3:age,Vec3.ZERO,new Vec3(0,0,160));
     }
+    @Test void disablingServerDamageAndTerrainKeepsEveryVisualVertex() {
+        var previous=net.godwand.config.GodWandConfig.SERVER;
+        try {
+            for(int phase=0;phase<=2;phase++) {
+                var server=new net.godwand.config.GodWandConfig.Server();
+                net.godwand.config.GodWandConfig.SERVER=server;
+                var shot=frame(phase,phase==0?120:phase==1?20:90);
+                Mesh normal=new Mesh(),harmless=new Mesh();
+                FugaRenderer.emit(normal,new Matrix4f(),shot,Vec3.ZERO);
+                server.fugaTerrainDamage=false;server.fugaTerrainRadius=0;server.fugaDamage=0;
+                server.fugaShockwaveDamageMultiplier=0;server.fugaIgniteEntities=false;
+                server.fugaShockwaveKnockback=false;server.fugaSlowness=false;
+                FugaRenderer.emit(harmless,new Matrix4f(),shot,Vec3.ZERO);
+                assertFalse(normal.vertices.isEmpty());
+                assertEquals(normal.vertices.size(),harmless.vertices.size());
+                for(int i=0;i<normal.vertices.size();i++)assertArrayEquals(normal.vertices.get(i),harmless.vertices.get(i));
+            }
+        } finally {net.godwand.config.GodWandConfig.SERVER=previous;}
+    }
     @Test void allPhasesHaveFiniteBoundedVolumesAndFinishCleanly() {
         for(int phase=0;phase<5;phase++) for(double age:new double[]{0,1,32,60,119,120,159,160,600}) {
             Mesh mesh=new Mesh(); FugaRenderer.emit(mesh,new Matrix4f(),frame(phase,age),Vec3.ZERO);
