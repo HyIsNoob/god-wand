@@ -1,0 +1,244 @@
+# God Wand v1.5.0 — Technical Knowledge Base & AI Context
+
+This document is the complete, canonical technical reference for the Minecraft mod **God Wand** (version 1.5.0).
+Use this context to answer user queries, generate or troubleshoot configurations, explain gameplay mechanics, or provide command syntax.
+
+---
+
+## 1. Mod Overview & Supported Versions
+
+God Wand introduces a single god-tier wand item (`godwand:god_wand`) capable of channeling 8 distinct magic spells.
+The mod supports 10 distinct platform/version builds from a single unified codebase:
+- **Minecraft 1.21.1:** Fabric (requires Fabric API) & NeoForge (`godwand-fabric-1.5.0.jar`, `godwand-neoforge-1.5.0.jar`, Java 21)
+- **Minecraft 1.20.1:** Fabric (requires Fabric API) & Forge (`godwand-fabric-1.20.1-1.5.0.jar`, `godwand-forge-1.20.1-1.5.0.jar`, Java 17)
+- **Minecraft 1.21.11:** Fabric (requires Fabric API) & NeoForge (`godwand-fabric-1.21.11-1.5.0.jar`, `godwand-neoforge-1.21.11-1.5.0.jar`, Java 21)
+- **Minecraft 26.1.2:** Fabric (requires Fabric API) & NeoForge (`godwand-fabric-26.1.2-1.5.0.jar`, `godwand-neoforge-26.1.2-1.5.0.jar`, Java 25)
+- **Minecraft 26.3:** Fabric (requires Fabric API) & NeoForge (`godwand-fabric-26.3-1.5.0.jar`, `godwand-neoforge-26.3-1.5.0.jar`, Java 25)
+
+Required on both Client and Server for multiplayer. Compatible with animation mods (Emotecraft, Better Combat, Not Enough Animations, Yes Steve Model). Compatible with Iris and Oculus shaders (BSL, Complementary Unbound).
+
+### Survival Crafting Recipe
+Crafted in a standard 3x3 Crafting Table:
+- Top row: Echo Shard | Nether Star | Echo Shard
+- Middle row: Amethyst Shard | Netherite Ingot | Amethyst Shard
+- Bottom row: Empty | Blaze Rod | Empty
+Unlocked in the Recipe Book automatically upon acquiring a Nether Star.
+
+---
+
+## 2. In-Game Controls & Commands
+
+### Keybinds
+- **Hold V:** Opens the radial skill wheel to switch between the 8 skills.
+- **Right-Click:** Activate selected skill (toggle on/off, click to fire, or hold to charge power).
+- **K:** Opens the Client Visual Configuration GUI (camera shake, bloom, cutscene toggles, wand skin).
+- **Shift (Sneak):**
+  - While Spatial Path is active: Generates a temporary stone bridge.
+  - While Silent Gate is in Build or Wait phase: Cancels the spell and safely retracts the gate.
+- **Right-Click while Silent Gate waits:** Command the gate to commence barrage bombardment.
+- **Esc / F5 during cutscenes:** Skips third-person cinematic camera (Atomic, Fuga, Silent Gate).
+- **Left-Click (Melee):** Standard attack deals 5 Melee Attack Damage across all wand models.
+
+### Admin Commands
+- `/godwand lock <skill>` (OP Level 2): Restricts the held wand to a single skill (disables radial wheel, shows locked skill in tooltip). Valid skill names: `spatial_path`, `singularity`, `earth_drill`, `supernova`, `stone_cannon`, `atomic`, `fuga`, `silent_gate`.
+- `/godwand unlock` (OP Level 2): Restores full 8-skill selection wheel to the held wand.
+- `/godwand reset_cooldowns [players]` (OP Level 4): Instantly resets all active spell cooldowns for target player(s).
+
+---
+
+## 3. The Eight Spells
+
+### 1. Spatial Path (`spatial_path`)
+- **Type:** Toggle On/Off & Auto-Restoration.
+- **Cooldown:** 20 ticks (1.0s).
+- **Mechanic:** Opens a temporary spatial corridor straight through terrain; blocks restore automatically behind the player without dropping or breaking attached decorations. Incoming projectiles are deflected; nearby mobs and players are pushed away. Tapping Shift while walking across open air forms a temporary block bridge.
+
+### 2. Singularity (`singularity`)
+- **Type:** 3-Tier Charged Gravity Orb & Early Detonation.
+- **Cooldown:** [60, 120, 200] ticks (3s, 6s, 10s).
+- **Mechanic:** Launches a miniature black hole that pulls nearby entities and peels world blocks into its core. Right-clicking mid-air triggers early collapse. Mobs with max HP <= 50 are crushed immediately upon collapse. Lifted terrain smoothly restores to original positions afterward.
+
+### 3. Earth Drill (`earth_drill`)
+- **Type:** 4-Tier Charged Spinning Drill.
+- **Cooldown:** [80, 140, 220, 320] ticks (4s, 7s, 11s, 16s).
+- **Auto Skin:** Aqua Heartia.
+- **Mechanic:** Lifts world blocks into a rapidly spinning rock drill and slams into the ground, dealing heavy impact damage. Can be configured to leave permanent craters/lava or restore lifted blocks cleanly.
+
+### 4. Supernova (`supernova`)
+- **Type:** 7-Second Charged Stellar Detonation.
+- **Cooldown:** 900 ticks (45.0s).
+- **Mechanic:** Channels for 7 seconds to open a stellar vortex and detonates in an expansive 120-block horizontal radius. Instantly executes mobs with max HP <= 50 (ignoring armor/enchantments). Experience drops from eliminated mobs are merged into consolidated large orbs to prevent server tick drop.
+
+### 5. Stone Cannon (`stone_cannon`)
+- **Type:** 4-Tier Charged Piercing Projectile.
+- **Cooldown:** [40, 80, 140, 220] ticks (2s, 4s, 7s, 11s).
+- **Auto Skin:** Aqua Heartia.
+- **Mechanic:** Fires a compressed stone projectile at extreme velocity that pierces through all targets in its path and produces an explosive blast upon colliding with blocks.
+
+### 6. I am Atomic (`atomic`)
+- **Type:** 19-Second Charged Stance & Player-Triggered Release.
+- **Damage:** 9,999 center damage (linear falloff to 0 at 98 blocks) + 15 damage per outer pressure shockwave (radiating up to 130 blocks).
+- **Cooldown:** 1200 ticks (60.0s).
+- **Auto Skin:** Shadow Blade.
+- **Mechanic:** Player enters invulnerable sword stance. Once compressed, a dark pause with audible heartbeat holds until the player releases right-click. Detonates a column of light, clears all water and lava, and carves a 98-block circular crater (excavating higher ground first down to 16 blocks depth, visible column reaches 30 blocks deep).
+
+### 7. Fuga (`fuga`)
+- **Type:** Charged Flame Bow & Phoenix Meteor Detonation.
+- **Damage:** 9,999 core explosion damage.
+- **Cooldown:** 1200 ticks (60.0s).
+- **Mechanic:** Charges fire between palms and draws a blazing bow. Releasing fires a flame arrow that transforms into a soaring phoenix. Upon impact, the phoenix ascends, summoning a blazing meteor and a 384-block pillar of fire. Enemies under the falling meteor are slowed. Shockwaves follow terrain contours over hills and walls.
+
+### 8. Silent Gate (`silent_gate`) [NEW in v1.5.0]
+- **Type:** Celestial Gate Summon & Commandable Barrage.
+- **Damage:** 80 damage per light beam (scaled by `damageMultiplier`), with a final Golden Kill Beam dealing 6x damage (480 damage).
+- **Cooldown:** 1200 ticks (60.0s).
+- **Auto Skin:** Silent Witch Staff (`SILENT_WITCH`).
+- **Mechanic:** Raising the wand summons a massive sky circle, from which a celestial winged gate descends through a dimensional crack. When the doors push open, 220 small magic circles bloom across the sky. The gate waits up to 15 seconds (300 ticks) in standby mode. Right-clicking commands the gate to open fire: circles unleash a relentless 20-second (400 ticks) barrage of light beams tracking hostile mobs, finishing with a golden kill beam on the toughest target. Sneaking during build/wait cancels the cast.
+
+---
+
+## 4. Wand Skins (Appearance System)
+
+Wand skins are strictly cosmetic and do not affect combat stats (all deal 5 melee attack damage):
+- `AUTO`: Automatically switches wand model based on active skill:
+  - Skill 3 (Earth Drill) & Skill 5 (Stone Cannon) -> **Aqua Heartia**
+  - Skill 6 (I am Atomic) -> **Shadow Blade**
+  - Skill 8 (Silent Gate) -> **Silent Witch Staff**
+  - Skill 1, 2, 4, 7 -> **Magitech Wand (Eclipse)**
+- `DEFAULT`: Classic Magitech Wand (Eclipse).
+- `AQUA_HEARTIA`: Crystalline Aqua Heartia wand.
+- `SHADOW_BLADE`: Dark katana / obsidian shadow blade.
+- `SILENT_WITCH`: Ornate white-gold Silent Witch staff with pearlescent sheen.
+
+---
+
+## 5. Server Configuration (`config/godwand-server.json`)
+
+Authoritative on dedicated servers and local host worlds. In v1.5.0, settings are grouped cleanly by skill (43 keys total).
+
+### Global Multipliers
+- `cooldownDefaultsVersion` (int, default: 1): Internal migration flag.
+- `cooldownMultiplier` (float, default: 1.0, range: 0.1 to 10.0): Scales all cooldowns (0.5 = 2x faster).
+- `damageMultiplier` (float, default: 1.0, range: 0.0 to 100.0): Scales all spell damage (0.0 = disables damage).
+- `dimensionBlacklist` (string array, default: `[]`): Banned dimension IDs (e.g., `["minecraft:the_nether"]`).
+
+### Skill 1: Spatial Path
+- `spatialPathCooldownTicks` (int, default: 20, range: 0-72000): Toggle cooldown (20 ticks = 1.0s).
+
+### Skill 2: Singularity
+- `singularityCooldownTicks` (int[3], default: `[60, 120, 200]`): Cooldowns across 3 charge tiers.
+- `singularityDamageMultipliers` (float[3], default: `[1.0, 1.0, 1.0]`): Damage multiplier across 3 tiers.
+
+### Skill 3: Earth Drill
+- `earthDrillCooldownTicks` (int[4], default: `[80, 140, 220, 320]`): Cooldowns across 4 charge tiers.
+- `earthDrillDamageMultipliers` (float[4], default: `[1.0, 1.0, 1.0, 1.0]`): Damage multipliers across 4 tiers.
+- `earthDrillTerrainDamage` (boolean, default: true): Enable permanent crater and lava placement.
+- `earthDrillBlockLift` (boolean, default: true): Enable lifting real blocks into the spinning drill.
+
+### Skill 4: Stone Cannon
+- `stoneCannonCooldownTicks` (int[4], default: `[40, 80, 140, 220]`): Cooldowns across 4 charge tiers.
+- `stoneCannonDamageMultipliers` (float[4], default: `[1.0, 1.0, 1.0, 1.0]`): Damage multipliers across 4 tiers.
+- `stoneCannonTerrainDamage` (boolean, default: true): Enable impact explosion excavation.
+
+### Skill 5: Supernova
+- `supernovaCooldownTicks` (int, default: 900): Cooldown (900 ticks = 45.0s).
+- `supernovaDamageMultiplier` (float, default: 1.0): Damage multiplier for core and explosion.
+- `supernovaInstantKillHealthThreshold` (float, default: 50.0): Mobs with max HP <= this are killed outright (set 0 to disable).
+- `supernovaTerrainDamage` (boolean, default: true): Enable permanent crater carving.
+- `supernovaBlockLift` (boolean, default: true): Enable peeling terrain blocks into core.
+- `supernovaTerrainRadius` (int, default: 120, range: 16-180): Crater carving radius.
+- `supernovaMaxDisplays` (int, default: 1800, range: 0-1800): Maximum orbiting block display entities (0 for max FPS).
+
+### Skill 6: I am Atomic
+- `atomicCooldownTicks` (int, default: 1200): Cooldown starting at detonation (1200 ticks = 60.0s).
+- `atomicDamage` (float, default: 9999.0): Primary center damage.
+- `atomicShockwaveDamage` (float, default: 15.0): Damage per ground shockwave hit.
+- `atomicTerrainDamage` (boolean, default: true): Enable crater excavation and fluid clearing.
+- `atomicTerrainRadius` (int, default: 98, range: 0-98): Maximum crater radius.
+
+### Skill 7: Fuga
+- `fugaCooldownTicks` (int, default: 1200): Cooldown (1200 ticks = 60.0s).
+- `fugaDamage` (float, default: 9999.0): Meteor impact and fire pillar explosion damage.
+- `fugaShockwaveDamageMultiplier` (float, default: 0.08): Shockwave damage multiplier.
+- `fugaIgniteEntities` (boolean, default: true): Whether shockwave ignites mobs.
+- `fugaShockwaveKnockback` (boolean, default: true): Whether shockwave applies knockback.
+- `fugaSlowness` (boolean, default: true): Whether enemies under falling meteor are slowed.
+- `fugaTerrainDamage` (boolean, default: true): Enable crater and rock spires.
+- `fugaTerrainRadius` (int, default: 48, range: 0-64): Maximum crater and effect radius.
+
+### Skill 8: Silent Gate [NEW in v1.5.0]
+- `gateCooldownTicks` (int, default: 1200): Cooldown after barrage ends (1200 ticks = 60.0s).
+- `gateBeamDamage` (float, default: 80.0): Damage per light beam. Kill beam deals 6x (480.0).
+- `gateTargetMode` (string, default: `"hostile"`): `"hostile"` hits monsters only; `"all"` hits all non-pet, non-creative entities.
+- `gateTargetRadius` (int, default: 160, range: 8-256): Target scanning radius around caster in blocks.
+- `gateBarrageTicks` (int, default: 400, range: 60-600): Duration of beam barrage in ticks (400 ticks = 20.0s).
+- `gateWaitTicks` (int, default: 300, range: 40-1200): Duration the opened gate waits for command before auto-closing (300 ticks = 15.0s).
+- `gateSkyCircles` (int, default: 220, range: 8-256): Number of active sky circles (reduce on low-end hardware).
+- `gateTerrainDamage` (boolean, default: true): Enable small beam cratering.
+- `gateCraterRadius` (int, default: 3, range: 0-6): Crater radius created by beams (set 0 for surface preservation).
+
+---
+
+## 6. Client Configuration (`config/godwand-client.json`)
+
+Adjustable in-game via the **K** menu:
+- `wandSkin` (string, default: `"AUTO"`): Active model (`AUTO`, `DEFAULT`, `AQUA_HEARTIA`, `SHADOW_BLADE`, `SILENT_WITCH`).
+- `postEffects` (boolean, default: true): Enable black hole distortion and sky tear post-processing shaders.
+- `impactFrames` (boolean, default: true): Enable anime-style high-contrast impact frames during heavy hits.
+- `cameraFov` (boolean, default: true): Enable dynamic FOV changes during casting.
+- `skyBlackout` (boolean, default: true): Enable sky darkening during Supernova detonation.
+- `targetMarker` (boolean, default: true): Enable Supernova ground target lock column.
+- `atomicCutscene` (boolean, default: true): Enable third-person cinematic camera during Atomic.
+- `fugaCutscene` (boolean, default: true): Enable third-person cinematic camera during Fuga.
+- `gateCutscene` (boolean, default: true): Enable third-person cinematic camera during Silent Gate.
+- `cameraShake` (float, default: 1.0, range: 0.0 to 1.0): Camera shake intensity (set 0.0 to disable motion).
+- `bloomStrength` (float, default: 0.85, range: 0.0 to 1.5): God Wand bloom brightness (reduce to 0.4 if using heavy shaders).
+- `bloomDownsample` (int, default: 4, range: 2 to 8): Bloom resolution downsampling (8 gives significant FPS boost).
+
+---
+
+## 7. Configuration Presets
+
+### Anti-Grief Preset (Full Entity Damage, Zero Block Damage)
+Paste into `config/godwand-server.json`:
+```json
+{
+  "supernovaTerrainDamage": false,
+  "supernovaBlockLift": false,
+  "atomicTerrainDamage": false,
+  "fugaTerrainDamage": false,
+  "gateTerrainDamage": false,
+  "earthDrillTerrainDamage": false,
+  "earthDrillBlockLift": false,
+  "stoneCannonTerrainDamage": false
+}
+```
+
+### Reversible Block Effects Preset (Beautiful Block Floating, Zero Permanent Craters)
+Paste into `config/godwand-server.json`:
+```json
+{
+  "earthDrillBlockLift": true,
+  "earthDrillTerrainDamage": false,
+  "supernovaBlockLift": true,
+  "supernovaTerrainDamage": false,
+  "atomicTerrainDamage": false,
+  "fugaTerrainDamage": false,
+  "gateTerrainDamage": false,
+  "stoneCannonTerrainDamage": false
+}
+```
+
+### Low-End PC & FPS Optimization Preset
+Paste into `config/godwand-client.json`:
+```json
+{
+  "cameraShake": 0.0,
+  "bloomStrength": 0.4,
+  "bloomDownsample": 8,
+  "atomicCutscene": false,
+  "fugaCutscene": false,
+  "gateCutscene": false,
+  "skyBlackout": false
+}
+```

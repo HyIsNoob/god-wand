@@ -292,4 +292,76 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // 9. AI Context 1-Click Copy Trigger
+  const aiTriggers = document.querySelectorAll('.ai-copy-context-trigger');
+  aiTriggers.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      let content = '';
+      try {
+        const resp = await fetch('llms-full.txt');
+        if (resp.ok) {
+          content = await resp.text();
+        }
+      } catch (e) {
+        // Fallback for file:// or offline mode
+      }
+
+      if (!content || content.length < 500) {
+        content = getEmbeddedAiContext();
+      }
+
+      navigator.clipboard.writeText(content.trim()).then(() => {
+        const msg = currentLang === 'vi'
+          ? '✨ Đã sao chép toàn bộ ngữ cảnh cho AI (ChatGPT, Claude, Gemini...)'
+          : currentLang === 'zh'
+          ? '✨ 已复制完整 AI 上下文（可直接粘贴至 ChatGPT、Claude、Gemini 等）'
+          : '✨ Copied full AI context to clipboard (Paste into ChatGPT, Claude, Gemini...)';
+        showToast(msg);
+      }).catch(() => {
+        const fail = currentLang === 'vi' ? 'Lỗi khi sao chép' : 'Copy failed';
+        showToast(fail);
+      });
+    });
+  });
+
+  function getEmbeddedAiContext() {
+    return `# God Wand v1.5.0 — Technical Knowledge Base & AI Context
+
+You are an expert AI assistant answering questions about the Minecraft mod "God Wand" (v1.5.0).
+Use this official knowledge base to assist players, explain spells, provide command syntax, or configure server files.
+
+## Summary & Supported Versions
+- One wand (item id: godwand:god_wand) with 8 ultimate spells.
+- 10 supported builds across Fabric/NeoForge (1.21.1, 1.20.1 Forge/Fabric, 1.21.11, 26.1.2, 26.3).
+- Required on both client and server in multiplayer. Compatible with Iris/Oculus shaders and animation mods (Emotecraft, Better Combat, NEA, Yes Steve Model).
+- Standard Survival crafting: 2 Echo Shards, 1 Nether Star, 2 Amethyst Shards, 1 Netherite Ingot, 1 Blaze Rod.
+
+## The Eight Spells
+1. Spatial Path (spatial_path): Temporary corridor through terrain (cooldown: 20t / 1s); blocks restore automatically; deflects projectiles; Shift creates stone bridge.
+2. Singularity (singularity): 3-tier gravity orb (cooldowns: 60/120/200t); peels world blocks and crushes mobs <= 50 HP upon early collapse; terrain auto-restores.
+3. Earth Drill (earth_drill): 4-tier spinning drill (cooldowns: 80/140/220/320t); slams ground; auto-equips Aqua Heartia.
+4. Supernova (supernova): 7s hold black hole (cooldown: 900t / 45s); 120-block horizontal blast; executes mobs <= 50 HP; merges XP drops.
+5. Stone Cannon (stone_cannon): 4-tier high-velocity piercing projectile (cooldowns: 40/80/140/220t); auto-equips Aqua Heartia.
+6. I am Atomic (atomic): 19s sword stance with invulnerability (cooldown: 1200t / 60s); release to detonate 9,999 center DMG, liquid clearing, and 98-block circular crater; auto-equips Shadow Blade.
+7. Fuga (fuga): Celestial fire arrow & soaring phoenix (cooldown: 1200t / 60s); 9,999 core DMG meteor and 384-block pillar of fire; terrain shockwaves.
+8. Silent Gate (silent_gate) [NEW in 1.5.0]: Celestial winged gate descended from sky circle (cooldown: 1200t / 60s); Right-click during wait commands 400-tick (20s) barrage of light beams (80 DMG each) tracking mobs with a final 6x golden kill beam (480 DMG); auto-equips Silent Witch Staff; Sneak cancels.
+
+## Wand Appearance (Skins)
+- AUTO switches dynamically: Skills 3 & 5 -> Aqua Heartia; Skill 6 -> Shadow Blade; Skill 8 -> Silent Witch Staff; Skills 1, 2, 4, 7 -> Magitech Wand (Eclipse).
+- Manual selection available via K menu: DEFAULT, AQUA_HEARTIA, SHADOW_BLADE, SILENT_WITCH.
+- Normal left-click attack deals 5 melee damage across all appearances.
+
+## Controls & Commands
+- Hold V: Skill wheel
+- Right-Click: Cast / charge / command
+- K: Client settings (shakes, bloom, cutscene toggles, wand skins)
+- Shift / Esc / F5: Bridge in Spatial Path, cancel Silent Gate; skip cutscenes
+- /godwand lock <skill> & /godwand unlock: Admin single-skill wand lock (OP Lv 2)
+- /godwand reset_cooldowns [players]: Clear all cooldowns (OP Lv 4)
+
+## Configuration
+- Server: config/godwand-server.json (43 keys grouped by skill). Supports anti-griefing (terrainDamage: false).
+- Client: config/godwand-client.json (12 keys) via K GUI.`;
+  }
 });
