@@ -1,0 +1,57 @@
+package net.godwand.client;
+
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.godwand.skill.BlueRedRules;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class BlueRedDrawTest {
+    static final Vec3 EYE = new Vec3(0, 65, 0), AT = new Vec3(0, 65, 10), LOOK = new Vec3(0, 0, 1);
+
+    static GateDraw.Ctx ctx(int layer) {
+        GateDraw.Ctx c = new GateDraw.Ctx();
+        c.v = mock(VertexConsumer.class, RETURNS_SELF); c.m = new Matrix4f(); c.eye = EYE; c.layer = layer; c.nearMin = .05; c.nearMax = .4;
+        return c;
+    }
+
+    @Test void blueHasDenseBlueFlamesInTheBodyPass() {
+        var body = ctx(0);
+        BlueRedDraw.blue(body, AT, false, 30, -1);
+        assertTrue(body.quads >= 24, "solid blue flame licks, not just glow: " + body.quads);
+    }
+
+    @Test void readyBlueLooksClearlyDifferent() {
+        var plain = ctx(1); BlueRedDraw.blue(plain, AT, false, 30, -1);
+        var ready = ctx(1); BlueRedDraw.blue(ready, AT, true, 30, 20);
+        assertTrue(ready.quads > plain.quads + 40, plain.quads + " vs " + ready.quads);
+    }
+
+    @Test void redHasBrightAndDarkSwirlStrokes() {
+        var body = ctx(0); BlueRedDraw.redOrb(body, AT, .4, 20);
+        var glow = ctx(1); BlueRedDraw.redOrb(glow, AT, .4, 20);
+        assertTrue(body.quads > 20, "dark strokes and dark orbs: " + body.quads);
+        assertTrue(glow.quads > 80, "bright strokes, orbs and swirling particles: " + glow.quads);
+    }
+
+    @Test void purpleGrowsAndDetonatesWithinBudget() {
+        int before = 0;
+        for (double age = 0; age <= BlueRedRules.PURPLE_CINEMATIC + 10; age += 1) {
+            var c = ctx(-1);
+            BlueRedDraw.purple(c, AT, age, EYE, LOOK);
+            assertTrue(c.quads < SilentGateRenderer.QUAD_BUDGET);
+            if (age == BlueRedRules.PURPLE_DETONATE - 1) before = c.quads;
+            if (age == BlueRedRules.PURPLE_DETONATE + 2) assertTrue(c.quads > before, "the blast adds the radial lightning");
+        }
+    }
+
+    @Test void flightAndBurstsDraw() {
+        var c = ctx(-1);
+        BlueRedDraw.redFlight(c, Vec3.ZERO, new Vec3(0, 0, 1), new Vec3(0, 0, 30), 10, 1, 7, true);
+        BlueRedDraw.burst(c, AT, 4, true);
+        BlueRedDraw.burst(c, AT, 4, false);
+        assertTrue(c.quads > 50);
+    }
+}

@@ -41,13 +41,14 @@ public final class PurpleCinematic {
     static AtomicCinematic.Pose pose(Vec3 center, Vec3 eye, double age) {
         Vec3 away = new Vec3(eye.x - center.x, 0, eye.z - center.z);
         Vec3 side = away.lengthSqr() < 1e-6 ? new Vec3(0, 0, -1) : away.normalize();
-        double turn = age * .004;
+        double turn = age * .006;
         side = new Vec3(side.x * Math.cos(turn) - side.z * Math.sin(turn), 0, side.x * Math.sin(turn) + side.z * Math.cos(turn));
         double start = Math.max(14, Math.min(36, eye.distanceTo(center)));
         double swell = GateDraw.smooth(age / BlueRedRules.PURPLE_DETONATE) * 6;
         double thrown = GateDraw.smooth((age - BlueRedRules.PURPLE_DETONATE) / 16) * 14;
         double drift = Math.max(0, age - BlueRedRules.PURPLE_DETONATE - 16) * .08;
-        Vec3 cam = center.add(side.scale(start + swell + thrown + drift)).add(0, 3 + age * .02 + thrown * .25, 0);
+        // Low and looking up while it swells (it reads huge), thrown back and up by the blast to show the dome and the lightning.
+        Vec3 cam = center.add(side.scale(start * .8 + swell + thrown + drift)).add(0, -1.5 + age * .03 + thrown * .6, 0);
         Vec3 look = center.subtract(cam);
         float yaw = (float) Math.toDegrees(Math.atan2(look.z, look.x)) - 90;
         float pitch = (float) -Math.toDegrees(Math.atan2(look.y, Math.hypot(look.x, look.z)));
