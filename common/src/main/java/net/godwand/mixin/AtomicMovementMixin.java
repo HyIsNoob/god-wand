@@ -15,7 +15,7 @@ public abstract class AtomicMovementMixin {
     @Shadow public ServerPlayer player;
     @Inject(method="handleMovePlayer",at=@At(value="INVOKE",target="Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/server/level/ServerLevel;)V",shift=At.Shift.AFTER),cancellable=true)
     private void godwand$atomicAnchor(ServerboundMovePlayerPacket packet,CallbackInfo ci) {
-        if(net.godwand.skill.FugaManager.movementLocked(player)||net.godwand.skill.SilentGateManager.movementLocked(player)) {
+        if(net.godwand.skill.FugaManager.movementLocked(player)||net.godwand.skill.SilentGateManager.movementLocked(player)||net.godwand.skill.BlueRedManager.movementLocked(player)) {
             if(packet.hasRotation()) {
                 float yaw=packet.getYRot(player.getYRot()),pitch=packet.getXRot(player.getXRot());
                 if(Float.isFinite(yaw)&&Float.isFinite(pitch)) {player.setYRot(net.minecraft.util.Mth.wrapDegrees(yaw));player.setXRot(net.minecraft.util.Mth.clamp(pitch,-90,90));}

@@ -72,18 +72,39 @@ public final class BlueEater {
             if ((inspected & 31) == 0 && System.nanoTime() >= deadline) break;
             inspected++;
             pos.set(core.getX() + c[0], core.getY() + c[1], core.getZ() + c[2]);
-            if (pos.getY() < level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight()) continue;
-            var chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
-            if (chunk == null) continue;
-            BlockState state = chunk.getBlockState(pos);
-            if (state.isAir() || !SpatialDisplacementManager.canDisplace(level, pos, state)) continue;
-            BlockPos at = pos.immutable();
-            level.setBlock(at, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS);
+            BlockState state = clear(level, pos);
+            if (state == null) continue;
             eaten++;
             if (live != null && live.size() < MAX_DISPLAYS && state.getFluidState().isEmpty())
-                live.add(new Eaten(shower.show(level, at, state), Vec3.atLowerCornerOf(at)));
+                live.add(new Eaten(shower.show(level, pos.immutable(), state), Vec3.atLowerCornerOf(pos)));
         }
         return inspected;
+    }
+
+    /** Clears cells[from..] around center (no cap, no displays) until the budget or deadline runs out; returns where to resume. */
+    static int carveFrom(ServerLevel level, Vec3 center, int[][] cells, int from, int budget, long deadline, boolean enabled) {
+        if (!enabled) return from;
+        BlockPos core = BlockPos.containing(center);
+        var pos = new BlockPos.MutableBlockPos();
+        int i = from, inspected = 0;
+        while (i < cells.length && inspected < budget) {
+            if ((inspected & 31) == 0 && System.nanoTime() >= deadline) break;
+            int[] c = cells[i++];
+            inspected++;
+            clear(level, pos.set(core.getX() + c[0], core.getY() + c[1], core.getZ() + c[2]));
+        }
+        return i;
+    }
+
+    /** Removes one block if it may go (loaded chunk, in height, not air, displaceable); returns what was there, else null. */
+    private static BlockState clear(ServerLevel level, BlockPos.MutableBlockPos pos) {
+        if (pos.getY() < level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight()) return null;
+        var chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
+        if (chunk == null) return null;
+        BlockState state = chunk.getBlockState(pos);
+        if (state.isAir() || !SpatialDisplacementManager.canDisplace(level, pos, state)) return null;
+        level.setBlock(pos.immutable(), Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_SUPPRESS_DROPS);
+        return state;
     }
 
     /** One tick of flight: on the first tick each display is sent spinning and shrinking into the core, then retired. */

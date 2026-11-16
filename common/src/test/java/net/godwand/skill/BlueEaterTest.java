@@ -102,4 +102,16 @@ class BlueEaterTest {
         assertTrue(live.isEmpty());
         verify(display).discard();
     }
+
+    @Test void carveFromResumesAtItsCursor() {
+        int[][] cells = BlueEater.sphere(6);
+        int cursor = BlueEater.carveFrom(world, CENTER, cells, 0, 40, later(), true);
+        assertEquals(40, cursor);
+        assertEquals(40, eatenAt.size());
+        cursor = BlueEater.carveFrom(world, CENTER, cells, cursor, 40, later(), true);
+        assertEquals(80, cursor);
+        assertEquals(80, new HashSet<>(eatenAt).size(), "never the same cell twice");
+        assertEquals(cells.length, BlueEater.carveFrom(world, CENTER, cells, cells.length - 3, 40, later(), true));
+        assertEquals(80 + 3, eatenAt.size());
+    }
 }

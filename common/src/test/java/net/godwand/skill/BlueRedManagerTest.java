@@ -57,12 +57,14 @@ class BlueRedManagerTest {
     @AfterEach void tearDown() { modes.close(); cooldowns.close(); BlueRedManager.clearAll(); net.godwand.config.GodWandConfig.SERVER = previousConfig; }
 
     final Set<Long> unloaded = new HashSet<>();
+    net.minecraft.world.level.chunk.LevelChunk lastChunk;
     ServerLevel level() {
         var w = mock(ServerLevel.class);
         when(w.dimension()).thenReturn(Level.OVERWORLD);
         var chunks = mock(net.minecraft.server.level.ServerChunkCache.class);
         when(w.getChunkSource()).thenReturn(chunks);
         var chunk = mock(net.minecraft.world.level.chunk.LevelChunk.class);
+        lastChunk = chunk;
         when(chunks.getChunkNow(anyInt(), anyInt())).thenAnswer(i -> unloaded.contains(net.minecraft.world.level.ChunkPos.asLong((int) i.getArgument(0), (int) i.getArgument(1))) ? null : chunk);
         return w;
     }
@@ -341,5 +343,97 @@ class BlueRedManagerTest {
         assertEquals(0, count(BlueRedPayload.PURPLE));
         var end = sent.stream().filter(x -> x.kind() == BlueRedPayload.RED_END).findFirst().orElseThrow();
         assertTrue(end.z() < 16, "stops at the edge of loaded terrain, z=" + end.z());
+    }
+
+    // ---- Purple ----
+    /** B's ready Blue at z=22, A fires into it: Purple at (0,65,22) with B as owner and A as shooter. */
+    ServerPlayer[] purple() {
+        var b = blueOwner(true);
+        var a = player();
+        fire(a);
+        ticks(8);
+        assertEquals(1, count(BlueRedPayload.PURPLE));
+        return new ServerPlayer[]{a, b};
+    }
+
+    void untilPurpleAge(int age) {
+        while (BlueRedManager.purples(world).get(0).age() < age) ticks(1);
+        assertEquals(age, BlueRedManager.purples(world).get(0).age());
+    }
+
+    @Test void damageAtDetonationSparesParticipants() {
+        var pair = purple();
+        var z = zombie(new Vec3(4, 64.5, 22));
+        nearby.add(pair[0]); nearby.add(pair[1]);
+        hurt.clear();
+        untilPurpleAge(BlueRedRules.PURPLE_DETONATE - 1);
+        assertFalse(hurt.contains(z), "nothing is hurt before the detonation");
+        ticks(1);
+        assertTrue(hurt.contains(z));
+        assertFalse(hurt.contains(pair[0]));
+        assertFalse(hurt.contains(pair[1]));
+    }
+
+    @Test void bothParticipantsLocked1200() {
+        var pair = purple();
+        int slot = net.godwand.skill.SkillCooldownState.RED_SLOT;
+        for (var p : pair) {
+            cooldowns.verify(() -> SkillCooldowns.start(p, GodWandItem.MODE_BLUE_RED, 1200));
+            cooldowns.verify(() -> SkillCooldowns.start(p, slot, 1200));
+        }
+    }
+
+    @Test void soloPurpleLocksOnce() {
+        zombie(); zombie(); zombie();
+        var a = player();
+        BlueRedManager.input(a, true);
+        ticks(BlueRedRules.CORE_PERIOD);
+        BlueRedManager.input(a, false);
+        nearby.clear();
+        fire(a);
+        ticks(4);
+        assertEquals(1, count(BlueRedPayload.PURPLE));
+        var purple = sent.stream().filter(x -> x.kind() == BlueRedPayload.PURPLE).findFirst().orElseThrow();
+        assertEquals(purple.ownerId(), purple.otherId());
+        cooldowns.verify(() -> SkillCooldowns.start(a, GodWandItem.MODE_BLUE_RED, 1200), times(1));
+    }
+
+    @Test void bystanderGetsPayloadButIsNotParticipant() {
+        var pair = purple();
+        var bystander = player(11, world, new Vec3(30, 65, 22), new Vec3(-1, 0, 0));
+        assertTrue(BlueRedManager.invulnerable(pair[0]));
+        assertTrue(BlueRedManager.movementLocked(pair[1]));
+        assertFalse(BlueRedManager.invulnerable(bystander));
+        assertFalse(BlueRedManager.movementLocked(bystander));
+        ticks(BlueRedRules.PURPLE_CINEMATIC);
+        assertFalse(BlueRedManager.invulnerable(pair[0]), "free again once the cutscene ends");
+    }
+
+    @Test void participantLogoutDoesNotCrash() {
+        var pair = purple();
+        BlueRedManager.onLeave(pair[1]);
+        assertDoesNotThrow(() -> ticks(BlueRedRules.PURPLE_TERRAIN_END + 5));
+        assertTrue(BlueRedManager.purples(world).isEmpty());
+    }
+
+    @Test void terrainOnlyBetweenDetonationAndEnd() {
+        var pair = purple();
+        net.godwand.config.GodWandConfig.SERVER.purpleTerrainDamage = true;
+        when(lastChunk.getBlockState(any(net.minecraft.core.BlockPos.class))).thenReturn(net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+        int[] writes = {0};
+        when(world.setBlock(any(net.minecraft.core.BlockPos.class), any(net.minecraft.world.level.block.state.BlockState.class), anyInt())).thenAnswer(i -> { writes[0]++; return true; });
+        when(world.getMinBuildHeight()).thenReturn(-64);
+        when(world.getMaxBuildHeight()).thenReturn(320);
+        try (var displacement = mockStatic(net.godwand.spatial.SpatialDisplacementManager.class)) {
+            displacement.when(() -> net.godwand.spatial.SpatialDisplacementManager.canDisplace(any(), any(), any())).thenReturn(true);
+            untilPurpleAge(BlueRedRules.PURPLE_DETONATE - 1);
+            assertEquals(0, writes[0], "the ground holds until the detonation");
+            ticks(10);
+            assertTrue(writes[0] > 0);
+            ticks(BlueRedRules.PURPLE_TERRAIN_END);
+            int done = writes[0];
+            ticks(10);
+            assertEquals(done, writes[0], "no catch-up after the window");
+        }
     }
 }

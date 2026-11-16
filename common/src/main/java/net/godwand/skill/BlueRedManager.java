@@ -53,7 +53,19 @@ public final class BlueRedManager {
         Red(ServerPlayer shooter, ServerLevel level) { this.shooter = shooter; this.level = level; }
     }
 
+    public static final class Purple {
+        final ServerLevel level;
+        final Vec3 center;
+        final ServerPlayer owner, shooter;
+        int age, cursor;
+        Purple(ServerLevel level, Vec3 center, ServerPlayer owner, ServerPlayer shooter) { this.level = level; this.center = center; this.owner = owner; this.shooter = shooter; }
+        public int age() { return age; }
+        public Vec3 center() { return center; }
+        boolean participant(Entity e) { return SpellDamage.isCaster(e, owner) || SpellDamage.isCaster(e, shooter); }
+    }
+
     private static final List<Blue> BLUES = new ArrayList<>();
+    private static final List<Purple> PURPLES = new ArrayList<>();
     private static final List<Red> REDS = new ArrayList<>();
 
     private BlueRedManager() {}
@@ -186,11 +198,54 @@ public final class BlueRedManager {
         remove(blue);
     }
 
-    /** Red met a ready Blue. Task 9 turns this into the Purple detonation. */
+    /** Red met a ready Blue: Purple at the Blue. Both players watch it and both lose the whole skill for purpleCooldownTicks. */
     static void startPurple(ServerLevel level, Blue blue, ServerPlayer shooter) {
         BLUES.remove(blue);
         BlueEater.retireAll(blue.eaten);
+        PURPLES.add(new Purple(level, blue.pos, blue.owner, shooter));
         send(level, blue.pos, new BlueRedPayload(BlueRedPayload.PURPLE, blue.owner.getId(), shooter.getId(), 0, blue.pos.x, blue.pos.y, blue.pos.z, 0, 0, 0, 0));
+        int lock = GodWandConfig.cooldownTicks(GodWandConfig.SERVER.purpleCooldownTicks);
+        for (ServerPlayer p : SpellDamage.isCaster(blue.owner, shooter) ? List.of(shooter) : List.of(blue.owner, shooter)) {
+            SkillCooldowns.start(p, GodWandItem.MODE_BLUE_RED, lock);
+            SkillCooldowns.start(p, SkillCooldownState.RED_SLOT, lock);
+        }
+    }
+
+    public static List<Purple> purples(ServerLevel level) {
+        List<Purple> out = new ArrayList<>();
+        for (Purple p : PURPLES) if (p.level == level) out.add(p);
+        return out;
+    }
+
+    private static boolean inCinematic(ServerPlayer player) {
+        for (Purple p : PURPLES) if (p.age < BlueRedRules.PURPLE_CINEMATIC && p.participant(player)) return true;
+        return false;
+    }
+    /** Purple's two players cannot be hurt or move while their cutscene plays. */
+    public static boolean invulnerable(ServerPlayer player) { return inCinematic(player); }
+    public static boolean movementLocked(ServerPlayer player) { return inCinematic(player); }
+
+    private static int tickPurple(Purple p, int budget, long deadline) {
+        var cfg = GodWandConfig.SERVER;
+        p.age++;
+        if (p.age == BlueRedRules.PURPLE_DETONATE) detonate(p);
+        if (p.age > BlueRedRules.PURPLE_TERRAIN_END) { PURPLES.remove(p); return 0; }
+        if (p.age < BlueRedRules.PURPLE_DETONATE || cfg.purpleRadius <= 0) return 0;
+        int before = p.cursor;
+        p.cursor = BlueEater.carveFrom(p.level, p.center, BlueEater.sphere(cfg.purpleRadius), p.cursor, budget, deadline, cfg.purpleTerrainDamage);
+        return p.cursor - before;
+    }
+
+    private static void detonate(Purple p) {
+        var cfg = GodWandConfig.SERVER;
+        double radius = Math.max(cfg.purpleRadius, 2);
+        for (Entity e : finder.find(p.level, new AABB(p.center, p.center).inflate(radius))) {
+            if (p.participant(e) || e.isSpectator() || e instanceof Display) continue;
+            Vec3 out = e.position().subtract(p.center);
+            if (out.length() > radius) continue;
+            if (e instanceof LivingEntity) hurter.hurt(e, p.shooter, cfg.purpleDamage * cfg.damageMultiplier);
+            if (out.lengthSqr() > 1e-6) { e.setDeltaMovement(e.getDeltaMovement().add(out.normalize().scale(2.5)).add(0, 0.8, 0)); e.hurtMarked = true; }
+        }
     }
 
     /** Left click started or stopped on the client. */
@@ -249,6 +304,7 @@ public final class BlueRedManager {
         }
         for (Red red : new ArrayList<>(REDS))
             if (red.fired && red.level == level && REDS.contains(red)) budget -= fly(red, budget, deadline);
+        for (Purple p : purples(level)) budget -= tickPurple(p, budget, deadline);
     }
 
     private static void pullAndHurt(Blue blue, boolean strike) {
@@ -292,5 +348,6 @@ public final class BlueRedManager {
         for (Blue blue : BLUES) BlueEater.retireAll(blue.eaten);
         BLUES.clear();
         REDS.clear();
+        PURPLES.clear();
     }
 }

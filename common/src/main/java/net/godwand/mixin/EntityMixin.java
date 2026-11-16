@@ -12,7 +12,7 @@ public abstract class EntityMixin {
 
     @Inject(method="isInvulnerableTo",at=@At("HEAD"),cancellable=true)
     private void godwand$atomicProtection(net.minecraft.world.damagesource.DamageSource source,CallbackInfoReturnable<Boolean> cir) {
-        if((Object)this instanceof net.minecraft.server.level.ServerPlayer player && (net.godwand.skill.AtomicManager.invulnerable(player)||net.godwand.skill.FugaManager.invulnerable(player)||net.godwand.skill.SilentGateManager.invulnerable(player)))
+        if((Object)this instanceof net.minecraft.server.level.ServerPlayer player && (net.godwand.skill.AtomicManager.invulnerable(player)||net.godwand.skill.FugaManager.invulnerable(player)||net.godwand.skill.SilentGateManager.invulnerable(player)||net.godwand.skill.BlueRedManager.invulnerable(player)))
             cir.setReturnValue(true);
     }
 
