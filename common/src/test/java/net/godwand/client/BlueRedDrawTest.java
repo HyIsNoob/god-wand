@@ -47,6 +47,27 @@ class BlueRedDrawTest {
         }
     }
 
+    @Test void voidShowsBothOrbsMergingOverBlack() {
+        var body = ctx(0);
+        BlueRedDraw.purpleVoid(body, AT, 10, AT.add(0, 0, -10), LOOK);
+        assertTrue(body.quads > 30, "backdrop, smoke and the two orbs: " + body.quads);
+        var merge = ctx(1);
+        BlueRedDraw.purpleVoid(merge, AT, BlueRedRules.PURPLE_VOID_END - 8, AT.add(0, 0, -10), LOOK);
+        var early = ctx(1);
+        BlueRedDraw.purpleVoid(early, AT, 10, AT.add(0, 0, -10), LOOK);
+        assertTrue(merge.quads > early.quads, "lightning and the burst when they meet");
+    }
+
+    @Test void redImpactFramesAlternateBlackAndRed() {
+        assertEquals(BlueRedDraw.INK, BlueRedDraw.impactColor(0));
+        assertEquals(BlueRedDraw.RED_BODY, BlueRedDraw.impactColor(1));
+        assertEquals(BlueRedDraw.INK, BlueRedDraw.impactColor(2));
+        assertTrue(BlueRedDraw.impactAlpha(0) > .8 && BlueRedDraw.impactAlpha(6) == 0);
+        var c = ctx(-1);
+        BlueRedDraw.impact(c, AT, 0, EYE, LOOK);
+        assertTrue(c.quads > 10);
+    }
+
     @Test void flightAndBurstsDraw() {
         var c = ctx(-1);
         BlueRedDraw.redFlight(c, Vec3.ZERO, new Vec3(0, 0, 1), new Vec3(0, 0, 30), 10, 1, 7, true);

@@ -33,6 +33,7 @@ public final class BlueRedRenderer {
     private static final List<Flight> FLIGHTS = new ArrayList<>();
     private static final List<Burst> BURSTS = new ArrayList<>();
     private static final List<Purple> PURPLES = new ArrayList<>();
+    private static final List<Burst> IMPACTS = new ArrayList<>();
     private static double clock;
 
     private BlueRedRenderer() {}
@@ -61,11 +62,13 @@ public final class BlueRedRenderer {
             case BlueRedPayload.RED_FIRE -> {
                 CHARGES.remove(p.ownerId());
                 FLIGHTS.add(new Flight(p.ownerId(), at, new Vec3(p.dx(), p.dy(), p.dz()), clock));
+                impactNear(at);
                 sound(at, SoundEvents.WARDEN_SONIC_BOOM, 1.5f, 1.5f);
             }
             case BlueRedPayload.RED_END -> {
                 endFlight(p.ownerId(), at);
                 BURSTS.add(new Burst(at, clock, false));
+                impactNear(at);
                 sound(at, SoundEvents.GENERIC_EXPLODE.value(), 3f, .8f);
             }
             case BlueRedPayload.PURPLE -> {
@@ -76,6 +79,12 @@ public final class BlueRedRenderer {
             }
             default -> {}
         }
+    }
+
+    /** Red's black-and-red impact frames, for anyone close enough to feel it. */
+    private static void impactNear(Vec3 at) {
+        var player = Minecraft.getInstance().player;
+        if (GodWandConfig.CLIENT.impactFrames && player != null && player.position().distanceTo(at) < 48) { IMPACTS.clear(); IMPACTS.add(new Burst(at, clock, false)); }
     }
 
     private static void endFlight(int owner, Vec3 at) {
@@ -92,13 +101,14 @@ public final class BlueRedRenderer {
         if (client.isPaused()) return;
         clock++;
         BURSTS.removeIf(b -> clock - b.at() > 20);
+        IMPACTS.removeIf(b -> clock - b.at() > 6);
         FLIGHTS.removeIf(f -> f.endAt >= 0 ? clock - f.endAt > 10 : clock - f.at > 200);
         CHARGES.values().removeIf(at -> clock - at > 400);
         for (Purple p : PURPLES) if (clock - p.at() == BlueRedRules.PURPLE_DETONATE) detonated(p.pos());
         PURPLES.removeIf(p -> clock - p.at() > BlueRedRules.PURPLE_CINEMATIC + 10);
     }
 
-    public static void reset() { BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); PURPLES.clear(); clock = 0; }
+    public static void reset() { BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); PURPLES.clear(); IMPACTS.clear(); clock = 0; }
 
     private static void detonated(Vec3 at) {
         sound(at, SoundEvents.GENERIC_EXPLODE.value(), 6f, .5f);
@@ -116,8 +126,12 @@ public final class BlueRedRenderer {
 
     // ---- drawing ----
 
+    private record Overlay(Matrix4f pose, Camera camera, float partial) {}
+    private static Overlay overlay;
+
     public static void render(PoseStack pose, Camera camera, float partial) {
-        if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && PURPLES.isEmpty()) return;
+        overlay = new Overlay(new Matrix4f(pose.last().pose()), camera, partial);
+        if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && PURPLES.isEmpty() && IMPACTS.isEmpty()) return;
         RenderSystem.enableBlend(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
         GateAtlas.bind(); RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         try {
@@ -132,6 +146,33 @@ public final class BlueRedRenderer {
             }
         } finally {
             RenderSystem.depthMask(true); RenderSystem.enableCull(); RenderSystem.defaultBlendFunc(); RenderSystem.disableBlend();
+        }
+    }
+
+    /** Drawn last in the frame (after clouds and weather), depth off, with this frame's matrix: Purple's black void, then Red's impact frames. */
+    public static void renderOverlay() {
+        Overlay o = overlay; overlay = null;
+        if (o == null || IMPACTS.isEmpty() && !(PurpleCinematic.inVoid() && !PURPLES.isEmpty())) return;
+        RenderSystem.enableBlend(); RenderSystem.disableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
+        GateAtlas.bind(); RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+        try {
+            var look = o.camera().getLookVector();
+            Vec3 lookVec = new Vec3(look.x(), look.y(), look.z()), eye = o.camera().getPosition();
+            for (int layer : new int[]{0, 1}) {
+                if (layer == 0) RenderSystem.defaultBlendFunc();
+                else RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+                BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+                Ctx c = new Ctx(); c.v = buffer; c.m = o.pose(); c.eye = eye; c.layer = layer; c.nearMin = .05; c.nearMax = .4;
+                if (PurpleCinematic.inVoid() && !PURPLES.isEmpty()) {
+                    Purple p = PURPLES.get(PURPLES.size() - 1);
+                    BlueRedDraw.purpleVoid(c, p.pos(), clock + o.partial() - p.at(), eye, lookVec);
+                }
+                for (Burst b : IMPACTS) BlueRedDraw.impact(c, b.pos(), (int) (clock - b.at()), eye, lookVec);
+                var mesh = buffer.build();
+                if (mesh != null) BufferUploader.drawWithShader(mesh);
+            }
+        } finally {
+            RenderSystem.enableDepthTest(); RenderSystem.depthMask(true); RenderSystem.enableCull(); RenderSystem.defaultBlendFunc(); RenderSystem.disableBlend();
         }
     }
 
@@ -157,7 +198,7 @@ public final class BlueRedRenderer {
             BlueRedDraw.redFlight(c, f.origin, f.dir, head, age, 1 - clamp01(after / 10), f.owner * 31L + (long) f.at, f.end == null);
         }
         for (Burst b : BURSTS) BlueRedDraw.burst(c, b.pos(), now - b.at(), b.blue());
-        for (Purple p : PURPLES) BlueRedDraw.purple(c, p.pos(), now - p.at(), eye, look);
+        if (!PurpleCinematic.inVoid()) for (Purple p : PURPLES) BlueRedDraw.purple(c, p.pos(), now - p.at(), eye, look);
         return c.quads;
     }
 }

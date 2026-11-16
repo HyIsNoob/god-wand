@@ -161,6 +161,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             float tickDelta = context.tickCounter().getGameTimeDeltaPartialTick(false);
             GodWandPostFxManager.onWorldRender(context.positionMatrix(), context.projectionMatrix(), tickDelta);
             AtomicPostFx.capture(context.positionMatrix(), context.projectionMatrix(), tickDelta);
+            net.godwand.client.BlueRedRenderer.renderOverlay();
         });
 
         HudRenderCallback.EVENT.register(CustomImpactFrameOverlay::render);

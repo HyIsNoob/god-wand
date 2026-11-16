@@ -17,7 +17,7 @@ final class BlueRedDraw {
     static final int DEEP_BLUE = 0x0C24E8, ROYAL = 0x1E46FF, INDIGO = 0x0A12B4, CYAN = 0x46D2FF, ICE = 0xEAF8FF, SMOKE_WHITE = 0xE4EEFA;
     /** Red is laid down in the alpha pass (RED_BODY): additive red over a bright sky turns pink. Only thin hot cores are additive. */
     static final int RED = 0xFF0A28, RED_BODY = 0xD4001A, RED_DEEP = 0x8A0010, RED_LIGHT = 0xFF4A60, RED_CORE = 0xFFD6DC, RED_DARK = 0x16000A;
-    static final int VIOLET = 0x9A2CFF, ORCHID = 0xF064FF, PALE = 0xF6D8FF, NIGHT = 0x2A0650;
+    static final int VIOLET = 0x9A2CFF, ORCHID = 0xF064FF, PALE = 0xF6D8FF, NIGHT = 0x2A0650, VOID = 0x07020F, INK = 0x050002;
 
     private BlueRedDraw() {}
 
@@ -39,6 +39,16 @@ final class BlueRedDraw {
             if (c.body()) sprite(c, p, size, .82 * Math.sin(Math.PI * phase) * appear, color, GateAtlas.SMOKE, a + phase * 2.5);
             if (c.glow() && i % 2 == 0) sprite(c, p, size * .7, .18 * Math.sin(Math.PI * phase) * appear, CYAN, GateAtlas.SMOKE, -a);
         }
+        // White slashes whirling round it like a vortex (owner refs 13, 14).
+        for (int i = 0; i < (ready ? 9 : 6); i++) {
+            double tilt = .25 + .35 * Math.sin(i * 1.9), spin = age * (.32 + .04 * i) * speed + i * 1.7;
+            Vec3 n = new Vec3(Math.sin(i * 2.3) * tilt, 1, Math.cos(i * 2.3) * tilt).normalize();
+            Vec3[] uw = basis(n);
+            double rad = r * (1.25 + .22 * (i % 4));
+            if (c.body()) arc(c, at.add(0, (i % 3 - 1) * r * .25, 0), uw[0], uw[1], rad, spin, 1.9, r * .2, 0xF4FAFF, .75 * appear, GateAtlas.FIBRE);
+            if (c.glow()) arc(c, at.add(0, (i % 3 - 1) * r * .25, 0), uw[0], uw[1], rad, spin, 1.9, r * .06, CYAN, .7 * appear, GateAtlas.SOLID);
+        }
+        if (c.glow()) ring(c, at, r * 1.08, .12, ICE, .45 * appear);
         // A white smoke swirl wrapping round its waist.
         for (int i = 0; i < 14; i++) {
             double a = i * Math.PI * 2 / 14 + age * .09 * speed, wobble = Math.sin(age * .07 + i) * .25;
@@ -149,6 +159,14 @@ final class BlueRedDraw {
                 sprite(c, at.add(d.scale(1.5 + age * .9)), 1 + age * .08, .8 * fade, i % 2 == 0 ? DEEP_BLUE : ROYAL, GateAtlas.SMOKE, a + age * .2);
             }
         }
+        if (!blue && c.body()) {
+            Random rand = new Random(97);
+            for (int i = 0; i < 16; i++) {
+                Vec3 d = gauss(rand).normalize();
+                sprite(c, at.add(d.scale(1 + age * (.6 + .5 * rand.nextDouble()))), .5 + rand.nextDouble() * .6, .9 * fade, INK, GateAtlas.SMOKE, i);
+            }
+            band(c, at.add(0, -.9, 0), new Vec3(1, 0, 0), new Vec3(0, 0, 1), 1 + age * .9, 1.2 + age * .2, RED_BODY, .55 * fade);
+        }
         if (!c.glow()) return;
         int color = blue ? CYAN : RED;
         halo(c, at, 2 + age * (blue ? .8 : 1), fade, color);
@@ -179,13 +197,13 @@ final class BlueRedDraw {
         }
         Random rand = new Random((long) Math.floor(age / 2) * 104729L);
         if (age < detonate) {
-            double s = 1.5 + 10.5 * smooth((age - BlueRedRules.PURPLE_MERGE) / (double) (detonate - BlueRedRules.PURPLE_MERGE));
+            double s = 4 + 8 * smooth((age - BlueRedRules.PURPLE_MERGE) / (double) (detonate - BlueRedRules.PURPLE_MERGE));
             if (c.glow()) {
                 halo(c, at, s * 3, .5, VIOLET);
                 halo(c, at, s * 1.7, .75, ORCHID);
                 halo(c, at, s * 1.05, .95, PALE);
                 halo(c, at, s * .6, 1, 0xFFFFFF);
-                ring(c, at, s * 1.02, .3 + s * .06, PALE, .85);
+                ring(c, at, s * 1.02, .2 + s * .03, PALE, .7);
                 sparkles(c, at, s, age, 90, PALE, ORCHID, 11);
                 // Lightning crawling over the surface, and bolts striking out from it.
                 for (int b = 0; b < 8; b++) {
@@ -206,7 +224,6 @@ final class BlueRedDraw {
             halo(c, at, dome * 2, .5 * fade, VIOLET);
             halo(c, at, dome * 1.2, .9 * fade, ORCHID);
             halo(c, at, dome * .8, (1 - blast * .6) * fade, 0xFFFFFF);
-            ring(c, at, dome, 2 + dome * .05, PALE, (1 - blast) * .9);
             sparkles(c, at, dome * .8, age, 70, PALE, ORCHID, 13);
             int bolts = 22;
             Random fixed = new Random(424242L + (long) Math.floor(age / 3));
@@ -220,6 +237,78 @@ final class BlueRedDraw {
         double white = 1 - clamp01((age - detonate) / 6.0);
         if (white > 0 && c.body()) sprite(c, eye.add(look.scale(.8)), 6, .92 * white, 0xFFFFFF, GateAtlas.SOLID);
         if (white > 0 && c.glow()) sprite(c, eye.add(look.scale(.8)), 6, .6 * white, PALE, GateAtlas.SOLID);
+    }
+
+    /** Purple's first act for its two players: the orbs face each other against black, purple smoke streams past, lightning leaps between, they meet. */
+    static void purpleVoid(Ctx c, Vec3 at, double age, Vec3 eye, Vec3 look) {
+        int end = BlueRedRules.PURPLE_VOID_END;
+        Vec3 view = new Vec3(eye.x - at.x, 0, eye.z - at.z);
+        view = view.lengthSqr() < 1e-6 ? new Vec3(0, 0, -1) : view.normalize();
+        Vec3 axis = view.cross(new Vec3(0, 1, 0)).normalize();
+        double k = smooth(age / (end - 12.0)), d = 5.5 * (1 - k), meet = smooth((age - (end - 14)) / 14.0);
+        if (c.body()) {
+            sprite(c, eye.add(look.scale(.5)), 4, 1, VOID, GateAtlas.SOLID);
+            for (int i = 0; i < 20; i++) {
+                double x = ((i * .37 + age * .012 * (1 + i % 3)) % 1) * 2 - 1, y = Math.sin(i * 2.1 + age * .03) * 2.5;
+                int color = x < -.3 ? 0x3A0A2E : x > .3 ? 0x101A66 : 0x3A0E66;
+                sprite(c, at.subtract(view.scale(3 + i % 4)).add(axis.scale(x * 14)).add(0, y, 0), 3 + (i % 3), .55, color, GateAtlas.SMOKE, i + age * .01);
+            }
+        }
+        Vec3 red = at.subtract(axis.scale(d)), blue = at.add(axis.scale(d));
+        if (meet < 1) {
+            if (c.body()) for (int j = 0; j < 7; j++) {
+                double fade = .5 * (1 - j / 7.0) * (1 - meet);
+                sprite(c, red.subtract(axis.scale(j * .9 + .6)), 1.6 - j * .15, fade, RED_DEEP, GateAtlas.SMOKE, j + age * .05);
+                sprite(c, blue.add(axis.scale(j * .9 + .6)), 1.8 - j * .15, fade, INDIGO, GateAtlas.SMOKE, -j - age * .05);
+            }
+            if (c.body()) sprite(c, red, 2.1, .8 * (1 - meet), RED_BODY, GateAtlas.SMOKE, age * .05);
+            if (c.glow()) { halo(c, red, 2.6, .55 * (1 - meet), RED); halo(c, red, 1.2, .8 * (1 - meet), RED_CORE); }
+            redOrb(c, red, 1.5 * (1 - meet * .6), age);
+            blue(c, blue, true, age + 40, -1);
+        }
+        Random rand = new Random((long) Math.floor(age / 2) * 7717L);
+        if (c.glow() && k > .35) {
+            int bolts = (int) (2 + 8 * k);
+            for (int b = 0; b < bolts; b++)
+                bolt(c, rand, red.add(axis.scale(.8)), axis.add(gauss(rand).scale(.25)).normalize(), Math.max(.5, d * 2 - 1.6), 7, .4, .06, ORCHID, .9, 1);
+        }
+        if (c.glow()) {
+            for (int i = 0; i < 12; i++) {
+                double y = ((i * .29 + age * .006) % 1) * 6 - 3;
+                ring(c, at.add(axis.scale(Math.sin(i * 1.7) * 7)).add(0, y, 0).subtract(view.scale(1)), .15, .03, ORCHID, .6);
+            }
+            if (meet > 0) {
+                halo(c, at, 4 + 22 * meet, .6 * meet, VIOLET);
+                halo(c, at, 2 + 12 * meet, meet, ORCHID);
+                halo(c, at, 1 + 6 * meet, meet, 0xFFFFFF);
+                for (int b = 0; b < 12; b++) {
+                    Vec3 dir = gauss(rand).normalize();
+                    bolt(c, rand, at.add(dir.scale(1 + 3 * meet)), dir, 3 + 9 * meet, 8, .4, .1, ORCHID, meet, 1);
+                }
+                sparkles(c, at, 2 + 6 * meet, age, 50, PALE, ORCHID, 17);
+            }
+        }
+        double white = clamp01((age - (end - 4)) / 4.0);
+        if (white > 0 && c.body()) sprite(c, eye.add(look.scale(.45)), 4, white, 0xFFFFFF, GateAtlas.SOLID);
+    }
+
+    /** Red's impact frames (owner, 2026-11-16): black, red, black, then a fading red wash, with radial ink strokes from the impact. */
+    static int impactColor(int frame) { return frame % 2 == 0 ? INK : RED_BODY; }
+    static double impactAlpha(int frame) { return frame < 3 ? .9 - .12 * frame : frame < 6 ? .35 * (6 - frame) / 3.0 : 0; }
+
+    static void impact(Ctx c, Vec3 at, int frame, Vec3 eye, Vec3 look) {
+        double a = impactAlpha(frame);
+        if (a <= 0 || !c.body()) return;
+        int back = frame < 3 ? impactColor(frame) : RED_BODY, stroke = back == INK ? RED_BODY : INK;
+        sprite(c, eye.add(look.scale(.5)), 4, a, back, GateAtlas.SOLID);
+        Vec3[] uw = basis(look);
+        Random rand = new Random(frame * 131L + 5);
+        for (int i = 0; i < 18; i++) {
+            double ang = i * Math.PI * 2 / 18 + rand.nextGaussian() * .1, len = 4 + rand.nextDouble() * 10;
+            Vec3 dir = uw[0].scale(Math.cos(ang)).add(uw[1].scale(Math.sin(ang)));
+            shaft(c, at.add(dir.scale(.6)), at.add(dir.scale(len)), .25 + rand.nextDouble() * .3, .02, stroke, a, a * .6, 0);
+        }
+        if (frame < 3) sprite(c, at, 1.4, a, stroke, GateAtlas.GLOW);
     }
 
     // ---- shapes ----
@@ -249,7 +338,7 @@ final class BlueRedDraw {
         double step = length / segments;
         for (int s = 0; s < segments; s++) {
             Vec3 q = p.add(d.scale(step)).add(gauss(rand).scale(jitter * step));
-            double k = alpha * (1 - .5 * s / segments);
+            double k = alpha * (1 - .5 * s / segments) * clamp01((Math.min(p.distanceTo(c.eye), q.distanceTo(c.eye)) - 2) / 3);
             shaft(c, p, q, width * 3, width * 3, color, k * .45, k * .45, 0);
             shaft(c, p, q, width * .7, width * .7, 0xFFFFFF, k, k, 0);
             if (depth > 0 && rand.nextDouble() < .3)
@@ -295,7 +384,7 @@ final class BlueRedDraw {
         band(c, at, uw[0], uw[1], radius, width, color, alpha);
     }
 
-    private static void band(Ctx c, Vec3 at, Vec3 u, Vec3 w, double radius, double width, int color, double alpha) {
+    static void band(Ctx c, Vec3 at, Vec3 u, Vec3 w, double radius, double width, int color, double alpha) {
         int n = 40;
         for (int i = 0; i < n; i++) {
             double a0 = Math.PI * 2 * i / n, a1 = Math.PI * 2 * (i + 1) / n;

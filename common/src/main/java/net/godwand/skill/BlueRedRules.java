@@ -14,7 +14,7 @@ public final class BlueRedRules {
     /** Red flies RED_SPEED blocks per tick and hurts anything within RED_HIT_RADIUS of its path. */
     public static final double RED_SPEED = 3.0, RED_HIT_RADIUS = 2.0;
     /** Purple timeline in ticks: the spheres merge, it swells, detonates, the cutscene ends, the crater stops growing. */
-    public static final int PURPLE_MERGE = 20, PURPLE_DETONATE = 80, PURPLE_CINEMATIC = 130, PURPLE_TERRAIN_END = 150;
+    public static final int PURPLE_VOID_END = 70, PURPLE_MERGE = 70, PURPLE_DETONATE = 140, PURPLE_CINEMATIC = 190, PURPLE_TERRAIN_END = 210;
 
     private BlueRedRules() {}
 
