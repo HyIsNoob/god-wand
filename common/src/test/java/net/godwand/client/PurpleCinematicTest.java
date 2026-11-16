@@ -3,81 +3,90 @@ package net.godwand.client;
 import net.godwand.skill.BlueRedRules;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.*;
+import static net.godwand.skill.BlueRedRules.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+/** Owner's direction (2026-11-16): blink, close shot of the orbs swirling in the world, quick fade to the 2D void where they are pushed together and
+ *  Purple swallows them, back to the world with the camera racing round Purple, the blast throws the camera far out. */
 class PurpleCinematicTest {
-    static final Vec3 CENTER = new Vec3(0, 70, 22);
+    static final Vec3 CENTER = new Vec3(0, 70, 22), EYE = new Vec3(0, 66, 0);
 
     @AfterEach void clean() { PurpleCinematic.reset(); }
 
-    @Test void onlyParticipantsAreActive() {
-        PurpleCinematic.start(7, 9, 9, CENTER, new Vec3(0, 66, 0));
-        assertTrue(PurpleCinematic.active());
-        PurpleCinematic.reset();
-        PurpleCinematic.start(7, 9, 7, CENTER, new Vec3(0, 66, 0));
-        assertTrue(PurpleCinematic.active(), "the Red shooter watches too");
-        PurpleCinematic.reset();
-        PurpleCinematic.start(7, 9, 11, CENTER, new Vec3(0, 66, 0));
-        assertFalse(PurpleCinematic.active(), "a bystander keeps their camera");
+    @Test void timelineIsInOrder() {
+        assertTrue(PURPLE_BLINK < PURPLE_SWIRL_END && PURPLE_SWIRL_END < PURPLE_MERGE && PURPLE_MERGE < PURPLE_VOID_END
+                && PURPLE_VOID_END < PURPLE_DETONATE && PURPLE_DETONATE < PURPLE_CINEMATIC && PURPLE_CINEMATIC < PURPLE_TERRAIN_END);
     }
 
-    @Test void endsAt130() {
-        PurpleCinematic.start(7, 7, 7, CENTER, new Vec3(0, 66, 0));
-        for (int i = 0; i < BlueRedRules.PURPLE_CINEMATIC - 1; i++) PurpleCinematic.tick();
+    @Test void onlyParticipantsAreActive() {
+        PurpleCinematic.start(7, 9, 9, CENTER, EYE);
+        assertTrue(PurpleCinematic.active());
+        PurpleCinematic.reset();
+        PurpleCinematic.start(7, 9, 7, CENTER, EYE);
+        assertTrue(PurpleCinematic.active(), "the Red shooter watches too");
+        PurpleCinematic.reset();
+        PurpleCinematic.start(7, 9, 11, CENTER, EYE);
+        assertFalse(PurpleCinematic.active(), "a bystander keeps their camera");
+        assertFalse(PurpleCinematic.inVoid(), "and never sees the void");
+    }
+
+    @Test void swirlInTheWorldThenTheVoidThenTheWorld() {
+        PurpleCinematic.start(7, 7, 7, CENTER, EYE);
+        for (int i = 0; i < PURPLE_SWIRL_END - 1; i++) PurpleCinematic.tick();
+        assertFalse(PurpleCinematic.inVoid(), "the orbs first swirl in the world");
+        for (int i = 0; i < 10; i++) PurpleCinematic.tick();
+        assertTrue(PurpleCinematic.blackout(), "then the 2D void");
+        while (PurpleCinematic.age() < PURPLE_MERGE + 2) PurpleCinematic.tick();
+        assertTrue(PurpleCinematic.inVoid() && !PurpleCinematic.blackout(), "the void thins out over the world Purple");
+        while (PurpleCinematic.age() < PURPLE_VOID_END) PurpleCinematic.tick();
+        assertFalse(PurpleCinematic.inVoid());
+        assertTrue(PurpleCinematic.active());
+    }
+
+    @Test void endsAtTheCinematicEnd() {
+        PurpleCinematic.start(7, 7, 7, CENTER, EYE);
+        for (int i = 0; i < PURPLE_CINEMATIC - 1; i++) PurpleCinematic.tick();
         assertTrue(PurpleCinematic.active());
         PurpleCinematic.tick();
         assertFalse(PurpleCinematic.active());
         assertFalse(PurpleCinematic.movementLocked());
     }
 
-    @Test void farParticipantPulledWithin40() {
-        for (double age : new double[]{0, 40, 80, 100, 129}) {
-            Vec3 cam = PurpleCinematic.pose(CENTER, new Vec3(0, 66, -300), age).position();
-            assertTrue(cam.distanceTo(CENTER) <= 40 + 22, "age " + age + ": " + cam.distanceTo(CENTER));
-            assertTrue(cam.distanceTo(CENTER) >= 8);
+    @Test void blinkStartsFromTheOwnEyesThenCutsClose() {
+        assertTrue(PurpleCinematic.pose(CENTER, EYE, 0).position().distanceTo(EYE) < 1e-6);
+        double close = PurpleCinematic.pose(CENTER, EYE, PURPLE_BLINK + 2).position().distanceTo(CENTER);
+        assertTrue(close >= 4 && close <= 9, "a close shot of the swirling orbs: " + close);
+    }
+
+    @Test void racesRoundPurpleThenIsThrownFar() {
+        double before = 0, turned = 0;
+        Vec3 prev = null;
+        for (double age = PURPLE_VOID_END; age < PURPLE_DETONATE; age += 1) {
+            Vec3 p = PurpleCinematic.pose(CENTER, EYE, age).position().subtract(CENTER);
+            if (prev != null) turned += Math.abs(Math.atan2(prev.x * p.z - prev.z * p.x, prev.x * p.x + prev.z * p.z));
+            prev = p;
+            before = p.length();
         }
+        assertTrue(turned > Math.PI * .8, "a fast move round it: " + turned);
+        double after = PurpleCinematic.pose(CENTER, EYE, PURPLE_DETONATE + 20).position().distanceTo(CENTER);
+        assertTrue(after > before + 15, before + " -> " + after);
     }
 
     @Test void looksAtThePurpleSphere() {
-        var pose = PurpleCinematic.pose(CENTER, new Vec3(0, 66, 0), 30);
-        Vec3 look = Vec3.directionFromRotation(pose.pitch(), pose.yaw());
-        Vec3 toCenter = CENTER.subtract(pose.position()).normalize();
-        assertTrue(look.dot(toCenter) > .99, "camera aims at the sphere");
-    }
-
-    @Test void blackVoidThenTheWorld() {
-        PurpleCinematic.start(7, 9, 9, CENTER, new Vec3(0, 66, 0));
-        assertTrue(PurpleCinematic.inVoid(), "the merge plays against black");
-        for (int i = 0; i < BlueRedRules.PURPLE_VOID_END; i++) PurpleCinematic.tick();
-        assertTrue(PurpleCinematic.inVoid(), "the black thins out over the world, it does not cut");
-        assertFalse(PurpleCinematic.blackout(), "the world purple shows under the thinning black");
-        for (int i = 0; i < 12; i++) PurpleCinematic.tick();
-        assertFalse(PurpleCinematic.inVoid());
-        assertTrue(PurpleCinematic.active(), "back in the world for the swell and the blast");
-        PurpleCinematic.reset();
-        PurpleCinematic.start(7, 9, 11, CENTER, new Vec3(0, 66, 0));
-        assertFalse(PurpleCinematic.inVoid(), "bystanders never see the void");
-    }
-
-    @Test void voidCameraFramesBothOrbsCloseUp() {
-        for (double age = 16; age < BlueRedRules.PURPLE_VOID_END; age += 5) {
-            double d = PurpleCinematic.pose(CENTER, new Vec3(0, 66, -300), age).position().distanceTo(CENTER);
-            assertTrue(d >= 8 && d <= 14, "age " + age + ": " + d);
+        for (double age : new double[]{PURPLE_BLINK + 5, PURPLE_VOID_END + 10, PURPLE_DETONATE + 10}) {
+            var pose = PurpleCinematic.pose(CENTER, EYE, age);
+            Vec3 look = Vec3.directionFromRotation(pose.pitch(), pose.yaw());
+            assertTrue(look.dot(CENTER.subtract(pose.position()).normalize()) > .99, "age " + age);
         }
     }
 
-    @Test void startsFromThePlayersOwnEyes() {
-        Vec3 eye = new Vec3(3, 66, 0);
-        assertTrue(PurpleCinematic.pose(CENTER, eye, 0).position().distanceTo(eye) < 1e-6, "no cut on the first frame");
-    }
-
-    @Test void poseIsContinuous() {
-        Vec3 eye = new Vec3(3, 66, 0);
-        Vec3 prev = PurpleCinematic.pose(CENTER, eye, 0).position();
-        for (double age = .5; age <= BlueRedRules.PURPLE_CINEMATIC; age += .5) {
-            Vec3 now = PurpleCinematic.pose(CENTER, eye, age).position();
-            double limit = age > BlueRedRules.PURPLE_DETONATE && age < BlueRedRules.PURPLE_DETONATE + 16 ? 1.5 : age < 16 ? 1 : .5;
-            assertTrue(now.distanceTo(prev) < limit, "jump at age " + age + ": " + now.distanceTo(prev));
+    @Test void smoothBetweenTheCuts() {
+        Vec3 prev = PurpleCinematic.pose(CENTER, EYE, 0).position();
+        for (double age = .5; age <= PURPLE_CINEMATIC; age += .5) {
+            Vec3 now = PurpleCinematic.pose(CENTER, EYE, age).position();
+            boolean cut = Math.abs(age - PURPLE_BLINK) < .6 || Math.abs(age - PURPLE_SWIRL_END) < .6 || Math.abs(age - PURPLE_MERGE) < .6;
+            double limit = age > PURPLE_DETONATE && age < PURPLE_DETONATE + 16 ? 3 : 1.4;
+            if (!cut) assertTrue(now.distanceTo(prev) < limit, "jump at age " + age + ": " + now.distanceTo(prev));
             prev = now;
         }
     }

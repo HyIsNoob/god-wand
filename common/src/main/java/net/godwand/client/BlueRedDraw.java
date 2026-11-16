@@ -144,12 +144,24 @@ final class BlueRedDraw {
         if (c.body() && tint > 0) sprite(c, eye.add(look.scale(1)), 6, .4 * tint, NIGHT, BlueRedAtlas.SOLID);
         double rush = smooth((age - (detonate - 30)) / 30.0) * (1 - clamp01((age - detonate - 10) / 30.0)) * clamp01(1 - eye.distanceTo(at) / 90);
         speedLines(c, eye, look, .85 * rush, PALE);
+        double blink = 1 - clamp01(age / BlueRedRules.PURPLE_BLINK);
+        if (blink > 0 && c.body() && eye.distanceTo(at) < 60) sprite(c, eye.add(look.scale(.8)), 6, blink, 0xFFFFFF, BlueRedAtlas.SOLID);
         if (age < merge) {
-            // What bystanders see: the two orbs spiralling into one.
-            double a = age * .35, d = 3.2 * (1 - smooth(age / merge));
-            Vec3 off = new Vec3(Math.cos(a) * d, Math.sin(a * .5) * d * .3, Math.sin(a) * d);
-            blue(c, at.add(off), true, age + 40, -1);
-            redOrb(c, at.subtract(off), 1.4, age);
+            // In the world the two orbs swirl round each other on a tightening spiral, lightning thickening between them, until Purple is born.
+            double k = smooth(age / merge), dd = 3.2 * (1 - k) + .3, theta = age * (.12 + .25 * k);
+            Vec3 off = new Vec3(Math.cos(theta) * dd, Math.sin(theta * .7) * dd * .35, Math.sin(theta) * dd);
+            Vec3 red = at.subtract(off), blue = at.add(off);
+            blue(c, blue, true, age + 40, -1);
+            redOrb(c, red, 1.4, age);
+            if (c.glow()) {
+                Random r2 = new Random((long) Math.floor(age / 2) * 911L);
+                int bolts = (int) (2 + 12 * k * k);
+                for (int b = 0; b < bolts; b++) {
+                    Vec3 dirB = blue.subtract(red);
+                    bolt(c, r2, red, dirB.add(gauss(r2).scale(.3)).normalize(), dirB.length(), 7, .35, .02 + .08 * k * k, ORCHID, .95, 1);
+                }
+                glow(c, at, 1 + 5 * k, .5 * k, VIOLET);
+            }
             return;
         }
         Random rand = new Random((long) Math.floor(age / 2) * 104729L);
@@ -221,22 +233,24 @@ final class BlueRedDraw {
 
     /** Black over the world for Purple's two players: fades in as Red strikes Blue, holds, fades out into the world after the merge. */
     static double voidAlpha(double age) {
-        int end = BlueRedRules.PURPLE_VOID_END;
-        if (age < end) return smooth(age / 14);
-        return 1 - smooth((age - end) / 12);
+        int in = BlueRedRules.PURPLE_SWIRL_END, merge = BlueRedRules.PURPLE_MERGE, end = BlueRedRules.PURPLE_VOID_END;
+        if (age < in || age >= end) return 0;
+        if (age < merge) return smooth((age - in) / 6);
+        return 1 - smooth((age - merge) / (end - merge));
     }
 
-    /** Purple's first act: struck, the two orbs (the same size) recoil apart against a drifting nebula, hang facing each other as smoke streams past,
-     *  lightning leaps between them, they rush together and merge in a white burst. */
+    /** The 2D act (owner, 2026-11-16): against a drifting nebula a big Blue and a big Red, drawn alike (one blue, one red), are pushed slowly
+     *  together, lightning thickening between them; Purple forms over both and swallows them. */
     static void purpleVoid(Ctx c, Vec3 at, double age, Vec3 eye, Vec3 look) {
-        int end = BlueRedRules.PURPLE_VOID_END;
         double back = voidAlpha(age);
         if (back <= 0) return;
+        int in = BlueRedRules.PURPLE_SWIRL_END, merge = BlueRedRules.PURPLE_MERGE;
+        double v = age - in, span = merge - in;
         Vec3 view = new Vec3(eye.x - at.x, 0, eye.z - at.z);
         view = view.lengthSqr() < 1e-6 ? new Vec3(0, 0, -1) : view.normalize();
         Vec3 axis = view.cross(new Vec3(0, 1, 0)).normalize();
-        double recoil = smooth(age / 10), approach = smooth((age - 8) / (end - 16.0)), meet = smooth((age - (end - 10)) / 10.0);
-        double d = 5.4 * recoil * (1 - approach) + .15, r = 2;
+        double push = smooth(v / (span * .72)), form = smooth((v - span * .5) / (span * .3)), absorb = smooth((v - span * .65) / (span * .3));
+        double r = 1.9, d = 4.6 * (1 - push) + 1.1;
         if (c.body()) {
             Vec3[] uw = basis(look);
             Vec3 o = eye.add(look.scale(.5));
@@ -248,59 +262,58 @@ final class BlueRedDraw {
                 fxSprite(c, at.subtract(view.scale(3 + i % 4)).add(axis.scale(x * 14)).add(0, y, 0), 3 + (i % 3), SMOKE, 260 + i, color, .55 * back, i);
             }
         }
-        // The pair circles its centre ever faster on a tightening spiral, tilted towards the camera so the orbit reads.
-        double close = 1 - d / 5.4, theta = age * (.06 + .22 * close * close) + age * age * .0025;
-        Vec3 up = new Vec3(0, 1, 0), swing = up.scale(.55).add(view.scale(.45)).normalize();
-        Vec3 off = axis.scale(Math.cos(theta) * d).add(swing.scale(Math.sin(theta) * d * .6));
-        Vec3 red = at.subtract(off), blue = at.add(off);
-        double orbs = (1 - meet) * clamp01(back * 1.5);
+        Vec3 red = at.subtract(axis.scale(d)).add(jitter(age, .05 + .12 * push, 3)), blue = at.add(axis.scale(d)).add(jitter(age, .05 + .12 * push, 5));
+        double orbs = (1 - absorb) * clamp01(back * 1.5), rr = r * (1 - .6 * absorb);
         if (orbs > .02) {
-            if (c.body()) for (int j = 0; j < 8; j++) {
-                // Each drags a smoke trail round its orbit.
-                double lag = theta - j * .18;
-                Vec3 o = axis.scale(Math.cos(lag) * d).add(swing.scale(Math.sin(lag) * d * .6));
-                double f = .55 * (1 - j / 8.0) * orbs;
-                fxSprite(c, at.subtract(o), 1.9 - j * .14, SMOKE, 280 + j, RED_BODY, f, j);
-                fxSprite(c, at.add(o), 2.1 - j * .14, SMOKE, 290 + j, ROYAL, f, -j);
+            for (int side = 0; side < 2; side++) {
+                Vec3 p = side == 0 ? red : blue;
+                Vec3 outward = side == 0 ? axis.scale(-1) : axis;
+                int tint = side == 0 ? RED : 0x1A6CFF, light = side == 0 ? RED_LIGHT : CYAN;
+                // The same orb, vortex and streams on both sides; only the colour differs.
+                if (c.body()) {
+                    orb(c, p, rr, 1, 1, tint, orbs);
+                    for (int j = 0; j < 8; j++)
+                        fxSprite(c, p.add(outward.scale(j * 1.1 + 1.2)), 2 - j * .15, SMOKE, 280 + 10 * side + j, side == 0 ? RED_BODY : ROYAL, .55 * (1 - j / 8.0) * orbs, j);
+                    vortex(c, p, rr * .9, rr * 2.8, age * 1.2, 5, side == 0 ? INK : 0x0A1440, 740 + side, .7 * orbs);
+                }
+                if (c.glow()) {
+                    vortex(c, p, rr * .9, rr * 2.6, age, 6, light, 730 + side, .55 * orbs);
+                    streaks(c, p, rr * .9, rr * 5, age, 40, light, 720 + side * 5, 1.6, orbs, true);
+                    glow(c, p, rr * 2.4, .3 * orbs, tint);
+                }
             }
-            redOrb(c, red, r, age);
-            blue(c, blue, true, age + 40, -1);
         }
         Random rand = new Random((long) Math.floor(age / 2) * 7717L);
         if (c.glow()) {
-            // Purple lightning between them: more and thicker the closer they are, a violet glow building where it meets.
-            if (approach > .05) {
-                int bolts = (int) (1 + 16 * close * close);
-                Vec3 gap = blue.subtract(red);
-                double span = gap.length();
-                for (int k = 0; k < bolts && span > .2; k++) {
-                    Vec3 from = red.add(gauss(rand).scale(r * .4)), to = blue.add(gauss(rand).scale(r * .4));
-                    Vec3 dirB = to.subtract(from);
-                    bolt(c, rand, from, dirB.normalize(), dirB.length(), 8, .35, .015 + .09 * close * close, k % 3 == 0 ? PALE : ORCHID, .95 * back, 1);
-                }
-                fxSprite(c, red.add(gap.scale(.5)), (.5 + 3 * close) * 1.2, SHOCK, 295, ORCHID, close * .8 * back, theta);
-                glow(c, red.add(gap.scale(.5)), 1 + 6 * close, close * close * back, VIOLET);
+            // Lightning between them: more and thicker the closer they are.
+            Vec3 gap = blue.subtract(red);
+            double close = push * (1 - absorb);
+            int bolts = (int) (2 + 16 * close * close);
+            for (int k = 0; k < bolts; k++) {
+                Vec3 from = red.add(gauss(rand).scale(rr * .4)), to = blue.add(gauss(rand).scale(rr * .4));
+                Vec3 dirB = to.subtract(from);
+                bolt(c, rand, from, dirB.normalize(), dirB.length(), 8, .35, .015 + .09 * close * close, k % 3 == 0 ? PALE : ORCHID, .95 * back, 1);
             }
             for (int i = 0; i < 14; i++) {
                 double y = ((i * .29 + age * .006) % 1) * 6 - 3;
                 sprite(c, at.add(axis.scale(Math.sin(i * 1.7) * 7)).add(0, y, 0).subtract(view.scale(1)), .2, .7 * back, ORCHID, BlueRedAtlas.BUBBLE);
             }
-            if (meet > 0) {
-                orb(c, at, 1.5 + 4.5 * meet, 2, 1, VIOLET, meet);
-                stormRibbons(c, at, 1.5 + 4.5 * meet, age, 12, meet);
-                streaks(c, at, 1.5, 9, age, 70, PALE, 1400, 2.4, meet, false);
-                fxSprite(c, at, 6 + 18 * meet, RAYS, 300, PALE, meet, age * .02);
-                glow(c, at, 1 + 6 * meet, meet, 0xFFFFFF);
-                for (int bb = 0; bb < 12; bb++) {
+        }
+        if (form > 0) {
+            // Purple forms over both and grows to swallow them.
+            double s = (1.2 + 4.6 * form) * (1 + .15 * absorb);
+            if (c.body()) orb(c, at, s, 2, 1, VIOLET, form * back);
+            if (c.glow()) {
+                stormRibbons(c, at, s, age, 12, form * back);
+                streaks(c, at, s * .95, s * 3.5, age, 60, PALE, 1450, 1.6, form * back, true);
+                fxSprite(c, at, 4 + 14 * form, RAYS, 300, PALE, form * back, age * .02);
+                for (int bb = 0; bb < 8; bb++) {
                     Vec3 dir = gauss(rand).normalize();
-                    bolt(c, rand, at.add(dir.scale(1 + 3 * meet)), dir, 3 + 9 * meet, 8, .4, .04, ORCHID, meet, 1);
+                    bolt(c, rand, at.add(dir.scale(s)), dir, s * (.6 + rand.nextDouble()), 8, .4, .04, ORCHID, form * back, 1);
                 }
-                sparks(c, at, 2 + 6 * meet, age, 50, PALE, 310);
+                sparks(c, at, s * 1.3, age, 50, PALE, 310);
             }
         }
-        // The burst whites the screen out at the meeting; the white then thins with the black, uncovering the world.
-        double white = age < end ? smooth((age - (end - 3)) / 3.0) : 1 - smooth((age - end) / 5.0);
-        if (white > 0 && c.body()) sprite(c, eye.add(look.scale(.45)), 4, white, 0xFFFFFF, BlueRedAtlas.SOLID);
     }
 
     /** Red's impact frames (owner, 2026-11-16): black, red, black, then a fading red wash, with a burst of ink rays from the impact. */

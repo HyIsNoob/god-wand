@@ -74,20 +74,20 @@ class BlueRedDrawTest {
 
     @Test void voidShowsBothOrbsMergingOverBlack() {
         var body = ctx(0);
-        BlueRedDraw.purpleVoid(body, AT, 10, AT.add(0, 0, -10), LOOK);
+        BlueRedDraw.purpleVoid(body, AT, BlueRedRules.PURPLE_SWIRL_END + 15, AT.add(0, 0, -10), LOOK);
         assertTrue(body.quads > 20, "backdrop, smoke and the two orbs: " + body.quads);
-        var merge = ctx(1);
-        BlueRedDraw.purpleVoid(merge, AT, BlueRedRules.PURPLE_VOID_END - 8, AT.add(0, 0, -10), LOOK);
-        var early = ctx(1);
-        BlueRedDraw.purpleVoid(early, AT, 10, AT.add(0, 0, -10), LOOK);
-        assertTrue(merge.quads > early.quads, "lightning and the burst when they meet");
+        assertEquals(java.util.List.of(1 + 4, 1 + 4), orbs(body), "the same orb style on both sides, one blue, one red");
+        var merged = ctx(0);
+        BlueRedDraw.purpleVoid(merged, AT, BlueRedRules.PURPLE_MERGE - 4, AT.add(0, 0, -10), LOOK);
+        assertTrue(orbs(merged).contains(2 + 4), "Purple forms over them");
     }
 
-    @Test void voidFadesInAndOutInsteadOfCutting() {
-        assertEquals(0, BlueRedDraw.voidAlpha(0), 1e-9);
-        assertEquals(1, BlueRedDraw.voidAlpha(30), 1e-9);
-        assertTrue(BlueRedDraw.voidAlpha(BlueRedRules.PURPLE_VOID_END + 6) > 0 && BlueRedDraw.voidAlpha(BlueRedRules.PURPLE_VOID_END + 6) < 1);
-        assertEquals(0, BlueRedDraw.voidAlpha(BlueRedRules.PURPLE_VOID_END + 12), 1e-9);
+    @Test void voidFadesQuicklyInAndOutInsteadOfCutting() {
+        assertEquals(0, BlueRedDraw.voidAlpha(BlueRedRules.PURPLE_SWIRL_END - 1), 1e-9);
+        assertEquals(1, BlueRedDraw.voidAlpha(BlueRedRules.PURPLE_SWIRL_END + 10), 1e-9);
+        double out = BlueRedDraw.voidAlpha((BlueRedRules.PURPLE_MERGE + BlueRedRules.PURPLE_VOID_END) / 2.0);
+        assertTrue(out > 0 && out < 1);
+        assertEquals(0, BlueRedDraw.voidAlpha(BlueRedRules.PURPLE_VOID_END), 1e-9);
     }
 
     @Test void redImpactFramesAlternateBlackAndRed() {

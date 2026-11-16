@@ -147,7 +147,7 @@ public final class BlueRedRenderer {
             double age = now - p.at();
             light = p.pos(); strength = .65;
             burst = .55 * (1 - clamp01((age - BlueRedRules.PURPLE_DETONATE) / 24.0)) * (age >= BlueRedRules.PURPLE_DETONATE ? 1 : 0)
-                    + .35 * smooth((age - (BlueRedRules.PURPLE_VOID_END - 14)) / 14.0) * (age < BlueRedRules.PURPLE_VOID_END + 10 ? 1 : 0);
+                    + .35 * smooth((age - (BlueRedRules.PURPLE_MERGE - 20)) / 20.0) * (age < BlueRedRules.PURPLE_VOID_END ? 1 : 0);
         } else {
             double best = Double.MAX_VALUE;
             for (BlueView b : BLUES.values()) { double d = b.pos.distanceToSqr(camera.getPosition()); if (d < best) { best = d; light = b.pos; } }

@@ -32,33 +32,54 @@ public final class PurpleCinematic {
     public static boolean active() { return age >= 0 && age < BlueRedRules.PURPLE_CINEMATIC; }
     public static boolean movementLocked() { return active(); }
     /** The two orbs meet against black (owner, 2026-11-16) before the cut back to the world. */
-    public static boolean inVoid() { return active() && age < BlueRedRules.PURPLE_VOID_END + 12; }
+    public static boolean inVoid() { return active() && age >= BlueRedRules.PURPLE_SWIRL_END && age < BlueRedRules.PURPLE_VOID_END; }
     /** Fully black: the world Purple is not drawn yet (it shows under the black once that starts thinning). */
-    public static boolean blackout() { return active() && age < BlueRedRules.PURPLE_VOID_END; }
+    public static boolean blackout() { return active() && age >= BlueRedRules.PURPLE_SWIRL_END + 6 && age < BlueRedRules.PURPLE_MERGE; }
+    static double age() { return age; }
     public static void reset() { age = -1; center = null; eye = null; }
 
     public static AtomicCinematic.Pose camera(float delta, Vec3 vanillaPosition, float vanillaYaw, float vanillaPitch) {
-        return active() ? pose(center, eye, age + delta) : null;
+        if (!active()) return null;
+        AtomicCinematic.Pose p = pose(center, eye, age + delta);
+        return aim(unblocked(center, p.position()), center);
     }
 
-    /** One unbroken camera move (owner, 2026-11-16: no hard cuts): out of the player's own eyes, round to the side of the two orbs and slowly in on them
-     *  while the world goes black, then back and down as Purple swells (low, looking up), thrown back and up by the blast, settling. */
+    /** Owner's direction (2026-11-16): the player's own view for the blink, a cut to a close shot of the orbs swirling in the world, held still behind
+     *  the 2D void, a cut back to a fast move round Purple as it swells, thrown far back by the blast. */
     static AtomicCinematic.Pose pose(Vec3 center, Vec3 eye, double age) {
         Vec3 away = new Vec3(eye.x - center.x, 0, eye.z - center.z);
         Vec3 side = away.lengthSqr() < 1e-6 ? new Vec3(0, 0, -1) : away.normalize();
-        double turn = age * .004;
-        side = new Vec3(side.x * Math.cos(turn) - side.z * Math.sin(turn), 0, side.x * Math.sin(turn) + side.z * Math.cos(turn));
-        int v = BlueRedRules.PURPLE_VOID_END, det = BlueRedRules.PURPLE_DETONATE;
-        double d = age < v ? 10 - 1.5 * GateDraw.smooth(age / v) : 8.5 + 21.5 * GateDraw.smooth((age - v) / (det - v));
-        double thrown = GateDraw.smooth((age - det) / 16);
-        d += thrown * 14 + Math.max(0, age - det - 16) * .08;
-        double h = (age < v ? .6 : .6 - 1.6 * GateDraw.smooth((age - v) / 30) + Math.max(0, age - v - 30) * .03) + thrown * 8;
-        Vec3 cam = center.add(side.scale(d)).add(0, h, 0);
-        if (age < 16) {
-            Vec3 from = eye.distanceTo(center) > 40 ? center.add(eye.subtract(center).normalize().scale(40)) : eye;
-            cam = from.add(cam.subtract(from).scale(GateDraw.smooth(age / 16)));
+        int blink = BlueRedRules.PURPLE_BLINK, swirl = BlueRedRules.PURPLE_SWIRL_END, merge = BlueRedRules.PURPLE_MERGE, det = BlueRedRules.PURPLE_DETONATE;
+        if (age < blink) return aim(eye, center);
+        if (age < swirl) {
+            // Close, a little below, drifting round them.
+            double k = (age - blink) / (swirl - blink);
+            Vec3 s = turn(side, .5 + k * .45);
+            return aim(center.add(s.scale(7.5 - 1.5 * k)).add(0, -.8 + .6 * k, 0), center);
         }
-        return aim(cam, center);
+        if (age < merge) return aim(center.add(side.scale(9)).add(0, .6, 0), center);
+        // Racing round it, low and close, then thrown far back and up by the blast.
+        double run = age - merge, thrown = GateDraw.smooth((age - det) / 18);
+        double ang = 1.2 + run * .055 - Math.max(0, age - det) * .045;
+        double d = 22 - 4 * GateDraw.smooth(run / (det - merge)) + thrown * 30 + Math.max(0, age - det - 18) * .1;
+        // Kept above the ground the sphere sits on (it is centred about eye height): never under the grass.
+        double h = 3 + 2.5 * Math.sin(run * .05) + thrown * 14;
+        return aim(center.add(turn(side, ang).scale(d)).add(0, h, 0), center);
+    }
+
+    /** Never inside a wall: if blocks stand between the sphere and the camera, the camera stops just in front of them. */
+    private static Vec3 unblocked(Vec3 target, Vec3 cam) {
+        var mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null) return cam;
+        var hit = mc.level.clip(new net.minecraft.world.level.ClipContext(target, cam, net.minecraft.world.level.ClipContext.Block.VISUAL,
+                net.minecraft.world.level.ClipContext.Fluid.NONE, mc.player));
+        if (hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) return cam;
+        Vec3 back = cam.subtract(target);
+        return hit.getLocation().subtract(back.normalize().scale(.6));
+    }
+
+    private static Vec3 turn(Vec3 v, double a) {
+        return new Vec3(v.x * Math.cos(a) - v.z * Math.sin(a), 0, v.x * Math.sin(a) + v.z * Math.cos(a));
     }
 
     private static AtomicCinematic.Pose aim(Vec3 cam, Vec3 target) {

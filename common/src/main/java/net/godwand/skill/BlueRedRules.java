@@ -13,8 +13,11 @@ public final class BlueRedRules {
     public static final int CORE_PERIOD = 5;
     /** Red flies RED_SPEED blocks per tick and hurts anything within RED_HIT_RADIUS of its path. */
     public static final double RED_SPEED = 3.0, RED_HIT_RADIUS = 2.0;
-    /** Purple timeline in ticks: the spheres merge, it swells, detonates, the cutscene ends, the crater stops growing. */
-    public static final int PURPLE_VOID_END = 70, PURPLE_MERGE = 70, PURPLE_DETONATE = 140, PURPLE_CINEMATIC = 190, PURPLE_TERRAIN_END = 210;
+    /** Purple timeline in ticks (owner's direction, 2026-11-16): a blink, the orbs swirl in the world, a quick fade to the 2D void where they are pushed
+     *  together and Purple swallows them (the void thins out from MERGE to VOID_END), the camera races round Purple, it detonates, the cutscene
+     *  ends, the crater stops growing. */
+    public static final int PURPLE_BLINK = 4, PURPLE_SWIRL_END = 40, PURPLE_MERGE = 110, PURPLE_VOID_END = 118,
+            PURPLE_DETONATE = 170, PURPLE_CINEMATIC = 220, PURPLE_TERRAIN_END = 240;
 
     private BlueRedRules() {}
 
