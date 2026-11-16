@@ -10,9 +10,9 @@ import static org.junit.jupiter.api.Assertions.*;
 class BlueRedDrawTest {
     /** Counts nothing, costs nothing: a Mockito mock per vertex made this suite take minutes. */
     static final class Sink implements VertexConsumer {
-        public VertexConsumer addVertex(float x, float y, float z) { return this; }
+        public VertexConsumer addVertex(float x, float y, float z) { pos.add(new float[]{x, y, z}); return this; }
         public VertexConsumer setColor(int r, int g, int b, int a) { return this; }
-        final java.util.List<float[]> uv = new java.util.ArrayList<>();
+        final java.util.List<float[]> uv = new java.util.ArrayList<>(), pos = new java.util.ArrayList<>();
         public VertexConsumer setUv(float u, float v) { uv.add(new float[]{u, v}); return this; }
         public VertexConsumer setUv1(int u, int v) { return this; }
         public VertexConsumer setUv2(int u, int v) { return this; }
@@ -77,10 +77,67 @@ class BlueRedDrawTest {
         var body = ctx(0);
         BlueRedDraw.purpleVoid(body, AT, BlueRedRules.PURPLE_SWIRL_END + 15, AT.add(0, 0, -10), LOOK);
         assertTrue(body.quads > 20, "backdrop, smoke and the two orbs: " + body.quads);
-        assertEquals(java.util.List.of(1 + 4, 1 + 4), orbs(body), "the same orb style on both sides, one blue, one red");
+        var seeds = orbs(body);
+        assertTrue(seeds.contains(1) && seeds.contains(4), "each orb true to itself (red orb, charged blue orb): " + seeds);
         var merged = ctx(0);
         BlueRedDraw.purpleVoid(merged, AT, BlueRedRules.PURPLE_MERGE - 4, AT.add(0, 0, -10), LOOK);
         assertTrue(orbs(merged).contains(2 + 4), "Purple forms over them");
+    }
+
+    static float[][] mesh(java.util.function.Consumer<GateDraw.Ctx> draw) {
+        var c = ctx(-1);
+        draw.accept(c);
+        return ((Sink) c.v).pos.toArray(new float[0][]);
+    }
+
+    static double maxShift(float[][] a, float[][] b) {
+        assertEquals(a.length, b.length, "same geometry from one instant to the next");
+        double m = 0;
+        for (int i = 0; i < a.length; i++) m = Math.max(m, Math.hypot(Math.hypot(a[i][0] - b[i][0], a[i][1] - b[i][1]), a[i][2] - b[i][2]));
+        return m;
+    }
+
+    @Test void lightningCrawlsInsteadOfPopping() {
+        Vec3 a = AT, b = AT.add(6, 2, 0);
+        float[][] now = mesh(c -> BlueRedDraw.liveBolt(c, a, b, 8, .3, .05, BlueRedDraw.ORCHID, 1, 77, 100, .8));
+        float[][] next = mesh(c -> BlueRedDraw.liveBolt(c, a, b, 8, .3, .05, BlueRedDraw.ORCHID, 1, 77, 100.05, .8));
+        assertTrue(maxShift(now, next) < .1, "a twentieth of a tick moves the bolt only a little: " + maxShift(now, next));
+    }
+
+    @Test void sameInstantSameGeometry() {
+        for (double age : new double[]{30, BlueRedRules.PURPLE_SWIRL_END + 20, BlueRedRules.PURPLE_MERGE + 20, BlueRedRules.PURPLE_DETONATE + 5}) {
+            float[][] a = mesh(c -> { BlueRedDraw.purple(c, AT, age, EYE, LOOK); BlueRedDraw.purpleVoid(c, AT, age, EYE, LOOK); });
+            float[][] b = mesh(c -> { BlueRedDraw.purple(c, AT, age, EYE, LOOK); BlueRedDraw.purpleVoid(c, AT, age, EYE, LOOK); });
+            assertEquals(0, maxShift(a, b), 1e-9, "age " + age);
+        }
+        float[][] r1 = mesh(c -> BlueRedDraw.redOrb(c, AT, .5, 33.3)), r2 = mesh(c -> BlueRedDraw.redOrb(c, AT, .5, 33.3));
+        assertEquals(0, maxShift(r1, r2), 1e-9);
+    }
+
+    @Test void purpleSizeNeverJumps() {
+        double prev = BlueRedDraw.purpleSize(BlueRedRules.PURPLE_MERGE);
+        assertEquals(6, prev, .01, "picks up from the size the void leaves it at");
+        for (double age = BlueRedRules.PURPLE_MERGE + .25; age < BlueRedRules.PURPLE_CINEMATIC; age += .25) {
+            double s = BlueRedDraw.purpleSize(age);
+            assertTrue(s >= prev - 1e-9 && s - prev < 1.6, "age " + age + ": " + prev + " -> " + s);
+            prev = s;
+        }
+    }
+
+    @Test void blueAndRedDrawDifferentShapes() {
+        var blue = ctx(-1);
+        BlueRedDraw.blue(blue, AT, true, 30, -1);
+        var red = ctx(-1);
+        BlueRedDraw.redOrb(red, AT, 2, 30);
+        java.util.Set<Integer> b = effects(blue), r = effects(red);
+        assertTrue(b.contains(BlueRedDraw.DEBRIS) && b.contains(BlueRedDraw.FLOW), "Blue: infalling debris and tendrils " + b);
+        assertTrue(r.contains(BlueRedDraw.FLOW) && r.contains(BlueRedDraw.SMOKE), "Red: brush strokes and smoke " + r);
+    }
+
+    static java.util.Set<Integer> effects(GateDraw.Ctx c) {
+        java.util.Set<Integer> out = new java.util.TreeSet<>();
+        for (float[] uv : ((Sink) c.v).uv) if (uv[1] >= 2) out.add((int) Math.floor(uv[1]) - 2);
+        return out;
     }
 
     @Test void voidFadesQuicklyInAndOutInsteadOfCutting() {

@@ -235,7 +235,13 @@ public final class BlueRedRenderer {
             BlueRedDraw.redFlight(c, f.origin, f.dir, head, age, 1 - clamp01(after / 10), f.owner * 31L + (long) f.at, f.end == null);
         }
         for (Burst b : BURSTS) BlueRedDraw.burst(c, b.pos(), now - b.at(), b.blue());
-        if (!PurpleCinematic.blackout()) for (Purple p : PURPLES) BlueRedDraw.purple(c, p.pos(), now - p.at(), eye, look);
+        if (!PurpleCinematic.blackout()) for (Purple p : PURPLES) {
+            double age = now - p.at();
+            // For the two players the world pair is gone before the void's pair shows (a dip through black), so two pairs never show at once.
+            c.fade = PurpleCinematic.active() && age < BlueRedRules.PURPLE_MERGE ? 1 - Math.min(1, BlueRedDraw.voidAlpha(age) / .55) : 1;
+            BlueRedDraw.purple(c, p.pos(), age, eye, look);
+            c.fade = 1;
+        }
         return c.quads;
     }
 }

@@ -78,7 +78,9 @@ void main() {
         float d = length(q) / R;
         float ang = atan(q.y, q.x);
         vec2 dir = vec2(cos(ang), sin(ang));
-        float wob = (fbm(vec3(dir * 2.5, t * 0.8)) - 0.5) * (isBlue ? 0.14 : 0.03);
+        // Blue's rim is never a clean circle: a slow lumpy swell plus fast crackle.
+        float wob = isBlue ? (fbm(vec3(dir * 1.3, t * 0.35)) - 0.5) * 0.3 + (fbm(vec3(dir * 4.0, t * 1.1)) - 0.5) * 0.12
+                           : (fbm(vec3(dir * 2.5, t * 0.8)) - 0.5) * 0.03;
         float dd = d - wob;
         vec3 hot = mix(tint, vec3(1.0), 0.6);
         float rimLine = exp(-pow((dd - 1.0) / (isBlue ? 0.035 : 0.022), 2.0));
