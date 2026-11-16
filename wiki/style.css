@@ -314,82 +314,6 @@ header.top-header {
   border-color: var(--border-highlight);
 }
 
-.ai-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--accent-gold);
-  background: var(--accent-gold-bg);
-  border: 1px solid var(--accent-gold-border);
-  padding: 0.38rem 0.75rem;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.ai-btn:hover {
-  background: rgba(229, 169, 60, 0.18);
-  border-color: var(--accent-gold);
-  color: #ffffff;
-}
-
-[data-theme="light"] .ai-btn:hover {
-  color: var(--accent-gold-hover);
-}
-
-.hero-ai-strip {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  flex-wrap: wrap;
-  margin-top: 1.25rem;
-  padding-top: 1.15rem;
-  border-top: 1px solid var(--border-color);
-}
-
-.hero-ai-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  background: var(--accent-gold);
-  color: #171320;
-  font-weight: 700;
-  font-size: 0.88rem;
-  padding: 0.55rem 1.15rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--accent-gold-hover);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: 0 2px 8px rgba(229, 169, 60, 0.25);
-}
-
-.hero-ai-btn:hover {
-  background: var(--accent-gold-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(229, 169, 60, 0.35);
-}
-
-.hero-ai-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.84rem;
-  color: var(--text-muted);
-  text-decoration: none;
-  padding: 0.45rem 0.75rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  background: var(--bg-tertiary);
-  transition: all 0.15s ease;
-}
-
-.hero-ai-link:hover {
-  color: var(--text-primary);
-  border-color: var(--border-highlight);
-}
-
 .menu-toggle {
   display: none;
   background: none;
@@ -981,12 +905,10 @@ footer.doc-footer {
     font-size: 0.8rem;
   }
   .theme-label,
-  .ai-btn span,
   .lang-btn span,
   .nav-link-btn span {
     display: none;
   }
-  .ai-btn,
   .theme-btn,
   .lang-btn,
   .nav-link-btn {
