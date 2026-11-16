@@ -12,6 +12,7 @@ Merge the selected keys below into config/godwand-server.json, then restart the 
 | 5 Stone Cannon | stoneCannonTerrainDamage | Projectile impact does not excavate blocks |
 | 6 Atomic | atomicTerrainDamage | No block removal; damage and cinematic remain |
 | 7 Fuga | fugaTerrainDamage | Disables crater, rock spires and ground scorching. Entity damage and cinematic remain available. fugaTerrainRadius (default 48, max 64) caps all harmful gameplay effects around the impact column |
+| 8 Silent Gate | gateTerrainDamage | Beams no longer dig craters. gateCraterRadius (default 3, 0–6) sets the crater size when it is on. Damage and cinematic remain |
 
 In 1.4.4, fugaTerrainRadius is the maximum horizontal distance from the impact column for block changes, entity damage, shockwave and slowness. A value of 23 confines these effects to that radius. A value of 0 disables them. The projectile can still fly up to 160 blocks before landing. The cinematic and expanding heat aura keep their visual size. Fuga no longer places vanilla fire blocks that could spread past the boundary.
 

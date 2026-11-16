@@ -30,6 +30,7 @@ public final class FugaPose {
         // Vanilla setupAnim resets these pivots every frame; rotate the shoulders with the torso only for Fuga.
         rightArm.x=-5*(float)Math.cos(pose.bodyYaw());rightArm.z=5*(float)Math.sin(pose.bodyYaw());
         leftArm.x=5*(float)Math.cos(pose.bodyYaw());leftArm.z=-5*(float)Math.sin(pose.bodyYaw());
+        CastPoseLock.capture(rightArm, leftArm, body, head);
         return true;
     }
     public static Arms arms(int phase, double age, float pitch, float yaw) {
@@ -75,6 +76,7 @@ public final class FugaPose {
         rightLeg.xRot+=.34f*draw;leftLeg.xRot-=.18f*draw;
         rightLeg.yRot+=hips;leftLeg.yRot+=hips;
         rightLeg.z+=1.9f*Mth.sin(hips);leftLeg.z-=1.9f*Mth.sin(hips);
+        CastPoseLock.capture(rightLeg, leftLeg);
     }
     /** Approximate wrist centers in player-right/up/forward coordinates; skin geometry stays vanilla. */
     static net.minecraft.world.phys.Vec3 handFocus(double age, float pitch) {

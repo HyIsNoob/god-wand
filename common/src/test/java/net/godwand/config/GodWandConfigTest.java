@@ -100,6 +100,9 @@ class GodWandConfigTest {
                 Files.writeString(file, Files.readString(source));
                 GodWandConfig.loadServer(directory);
                 assertFalse(GodWandConfig.SERVER.fugaTerrainDamage, preset);
+                // Every skill's block damage, so a new skill cannot be left out of the presets again (Fuga 1.4.3, Silent Gate 1.5.0).
+                for (var field : GodWandConfig.Server.class.getFields())
+                    if (field.getName().endsWith("TerrainDamage")) assertFalse(field.getBoolean(GodWandConfig.SERVER), preset + " " + field.getName());
             }
         } finally {
             GodWandConfig.SERVER = previous;

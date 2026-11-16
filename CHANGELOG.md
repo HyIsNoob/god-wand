@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.5.0]
+
+### Added
+
+- New skill 8, Silent Gate: the caster raises the wand, a great magic circle writes itself across the sky and a winged gate descends from a crack in it. When its doors open, hundreds of small circles appear. Right-click to command the gate: the circles rain beams of light on every monster around, and a final golden beam strikes the strongest one. Full cutscene, with an option to turn it off.
+- Server options for Silent Gate: cooldown, beam damage, target range, monsters only or all creatures, barrage length, wait time, number of circles, and crater size or no terrain damage.
+- `/godwand lock silent_gate`.
+
+### Changed
+
+- Cutscene poses now stay in place with animation mods installed (playerAnimator, Emotecraft, Better Combat, Not Enough Animations and others that animate the vanilla player model). Mods that replace the player model, such as Yes Steve Model, keep their own animations; the cutscene still plays.
+- Both terrain preservation presets now also turn off Silent Gate's craters.
+
+### Fixed
+
+- Includes every fix from 1.4.1 to 1.4.4.
+
 ## [1.4.4]
 
 ### Fixed

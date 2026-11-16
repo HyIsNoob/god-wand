@@ -25,6 +25,7 @@
     "AtomicLocalMovementMixin",
     "AtomicPoseMixin",
     "GatePoseMixin",
+    "CastPoseLastMixin",
     "AtomicToastMixin",
     "SkillCooldownUseMixin"
   ],

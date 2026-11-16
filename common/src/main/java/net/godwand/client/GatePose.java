@@ -114,6 +114,7 @@ public final class GatePose {
         // Set, not added to the player's own look: a caster who looked down while casting bowed their head into the pose (owner, 2026-11-15).
         head.xRot = j.head; head.yRot = 0; head.zRot = 0;
         body.yRot = 0;
+        CastPoseLock.capture(rightArm, leftArm, body, head);
         return true;
     }
 

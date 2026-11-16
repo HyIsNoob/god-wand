@@ -15,6 +15,7 @@ Values are in ticks: **20 ticks = 1 second**. Lists run from charge level 1 to t
 | supernovaCooldownTicks | 900 | Supernova |
 | atomicCooldownTicks | 1200 | Atomic |
 | fugaCooldownTicks | 1200 | Fuga |
+| gateCooldownTicks | 1200 | Silent Gate |
 
 Each skill has its own cooldown per player. Changing skills lets you cast another ready skill; changing wands does not reset the timers. The skill wheel shows each cooldown separately. Singularity can still be collapsed while its cooldown is running. Charge durations and cinematic timing are unchanged.
 
@@ -38,6 +39,17 @@ Some spells hit repeatedly or lose damage with distance. Their settings multiply
 | fugaIgniteEntities | true | Whether the shockwave sets targets on fire |
 | fugaShockwaveKnockback | true | Whether the shockwave pushes targets |
 | fugaSlowness | true | Whether targets under the sphere are slowed |
+
+Silent Gate:
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| gateBeamDamage | 80 | Each beam, scaled by damageMultiplier. The kill beam deals 6 times this |
+| gateTargetMode | "hostile" | "hostile" hits monsters only; "all" also hits animals and other players (not your pets, not creative players) |
+| gateTargetRadius | 160 | Range in blocks around the caster in which targets are found (8–256) |
+| gateBarrageTicks | 400 | Length of the barrage after the command (60–600; 20 ticks = 1 second) |
+| gateWaitTicks | 300 | How long the opened gate waits for the command before it closes (40–1200) |
+| gateSkyCircles | 220 | Number of small circles that fire (8–256); fewer is lighter on slow computers |
 
 Fuga gameplay effects are capped by fugaTerrainRadius around the impact column. These settings control gameplay while its VFX remain available. See [terrain configuration](TERRAIN_CONFIG.md) for an entirely harmless Fuga preset.
 
