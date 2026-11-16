@@ -27,6 +27,7 @@ public final class BlueRedRenderer {
 
     static final class BlueView { Vec3 prev, pos; double at, readyAt = -1, born; BlueState state = BlueState.CHARGING; }
     record Burst(Vec3 pos, double at, boolean blue) {}
+    record Purple(Vec3 pos, double at) {}
     static final class Flight { final int owner; final Vec3 origin, dir; final double at; Vec3 end; double endAt = -1;
         Flight(int owner, Vec3 origin, Vec3 dir, double at) { this.owner = owner; this.origin = origin; this.dir = dir; this.at = at; } }
 
@@ -34,6 +35,7 @@ public final class BlueRedRenderer {
     private static final Map<Integer, Double> CHARGES = new HashMap<>();
     private static final List<Flight> FLIGHTS = new ArrayList<>();
     private static final List<Burst> BURSTS = new ArrayList<>();
+    private static final List<Purple> PURPLES = new ArrayList<>();
     private static double clock;
 
     private BlueRedRenderer() {}
@@ -69,7 +71,12 @@ public final class BlueRedRenderer {
                 BURSTS.add(new Burst(at, clock, false));
                 sound(at, SoundEvents.GENERIC_EXPLODE.value(), 3f, .8f);
             }
-            case BlueRedPayload.PURPLE -> { endFlight(p.otherId(), at); BLUES.remove(p.ownerId()); }
+            case BlueRedPayload.PURPLE -> {
+                endFlight(p.otherId(), at); BLUES.remove(p.ownerId());
+                PURPLES.add(new Purple(at, clock));
+                PurpleCinematic.receive(p);
+                sound(at, SoundEvents.BEACON_ACTIVATE, 3f, .5f);
+            }
             default -> {}
         }
     }
@@ -90,9 +97,18 @@ public final class BlueRedRenderer {
         BURSTS.removeIf(b -> clock - b.at() > 20);
         FLIGHTS.removeIf(f -> f.endAt >= 0 ? clock - f.endAt > 10 : clock - f.at > 200);
         CHARGES.values().removeIf(at -> clock - at > 400);
+        for (Purple p : PURPLES) if (clock - p.at() == BlueRedRules.PURPLE_DETONATE) detonated(p.pos());
+        PURPLES.removeIf(p -> clock - p.at() > BlueRedRules.PURPLE_CINEMATIC + 10);
     }
 
-    public static void reset() { BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); clock = 0; }
+    public static void reset() { BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); PURPLES.clear(); clock = 0; }
+
+    private static void detonated(Vec3 at) {
+        sound(at, SoundEvents.GENERIC_EXPLODE.value(), 6f, .5f);
+        sound(at, SoundEvents.WARDEN_SONIC_BOOM, 6f, .6f);
+        var player = Minecraft.getInstance().player;
+        if (player != null) GodWandCinematicEngine.addTrauma((float) Math.max(.15, 1 - player.position().distanceTo(at) / 120), 24);
+    }
 
     private static Vec3 drawn(BlueView v, double partial) {
         return BlueRedVisual.interp(v.prev, v.pos, (clock + partial - v.at) / 2);
@@ -101,7 +117,7 @@ public final class BlueRedRenderer {
     // ---- drawing ----
 
     public static void render(PoseStack pose, Camera camera, float partial) {
-        if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty()) return;
+        if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && PURPLES.isEmpty()) return;
         RenderSystem.enableBlend(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
         GateAtlas.bind(); RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         try {
@@ -131,6 +147,7 @@ public final class BlueRedRenderer {
         }
         for (Flight f : FLIGHTS) redFlight(c, f, now);
         for (Burst b : BURSTS) burst(c, b, now - b.at());
+        for (Purple p : PURPLES) purple(c, p.pos(), now - p.at());
         return c.quads;
     }
 
@@ -201,6 +218,42 @@ public final class BlueRedRenderer {
         halo(c, b.pos(), 2 + age * (b.blue() ? .7 : .9), fade, color);
         halo(c, b.pos(), 1 + age * .3, fade, 0xFFFFFF);
         ring(c, b.pos(), 1 + age * (b.blue() ? 1.1 : 1.4), .4, color, .9 * fade);
+    }
+
+    /** Placeholder Purple (mechanics round): blue and red spiral together, a violet sphere swells with arcs, then detonates. */
+    private static void purple(Ctx c, Vec3 at, double age) {
+        int violet = 0x9B30FF, pale = 0xE6C8FF;
+        double merge = clamp01(age / BlueRedRules.PURPLE_MERGE), blast = clamp01((age - BlueRedRules.PURPLE_DETONATE) / 16);
+        double fade = 1 - clamp01((age - BlueRedRules.PURPLE_DETONATE - 16) / (BlueRedRules.PURPLE_CINEMATIC - BlueRedRules.PURPLE_DETONATE - 16));
+        if (fade <= 0) return;
+        if (age < BlueRedRules.PURPLE_MERGE) {
+            double a = age * .6, d = 2.5 * (1 - merge);
+            Vec3 off = new Vec3(Math.cos(a) * d, 0, Math.sin(a) * d);
+            if (c.glow()) { halo(c, at.add(off), 2.5, .9, BLUE_MID); halo(c, at.subtract(off), 1.5, .9, RED); }
+            return;
+        }
+        double size = age < BlueRedRules.PURPLE_DETONATE ? 1.5 + 4.5 * smooth((age - BlueRedRules.PURPLE_MERGE) / 60.0) : 6 + 20 * blast;
+        if (c.body() && age < BlueRedRules.PURPLE_DETONATE) sprite(c, at, size * .7, .85, 0x12021E);
+        if (!c.glow()) return;
+        halo(c, at, size * 2.4, .55 * fade, violet);
+        halo(c, at, size * 1.2, .9 * fade, pale);
+        ring(c, at, size * 1.05, .4 + size * .05, pale, .8 * fade);
+        if (age < BlueRedRules.PURPLE_DETONATE + 8) {
+            Random rand = new Random((long) Math.floor(age / 2) * 104729L);
+            for (int bolt = 0; bolt < 7; bolt++) {
+                Vec3 dir = new Vec3(rand.nextGaussian(), rand.nextGaussian(), rand.nextGaussian()).normalize();
+                Vec3 p = at.add(dir.scale(size * .9));
+                for (int s = 0; s < 5; s++) {
+                    Vec3 q = p.add(dir.scale(size * .35)).add(rand.nextGaussian() * .6, rand.nextGaussian() * .6, rand.nextGaussian() * .6);
+                    shaft(c, p, q, .12, .08, pale, .95, .7, age);
+                    p = q;
+                }
+            }
+        }
+        if (blast > 0) {
+            halo(c, at, 8 + 60 * blast, (1 - blast) * 1.2, 0xFFFFFF);
+            ring(c, at, 4 + 30 * blast, 2.5, violet, (1 - blast));
+        }
     }
 
     /** Camera-facing ring: soft inner and outer edge. */
