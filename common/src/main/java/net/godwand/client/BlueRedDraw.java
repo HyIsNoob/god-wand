@@ -136,6 +136,7 @@ final class BlueRedDraw {
 
     /** Purple in the world: grows from the merged orbs into a huge sphere of violet storm, dense with streaming ribbons and lightning, then detonates. */
     static void purple(Ctx c, Vec3 at, double age, Vec3 eye, Vec3 look) {
+        at = at.add(0, BlueRedRules.purpleRise(age), 0);
         int detonate = BlueRedRules.PURPLE_DETONATE, end = BlueRedRules.PURPLE_CINEMATIC, merge = BlueRedRules.PURPLE_MERGE;
         double blast = clamp01((age - detonate) / 18.0);
         double fade = 1 - clamp01((age - detonate - 18) / (end - detonate - 18.0));

@@ -319,6 +319,7 @@ class BlueRedManagerTest {
         assertEquals(9, purple.ownerId());
         assertEquals(7, purple.otherId());
         assertEquals(22, purple.z(), 1e-6);
+        assertEquals(65 + BlueRedRules.PURPLE_LIFT, purple.y(), 1e-6, "Purple bursts in the sky above the Blue");
         assertTrue(BlueRedManager.blues(world).isEmpty());
         ticks(40);
         assertEquals(0, count(BlueRedPayload.RED_END), "Red ends in Purple");

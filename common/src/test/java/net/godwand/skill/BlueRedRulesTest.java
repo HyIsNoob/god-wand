@@ -63,6 +63,13 @@ class BlueRedRulesTest {
         assertEquals(2, distanceToSegment(new Vec3(0, 2, 0), Vec3.ZERO, Vec3.ZERO), 1e-9);
     }
 
+    @Test void purpleRisesDuringTheSwirlThenHolds() {
+        assertEquals(-PURPLE_LIFT, purpleRise(0), 1e-9, "starts where the Blue was");
+        assertTrue(purpleRise(PURPLE_SWIRL_END / 2.0) > -PURPLE_LIFT && purpleRise(PURPLE_SWIRL_END / 2.0) < 0);
+        assertEquals(0, purpleRise(PURPLE_SWIRL_END), 1e-9, "up at the burst point once the swirl is done");
+        assertEquals(0, purpleRise(PURPLE_DETONATE), 1e-9);
+    }
+
     @Test void meetRules() {
         assertEquals(RedMeetsBlue.SHATTER, meet(BlueState.CHARGING));
         assertEquals(RedMeetsBlue.PURPLE, meet(BlueState.READY));

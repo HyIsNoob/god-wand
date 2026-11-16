@@ -18,6 +18,14 @@ public final class BlueRedRules {
      *  ends, the crater stops growing. */
     public static final int PURPLE_BLINK = 4, PURPLE_SWIRL_END = 40, PURPLE_MERGE = 110, PURPLE_VOID_END = 118,
             PURPLE_DETONATE = 170, PURPLE_CINEMATIC = 220, PURPLE_TERRAIN_END = 240;
+    /** Purple bursts this far above the Blue that made it (owner, 2026-11-16: "nổ trên trời"): the orbs soar up while they swirl. */
+    public static final double PURPLE_LIFT = 16;
+
+    /** Offset of the orbs below the burst point at this age: -PURPLE_LIFT at the Blue, rising to 0 by the end of the swirl. */
+    public static double purpleRise(double age) {
+        double k = Math.max(0, Math.min(1, age / PURPLE_SWIRL_END));
+        return -PURPLE_LIFT * (1 - k * k * (3 - 2 * k));
+    }
 
     private BlueRedRules() {}
 

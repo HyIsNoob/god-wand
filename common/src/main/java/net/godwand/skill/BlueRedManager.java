@@ -202,8 +202,9 @@ public final class BlueRedManager {
     static void startPurple(ServerLevel level, Blue blue, ServerPlayer shooter) {
         BLUES.remove(blue);
         BlueEater.retireAll(blue.eaten);
-        PURPLES.add(new Purple(level, blue.pos, blue.owner, shooter));
-        send(level, blue.pos, new BlueRedPayload(BlueRedPayload.PURPLE, blue.owner.getId(), shooter.getId(), 0, blue.pos.x, blue.pos.y, blue.pos.z, 0, 0, 0, 0));
+        Vec3 sky = blue.pos.add(0, BlueRedRules.PURPLE_LIFT, 0);
+        PURPLES.add(new Purple(level, sky, blue.owner, shooter));
+        send(level, sky, new BlueRedPayload(BlueRedPayload.PURPLE, blue.owner.getId(), shooter.getId(), 0, sky.x, sky.y, sky.z, 0, 0, 0, 0));
         int lock = GodWandConfig.cooldownTicks(GodWandConfig.SERVER.purpleCooldownTicks);
         for (ServerPlayer p : SpellDamage.isCaster(blue.owner, shooter) ? List.of(shooter) : List.of(blue.owner, shooter)) {
             SkillCooldowns.start(p, GodWandItem.MODE_BLUE_RED, lock);

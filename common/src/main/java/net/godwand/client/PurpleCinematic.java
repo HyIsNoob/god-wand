@@ -41,12 +41,15 @@ public final class PurpleCinematic {
     public static AtomicCinematic.Pose camera(float delta, Vec3 vanillaPosition, float vanillaYaw, float vanillaPitch) {
         if (!active()) return null;
         AtomicCinematic.Pose p = pose(center, eye, age + delta);
-        return aim(unblocked(center, p.position()), center);
+        Vec3 orbs = center.add(0, BlueRedRules.purpleRise(age + delta), 0);
+        return aim(unblocked(orbs, p.position()), orbs);
     }
 
     /** Owner's direction (2026-11-16): the player's own view for the blink, a cut to a close shot of the orbs swirling in the world, held still behind
      *  the 2D void, a cut back to a fast move round Purple as it swells, thrown far back by the blast. */
     static AtomicCinematic.Pose pose(Vec3 center, Vec3 eye, double age) {
+        // The camera follows the orbs as they soar to the burst point (center is the burst point, up in the sky).
+        center = center.add(0, BlueRedRules.purpleRise(age), 0);
         Vec3 away = new Vec3(eye.x - center.x, 0, eye.z - center.z);
         Vec3 side = away.lengthSqr() < 1e-6 ? new Vec3(0, 0, -1) : away.normalize();
         int blink = BlueRedRules.PURPLE_BLINK, swirl = BlueRedRules.PURPLE_SWIRL_END, merge = BlueRedRules.PURPLE_MERGE, det = BlueRedRules.PURPLE_DETONATE;

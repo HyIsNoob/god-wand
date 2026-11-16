@@ -55,6 +55,7 @@ class BlueRedDrawTest {
     @Test void purpleSwellsAsOneStormOrbAndBursts() {
         var swell = ctx(0);
         BlueRedDraw.purple(swell, AT, BlueRedRules.PURPLE_MERGE + 5, EYE, LOOK);
+        assertTrue(orbs(swell).size() == 1);
         assertEquals(java.util.List.of(2), orbs(swell));
         var blast = ctx(0);
         BlueRedDraw.purple(blast, AT, BlueRedRules.PURPLE_DETONATE + 3, EYE, LOOK);
