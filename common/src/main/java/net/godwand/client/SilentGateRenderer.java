@@ -289,7 +289,7 @@ public final class SilentGateRenderer {
         if (d != null) drawDeferred(d);
         float[] b = bloom; bloom = null;
         if (b != null) GatePostFx.process(b[0], b[1], b[2], b[3], b[4], ink, inkBar);
-        else if (CASTS.isEmpty()) GatePostFx.close();
+        else if (CASTS.isEmpty() && !BlueRedRenderer.bloomPending()) GatePostFx.close();
     }
     private static void drawDeferred(Deferred d) {
         Minecraft.getInstance().getMainRenderTarget().bindWrite(false);

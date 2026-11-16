@@ -129,11 +129,46 @@ public final class BlueRedRenderer {
     private record Overlay(Matrix4f pose, Camera camera, float partial) {}
     private static Overlay overlay;
 
+    /** This frame's bloom (strength, shafts, light x, y on screen 0..1, partial), run on the finished frame by flushPostFx; reuses the Silent Gate chain. */
+    private static float[] bloom;
+    public static boolean bloomPending() { return bloom != null; }
+    public static void flushPostFx() {
+        float[] b = bloom; bloom = null;
+        if (b != null) GatePostFx.process(b[0], b[1], b[2], b[3], b[4]);
+    }
+
+    private static void planBloom(PoseStack pose, Camera camera, float partial) {
+        double now = clock + partial, strength = 0, burst = 0;
+        Vec3 light = null;
+        if (!PURPLES.isEmpty()) {
+            Purple p = PURPLES.get(PURPLES.size() - 1);
+            double age = now - p.at();
+            light = p.pos(); strength = 1;
+            burst = .55 * (1 - clamp01((age - BlueRedRules.PURPLE_DETONATE) / 24.0)) * (age >= BlueRedRules.PURPLE_DETONATE ? 1 : 0)
+                    + .35 * smooth((age - (BlueRedRules.PURPLE_VOID_END - 14)) / 14.0) * (age < BlueRedRules.PURPLE_VOID_END + 10 ? 1 : 0);
+        } else {
+            double best = Double.MAX_VALUE;
+            for (BlueView b : BLUES.values()) { double d = b.pos.distanceToSqr(camera.getPosition()); if (d < best) { best = d; light = b.pos; } }
+            for (Flight f : FLIGHTS) if (f.end == null) { light = BlueRedVisual.redHead(f.origin, f.dir, now - f.at, 160, null); break; }
+            if (light != null || !CHARGES.isEmpty() || !BURSTS.isEmpty()) strength = .8;
+        }
+        if (strength <= 0) return;
+        float sx = .5f, sy = .5f;
+        if (light != null) {
+            Vec3 src = light.subtract(camera.getPosition());
+            var clip = new org.joml.Vector4f((float) src.x, (float) src.y, (float) src.z, 1)
+                    .mul(pose.last().pose()).mul(RenderSystem.getModelViewMatrix()).mul(RenderSystem.getProjectionMatrix());
+            if (clip.w > .001f) { sx = clip.x / clip.w * .5f + .5f; sy = clip.y / clip.w * .5f + .5f; } else burst = 0;
+        }
+        bloom = new float[]{(float) (GodWandConfig.CLIENT.bloomStrength * strength), (float) burst, sx, sy, partial};
+    }
+
     public static void render(PoseStack pose, Camera camera, float partial) {
         overlay = new Overlay(new Matrix4f(pose.last().pose()), camera, partial);
+        planBloom(pose, camera, partial);
         if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && PURPLES.isEmpty() && IMPACTS.isEmpty()) return;
         RenderSystem.enableBlend(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
-        GateAtlas.bind(); RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+        BlueRedAtlas.bind(); RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         try {
             for (int layer : new int[]{0, 1}) {
                 if (layer == 0) RenderSystem.defaultBlendFunc();
@@ -154,7 +189,7 @@ public final class BlueRedRenderer {
         Overlay o = overlay; overlay = null;
         if (o == null || IMPACTS.isEmpty() && !(PurpleCinematic.inVoid() && !PURPLES.isEmpty())) return;
         RenderSystem.enableBlend(); RenderSystem.disableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
-        GateAtlas.bind(); RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+        BlueRedAtlas.bind(); RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         try {
             var look = o.camera().getLookVector();
             Vec3 lookVec = new Vec3(look.x(), look.y(), look.z()), eye = o.camera().getPosition();
@@ -198,7 +233,7 @@ public final class BlueRedRenderer {
             BlueRedDraw.redFlight(c, f.origin, f.dir, head, age, 1 - clamp01(after / 10), f.owner * 31L + (long) f.at, f.end == null);
         }
         for (Burst b : BURSTS) BlueRedDraw.burst(c, b.pos(), now - b.at(), b.blue());
-        if (!PurpleCinematic.inVoid()) for (Purple p : PURPLES) BlueRedDraw.purple(c, p.pos(), now - p.at(), eye, look);
+        if (!PurpleCinematic.blackout()) for (Purple p : PURPLES) BlueRedDraw.purple(c, p.pos(), now - p.at(), eye, look);
         return c.quads;
     }
 }

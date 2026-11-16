@@ -6,14 +6,22 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 class BlueRedDrawTest {
+    /** Counts nothing, costs nothing: a Mockito mock per vertex made this suite take minutes. */
+    static final class Sink implements VertexConsumer {
+        public VertexConsumer addVertex(float x, float y, float z) { return this; }
+        public VertexConsumer setColor(int r, int g, int b, int a) { return this; }
+        public VertexConsumer setUv(float u, float v) { return this; }
+        public VertexConsumer setUv1(int u, int v) { return this; }
+        public VertexConsumer setUv2(int u, int v) { return this; }
+        public VertexConsumer setNormal(float x, float y, float z) { return this; }
+    }
     static final Vec3 EYE = new Vec3(0, 65, 0), AT = new Vec3(0, 65, 10), LOOK = new Vec3(0, 0, 1);
 
     static GateDraw.Ctx ctx(int layer) {
         GateDraw.Ctx c = new GateDraw.Ctx();
-        c.v = mock(VertexConsumer.class, RETURNS_SELF); c.m = new Matrix4f(); c.eye = EYE; c.layer = layer; c.nearMin = .05; c.nearMax = .4;
+        c.v = new Sink(); c.m = new Matrix4f(); c.eye = EYE; c.layer = layer; c.nearMin = .05; c.nearMax = .4;
         return c;
     }
 
@@ -56,6 +64,13 @@ class BlueRedDrawTest {
         var early = ctx(1);
         BlueRedDraw.purpleVoid(early, AT, 10, AT.add(0, 0, -10), LOOK);
         assertTrue(merge.quads > early.quads, "lightning and the burst when they meet");
+    }
+
+    @Test void voidFadesInAndOutInsteadOfCutting() {
+        assertEquals(0, BlueRedDraw.voidAlpha(0), 1e-9);
+        assertEquals(1, BlueRedDraw.voidAlpha(30), 1e-9);
+        assertTrue(BlueRedDraw.voidAlpha(BlueRedRules.PURPLE_VOID_END + 6) > 0 && BlueRedDraw.voidAlpha(BlueRedRules.PURPLE_VOID_END + 6) < 1);
+        assertEquals(0, BlueRedDraw.voidAlpha(BlueRedRules.PURPLE_VOID_END + 12), 1e-9);
     }
 
     @Test void redImpactFramesAlternateBlackAndRed() {
