@@ -2,20 +2,22 @@
 
 ## [1.5.0]
 
-### Added
+### New skill: Silent Gate
 
-- New skill 8, Silent Gate: the caster raises the wand, a great magic circle writes itself across the sky and a winged gate descends from a crack in it. When its doors open, hundreds of small circles appear. Right-click to command the gate: the circles rain beams of light on every monster around, and a final golden beam strikes the strongest one. Full cutscene, with an option to turn it off.
-- Server options for Silent Gate: cooldown, beam damage, target range, monsters only or all creatures, barrage length, wait time, number of circles, and crater size or no terrain damage.
-- `/godwand lock silent_gate`.
+- Raise the wand and a giant magic circle draws itself across the sky. A winged gate comes down through a crack in it, and when its doors open, hundreds of small magic circles fill the sky.
+- Right-click to give the command: the circles rain beams of light on every monster around you, and a final golden beam finishes off the strongest one.
+- Comes with its own cutscene. You can turn the cutscene off in the settings menu (K).
 
-### Changed
+### Improvements
 
-- Cutscene poses now stay in place with animation mods installed (playerAnimator, Emotecraft, Better Combat, Not Enough Animations and others that animate the vanilla player model). Mods that replace the player model, such as Yes Steve Model, keep their own animations; the cutscene still plays.
-- Both terrain preservation presets now also turn off Silent Gate's craters.
+- Cutscene animations now keep working with other animation mods installed, such as Emotecraft, Better Combat and Not Enough Animations. Yes Steve Model players keep their model's own animations, and the cutscene still plays.
+- The server settings file is shorter and easier to read: each skill's settings are grouped together and the level lists sit on one line. Your existing settings are kept and tidied automatically.
+- New server settings for Silent Gate: cooldown, damage, which creatures it attacks, range, how long the attack lasts, how long the gate waits for your command, how many magic circles appear, and crater size (or no terrain damage at all).
+- The "preserve terrain" presets now also stop Silent Gate from making craters.
 
 ### Fixed
 
-- Includes every fix from 1.4.1 to 1.4.4.
+- Includes all fixes from 1.4.1 to 1.4.4.
 
 ## [1.4.4]
 
