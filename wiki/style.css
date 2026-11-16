@@ -539,6 +539,55 @@ section.doc-section {
   color: var(--text-secondary);
 }
 
+/* Crafting Recipe Box */
+.crafting-box {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.35rem 1.5rem;
+  margin-top: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.crafting-img {
+  width: 260px;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  padding: 0.4rem;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+
+.crafting-info {
+  flex: 1;
+  min-width: 240px;
+}
+
+.crafting-info h3 {
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.45rem;
+}
+
+.crafting-info p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.65rem;
+}
+
+.crafting-ingredients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 /* Skill Card */
 .skill-card {
   background: var(--bg-card);

@@ -1,5 +1,42 @@
 # Changelog
 
+## [1.4.4]
+
+### Fixed
+
+- Fuga's configured radius now limits damage, shockwave, slowness and terrain changes around the impact. Its shockwave previously reached up to 230 blocks regardless of the radius setting.
+- Fuga no longer places spreading fire blocks.
+
+### Added
+
+- Server options for Fuga shockwave damage, entity ignition, knockback and slowness. Visual effects remain fully available.
+
+## [1.4.3]
+
+### Fixed
+
+- Fuga block damage is disabled by both terrain preservation presets. Reopening a single-player world now picks up changes to the server config.
+
+## [1.4.2]
+
+### Fixed
+
+- Fixed a crash when opening the configuration menu on Minecraft 26.3 and 1.21.11 (Fabric and NeoForge).
+
+## [1.4.1]
+
+### Added
+
+- New admin command `/godwand reset_cooldowns [players]` (operator level 4) clears every skill cooldown instantly.
+
+### Fixed
+
+- `/godwand lock fuga` now works: a wand can be locked to Fuga like the other skills.
+- Fuga's cutscene, phoenix and meteor no longer vanish for players on servers with higher ping or a lagging server; the blast still happened, but the visuals were dropped.
+- Mobs burning and dying in Fuga's blast are quieter, and stay quieter even when the cutscene is turned off or skipped.
+- Fixed Fuga's arrow, phoenix, meteor and other mesh effects being invisible on Fabric for Minecraft 1.21.11.
+- The God Wand recipe now unlocks in the recipe book on Minecraft 1.21.11 and 26.1.2 (its advancement failed to load and logged an error).
+
 ## [1.4.0]
 
 ### Added

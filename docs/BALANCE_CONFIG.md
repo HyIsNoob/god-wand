@@ -33,7 +33,13 @@ Some spells hit repeatedly or lose damage with distance. Their settings multiply
 | supernovaInstantKillHealthThreshold | 50 | Enemies with this maximum health or less can be killed outright;0 disables this rule |
 | atomicDamage | 9999 | Atomic center damage before distance falloff |
 | atomicShockwaveDamage | 15 | Each successful outer wave hit |
-| fugaDamage | 9999 | Fuga blast damage before distance falloff; its fire outflow deals a small share of it |
+| fugaDamage | 9999 | Fuga main blast damage, scaled by damageMultiplier |
+| fugaShockwaveDamageMultiplier | 0.08 | Shockwave damage multiplier applied to fugaDamage and damageMultiplier. Set 0 to disable shockwave damage |
+| fugaIgniteEntities | true | Whether the shockwave sets targets on fire |
+| fugaShockwaveKnockback | true | Whether the shockwave pushes targets |
+| fugaSlowness | true | Whether targets under the sphere are slowed |
+
+Fuga gameplay effects are capped by fugaTerrainRadius around the impact column. These settings control gameplay while its VFX remain available. See [terrain configuration](TERRAIN_CONFIG.md) for an entirely harmless Fuga preset.
 
 Spatial Path has no separate spell damage to tune. Its shield keeps normal projectile behavior.
 

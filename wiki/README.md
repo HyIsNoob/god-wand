@@ -1,4 +1,4 @@
-# God Wand 1.4.0 Wiki — Deployment Guide
+# God Wand 1.4.1 Wiki — Deployment Guide
 
 Trang wiki kỹ thuật chính thức cho mod **God Wand**. Được xây dựng bằng **HTML5 / CSS3 / Vanilla JS**, không cần Node.js build step, tải siêu tốc và hỗ trợ 3 ngôn ngữ (Tiếng Anh / Tiếng Việt / Tiếng Trung - EN / VI / ZH).
 
@@ -15,7 +15,7 @@ Trang wiki kỹ thuật chính thức cho mod **God Wand**. Được xây dựng
 ### Cach 2: Deploy qua Vercel CLI
 Neu ban da cai Vercel CLI tren may tinh:
 ```powershell
-cd D:\fileluu\Tools\god-wand-1.4.0\wiki
+cd D:\fileluu\Tools\GodWand\repo\wiki
 vercel
 ```
 Lam theo huong dan tren man hinh va chon deploy production:

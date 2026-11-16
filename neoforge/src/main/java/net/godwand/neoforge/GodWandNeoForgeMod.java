@@ -46,6 +46,7 @@ import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.LevelEvent;
+import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -95,6 +96,7 @@ public class GodWandNeoForgeMod {
 
     public GodWandNeoForgeMod(IEventBus modBus) {
         GodWandConfig.loadServer(FMLPaths.CONFIGDIR.get());
+        NeoForge.EVENT_BUS.addListener((ServerAboutToStartEvent event) -> GodWandConfig.loadServer(FMLPaths.CONFIGDIR.get()));
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.event.RegisterCommandsEvent event) -> net.godwand.command.GodWandCommands.register(event.getDispatcher()));
 
         ITEMS.register(modBus);

@@ -11,7 +11,7 @@
     },
     {
       "before": "    }\n\n    @Override\n    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {\n        renderBackground(context, mouseX, mouseY, delta);\n        super.render(context, mouseX, mouseY, delta);\n        context.drawCenteredString(this.font, this.title, this.width / 2, 18, 0xFFFFFF);\n    }\n\n    @Override\n",
-      "after": "    }\n\n    @Override\n    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {\n        extractBackground(context, mouseX, mouseY, delta);\n        super.extractRenderState(context, mouseX, mouseY, delta);\n        context.centeredText(this.font, this.title, this.width / 2, 18, 0xFFFFFF);\n    }\n\n    @Override\n"
+      "after": "    }\n\n    @Override\n    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {\n        super.extractRenderState(context, mouseX, mouseY, delta);\n        context.centeredText(this.font, this.title, this.width / 2, 18, 0xFFFFFF);\n    }\n\n    @Override\n"
     },
     {
       "before": "        GodWandConfig.CLIENT.validate();\n        GodWandConfig.saveClient();\n        if (this.minecraft != null) {\n            this.minecraft.setScreen(this.parent);\n        }\n    }\n}\n",

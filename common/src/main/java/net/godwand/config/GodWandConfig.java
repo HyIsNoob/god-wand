@@ -88,6 +88,10 @@ public final class GodWandConfig {
         public int gateSkyCircles = 220;
         public boolean gateTerrainDamage = true;
         public int gateCraterRadius = 3;
+        public float fugaShockwaveDamageMultiplier = .08f;
+        public boolean fugaIgniteEntities = true;
+        public boolean fugaShockwaveKnockback = true;
+        public boolean fugaSlowness = true;
         public List<String> dimensionBlacklist = new ArrayList<>();
 
         public boolean isDimensionBlacklisted(String dimensionId) { return !isDimensionAllowed(dimensionId); }
@@ -108,6 +112,7 @@ public final class GodWandConfig {
             gateWaitTicks=Mth.clamp(gateWaitTicks,40,1200);
             gateSkyCircles=Mth.clamp(gateSkyCircles,8,256);
             gateCraterRadius=Mth.clamp(gateCraterRadius,0,6);
+            fugaShockwaveDamageMultiplier=finiteClamp(fugaShockwaveDamageMultiplier,0,1000,.08f);
             singularityCooldownTicks=validatedCooldowns(singularityCooldownTicks,new int[]{60,120,200});
             earthDrillCooldownTicks=validatedCooldowns(earthDrillCooldownTicks,new int[]{80,140,220,320});
             stoneCannonCooldownTicks=validatedCooldowns(stoneCannonCooldownTicks,new int[]{40,80,140,220});

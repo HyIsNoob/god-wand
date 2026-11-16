@@ -11,13 +11,38 @@ Merge the selected keys below into config/godwand-server.json, then restart the 
 | 4 Supernova | supernovaTerrainDamage | Explosion does not carve a crater; any peeled originals are restored at detonation |
 | 5 Stone Cannon | stoneCannonTerrainDamage | Projectile impact does not excavate blocks |
 | 6 Atomic | atomicTerrainDamage | No block removal; damage and cinematic remain |
-| 7 Fuga | fugaTerrainDamage | No crater, rock spires or fire placement; damage and cinematic remain. fugaTerrainRadius (default 48, max 64) sets the crater radius |
+| 7 Fuga | fugaTerrainDamage | Disables crater, rock spires and ground scorching. Entity damage and cinematic remain available. fugaTerrainRadius (default 48, max 64) caps all harmful gameplay effects around the impact column |
+
+In 1.4.4, fugaTerrainRadius is the maximum horizontal distance from the impact column for block changes, entity damage, shockwave and slowness. A value of 23 confines these effects to that radius. A value of 0 disables them. The projectile can still fly up to 160 blocks before landing. The cinematic and expanding heat aura keep their visual size. Fuga no longer places vanilla fire blocks that could spread past the boundary.
+
+For a multiplayer server, edit the server installation's config/godwand-server.json and restart the server. Each client's file controls its own single-player worlds. fugaTerrainDamage=false disables Fuga's block changes. Entity damage and burning are configured independently using the options below.
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| fugaDamage | 9999 | Main blast damage, scaled by damageMultiplier. Set 0 to disable direct damage |
+| fugaShockwaveDamageMultiplier | 0.08 | Shockwave damage equals fugaDamage times this value times damageMultiplier. Set 0 to disable shockwave damage |
+| fugaIgniteEntities | true | Set false to stop Fuga from setting targets on fire |
+| fugaShockwaveKnockback | true | Set false to disable the shockwave's push |
+| fugaSlowness | true | Set false to disable slowness under the falling sphere |
+
+For an entirely harmless cinematic, merge these keys into the server config and restart the server.
+
+```json
+{
+  "fugaTerrainDamage": false,
+  "fugaDamage": 0,
+  "fugaShockwaveDamageMultiplier": 0,
+  "fugaIgniteEntities": false,
+  "fugaShockwaveKnockback": false,
+  "fugaSlowness": false
+}
+```
 
 Defaults remain true to retain the existing destructive spell style. Set lift=false and terrainDamage=false for pure entity damage with no skill 3/4 terrain movement. Set lift=true and terrainDamage=false for reversible block effects. Set both true for the original destructive behavior. Lift=false with damage=true still allows the explosion/crater to destroy blocks.
 
 In 1.3.5, Atomic targets terrain down to 16 blocks below the cast origin, leveling higher terrain before deepening lower ground. Clearing stops when the light column begins retracting; expensive blocks or unloaded chunks may leave depth unfinished. The visible beam still extends 30 blocks below the origin. Setting atomicTerrainDamage=false still prevents all of its block removal. Atomic 1.3.2 clears all removable fluids, including source/flowing water and lava, underwater plants and waterlogged blocks. In 1.3.3, atomicTerrainRadius is a direct maximum radius (default 98 blocks), capped by the visible expanding column. Columns become eligible in circular distance order as the beam expands; removal then prioritizes higher terrain. Existing config values, visuals and entity damage are unchanged. Containers and other removable block entities are destroyed. The caster pedestal, unbreakable blocks and active spatial spell positions remain protected. Unloaded chunks are skipped. Fluids outside the crater can still flow back into it naturally.
 
-Presets: config-presets/preserve-terrain.json disables terrain movement for 3/4 and permanent destruction for 3/4/5/6. config-presets/reversible-block-effects.json retains temporary lift for 3/4 while disabling permanent destruction for 3/4/5/6. Merge these keys rather than replacing custom damage/cooldown settings.
+Presets: config-presets/preserve-terrain.json disables terrain movement for 3/4 and permanent destruction for 3/4/5/6/7. config-presets/reversible-block-effects.json retains temporary lift for 3/4 while disabling permanent destruction for 3/4/5/6/7. Merge these keys rather than replacing custom damage/cooldown settings.
 
 Reversible lift temporarily removes real blocks and restores original states/NBT using the existing persisted spatial journal, including paired doors/plants/beds. For a build area where even temporary block movement is unwanted, disable the lift options too. Other mods' claims/protection systems have not been tested with this change.
 
