@@ -48,7 +48,7 @@ Silent Gate:
 | gateTargetMode | "hostile" | "hostile" hits monsters only; "all" also hits animals and other players (not your pets, not creative players) |
 | gateTargetRadius | 160 | Range in blocks around the caster in which targets are found (8–256) |
 | gateBarrageTicks | 400 | Length of the barrage after the command (60–600; 20 ticks = 1 second) |
-| gateWaitTicks | 300 | How long the opened gate waits for the command before it closes (40–1200) |
+| gateWaitTicks | 139 | How long the opened gate waits for your command before it fires by itself (40–1200; 139 = 6.95 s, the length of the music) |
 | gateSkyCircles | 220 | Number of small circles that fire (8–256); fewer is lighter on slow computers |
 
 Fuga gameplay effects are capped by fugaTerrainRadius around the impact column. These settings control gameplay while its VFX remain available. See [terrain configuration](TERRAIN_CONFIG.md) for an entirely harmless Fuga preset.

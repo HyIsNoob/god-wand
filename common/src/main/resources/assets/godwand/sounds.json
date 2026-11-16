@@ -32,9 +32,6 @@
   "gate_end": {
     "sounds": [{"name":"godwand:gate_end","stream":true}]
   },
-  "gate_wait": {
-    "sounds": [{"name":"godwand:gate_wait"}]
-  },
   "gate_rain": {
     "sounds": [{"name":"godwand:gate_rain"}]
   },

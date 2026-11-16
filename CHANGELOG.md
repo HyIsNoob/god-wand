@@ -5,7 +5,7 @@
 ### New skill: Silent Gate
 
 - Raise the wand and a giant magic circle draws itself across the sky. A winged gate comes down through a crack in it, and when its doors open, hundreds of small magic circles fill the sky.
-- Right-click to give the command: the circles rain beams of light on every monster around you, and a final golden beam finishes off the strongest one.
+- Right-click to give the command (or wait a few seconds and the gate fires by itself): the circles rain beams of light on every monster around you, and a final golden beam finishes off the strongest one.
 - Comes with its own cutscene. You can turn the cutscene off in the settings menu (K).
 
 ### Improvements
