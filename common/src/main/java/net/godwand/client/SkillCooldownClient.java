@@ -45,7 +45,7 @@ public final class SkillCooldownClient {
     }
     public static void render(GuiGraphics graphics) {
         var client=Minecraft.getInstance();observe(client);
-        if(observer==null||client.screen!=null||client.options.hideGui||AtomicCinematic.active()||FugaCinematic.active()||SilentGateCinematic.active())return;
+        if(observer==null||client.screen!=null||client.options.hideGui||AtomicCinematic.active()||FugaCinematic.active()||SilentGateCinematic.active()||PurpleCinematic.active())return;
         var stack=observer.getMainHandItem();if(!(stack.getItem() instanceof GodWandItem))stack=observer.getOffhandItem();
         if(!(stack.getItem() instanceof GodWandItem))return;
         int mode=GodWandItem.getSkillMode(stack),left=shown(mode);if(left==0)return;

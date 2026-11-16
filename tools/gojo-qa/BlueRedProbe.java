@@ -154,9 +154,12 @@ public final class BlueRedProbe implements ClientModInitializer {
     private void red(Minecraft c, MinecraftServer server) {
         int t = ticks - since, charge = GodWandConfig.SERVER.redChargeTicks;
         if (t == 20) { c.options.keyUse.setDown(true); System.out.println("GOJO_QA RED hold"); }
-        if (t >= 20 && (t % 3 == 0 || t > 20 + charge - 8)) grab(c);
-        if (t == 20 + charge + 4) c.options.keyUse.setDown(false);
-        if (t > 20 + charge + 40) { stage = 4; since = ticks; System.out.println("GOJO_QA RED done blues=" + server.submit(() -> BlueRedManager.blues(me(server, c).serverLevel()).size()).join()); }
+        int fired = t - 20 - charge;
+        if (t >= 20 && (fired < -8 || fired > 12 ? t % 3 == 0 : true)) grab(c);
+        if (fired == 4) c.options.keyUse.setDown(false);
+        if (fired == 30 || fired == 100) System.out.println("GOJO_QA PURPLE fired+" + fired + " cutscene=" + net.godwand.client.PurpleCinematic.active()
+                + " purples=" + server.submit(() -> BlueRedManager.purples(me(server, c).serverLevel()).size()).join());
+        if (fired > 165) { stage = 4; since = ticks; System.out.println("GOJO_QA RED done blues=" + server.submit(() -> BlueRedManager.blues(me(server, c).serverLevel()).size()).join()); }
     }
 
     private void aftermath(Minecraft c, MinecraftServer server) {
