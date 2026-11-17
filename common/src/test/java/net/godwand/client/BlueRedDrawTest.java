@@ -130,8 +130,9 @@ class BlueRedDrawTest {
         var red = ctx(-1);
         BlueRedDraw.redOrb(red, AT, 2, 30);
         java.util.Set<Integer> b = effects(blue), r = effects(red);
-        // Both are painted masses now (owner's reset, 2026-11-18); which way they move is checked by blueDebrisFallsInRedDebrisFliesOut.
-        assertTrue(b.contains(BlueRedDraw.DEBRIS) && b.contains(BlueRedDraw.PLASMA), "Blue: plasma masses and infalling debris " + b);
+        // Both are painted masses now (owner's reset, 2026-11-18); which way Red's fragments move is checked by redDebrisFliesOut.
+        // Owner, 2026-11-18: Blue is a sphere wrapped in soft plasma, with no debris streaks (no thin pointed lines).
+        assertTrue(b.contains(BlueRedDraw.ORB) && b.contains(BlueRedDraw.PLASMA) && !b.contains(BlueRedDraw.DEBRIS), "Blue: sphere and plasma, no debris " + b);
         assertTrue(r.contains(BlueRedDraw.BRUSH) && r.contains(BlueRedDraw.DEBRIS), "Red: ink masses, brush strokes, flung fragments " + r);
     }
 
@@ -172,8 +173,7 @@ class BlueRedDrawTest {
         return in / (double) n;
     }
 
-    @Test void blueDebrisFallsInRedDebrisFliesOut() {
-        assertTrue(inwardShare((c, t) -> BlueRedDraw.blue(c, AT, true, t, -1), 60) > .8, "Blue pulls");
+    @Test void redDebrisFliesOut() {
         assertTrue(inwardShare((c, t) -> BlueRedDraw.redOrb(c, AT, 1.5, t), 60) < .2, "Red throws");
     }
 

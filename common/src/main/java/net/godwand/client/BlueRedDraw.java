@@ -63,23 +63,15 @@ final class BlueRedDraw {
         double coreD = at.distanceTo(c.eye), sphere = r * .78;
         if (c.body()) {
             smears(c, at, r, age, trail, ago, appear);
-            flecks(c, at, r, age, ready ? 14 : 10, appear, coreD, false);
             bands(c, at, r, age, ready, vel, appear, coreD, false);
             orb(c, at, sphere, 0, ready ? 1 : 0, BLUE_TINT, appear);
             bands(c, at, r, age, ready, vel, appear, coreD, true);
-            flecks(c, at, r, age, ready ? 14 : 10, appear, coreD, true);
             pressure(c, at, r, age, vel, ready, appear);
-            infall(c, at, r, age, ready ? 18 : 12, 600, 0x2A3550, appear);
         }
         if (!c.glow()) return;
         glow(c, at, r * .5, .9 * appear, 0xFFFFFF);
         glow(c, at, r * 1.0, (.5 + .2 * beat) * appear, CYAN);
         glow(c, at, r * 2.1, (.2 + .1 * beat) * appear, ROYAL);
-        if (ready) for (int b = 0; b < 4; b++) {
-            Vec3 d = nvec(660 + b, age * .03).normalize();
-            Vec3 from = at.add(d.scale(sphere));
-            liveBolt(c, from, from.add(d.add(nvec(670 + b, age * .05).scale(.6)).normalize().scale(r * .6)), 5, .25, .02, CYAN, .7, 680 + b * 10, age, .9);
-        }
         if (flash > 0) { glow(c, at, r * 6, flash, 0xFFFFFF); glow(c, at, r * 2.5, flash, 0xFFFFFF); }
     }
 
@@ -93,38 +85,6 @@ final class BlueRedDraw {
         Vec3 older = trail[n - 2].subtract(trail[n - 3]).scale(1 / Math.max(.5, ago[n - 3] - ago[n - 2]));
         double f = clamp01(ago[n - 1] / Math.max(.5, ago[n - 2] - ago[n - 1]));
         return older.add(newer.subtract(older).scale(f));
-    }
-
-    /** Blotches of blue flung off the sphere in every direction (owner, 2026-11-18, ref 04): each is born on the surface, streaks outward
-     *  slowing down, swells and breaks up, and fades; then it is born again elsewhere (it has faded by then, so nothing pops). The ones behind
-     *  the sphere are drawn before it ({@code front} false), the others after it. */
-    private static void flecks(Ctx c, Vec3 at, double r, double age, int count, double alpha, double coreD, boolean front) {
-        for (int i = 0; i < count; i++) {
-            long sd = 1800 + i * 71L;
-            double life = 10 + 6 * hash(sd), ph = age / life + hash(sd + 1);
-            long cyc = (long) Math.floor(ph);
-            double u = ph - cyc;
-            long cs = sd + cyc * 7919L;
-            Vec3 dir = new Vec3(hash(cs) * 2 - 1, hash(cs + 1) * 2 - 1, hash(cs + 2) * 2 - 1).normalize();
-            // Rooted on the surface (owner, 2026-11-18: they grow out of the sphere, no gap): the stroke stretches out of it, bending a little.
-            double reachOut = r * (.6 + 1.2 * hash(cs + 3)) * (1 - Math.pow(1 - u, 2.5)), root = r * .74;
-            Vec3 tip = at.add(dir.scale(root + reachOut));
-            if (tip.distanceTo(c.eye) < coreD != front) continue;
-            double wid = r * (.07 + .08 * hash(cs + 5)) * (1 - .3 * u);
-            Vec3 side = dir.cross(nvec(cs + 6, 0)).normalize();
-            int k = 7;
-            Vec3[] pts = new Vec3[k];
-            double[] w = new double[k];
-            for (int j = 0; j < k; j++) {
-                double t = j / (k - 1.0);
-                pts[j] = at.add(dir.scale(root + reachOut * t)).add(side.scale(reachOut * .35 * t * t * (hash(cs + 7) - .5)));
-                // Thick where it leaves the surface, thinning to its tip.
-                w[j] = wid * Math.pow(1 - t, .5) * smooth(t / .05 + .3) * (.6 + .6 * vnoise(cs + 8, t * 3 + u * 2));
-            }
-            double env = smooth(u / .08) * (1 - smooth((u - .45) / .55)) * alpha;
-            int color = hash(cs + 9) < .4 ? DEEP_BLUE : hash(cs + 9) < .8 ? ROYAL : 0x1E8CFF;
-            fxRibbon(c, pts, w, BRUSH, (int) (cs % 997), color, env);
-        }
     }
 
     /** Visual pressure in front of the viewer (owner, 2026-11-18): a few thick, soft, brushy smears of blue on the camera side of the sphere,
@@ -199,8 +159,8 @@ final class BlueRedDraw {
         List<Double> when = new ArrayList<>();
         path.add(at); when.add(0.0);
         double len = 0, first = velocity(trail, ago).length();
-        double maxLen = r * (1.2 + 2.3 * Math.min(1, first / .8));
-        for (int i = n - 1; i >= 0 && len < maxLen && ago[i] <= 12; i--) {
+        double maxLen = r * (2 + 4 * Math.min(1, first / .8));
+        for (int i = n - 1; i >= 0 && len < maxLen && ago[i] <= 16; i--) {
             len += trail[i].distanceTo(path.get(path.size() - 1));
             path.add(trail[i]); when.add(ago[i]);
         }
@@ -208,7 +168,7 @@ final class BlueRedDraw {
         if (path.size() < 2 || len < r * .3 || strength <= .02) return;
         double[] cum = new double[path.size()];
         for (int i = 1; i < cum.length; i++) cum[i] = cum[i - 1] + path.get(i).distanceTo(path.get(i - 1));
-        int k = 16;
+        int k = 24;
         Vec3[] base = new Vec3[k + 1];
         double[] laid = new double[k + 1], wash = new double[k + 1], main = new double[k + 1], streak = new double[k + 1];
         for (int j = 0; j <= k; j++) {
@@ -219,10 +179,11 @@ final class BlueRedDraw {
             base[j] = path.get(i - 1).add(path.get(i).subtract(path.get(i - 1)).scale(f));
             double w0 = when.get(i - 1) + (when.get(i) - when.get(i - 1)) * f;
             laid[j] = age - w0;
-            double fade = 1 - smooth(w0 / 12), torn = smooth((vnoise(1520, laid[j] * .5) - .55 * (1 - t)) / .1);
-            main[j] = r * .55 * Math.pow(t, .6) * fade * torn * (.6 + .6 * vnoise(1521, laid[j] * .7));
+            // Smooth and full (owner, 2026-11-18): broad, no sharp streak; it only frays near the very end of the tail.
+            double fade = 1 - smooth(w0 / 16), torn = smooth((vnoise(1520, laid[j] * .5) - .5 * Math.pow(1 - t, 2)) / .15);
+            main[j] = r * .9 * Math.pow(t, .45) * fade * torn * (.75 + .35 * vnoise(1521, laid[j] * .5));
             wash[j] = main[j] * 1.3;
-            streak[j] = main[j] * .35 * smooth((vnoise(1522, laid[j] * .6) - .4) / .2);
+            streak[j] = 0;
         }
         Vec3[] washPts = new Vec3[k + 1], streakPts = new Vec3[k + 1];
         for (int j = 0; j <= k; j++) {
@@ -230,9 +191,8 @@ final class BlueRedDraw {
             washPts[j] = base[j].add(nvec(1530, laid[j] * .3).scale(r * .2 * (1 - t)));
             streakPts[j] = base[j].add(nvec(1531, laid[j] * .3).scale(r * .25 * (1 - t)));
         }
-        fxRibbon(c, washPts, wash, PLASMA, 1525, DEEP_BLUE, strength * .55);
-        fxRibbon(c, base, main, BRUSH, 1526, ROYAL, strength);
-        fxRibbon(c, streakPts, streak, BRUSH, 1527, 0x3AA8FF, strength * .9);
+        fxRibbon(c, washPts, wash, PLASMA, 1525, DEEP_BLUE, strength * .6);
+        fxRibbon(c, base, main, PLASMA, 1526, ROYAL, strength);
     }
 
     /** Colours of a swirling orb: its ORB variant and tint, the plasma tiers (deep, mid, light), the under-layer, the halo and the hot core. */
@@ -386,8 +346,8 @@ final class BlueRedDraw {
         for (Wave w : waves) strokes(c, at, size, w, reach, 1);
         if (!c.glow()) return;
         glow(c, at, size * .6, .9, 0xFFFFFF);
-        glow(c, at, size * 1.4, .85, RED_CORE);
-        glow(c, at, size * 2.6, .55 * flicker(age, 7), RED);
+        glow(c, at, size * 1.6, .9, RED_CORE);
+        glow(c, at, size * 3.2, .65 * flicker(age, 7), RED);
     }
 
     /** The hot red body: thick red plasma currents swirling fast and tight round the core on tumbling planes, their width surging; together they
@@ -396,7 +356,7 @@ final class BlueRedDraw {
         for (int i = 0; i < 6; i++) {
             long sd = 7600 + i * 89L;
             Vec3[] uw = basis(nvec(sd, age * .03).normalize());
-            double rad = size * (.5 + .45 * hash(sd + 1)), arc = 2.4 + 1.6 * hash(sd + 2), phase = hash(sd + 3) * Math.PI * 2 + age * (.18 + .1 * hash(sd + 4));
+            double rad = size * (.55 + .55 * hash(sd + 1)), arc = 2.4 + 1.6 * hash(sd + 2), phase = hash(sd + 3) * Math.PI * 2 + age * (.18 + .1 * hash(sd + 4));
             int k = 18;
             Vec3[] pts = new Vec3[k + 1];
             double[] w = new double[k + 1];
@@ -414,7 +374,7 @@ final class BlueRedDraw {
      *  a little round the core as it goes), thins and rips apart with red light burning through it, and is gone; then another tears off
      *  elsewhere. Its root stays on the surface, so ink and red read as one mass. */
     private static void inkTorn(Ctx c, Vec3 at, double size, double age, Vec3 back, double reach) {
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 13; i++) {
             long sd = 7100 + i * 137L;
             double life = 10 + 6 * hash(sd), ph = age / life + hash(sd + 1);
             long cyc = (long) Math.floor(ph);
@@ -459,7 +419,7 @@ final class BlueRedDraw {
     static void strokes(Ctx c, Vec3 at, double size, Wave wv, double reach, double alpha) {
         if (wv.env() <= 0) return;
         long seed = wv.seed();
-        int count = 1 + (int) Math.round((2 + 2 * hash(seed + 1)) * Math.min(1, reach));
+        int count = 1 + (int) Math.round((3 + 2 * hash(seed + 1)) * Math.min(1, reach));
         Vec3[] uw = basis(wv.dir());
         for (int j = 0; j < count; j++) {
             long sd = seed + j * 53L;
@@ -470,7 +430,7 @@ final class BlueRedDraw {
             double rot = hash(sd + 2) * Math.PI * 2, spread = main ? 0 : (hash(sd + 1) - .5) * 1.1;
             Vec3 off = uw[0].scale(Math.cos(rot)).add(uw[1].scale(Math.sin(rot)));
             Vec3 dir = wv.dir().add(off.scale(Math.tan(spread))).normalize(), side = dir.cross(off).normalize(), side2 = dir.cross(side);
-            double L = size * reach * (main ? 5.5 : 3 + 1.5 * hash(sd + 3)), w0 = size * Math.sqrt(reach) * (main ? .7 : .16 + .08 * hash(sd + 4));
+            double L = size * reach * (main ? 6.5 : 3.5 + 1.5 * hash(sd + 3)), w0 = size * Math.sqrt(reach) * (main ? .9 : .22 + .1 * hash(sd + 4));
             double root = size * 1.0, headD = root + L * (1 - Math.pow(1 - u, 3)), tailD = root + L * .85 * smooth((u - .25) / .75);
             double curl = (hash(sd + 5) - .5) * (main ? 1.2 : 2.2) * Math.pow(1 - u, 1.5);
             int k = main ? 18 : 12;
@@ -488,8 +448,12 @@ final class BlueRedDraw {
             if (c.body()) {
                 fxRibbon(c, pts, ink, BRUSH, (int) (sd % 977) + 3, INK, env);
                 fxRibbon(c, pts, w, BRUSH, (int) (sd % 977), main || j % 2 == 0 ? RED : RED_BODY, env);
+                // Hot core inside the stroke where the energy runs strongest.
+                double[] hot = new double[k + 1];
+                for (int i = 0; i <= k; i++) hot[i] = spine[i] * 1.4;
+                fxRibbon(c, pts, hot, BRUSH, (int) (sd % 977) + 4, RED_LIGHT, env);
             }
-            if (c.glow()) fxRibbon(c, pts, spine, FLOW, (int) (sd % 977) + 2, RED_CORE, env * .8);
+            if (c.glow()) fxRibbon(c, pts, spine, FLOW, (int) (sd % 977) + 2, RED_CORE, env);
         }
     }
 
