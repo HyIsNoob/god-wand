@@ -279,7 +279,7 @@ public final class SilentGateRenderer {
             wandRenderer.renderFloating(pose, buffers, light, (float) f.age());
             pose.popPose();
         }
-        buffers.endBatch();
+        net.godwand.client.render.GodWandItemRenderer.endFloating(buffers);
     }
     /** The gate body is alpha blended without depth writes; stamp its depth so the additive layer (circle glow, rays) cannot shine through it. */
     /** Set when the stamp before the body left part of a gate out, so the stamp before the shade must be drawn too. */

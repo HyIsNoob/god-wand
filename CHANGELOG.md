@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.1]
+
+### Fixed
+
+- Silent Gate's floating wand no longer forces the rest of the world to draw early while it is on screen. This could make nearby creatures show up with the wrong look on some setups.
+
 ## [1.5.0]
 
 ### New skill: Silent Gate
