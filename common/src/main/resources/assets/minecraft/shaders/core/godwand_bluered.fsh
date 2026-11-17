@@ -250,7 +250,8 @@ void main() {
         float hotN = fbm(vec3(p.x * 2.5 - t * 2.0, qy * 1.5, seed + 9.0));
         float hot = smoothstep(ink ? 0.68 : 0.58, ink ? 0.82 : 0.78, hotN) * across;
         // Ink is uneven: dense in places, thin and see-through in others.
-        if (ink) a *= clamp(0.3 + 0.9 * fbm(vec3(p.x * 3.0 - t * 0.5, qy * 2.0, seed + 4.0)), 0.0, 1.0);
+        // Thin ink stays dark ink, not grey glass: it only thins to about half.
+        if (ink) a *= clamp(0.55 + 0.7 * fbm(vec3(p.x * 3.0 - t * 0.5, qy * 2.0, seed + 4.0)), 0.0, 1.0);
         vec3 bright = ink ? vec3(0.62, 0.02, 0.05) : mix(tint, vec3(1.0, 0.92, 0.9), 0.65);
         col = tint * (0.85 + 0.3 * striae);
         col = mix(col, bright, hot);
