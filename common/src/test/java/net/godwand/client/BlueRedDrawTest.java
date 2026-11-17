@@ -130,8 +130,9 @@ class BlueRedDrawTest {
         var red = ctx(-1);
         BlueRedDraw.redOrb(red, AT, 2, 30);
         java.util.Set<Integer> b = effects(blue), r = effects(red);
-        assertTrue(b.contains(BlueRedDraw.DEBRIS) && b.contains(BlueRedDraw.FLOW), "Blue: infalling debris and tendrils " + b);
-        assertTrue(r.contains(BlueRedDraw.FLOW) && r.contains(BlueRedDraw.SMOKE), "Red: brush strokes and smoke " + r);
+        // Both are painted masses now (owner's reset, 2026-11-18); which way they move is checked by blueDebrisFallsInRedDebrisFliesOut.
+        assertTrue(b.contains(BlueRedDraw.DEBRIS) && b.contains(BlueRedDraw.BRUSH), "Blue: plasma masses and infalling debris " + b);
+        assertTrue(r.contains(BlueRedDraw.BRUSH) && r.contains(BlueRedDraw.DEBRIS), "Red: ink masses, brush strokes, flung fragments " + r);
     }
 
     /** Centres of the DEBRIS quads drawn into c, relative to the camera. */

@@ -3,6 +3,8 @@ package net.godwand.client;
 import net.godwand.skill.BlueRedRules;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import static net.godwand.client.GateDraw.*;
@@ -20,7 +22,7 @@ final class BlueRedDraw {
     static final int RED = 0xFF0A28, RED_BODY = 0xD4001A, RED_DEEP = 0x8A0010, RED_LIGHT = 0xFF4A60, RED_CORE = 0xFFD6DC, RED_DARK = 0x16000A;
     static final int VIOLET = 0x9A2CFF, ORCHID = 0xF064FF, PALE = 0xF6D8FF, NIGHT = 0x2A0650, VOID = 0x07020F, INK = 0x050002;
     /** Shader effects (godwand_bluered.fsh). ORB seeds: variant (0 blue, 1 red, 2 purple) + 4 * level. */
-    static final int ORB = 0, FLOW = 1, FLAME = 2, SMOKE = 3, SHOCK = 4, BOLT = 5, SPARK = 6, RAYS = 7, NEBULA = 8, SPEEDLINES = 9, DEBRIS = 10, RING = 11;
+    static final int ORB = 0, FLOW = 1, FLAME = 2, SMOKE = 3, SHOCK = 4, BOLT = 5, SPARK = 6, RAYS = 7, NEBULA = 8, SPEEDLINES = 9, DEBRIS = 10, RING = 11, BRUSH = 12;
     static final int BLUE_TINT = 0x1A6CFF;
 
     private BlueRedDraw() {}
@@ -48,60 +50,101 @@ final class BlueRedDraw {
 
     // ---- Blue: a source of pull ----
 
+    /** Blue (owner's reset, 2026-11-18, refs 03-04): a gravitational anomaly made of thick plasma. Broad masses of deep blue, royal, electric blue
+     *  and cyan curl in from an irregular outer edge and wind tighter as they fall into a small white core; some split off a thinner branch, their
+     *  tails fray and dissolve, bulges travel inward along them, and the ones in front cover the core. Plasma droplets and debris are pulled in.
+     *  Thin lightning only when ready. The ready form: more masses, faster, brighter, the core charged. */
     static void blue(Ctx c, Vec3 at, boolean ready, double age, double sinceReady) {
         double r = BlueRedVisual.blueRadius(ready ? BlueRedRules.BlueState.READY : BlueRedRules.BlueState.CHARGING, age);
         double appear = smooth(age / 6), beat = ready ? BlueRedVisual.heartbeat(age) : 0, flash = BlueRedVisual.flash(sinceReady);
-        at = at.add(jitter(age, ready ? .06 : .03, 11));
-        // A small, dense core: no shell. The shape is made by what falls into it.
+        at = at.add(jitter(age, ready ? .04 : .02, 11));
+        List<Arm> arms = new ArrayList<>();
+        int count = ready ? 18 : 14;
+        for (int i = 0; i < count; i++) {
+            long sd = 900 + i * 131L;
+            arms.add(plasmaArm(c, at, r, age, sd, ready ? 1.5 : 1, 1));
+            if (hash(sd + 8) < .35) arms.add(plasmaArm(c, at, r, age, sd + 50000, ready ? 1.5 : 1, .5));
+        }
         if (c.body()) {
-            orb(c, at, r * .8, 0, ready ? 1 : 0, BLUE_TINT, appear);
+            // Masses behind the core first, then the core, then the masses in front of it: they cover it.
+            double coreD = at.distanceTo(c.eye);
+            for (Arm a : arms) if (a.depth() > coreD) drawArm(c, a, appear, ready);
+            orb(c, at, r * .45, 0, ready ? 1 : 0, BLUE_TINT, appear);
+            for (Arm a : arms) if (a.depth() <= coreD) drawArm(c, a, appear, ready);
+            droplets(c, at, r, age * (ready ? 1.4 : 1), ready ? 18 : 12, 980, appear);
             infall(c, at, r, age, ready ? 34 : 24, 600, 0x2A3550, appear);
-            // Blue fire: tongues licking up off the core and bending into the pull.
-            for (int i = 0; i < (ready ? 14 : 10); i++) {
-                double life = 16 + 10 * hash(5000 + i), ph = age / life + hash(5100 + i), p = ph - Math.floor(ph), grow = Math.sin(Math.PI * p);
-                double a = hash(5200 + i) * Math.PI * 2 + age * .05, tilt = (hash(5300 + i) - .5) * 1.2;
-                Vec3 out = new Vec3(Math.cos(a) * Math.cos(tilt), Math.sin(tilt) * .6 + .3, Math.sin(a) * Math.cos(tilt)).normalize();
-                Vec3 dir = out.add(0, .9, 0).add(new Vec3(-Math.sin(a), 0, Math.cos(a)).scale(.5)).normalize();
-                fxTongue(c, at.add(out.scale(r * .65)), dir, r * (.7 + .9 * grow), r * .35, FLAME, 5400 + i, i % 2 == 0 ? DEEP_BLUE : ROYAL, .9 * grow * appear);
-            }
         }
         if (!c.glow()) return;
-        glow(c, at, r * 1.7, (.3 + .15 * beat) * appear * flicker(age, 3), ROYAL);
-        radiate(c, at, r, age * (ready ? 1.4 : 1), ready ? 16 : 11, 640, appear);
-        streaks(c, at, r * .5, r * 5, age, ready ? 48 : 32, CYAN, 620, 1.2, appear, true);
-        sparks(c, at, r * .9, age, ready ? 18 : 10, ICE, 60);
+        glow(c, at, r * .9, (.6 + .25 * beat) * appear, ICE);
+        glow(c, at, r * .4, .9 * appear, 0xFFFFFF);
+        glow(c, at, r * 2, (.16 + .1 * beat) * appear, ROYAL);
+        // A faint hot thread along some masses: their lit edge catching the core's light.
+        if (ready) for (Arm a : arms) if (hash(a.seed() + 11) < .4) {
+            double[] w = new double[a.w().length];
+            for (int j = 0; j < w.length; j++) w[j] = a.w()[j] * .1;
+            fxRibbon(c, a.pts(), w, FLOW, (int) (a.seed() % 997) + 2, CYAN, .25 * appear);
+        }
         if (ready) for (int b = 0; b < 4; b++) {
             Vec3 d = nvec(660 + b, age * .03).normalize();
-            Vec3 from = at.add(d.scale(r * .6));
-            liveBolt(c, from, from.add(d.add(nvec(670 + b, age * .05).scale(.6)).normalize().scale(r * .8)), 5, .25, .025, CYAN, .9, 680 + b * 10, age, .9);
+            Vec3 from = at.add(d.scale(r * .5));
+            liveBolt(c, from, from.add(d.add(nvec(670 + b, age * .05).scale(.6)).normalize().scale(r * .8)), 5, .25, .02, CYAN, .7, 680 + b * 10, age, .9);
         }
         if (flash > 0) { glow(c, at, r * 6, flash, 0xFFFFFF); glow(c, at, r * 2.5, flash, 0xFFFFFF); }
     }
 
-    /** Blue's energy radiating outward (owner, 2026-11-18: the energy spreads out while the sphere pulls things in): spiral arms streaming out of
-     *  the core, unwinding and thinning as they leave, each on its own plane with its own reach, width and brightness; the gaps along each arm
-     *  travel outward. */
-    static void radiate(Ctx c, Vec3 at, double r, double age, int count, long seed, double alpha) {
+    /** One plasma mass: its centreline from the outer tail (index 0) to where it sinks into the core, its half-widths, and how far it is from the eye. */
+    record Arm(Vec3[] pts, double[] w, long seed, double depth) {}
+
+    /** A mass on its own slowly precessing plane: it starts far out, winds tighter and faster as it falls in (most turn the same way, a few
+     *  against), lifts off the plane in its outer part, and swells and thins as bulges travel inward along it. scale < 1 is a branch: shorter,
+     *  thinner, ending in a taper before it reaches the core. */
+    static Arm plasmaArm(Ctx c, Vec3 at, double r, double age, long sd, double spin, double scale) {
+        Vec3 n = new Vec3(.25, 1, .1).add(nvec(sd, age * .004).scale(1.1)).normalize();
+        Vec3[] uw = basis(n);
+        boolean branch = scale < 1;
+        double rOut = r * (1 + hash(sd + 1)) * (branch ? .85 : 1), rIn = r * (.08 + .15 * hash(sd + 2));
+        double sign = hash(sd + 9) < .85 ? 1 : -1, end = branch ? .7 : 1;
+        double turn = (1.4 + 1.6 * hash(sd + 3)) * sign, phase = hash(sd + 4) * Math.PI * 2 + age * (.03 + .03 * hash(sd + 5)) * spin * sign;
+        double wmax = r * (.28 + .3 * hash(sd + 6)) * scale;
+        int k = 24;
+        Vec3[] pts = new Vec3[k + 1];
+        double[] w = new double[k + 1];
+        for (int j = 0; j <= k; j++) {
+            double t = (double) j / k * end, rad = rIn + (rOut - rIn) * Math.pow(1 - t, 1.4), a = phase + turn * Math.pow(t, 1.6);
+            Vec3 lift = n.scale(r * .2 * snoise(sd + 6, t * 2 + age * .02) * (1 - t));
+            pts[j] = at.add(uw[0].scale(Math.cos(a) * rad)).add(uw[1].scale(Math.sin(a) * rad)).add(lift);
+            double prof = Math.pow(Math.sin(Math.PI * Math.pow(t / end, .75)), .5);
+            w[j] = wmax * prof * (.6 + .6 * vnoise(sd + 7, t * 2.5 - age * .09));
+        }
+        return new Arm(pts, w, sd, pts[k / 2].distanceTo(c.eye));
+    }
+
+    /** A mass as paint: a wider dark navy under-stroke, then the coloured stroke over it, so it has a shadowed edge and a lit one. */
+    private static void drawArm(Ctx c, Arm a, double alpha, boolean ready) {
+        double[] under = new double[a.w().length], top = new double[a.w().length];
+        for (int j = 0; j < under.length; j++) { under[j] = a.w()[j] * 1.25; top[j] = a.w()[j] * .82; }
+        int seed = (int) (a.seed() % 997);
+        double pick = hash(a.seed() + 10);
+        int color = pick < .4 ? DEEP_BLUE : pick < .75 ? ROYAL : pick < .92 ? 0x1E8CFF : ready ? CYAN : ROYAL;
+        fxRibbon(c, a.pts(), under, BRUSH, seed, 0x050C40, alpha * .75);
+        fxRibbon(c, a.pts(), top, BRUSH, seed + 1, color, alpha);
+    }
+
+    /** Plasma droplets torn off and pulled in: short curved strokes riding the same accelerating spirals as the debris. */
+    private static void droplets(Ctx c, Vec3 at, double r, double age, int count, long seed, double alpha) {
         for (int i = 0; i < count; i++) {
-            long sd = seed + i * 97L;
-            Vec3 n = new Vec3(.2, 1, .15).add(nvec(sd, i * 1.7 + age * .003).scale(1.1)).normalize();
-            Vec3[] uw = basis(n);
-            double dirSign = hash(sd + 1) < .75 ? 1 : -1;
-            double rOut = r * (1.8 + 1.8 * hash(sd + 2)), turns = (.8 + 1.1 * hash(sd + 3)) * Math.PI * dirSign;
-            double phase = hash(sd + 4) * Math.PI * 2 + age * (.03 + .03 * hash(sd + 5)) * dirSign;
-            double wmax = r * (.05 + .12 * hash(sd + 6) * hash(sd + 6)), bright = .35 + .5 * hash(sd + 7);
-            int k = 28;
-            Vec3[] pts = new Vec3[k + 1];
-            double[] widths = new double[k + 1];
-            for (int j = 0; j <= k; j++) {
-                double t = (double) j / k, rad = r * .6 + (rOut - r * .6) * Math.pow(t, .8), a = phase + turns * Math.sqrt(t);
-                Vec3 off = n.scale(r * .25 * snoise(sd + 8, t * 3 + age * .05) * t);
-                pts[j] = at.add(uw[0].scale(Math.cos(a) * rad)).add(uw[1].scale(Math.sin(a) * rad)).add(off);
-                double gap = smooth((vnoise(sd + 9, t * 4 + age * .12) - .28) / .12);
-                widths[j] = wmax * (1 - .85 * t) * smooth(t / .06) * smooth((1 - t) / .3) * gap;
+            long sd = seed + i * 61L;
+            double life = 18 + 14 * hash(sd), ph = age / life + hash(sd + 1);
+            long cyc = (long) Math.floor(ph);
+            double p = ph - cyc;
+            long cs = sd + cyc * 7919L;
+            Vec3[] pts = new Vec3[5];
+            double[] w = new double[5];
+            for (int j = 0; j < 5; j++) {
+                pts[j] = fallAt(at, cs, r * .8, clamp01(p - .14 + .035 * j), true);
+                w[j] = r * (.05 + .07 * hash(cs + 5)) * Math.pow(j / 4.0, .7) * (1 - .6 * p);
             }
-            int color = i % 4 == 0 ? ICE : i % 2 == 1 ? CYAN : 0x5E9BFF;
-            fxRibbon(c, pts, widths, FLOW, (int) (sd % 997), color, alpha * bright);
+            fxRibbon(c, pts, w, BRUSH, (int) (cs % 991), i % 2 == 0 ? ROYAL : CYAN, alpha * smooth(p / .15) * smooth((1 - p) / .1));
         }
     }
 
@@ -143,20 +186,103 @@ final class BlueRedDraw {
     /** Red's orb with its energy blown back up and away (a default for the charge and the tests). */
     static void redOrb(Ctx c, Vec3 at, double size, double age) { redOrb(c, at, size, age, new Vec3(0, 1, 0)); }
 
-    /** Red's orb: a small, overloaded core whose energy blows out behind it (owner, 2026-11-18), towards {@code back}: volleys of sharp strokes,
-     *  torn fragments and sparks streaming that way, like a comet's tail or a flame in a gale. */
-    static void redOrb(Ctx c, Vec3 at, double size, double age, Vec3 back) {
+    /** Red (owner's reset, 2026-11-18, refs 07/15/16/36): a small overloaded core inside a vortex of black ink edged with red, torn, stretched
+     *  and dragged towards {@code back}; around it, sharp red brush strokes are flung out in that direction: thick heads, warped bodies, tails that
+     *  taper or break. Different from Blue in shape, not just colour: Blue's masses fall in, Red's ink whirls and its strokes fly out. */
+    static void redOrb(Ctx c, Vec3 at, double size, double age, Vec3 back) { redOrb(c, at, size, age, back, 1); }
+
+    /** As above; {@code reach} scales how far the ink and the strokes spread from the core (the charge in the hand keeps them close, so they do
+     *  not cover the view). */
+    static void redOrb(Ctx c, Vec3 at, double size, double age, Vec3 back, double reach) {
         back = back.lengthSqr() < 1e-6 ? new Vec3(0, 1, 0) : back.normalize();
+        List<Arm> ink = new ArrayList<>();
+        for (int i = 0; i < 12; i++) ink.add(inkArc(c, at, size, age, 7100 + i * 137L, back, reach));
         if (c.body()) {
-            orb(c, at, size * .75, 1, 0, RED, 1);
-            fall(c, at, size * 1.1, age * 1.6, 20, 700, INK, .95, false);
+            double coreD = at.distanceTo(c.eye);
+            for (Arm a : ink) if (a.depth() > coreD) drawInk(c, a, at);
+            orb(c, at, size * .55, 1, 0, RED, 1);
+            for (Arm a : ink) if (a.depth() <= coreD) drawInk(c, a, at);
+            fall(c, at, size * 1.1, age * 1.6, 16, 700, INK, .95, false);
         }
-        ruptures(c, at, size, age, 730, 1, back);
+        brushStrokes(c, at, size * reach, age, back, 12, 7300, 1);
         if (!c.glow()) return;
-        glow(c, at, size * 1.6, .35 * flicker(age, 7), RED);
-        streaks(c, at, size * .8, size * 6, age, 44, RED_LIGHT, 720, 1.8, 1, false);
-        sparks(c, at, size * 2.8, age * 1.6, 34, RED_LIGHT, 100);
-        fall(c, at, size * .9, age * 2.2, 16, 770, RED_CORE, .9, false);
+        glow(c, at, size * 1.3, .4 * flicker(age, 7), RED);
+        glow(c, at, size * .45, .7, RED_CORE);
+    }
+
+    /** One ink mass: an arc whirling fast round the core on a plane tilted towards {@code back}, its trailing part dragged back, its width
+     *  ripped by gaps that travel along it. */
+    static Arm inkArc(Ctx c, Vec3 at, double size, double age, long sd, Vec3 back, double reach) {
+        Vec3 n = nvec(sd, age * .01).add(back.scale(.6)).normalize();
+        Vec3[] uw = basis(n);
+        double rad = size * (.7 + 1.0 * hash(sd + 1) * reach), span = 2.4 + 1.8 * hash(sd + 2);
+        double phase = hash(sd + 3) * Math.PI * 2 + age * (.1 + .06 * hash(sd + 4)), wmax = size * (.12 + .16 * hash(sd + 7));
+        int k = 16;
+        Vec3[] pts = new Vec3[k + 1];
+        double[] w = new double[k + 1];
+        for (int j = 0; j <= k; j++) {
+            // Lopsided and smeared: the radius wanders a lot and the trailing part is dragged well back, so it reads as a torn vortex, not a ring.
+            double t = (double) j / k, a = phase + span * t, rr = rad * (1 + .45 * snoise(sd + 5, t * 3 + age * .06));
+            pts[j] = at.add(uw[0].scale(Math.cos(a) * rr)).add(uw[1].scale(Math.sin(a) * rr)).add(back.scale(size * 1.6 * reach * (1 - t) * (1 - t)));
+            double torn = smooth((vnoise(sd + 6, t * 4.5 + age * .08) - .35) / .1);
+            w[j] = wmax * Math.pow(Math.sin(Math.PI * t), .5) * torn;
+        }
+        return new Arm(pts, w, sd, pts[k / 2].distanceTo(c.eye));
+    }
+
+    /** Ink with a burning edge: a red stroke pushed a little outward under the ink, so the red shows along one side only; a few masses are deep
+     *  red instead of black. */
+    private static void drawInk(Ctx c, Arm a, Vec3 at) {
+        int n = a.w().length;
+        Vec3[] edge = new Vec3[n];
+        double[] under = new double[n];
+        for (int j = 0; j < n; j++) {
+            Vec3 out = a.pts()[j].subtract(at);
+            edge[j] = a.pts()[j].add(out.lengthSqr() < 1e-6 ? Vec3.ZERO : out.normalize().scale(a.w()[j] * .45));
+            under[j] = a.w()[j] * .8;
+        }
+        boolean deep = hash(a.seed() + 12) < .25;
+        fxRibbon(c, edge, under, BRUSH, (int) (a.seed() % 997), deep ? RED : RED_BODY, .85);
+        fxRibbon(c, a.pts(), a.w(), BRUSH, (int) (a.seed() % 997) + 1, deep ? RED_DEEP : INK, 1);
+    }
+
+    /** Red's brush strokes: each is flung out from the core (mostly towards {@code back}), curving as it goes; thick at its head, tapering or
+     *  breaking at its tail; it lives one cycle, then a new one starts on a new path (it has faded out by then, so nothing pops). Ink under-stroke,
+     *  red over it, a hot spine in the glow pass. */
+    static void brushStrokes(Ctx c, Vec3 at, double size, double age, Vec3 back, int count, long seed, double alpha) {
+        for (int i = 0; i < count; i++) {
+            long sd = seed + i * 173L;
+            double period = 11 + 6 * hash(sd), ph = age / period + hash(sd + 1);
+            long cyc = (long) Math.floor(ph);
+            double u = ph - cyc;
+            long cs = sd + cyc * 104729L;
+            double env = smooth(u / .06) * (1 - smooth((u - .5) / .5)) * alpha;
+            if (env <= 0) continue;
+            Vec3 rnd = new Vec3(hash(cs) * 2 - 1, hash(cs + 1) * 2 - 1, hash(cs + 2) * 2 - 1).normalize();
+            Vec3 dir = back.scale(1.2).add(rnd).normalize();
+            Vec3[] uw = basis(dir);
+            double turn = hash(cs + 3) * Math.PI * 2;
+            Vec3 side = uw[0].scale(Math.cos(turn)).add(uw[1].scale(Math.sin(turn)));
+            double ease = 1 - Math.pow(1 - u, 2.2);
+            double headD = size * (.45 + (2.2 + 2.8 * hash(cs + 4)) * ease), len = size * (2.2 + 3 * hash(cs + 5)) * smooth(u / .25 + .2);
+            double bend = (hash(cs + 6) - .5) * 2.2, w0 = size * (.1 + .12 * hash(cs + 7));
+            int k = 14;
+            Vec3[] pts = new Vec3[k + 1];
+            double[] w = new double[k + 1], under = new double[k + 1], spine = new double[k + 1];
+            for (int j = 0; j <= k; j++) {
+                double t = (double) j / k, d = Math.max(size * .3, headD - len * (1 - t));
+                pts[j] = at.add(dir.scale(d)).add(side.scale(bend * len * .6 * (1 - t) * (1 - t)));
+                double gap = t > .5 ? 1 : smooth((vnoise(cs + 8, t * 5 + u * 4) - .25 - .3 * u) / .08);
+                // Needle tail, full head that ends almost blunt.
+                w[j] = w0 * Math.pow(t, 1.3) * smooth((1 - t) / .06 + .25) * gap;
+                under[j] = w[j] * 1.3; spine[j] = w[j] * .22;
+            }
+            if (c.body()) {
+                fxRibbon(c, pts, under, BRUSH, (int) (cs % 977), INK, env * .9);
+                fxRibbon(c, pts, w, BRUSH, (int) (cs % 977) + 1, i % 3 == 0 ? RED_BODY : RED, env);
+            }
+            if (c.glow()) fxRibbon(c, pts, spine, FLOW, (int) (cs % 977) + 2, RED_LIGHT, env * .45);
+        }
     }
 
     /** Red's ruptures: in volleys (two drifting rhythms) the core spits long, sharp, nearly straight strokes outward, longest on the side the pressure
@@ -203,38 +329,35 @@ final class BlueRedDraw {
         }
     }
 
-    /** Red in flight: the orb at the head, two thin spiralling threads of light behind it, a hot streak, sonic rings, sparks. */
+    /** Red in flight: the orb at the head dragging smears of ink and red paint behind it that wave and taper, and a few sparks. */
     static void redFlight(Ctx c, Vec3 origin, Vec3 dir, Vec3 head, double age, double fade, long seed, boolean flying) {
         if (fade <= 0) return;
         double tailLength = Math.min(head.distanceTo(origin), 24);
         Vec3[] uw = basis(dir);
-        for (int h = 0; h < 2 && c.glow(); h++) {
-            int n = 30;
+        for (int h = 0; h < 3; h++) {
+            int n = 20;
+            double length = Math.min(tailLength, 6 + 2.5 * h);
             Vec3[] pts = new Vec3[n + 1];
-            double[] widths = new double[n + 1];
+            double[] w = new double[n + 1], under = new double[n + 1], spine = new double[n + 1];
             for (int i = 0; i <= n; i++) {
-                double t = (double) i / n, back = (1 - t) * tailLength, turn = h * Math.PI - age * .9 + back * .6;
-                double radius = (.15 + .7 * (1 - t)) * (1 + .3 * snoise(seed + h, back * .3 + age * .1));
-                pts[i] = head.subtract(dir.scale(back)).add(uw[0].scale(Math.cos(turn) * radius)).add(uw[1].scale(Math.sin(turn) * radius));
-                widths[i] = .025 + .045 * t;
+                double t = (double) i / n, back = (1 - t) * length, wob = Math.sin(back * .9 - age * .5 + h * 2.1) * .35 * (1 - t);
+                pts[i] = head.subtract(dir.scale(back)).add(uw[h % 2].scale(wob)).add(uw[(h + 1) % 2].scale(.15 * snoise(seed + h, back * .4 + age * .1) * (1 - t)));
+                w[i] = (h == 0 ? .34 : .2) * (.2 + .8 * t);
+                under[i] = w[i] * 1.25; spine[i] = w[i] * .2;
             }
-            fxRibbon(c, pts, widths, BOLT, 120 + h, RED_LIGHT, fade);
-        }
-        if (c.glow()) {
-            fxBeam(c, head.subtract(dir.scale(Math.min(tailLength, 12))), head, .02, .18, BOLT, 130, RED, fade);
-            for (int k = 1; k <= 6; k++) {
-                double back = k * 3.5;
-                if (back > tailLength) break;
-                orbit(c, head.subtract(dir.scale(back)), dir, .35 + back / BlueRedRules.RED_SPEED * .22, .05, RED_LIGHT, .75 * fade * (1 - k / 7.0));
+            if (c.body()) {
+                fxRibbon(c, pts, under, BRUSH, 120 + h, INK, fade * .85);
+                if (h < 2) fxRibbon(c, pts, w, BRUSH, 123 + h, h == 0 ? RED : RED_BODY, fade);
             }
+            if (c.glow() && h < 2) fxRibbon(c, pts, spine, FLOW, 126 + h, RED_LIGHT, fade * .5);
         }
         if (flying) redOrb(c, head, .5, age, dir.scale(-1));
         if (!c.glow()) return;
         Random rand = new Random(seed);
-        for (int i = 0; i < 22; i++) {
+        for (int i = 0; i < 14; i++) {
             double t = rand.nextDouble(), drift = Math.max(0, age - t * 6) * .07;
             Vec3 p = head.subtract(dir.scale(t * tailLength)).add(gauss(rand).scale(drift + .2));
-            if (p.distanceTo(c.eye) > 1.2) fxSprite(c, p, .06 + .05 * rand.nextDouble(), SPARK, 140 + i, i % 4 == 0 ? RED_CORE : RED, .9 * fade * (1 - t * .6), 0);
+            if (p.distanceTo(c.eye) > 1.2) fxSprite(c, p, .05 + .04 * rand.nextDouble(), SPARK, 140 + i, i % 4 == 0 ? RED_CORE : RED, .8 * fade * (1 - t * .6), 0);
         }
     }
 

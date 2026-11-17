@@ -225,6 +225,23 @@ void main() {
         float vign = smoothstep(0.55, 1.35, d);
         col = mix(vec3(0.0), tint, lines);
         a = clamp(lines * 1.6 + vign * 0.75, 0.0, 1.0);
+    } else if (effect == 12) {
+        // BRUSH: a painted stroke of energy (owner refs 03-04 for Blue, 07/15/16/36 for Red). x runs tail (0) to head (1), y across. Ragged
+        // bristle edges, rougher towards the tail; dry-brush streaks running along it and streaming towards the head; the tail breaks into
+        // bristles; one edge lit, the other in shadow, so a stroke reads as a thick mass rather than a line. Near-black tints stay ink.
+        float across = 1.0 - abs(q.y);
+        float striae = fbm(vec3(p.x * 2.2 - t * 0.9, q.y * 7.0, seed * 1.7));
+        float edgeN = noise(vec3(p.x * 7.0 - t * 0.6, q.y > 0.0 ? seed : seed + 5.0, 0.0));
+        float edge = 0.1 + 0.42 * edgeN * (1.0 - 0.55 * p.x);
+        float body = smoothstep(edge, edge + 0.08, across);
+        float bristle = smoothstep(0.5, 0.62, striae + 0.6 * smoothstep(0.0, 0.45, p.x));
+        a = body * bristle * smoothstep(1.0, 0.93, p.x);
+        float lum = dot(tint, vec3(0.3, 0.59, 0.11));
+        vec3 deep = tint * 0.35;
+        vec3 bright = lum < 0.08 ? tint * 4.0 + vec3(0.10, 0.0, 0.02) * step(tint.b, tint.r) : mix(tint, vec3(1.0), 0.55);
+        float lit = smoothstep(-0.1, 0.8, q.y) * across;
+        col = mix(deep, tint, smoothstep(0.15, 0.75, striae));
+        col = mix(col, bright, lit * smoothstep(0.45, 0.85, striae) * 0.9);
     } else if (effect == 11) {
         // RING: a FLOW-shaped ribbon that keeps its colour (the owner's ref 40 red and blue rings): saturated body, soft frayed edges, only a thin
         // white thread down the middle.

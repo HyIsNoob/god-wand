@@ -231,12 +231,13 @@ public final class BlueRedRenderer {
         for (var charge : CHARGES.entrySet()) {
             var owner = level == null ? null : level.getEntity(charge.getKey());
             if (owner == null) continue;
-            // Held low and to the right, where the raised hand will be, so it frames the view instead of blocking it.
+            // Held low and to the right, where the raised hand will be, so it frames the view instead of blocking it; its strokes fly up, right
+            // and away from the camera, never into it.
             Vec3 view = owner.getViewVector(partial), right = view.cross(new Vec3(0, 1, 0));
             right = right.lengthSqr() < 1e-6 ? Vec3.ZERO : right.normalize();
             Vec3 at = owner.getEyePosition(partial).add(view.scale(1.9)).add(right.scale(.45)).add(0, -.3, 0);
             double age = now - charge.getValue();
-            BlueRedDraw.redOrb(c, at, BlueRedVisual.redChargeSize(age, GodWandConfig.SERVER.redChargeTicks), age, view.scale(-1).add(0, 1.2, 0).add(right.scale(.8)));
+            BlueRedDraw.redOrb(c, at, BlueRedVisual.redChargeSize(age, GodWandConfig.SERVER.redChargeTicks), age, view.scale(.3).add(0, 1, 0).add(right.scale(.8)), .45);
         }
         for (Flight f : FLIGHTS) {
             double age = now - f.at, after = f.endAt < 0 ? 0 : now - f.endAt;

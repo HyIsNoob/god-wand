@@ -2,6 +2,9 @@ package net.godwand.qa;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.godwand.client.BlueRedShowcase;
+import net.minecraft.world.phys.Vec3;
 import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.godwand.GodWandMod;
 import net.godwand.config.GodWandConfig;
@@ -30,7 +33,8 @@ import java.util.*;
 /**
  * Development-only: drives Blue (real left-click hold through the attack mixin) and Red (real right-click hold) in the Fabric 1.21.1 client and captures frames.
  * Scene from build/fuga-qa/gojo-scene: combo (3 husks, Blue to READY, anchor, Red into it), shatter (Red through another player's unready Blue),
- * terrain (combo inside a stone hill, to see eating and MSPT). build/fuga-qa/rd8 sets render distance 8; build/fuga-qa/stop quits.
+ * terrain (combo inside a stone hill, to see eating and MSPT), look (Blue, ready Blue, Red at merge size and at flight size, one after another at the
+ * same spot, Blue's gameplay distance ahead, same camera, HUD and hand hidden). build/fuga-qa/rd8 sets render distance 8; build/fuga-qa/stop quits.
  */
 public final class BlueRedProbe implements ClientModInitializer {
     private static final int OX = 6000, OZ = 6000;
@@ -44,6 +48,7 @@ public final class BlueRedProbe implements ClientModInitializer {
     public void onInitializeClient() {
         if (!Boolean.getBoolean("godwand.fuga.qa")) throw new IllegalStateException("QA flag required");
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+        WorldRenderEvents.AFTER_TRANSLUCENT.register(BlueRedShowcase::render);
     }
 
     private Path flags(Minecraft c) { return c.gameDirectory.toPath().getParent(); }
@@ -70,6 +75,7 @@ public final class BlueRedProbe implements ClientModInitializer {
             case 2 -> blue(c, server);
             case 3 -> red(c, server);
             case 4 -> aftermath(c, server);
+            case 5 -> look(c);
             default -> {}
         }
     }
@@ -100,7 +106,7 @@ public final class BlueRedProbe implements ClientModInitializer {
                 other.setItemInHand(InteractionHand.MAIN_HAND, otherWand);
                 other.moveTo(OX + .5, stand, OZ + 30.5, 180, 0);
                 BlueRedManager.input(other, true);
-            } else for (int i = 0; i < 3; i++) {
+            } else if (!scene.equals("look")) for (int i = 0; i < 3; i++) {
                 Mob m = (Mob) EntityType.HUSK.create(level);
                 double x = OX + .5 + (i - 1) * 1.6, z = OZ + 8.5;
                 m.setPos(x, level.getHeight(Heightmap.Types.WORLD_SURFACE, (int) Math.floor(x), (int) Math.floor(z)), z);
@@ -111,7 +117,7 @@ public final class BlueRedProbe implements ClientModInitializer {
         c.player.getInventory().selected = 0; c.player.connection.send(new ServerboundSetCarriedItemPacket(0));
         try { Files.createDirectories(c.gameDirectory.toPath().resolve("screenshots/gojo-" + scene + "-" + run)); }
         catch (java.io.IOException e) { throw new RuntimeException(e); }
-        stage = scene.equals("shatter") ? 3 : 2; since = ticks;
+        stage = scene.equals("shatter") ? 3 : scene.equals("look") ? 5 : 2; since = ticks;
         System.out.println("GOJO_QA SETUP scene=" + scene + " run=" + run + " ground=" + ground);
     }
 
@@ -160,6 +166,24 @@ public final class BlueRedProbe implements ClientModInitializer {
         if (fired == 30 || fired == 100) System.out.println("GOJO_QA PURPLE fired+" + fired + " cutscene=" + net.godwand.client.PurpleCinematic.active()
                 + " purples=" + server.submit(() -> BlueRedManager.purples(me(server, c).serverLevel()).size()).join());
         if (fired > 330) { stage = 4; since = ticks; System.out.println("GOJO_QA RED done blues=" + server.submit(() -> BlueRedManager.blues(me(server, c).serverLevel()).size()).join()); }
+    }
+
+    /** Each subject for 60 ticks, a frame every 10 (and two back to back, to check nothing pops between frames). */
+    private void look(Minecraft c) {
+        int t = ticks - since;
+        if (t == 1) {
+            c.options.hideGui = true;
+            Vec3 eye = c.player.getEyePosition(), view = c.player.getViewVector(1);
+            BlueRedShowcase.at = eye.add(view.scale(net.godwand.skill.BlueRedRules.BLUE_DISTANCE));
+            Vec3 right = view.cross(new Vec3(0, 1, 0)).normalize();
+            BlueRedShowcase.back = right.scale(-1).add(0, .3, 0).normalize();
+        }
+        int subject = 1 + (t - 20) / 60, in = (t - 20) % 60;
+        if (t < 20) return;
+        if (subject > 4) { BlueRedShowcase.what = 0; System.out.println("GOJO_QA LOOK done frames=" + frame); c.stop(); return; }
+        BlueRedShowcase.what = subject;
+        BlueRedShowcase.age = in;
+        if (in >= 20 && (in % 10 == 0 || in == 41)) grab(c);
     }
 
     private void aftermath(Minecraft c, MinecraftServer server) {
