@@ -131,7 +131,7 @@ class BlueRedDrawTest {
         BlueRedDraw.redOrb(red, AT, 2, 30);
         java.util.Set<Integer> b = effects(blue), r = effects(red);
         // Both are painted masses now (owner's reset, 2026-11-18); which way they move is checked by blueDebrisFallsInRedDebrisFliesOut.
-        assertTrue(b.contains(BlueRedDraw.DEBRIS) && b.contains(BlueRedDraw.BRUSH), "Blue: plasma masses and infalling debris " + b);
+        assertTrue(b.contains(BlueRedDraw.DEBRIS) && b.contains(BlueRedDraw.PLASMA), "Blue: plasma masses and infalling debris " + b);
         assertTrue(r.contains(BlueRedDraw.BRUSH) && r.contains(BlueRedDraw.DEBRIS), "Red: ink masses, brush strokes, flung fragments " + r);
     }
 

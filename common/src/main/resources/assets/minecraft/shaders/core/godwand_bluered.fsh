@@ -226,22 +226,45 @@ void main() {
         col = mix(vec3(0.0), tint, lines);
         a = clamp(lines * 1.6 + vign * 0.75, 0.0, 1.0);
     } else if (effect == 12) {
-        // BRUSH: a painted stroke of energy (owner refs 03-04 for Blue, 07/15/16/36 for Red). x runs tail (0) to head (1), y across. Ragged
-        // bristle edges, rougher towards the tail; dry-brush streaks running along it and streaming towards the head; the tail breaks into
-        // bristles; one edge lit, the other in shadow, so a stroke reads as a thick mass rather than a line. Near-black tints stay ink.
-        float across = 1.0 - abs(q.y);
-        float striae = fbm(vec3(p.x * 2.2 - t * 0.9, q.y * 7.0, seed * 1.7));
-        float edgeN = noise(vec3(p.x * 7.0 - t * 0.6, q.y > 0.0 ? seed : seed + 5.0, 0.0));
-        float edge = 0.1 + 0.42 * edgeN * (1.0 - 0.55 * p.x);
-        float body = smoothstep(edge, edge + 0.08, across);
-        float bristle = smoothstep(0.5, 0.62, striae + 0.6 * smoothstep(0.0, 0.45, p.x));
+        // BRUSH (Red): a stroke of ink or red paint torn by energy. x runs tail (0) to head (1), y across. The stroke wanders inside its quad
+        // (warped centreline), its streaks are few and bent rather than ruled, its edges break sharply, and on some stretches it splits into
+        // several thin strands. Light comes in local hot patches that drift along it, never as a highlight down the whole body. Ink is
+        // uneven: thick in places, thin and see-through in others, with ember-red cracks.
+        float warp = fbm(vec3(p.x * 2.0 - t * 1.2, seed, 0.5));
+        float qy = q.y + (warp - 0.5) * 0.6;
+        float across = 1.0 - abs(qy);
+        float striae = fbm(vec3(p.x * 1.6 - t * 1.4, qy * 3.5 + warp * 2.0, seed * 1.7));
+        float edgeN = noise(vec3(p.x * 9.0 - t * 1.5, qy > 0.0 ? seed : seed + 5.0, t * 0.7));
+        float edge = 0.05 + 0.62 * edgeN * (1.0 - 0.45 * p.x);
+        float body = smoothstep(edge, edge + 0.03, across);
+        float split = smoothstep(0.45, 0.65, noise(vec3(p.x * 3.0 - t * 0.8, seed + 2.0, 0.0)));
+        float strands = smoothstep(0.25, 0.55, abs(sin((qy + warp) * 7.0 + seed)));
+        body *= mix(1.0, strands, split);
+        // Dry brush: the streaks punch holes along the stroke (more towards the tail) instead of shading it, so it never reads as a lit tube.
+        float bristle = smoothstep(0.42, 0.56, striae + 0.45 * smoothstep(0.0, 0.5, p.x));
         a = body * bristle * smoothstep(1.0, 0.93, p.x);
         float lum = dot(tint, vec3(0.3, 0.59, 0.11));
-        vec3 deep = tint * 0.35;
-        vec3 bright = lum < 0.08 ? tint * 4.0 + vec3(0.10, 0.0, 0.02) * step(tint.b, tint.r) : mix(tint, vec3(1.0), 0.55);
-        float lit = smoothstep(-0.1, 0.8, q.y) * across;
-        col = mix(deep, tint, smoothstep(0.15, 0.75, striae));
-        col = mix(col, bright, lit * smoothstep(0.45, 0.85, striae) * 0.9);
+        bool ink = lum < 0.08;
+        float hotN = fbm(vec3(p.x * 2.5 - t * 2.0, qy * 1.5, seed + 9.0));
+        float hot = smoothstep(ink ? 0.68 : 0.58, ink ? 0.82 : 0.78, hotN) * across;
+        // Ink is uneven: dense in places, thin and see-through in others.
+        if (ink) a *= clamp(0.3 + 0.9 * fbm(vec3(p.x * 3.0 - t * 0.5, qy * 2.0, seed + 4.0)), 0.0, 1.0);
+        vec3 bright = ink ? vec3(0.62, 0.02, 0.05) : mix(tint, vec3(1.0, 0.92, 0.9), 0.65);
+        col = tint * (0.85 + 0.3 * striae);
+        col = mix(col, bright, hot);
+    } else if (effect == 13) {
+        // PLASMA (Blue): liquid energy. A softer cousin of BRUSH: the body is eaten from the edges and from inside by slowly churning noise
+        // (more towards the tail, which dissolves), its colour pools deep in thin parts and saturated in thick ones, and it glows in soft hot
+        // spots that slide along it towards the head (inward).
+        float warp = fbm(vec3(p.x * 2.0 - t * 1.6, q.y * 1.5, seed));
+        float n = fbm(vec3(p.x * 3.0 - t * 2.4 + warp * 0.8, q.y * 2.5 + warp, seed * 1.3));
+        float edgeN = fbm(vec3(p.x * 4.0 - t * 1.8, q.y * 0.5 + seed, t * 0.7));
+        float across = 1.0 - abs(q.y + (warp - 0.5) * 0.35);
+        float erosion = 0.15 + 0.5 * (1.0 - smoothstep(0.0, 0.5, p.x));
+        float m = across * (0.75 + 0.5 * edgeN) - erosion * (1.0 - n);
+        a = smoothstep(0.08, 0.45, m) * smoothstep(1.0, 0.9, p.x);
+        float hot = smoothstep(0.62, 0.85, n) * (0.4 + 0.6 * p.x);
+        col = mix(tint * 0.4, tint, smoothstep(0.1, 0.6, m)) + mix(tint, vec3(1.0), 0.6) * hot * 0.8;
     } else if (effect == 11) {
         // RING: a FLOW-shaped ribbon that keeps its colour (the owner's ref 40 red and blue rings): saturated body, soft frayed edges, only a thin
         // white thread down the middle.

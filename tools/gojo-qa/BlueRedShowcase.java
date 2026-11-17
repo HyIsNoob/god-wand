@@ -9,7 +9,8 @@ import net.minecraft.world.phys.Vec3;
 /** Development only (QA scene "look"): draws one Blue or Red at a fixed point, so both can be shot from the same camera at the same distance.
  *  Lives in net.godwand.client for package access to the draw code; the probe sets {@link #at}, {@link #what} and {@link #age}. */
 public final class BlueRedShowcase {
-    /** 0 nothing, 1 Blue, 2 Blue ready, 3 Red (merge size), 4 Red (flight size). */
+    /** 0 nothing, 1 Blue, 2 Blue ready, 3 Red (merge size), 4 Red (flight size), 5 Red charging (hand size, tight reach), 6 Red released and
+     *  flying across the view from the left (starts at age 20). */
     public static int what;
     public static Vec3 at = Vec3.ZERO, back = new Vec3(-1, .3, 0);
     public static double age;
@@ -36,6 +37,12 @@ public final class BlueRedShowcase {
                     case 2 -> BlueRedDraw.blue(c, at, true, now + 200, now + 40);
                     case 3 -> BlueRedDraw.redOrb(c, at, 1.4, now, back);
                     case 4 -> BlueRedDraw.redOrb(c, at, .5, now, back);
+                    case 5 -> BlueRedDraw.redOrb(c, at, BlueRedVisual.redChargeSize(now, 50), now, new Vec3(0, 1, 0).add(back.scale(-.8)), .45);
+                    case 6 -> {
+                        double f = now - 20;
+                        Vec3 dir = new Vec3(-back.x, 0, -back.z).normalize(), origin = at.subtract(dir.scale(12));
+                        if (f >= 0) BlueRedDraw.redFlight(c, origin, dir, origin.add(dir.scale(Math.min(24, f * net.godwand.skill.BlueRedRules.RED_SPEED))), f, 1, 7, true);
+                    }
                     default -> {}
                 }
                 var mesh = buffer.build();

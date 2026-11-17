@@ -173,6 +173,7 @@ public final class BlueRedProbe implements ClientModInitializer {
         int t = ticks - since;
         if (t == 1) {
             c.options.hideGui = true;
+            c.options.framerateLimit().set(260); c.options.enableVsync().set(false);
             Vec3 eye = c.player.getEyePosition(), view = c.player.getViewVector(1);
             BlueRedShowcase.at = eye.add(view.scale(net.godwand.skill.BlueRedRules.BLUE_DISTANCE));
             Vec3 right = view.cross(new Vec3(0, 1, 0)).normalize();
@@ -180,10 +181,13 @@ public final class BlueRedProbe implements ClientModInitializer {
         }
         int subject = 1 + (t - 20) / 60, in = (t - 20) % 60;
         if (t < 20) return;
-        if (subject > 4) { BlueRedShowcase.what = 0; System.out.println("GOJO_QA LOOK done frames=" + frame); c.stop(); return; }
+        if (in == 18) System.out.println("GOJO_QA LOOK fps subject=" + subject + " fps=" + c.getFps());
+        if (subject > 6) { BlueRedShowcase.what = 0; System.out.println("GOJO_QA LOOK done frames=" + frame); c.stop(); return; }
         BlueRedShowcase.what = subject;
         BlueRedShowcase.age = in;
-        if (in >= 20 && (in % 10 == 0 || in == 41)) grab(c);
+        // Every tick for ready Blue, Red and the flight (to judge motion and deformation), else a few stills.
+        boolean film = (subject == 2 || subject == 3) && in >= 20 && in < 45 || subject == 6 && in >= 20 && in < 30;
+        if (film || in >= 20 && (in % 10 == 0 || in == 41)) grab(c);
     }
 
     private void aftermath(Minecraft c, MinecraftServer server) {
