@@ -87,38 +87,30 @@ final class BlueRedDraw {
         return older.add(newer.subtract(older).scale(f));
     }
 
-    /** Visual pressure in front of the viewer (owner, 2026-11-18): a few thick, soft, brushy smears of blue on the camera side of the sphere,
-     *  sweeping round its rim in the view plane like a short-lived 2D trail; each lives a moment (appears, sweeps and widens, fades), then
-     *  sweeps again somewhere else. They hug the rim and never cross the centre, so the sphere stays the subject; moving drags them back. */
+    /** Visual pressure in front of the viewer (owner, 2026-11-18): a joined, blotchy collar of blue round the sphere's rim, on the camera side,
+     *  that never pops: four long overlapping strokes (five when ready) each cover a wide arc, rooted inside the sphere's edge, so together they
+     *  ring it; they turn slowly, and their width and reach keep swelling and shrinking along their length, so the collar's outline boils
+     *  instead of pieces fading in and out. Moving drags the collar back. */
     private static void pressure(Ctx c, Vec3 at, double r, double age, Vec3 vel, boolean ready, double alpha) {
         Vec3 toEye = c.eye.subtract(at);
         if (toEye.lengthSqr() < 1e-6) return;
         toEye = toEye.normalize();
         Vec3[] uw = basis(toEye);
-        // Owner, 2026-11-18: the sphere sheds these all round itself, so there are many and they almost ring it.
-        for (int i = 0; i < (ready ? 11 : 9); i++) {
+        int count = ready ? 5 : 4;
+        for (int i = 0; i < count; i++) {
             long sd = 2100 + i * 83L;
-            double life = 12 + 8 * hash(sd), ph = age / life + hash(sd + 1);
-            long cyc = (long) Math.floor(ph);
-            double u = ph - cyc;
-            long cs = sd + cyc * 7919L;
-            double env = smooth(u / .12) * (1 - smooth((u - .5) / .5)) * alpha;
-            if (env <= 0) continue;
-            // Spread evenly round the rim (each its own sector, jittered), so they surround the sphere instead of bunching.
-            double a0 = (i + .8 * hash(cs)) / (ready ? 11 : 9) * Math.PI * 2, span = (1.2 + .9 * hash(cs + 1)) * (.6 + .4 * u), sign = hash(cs + 2) < .5 ? 1 : -1;
-            // Rooted on the sphere's rim and sweeping out of it round the edge (owner, 2026-11-18: no gap between the strokes and the sphere).
-            double out = r * (.3 + .55 * hash(cs + 3)) * (.4 + .6 * u), wid = r * (.4 + .3 * hash(cs + 4)) * (.7 + .5 * u);
-            int k = 18;
+            double sign = i % 2 == 0 ? 1 : -1, a0 = (double) i / count * Math.PI * 2 + age * (.04 + .02 * hash(sd)) * sign * (ready ? 1.5 : 1);
+            double span = Math.PI * 2 / count * 1.7;
+            int k = 26;
             Vec3[] pts = new Vec3[k + 1];
             double[] w = new double[k + 1];
             for (int j = 0; j <= k; j++) {
-                double t = (double) j / k, a = a0 + sign * span * t, rr = r * .6 + out * t * (1 + .1 * snoise(cs + 5, t * 3 + age * .1));
-                pts[j] = at.add(toEye.scale(r * .45)).add(uw[0].scale(Math.cos(a) * rr)).add(uw[1].scale(Math.sin(a) * rr)).subtract(vel.scale(1.5 * t));
-                // Full where it leaves the rim, tapering as it sweeps away.
-                w[j] = wid * Math.pow(1 - t, .6) * smooth(t / .06 + .3) * (.55 + .6 * vnoise(cs + 6, t * 3 + u * 2));
+                double t = (double) j / k, a = a0 + span * t;
+                double reach = vnoise(sd + 5, a * 1.3 + age * .12), rr = r * (.8 + .3 * reach);
+                pts[j] = at.add(toEye.scale(r * .45)).add(uw[0].scale(Math.cos(a) * rr)).add(uw[1].scale(Math.sin(a) * rr)).subtract(vel.scale(1.5 * (.5 + .5 * reach)));
+                w[j] = r * (.18 + .32 * vnoise(sd + 6, a * 2.1 - age * .15)) * Math.pow(Math.sin(Math.PI * t), .35);
             }
-            int color = i % 3 == 0 ? ROYAL : i % 3 == 1 ? 0x1E8CFF : ready ? CYAN : DEEP_BLUE;
-            fxRibbon(c, pts, w, PLASMA, (int) (cs % 997), color, env * .8);
+            fxRibbon(c, pts, w, PLASMA, (int) (sd % 997), i % 2 == 0 ? ROYAL : DEEP_BLUE, alpha * .85);
         }
     }
 
@@ -198,6 +190,8 @@ final class BlueRedDraw {
         }
         // Only a faint wash ties the path together; the body of the trail is the blobs below, so it has no fixed outline.
         fxRibbon(c, washPts, wash, PLASMA, 1525, DEEP_BLUE, strength * .5);
+        // One joined body (owner, 2026-11-18): the blobs are bulges on it, not separate pieces.
+        fxRibbon(c, base, main, PLASMA, 1526, ROYAL, strength * .85);
         blobs(c, at, r, age, trail, ago, alpha);
     }
 
@@ -215,7 +209,7 @@ final class BlueRedDraw {
             for (int h = 0; h < 4; h++) {
                 long sd = 1900 + laid * 37 + h * 13;
                 // Fresh blobs sit on the sphere (it sheds them), then drift away; the parts inside it are hidden by it, so they read as attached.
-                Vec3 centre = p.add(nvec(sd, 0).scale(r * (.2 + .9 * old)));
+                Vec3 centre = p.add(nvec(sd, 0).scale(r * (.15 + .35 * old)));
                 Vec3 dir = nvec(sd + 3, age * .03).normalize();
                 double size = r * (.5 + .5 * hash(sd + 4)) * (.6 + .5 * Math.min(1, speed / .6)) * (1 + .6 * old);
                 int k = 6;
