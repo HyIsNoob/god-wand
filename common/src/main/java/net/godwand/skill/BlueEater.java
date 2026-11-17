@@ -21,8 +21,8 @@ public final class BlueEater {
     /** Blocks removed per Blue per tick, so the hole grows visibly instead of appearing at once. */
     static final int EAT_PER_TICK = 12;
     /** Live flying displays per Blue; further blocks vanish without one. */
-    static final int MAX_DISPLAYS = 48;
-    static final int FLIGHT_TICKS = 12;
+    static final int MAX_DISPLAYS = 96;
+    static final int FLIGHT_TICKS = 30;
 
     record Eaten(Display.BlockDisplay display, Vec3 from, int[] age) {
         Eaten(Display.BlockDisplay display, Vec3 from) { this(display, from, new int[1]); }
@@ -107,17 +107,24 @@ public final class BlueEater {
         return state;
     }
 
-    /** One tick of flight: on the first tick each display is sent spinning and shrinking into the core, then retired. */
+    /** One tick of flight. Every 3 ticks each display gets a new keyframe (interpolated by the client): lifted off the ground, then spiralling into
+     *  the core faster and faster, tumbling and shrinking, like the blocks Supernova tears up. */
     static void animate(List<Eaten> live, Vec3 center) {
         for (Iterator<Eaten> it = live.iterator(); it.hasNext(); ) {
             Eaten e = it.next();
             int age = ++e.age()[0];
-            if (age == 1) {
-                Vec3 to = center.subtract(e.from()).subtract(0.1, 0.1, 0.1);
+            if (age % 3 == 1) {
+                double p = Math.min(1, (age + 2) / (double) FLIGHT_TICKS), ease = p * p;
+                Vec3 mid = e.from().add(.5, .5, .5), v0 = mid.subtract(center);
+                double turn = ((((int) Math.floor(e.from().x * 31 + e.from().z * 17)) & 1) == 0 ? 1 : -1) * 2.6 * ease;
+                Vec3 v = new Vec3(v0.x * Math.cos(turn) - v0.z * Math.sin(turn), v0.y, v0.x * Math.sin(turn) + v0.z * Math.cos(turn)).scale(1 - ease)
+                        .add(0, Math.sin(Math.PI * p) * 1.2, 0);
+                float scale = (float) (1 - .8 * ease);
+                Vec3 to = center.add(v).subtract(e.from()).subtract(scale / 2.0, scale / 2.0, scale / 2.0);
                 e.display().setTransformationInterpolationDelay(0);
-                e.display().setTransformationInterpolationDuration(FLIGHT_TICKS - 1);
+                e.display().setTransformationInterpolationDuration(3);
                 e.display().setTransformation(new Transformation(new Vector3f((float) to.x, (float) to.y, (float) to.z),
-                        new Quaternionf().rotateXYZ(2.1f, 3.4f, 1.3f), new Vector3f(0.2f), null));
+                        new Quaternionf().rotateXYZ((float) (ease * 2.1), (float) (ease * 3.4), (float) (ease * 1.3)), new Vector3f(scale), null));
             }
             if (age >= FLIGHT_TICKS) { retire(e); it.remove(); }
         }

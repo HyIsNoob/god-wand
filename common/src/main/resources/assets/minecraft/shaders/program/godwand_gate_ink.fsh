@@ -5,6 +5,12 @@ uniform sampler2D DiffuseSampler;
 uniform vec2 OutSize;
 uniform float Ink;
 uniform float Bar;
+// Blue/Red/Purple: the world bent round Purple (a swirl, a pinch and a ripple), 0 leaves the frame untouched.
+uniform float CenterX;
+uniform float CenterY;
+uniform float Warp;
+uniform float WarpRadius;
+uniform float WarpTime;
 in vec2 texCoord;
 out vec4 fragColor;
 
@@ -12,8 +18,21 @@ float lum(vec2 uv) {
     return dot(texture(DiffuseSampler, uv).rgb, vec3(0.2126, 0.7152, 0.0722));
 }
 
+vec2 warped(vec2 uv) {
+    if (Warp <= 0.0) return uv;
+    vec2 aspect = vec2(OutSize.x / OutSize.y, 1.0);
+    vec2 c = vec2(CenterX, CenterY);
+    vec2 d = (uv - c) * aspect;
+    float r = length(d);
+    float k = Warp * exp(-pow(r / max(WarpRadius, 0.001), 2.0));
+    float a = k * 2.4;
+    d = mat2(cos(a), -sin(a), sin(a), cos(a)) * d;
+    d *= 1.0 - 0.3 * k + 0.04 * k * sin(r * 70.0 - WarpTime * 9.0);
+    return c + d / aspect;
+}
+
 void main() {
-    vec3 scene = texture(DiffuseSampler, texCoord).rgb;
+    vec3 scene = texture(DiffuseSampler, warped(texCoord)).rgb;
     // The scope bars stay black: the frame flips, not the screen.
     if (Ink < 0.5 || texCoord.y < Bar || texCoord.y > 1.0 - Bar) {
         fragColor = vec4(scene, 1.0);

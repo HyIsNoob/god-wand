@@ -16,14 +16,17 @@ public final class BlueRedRules {
     /** Purple timeline in ticks (owner's direction, 2026-11-16): a blink, the orbs swirl in the world, a quick fade to the 2D void where they are pushed
      *  together and Purple swallows them (the void thins out from MERGE to VOID_END), the camera races round Purple, it detonates, the cutscene
      *  ends, the crater stops growing. */
-    public static final int PURPLE_BLINK = 4, PURPLE_SWIRL_END = 40, PURPLE_MERGE = 110, PURPLE_VOID_END = 118,
-            PURPLE_DETONATE = 170, PURPLE_CINEMATIC = 220, PURPLE_TERRAIN_END = 240;
+    public static final int PURPLE_BLINK = 4, PURPLE_SWIRL_END = 76, PURPLE_MERGE = 136, PURPLE_VOID_END = 144,
+            PURPLE_DETONATE = 196, PURPLE_CINEMATIC = 246, PURPLE_TERRAIN_END = 266;
+    /** The convergence beats in the world (owner, 2026-11-17): contact until CONTACT, a playful orbit until PLAY, lift and tighten until LIFT_END,
+     *  compression until SWIRL_END, when the 2D act fades in. */
+    public static final int PURPLE_CONTACT = 14, PURPLE_PLAY = 44, PURPLE_LIFT_END = 68;
     /** Purple bursts this far above the Blue that made it (owner, 2026-11-16: "nổ trên trời"): the orbs soar up while they swirl. */
     public static final double PURPLE_LIFT = 16;
 
-    /** Offset of the orbs below the burst point at this age: -PURPLE_LIFT at the Blue, rising to 0 by the end of the swirl. */
+    /** Offset of the orbs below the burst point at this age: -PURPLE_LIFT at the Blue until the lift beat, rising to 0 by its end. */
     public static double purpleRise(double age) {
-        double k = Math.max(0, Math.min(1, age / PURPLE_SWIRL_END));
+        double k = Math.max(0, Math.min(1, (age - PURPLE_PLAY) / (PURPLE_LIFT_END - PURPLE_PLAY)));
         return -PURPLE_LIFT * (1 - k * k * (3 - 2 * k));
     }
 

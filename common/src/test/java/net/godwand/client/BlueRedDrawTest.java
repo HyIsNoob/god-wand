@@ -134,6 +134,61 @@ class BlueRedDrawTest {
         assertTrue(r.contains(BlueRedDraw.FLOW) && r.contains(BlueRedDraw.SMOKE), "Red: brush strokes and smoke " + r);
     }
 
+    /** Centres of the DEBRIS quads drawn into c, relative to the camera. */
+    static java.util.List<double[]> debrisCentres(GateDraw.Ctx c) {
+        var sink = (Sink) c.v;
+        java.util.List<double[]> out = new java.util.ArrayList<>();
+        for (int i = 0; i + 3 < sink.uv.size(); i += 4) {
+            float v = sink.uv.get(i)[1];
+            if (v < 2 || (int) Math.floor(v) - 2 != BlueRedDraw.DEBRIS) continue;
+            double x = 0, y = 0, z = 0;
+            for (int k = 0; k < 4; k++) { x += sink.pos.get(i + k)[0]; y += sink.pos.get(i + k)[1]; z += sink.pos.get(i + k)[2]; }
+            out.add(new double[]{x / 4, y / 4, z / 4, Math.floor(sink.uv.get(i)[0])});
+        }
+        return out;
+    }
+
+    /** Fraction of debris pieces (matched by seed) that moved towards (inward) the core between two instants. */
+    static double inwardShare(java.util.function.BiConsumer<GateDraw.Ctx, Double> draw, double age) {
+        var a = ctx(0); draw.accept(a, age);
+        var b = ctx(0); draw.accept(b, age + 1);
+        java.util.Map<Double, double[]> before = new java.util.HashMap<>();
+        for (double[] p : debrisCentres(a)) before.put(p[3], p);
+        Vec3 core = AT.subtract(EYE);
+        int in = 0, n = 0;
+        for (double[] p : debrisCentres(b)) {
+            double[] q = before.get(p[3]);
+            if (q == null) continue;
+            double d0 = core.distanceTo(new Vec3(q[0], q[1], q[2])), d1 = core.distanceTo(new Vec3(p[0], p[1], p[2]));
+            if (Math.abs(d1 - d0) < .05) continue; // the core trembles a little; judge only pieces that really moved
+            n++;
+            if (d1 < d0) in++;
+        }
+        assertTrue(n >= 6, "enough moving pieces to judge: " + n);
+        return in / (double) n;
+    }
+
+    @Test void blueDebrisFallsInRedDebrisFliesOut() {
+        assertTrue(inwardShare((c, t) -> BlueRedDraw.blue(c, AT, true, t, -1), 60) > .8, "Blue pulls");
+        assertTrue(inwardShare((c, t) -> BlueRedDraw.redOrb(c, AT, 1.5, t), 60) < .2, "Red throws");
+    }
+
+    @Test void convergenceHasItsBeats() {
+        double contactStart = BlueRedDraw.separation(BlueRedRules.PURPLE_BLINK), contactEnd = BlueRedDraw.separation(BlueRedRules.PURPLE_CONTACT);
+        assertTrue(contactEnd > contactStart + 1, "contact: they bounce apart before anything fuses " + contactStart + " -> " + contactEnd);
+        double play = BlueRedDraw.separation((BlueRedRules.PURPLE_CONTACT + BlueRedRules.PURPLE_PLAY) / 2.0);
+        assertTrue(play > 2, "playful orbit at a wide radius: " + play);
+        double prev = BlueRedDraw.separation(BlueRedRules.PURPLE_PLAY);
+        for (double age = BlueRedRules.PURPLE_PLAY + 1; age <= BlueRedRules.PURPLE_SWIRL_END; age += 1) {
+            double s = BlueRedDraw.separation(age);
+            assertTrue(s <= prev + .25, "lift and compression only tighten: age " + age);
+            prev = s;
+        }
+        assertTrue(BlueRedDraw.separation(BlueRedRules.PURPLE_SWIRL_END) < .4, "compressed to a point before the void");
+        assertTrue(BlueRedDraw.spin(BlueRedRules.PURPLE_LIFT_END - 2) > 2 * BlueRedDraw.spin((BlueRedRules.PURPLE_CONTACT + BlueRedRules.PURPLE_PLAY) / 2.0),
+                "the orbit speeds up as it tightens");
+    }
+
     static java.util.Set<Integer> effects(GateDraw.Ctx c) {
         java.util.Set<Integer> out = new java.util.TreeSet<>();
         for (float[] uv : ((Sink) c.v).uv) if (uv[1] >= 2) out.add((int) Math.floor(uv[1]) - 2);

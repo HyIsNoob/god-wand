@@ -17,7 +17,8 @@ class PurpleCinematicTest {
     static Vec3 at(double age) { return CENTER.add(0, BlueRedRules.purpleRise(age), 0); }
 
     @Test void timelineIsInOrder() {
-        assertTrue(PURPLE_BLINK < PURPLE_SWIRL_END && PURPLE_SWIRL_END < PURPLE_MERGE && PURPLE_MERGE < PURPLE_VOID_END
+        assertTrue(PURPLE_BLINK < PURPLE_CONTACT && PURPLE_CONTACT < PURPLE_PLAY && PURPLE_PLAY < PURPLE_LIFT_END && PURPLE_LIFT_END < PURPLE_SWIRL_END
+                && PURPLE_SWIRL_END < PURPLE_MERGE && PURPLE_MERGE < PURPLE_VOID_END
                 && PURPLE_VOID_END < PURPLE_DETONATE && PURPLE_DETONATE < PURPLE_CINEMATIC && PURPLE_CINEMATIC < PURPLE_TERRAIN_END);
     }
 

@@ -136,16 +136,23 @@ public final class BlueRedRenderer {
     public static boolean bloomPending() { return bloom != null; }
     public static void flushPostFx() {
         float[] b = bloom; bloom = null;
-        if (b != null) GatePostFx.process(b[0], b[1], b[2], b[3], b[4]);
+        if (b != null) GatePostFx.process(b[0], b[1], b[2], b[3], b[4], 0, 0, b[5], b[6], (float) (clock / 20.0));
     }
 
     private static void planBloom(PoseStack pose, Camera camera, float partial) {
-        double now = clock + partial, strength = 0, burst = 0;
+        double now = clock + partial, strength = 0, burst = 0, warp = 0, warpSize = 0;
         Vec3 light = null;
         if (!PURPLES.isEmpty()) {
             Purple p = PURPLES.get(PURPLES.size() - 1);
             double age = now - p.at();
-            light = p.pos(); strength = .65;
+            light = p.pos().add(0, BlueRedRules.purpleRise(age), 0); strength = .65;
+            // The world bends round Purple: building as it swells, a hard kick at the burst, dying away.
+            if (age >= BlueRedRules.PURPLE_MERGE) {
+                double grow = smooth((age - BlueRedRules.PURPLE_MERGE) / (double) (BlueRedRules.PURPLE_DETONATE - BlueRedRules.PURPLE_MERGE));
+                double after = age - BlueRedRules.PURPLE_DETONATE;
+                warp = after < 0 ? .25 + .45 * grow : .9 * Math.exp(-after / 14);
+                warpSize = BlueRedDraw.purpleSize(age) * 1.6 / Math.max(4, light.distanceTo(camera.getPosition()));
+            }
             burst = .55 * (1 - clamp01((age - BlueRedRules.PURPLE_DETONATE) / 24.0)) * (age >= BlueRedRules.PURPLE_DETONATE ? 1 : 0)
                     + .35 * smooth((age - (BlueRedRules.PURPLE_MERGE - 20)) / 20.0) * (age < BlueRedRules.PURPLE_VOID_END ? 1 : 0);
         } else {
@@ -162,7 +169,8 @@ public final class BlueRedRenderer {
                     .mul(pose.last().pose()).mul(RenderSystem.getModelViewMatrix()).mul(RenderSystem.getProjectionMatrix());
             if (clip.w > .001f) { sx = clip.x / clip.w * .5f + .5f; sy = clip.y / clip.w * .5f + .5f; } else burst = 0;
         }
-        bloom = new float[]{(float) (GodWandConfig.CLIENT.bloomStrength * strength), (float) burst, sx, sy, partial};
+        if (burst == 0 && light != null && sx == .5f && sy == .5f) warp = 0;
+        bloom = new float[]{(float) (GodWandConfig.CLIENT.bloomStrength * strength), (float) burst, sx, sy, partial, (float) warp, (float) Math.min(.9, warpSize)};
     }
 
     public static void render(PoseStack pose, Camera camera, float partial) {

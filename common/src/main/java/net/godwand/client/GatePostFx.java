@@ -38,7 +38,10 @@ final class GatePostFx {
 
     /** As above; {@code ink} 1 or 2 turns the frame into an anime impact frame (two tones: white on black, or black on white), leaving the scope bars
      *  ({@code bar}: the share of the height each covers) black. */
-    static void process(float strength, float burst, float cx, float cy, float delta, float ink, float bar) {
+    static void process(float strength, float burst, float cx, float cy, float delta, float ink, float bar) { process(strength, burst, cx, cy, delta, ink, bar, 0, 0, 0); }
+
+    /** As above, and the frame bent round (cx, cy) by {@code warp} within about {@code radius} (screen heights): Blue/Red/Purple's distortion. */
+    static void process(float strength, float burst, float cx, float cy, float delta, float ink, float bar, float warp, float radius, float time) {
         var client = Minecraft.getInstance();
         if (!ready()) return;
         int w = client.getWindow().getWidth(), h = client.getWindow().getHeight();
@@ -59,6 +62,9 @@ final class GatePostFx {
             chain.setUniform("CenterY", cy);
             chain.setUniform("Ink", ink);
             chain.setUniform("Bar", bar);
+            chain.setUniform("Warp", warp);
+            chain.setUniform("WarpRadius", radius);
+            chain.setUniform("WarpTime", time);
             RenderSystem.disableBlend(); RenderSystem.disableDepthTest(); RenderSystem.resetTextureMatrix();
             chain.process(delta);
         } catch (Exception error) {
