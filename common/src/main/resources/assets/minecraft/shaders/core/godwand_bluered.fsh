@@ -73,7 +73,7 @@ void main() {
         // seed mod 4: 0 blue energy (bright body, folds, lens flare), 1 red (dark, spiral flakes, rim flames), 2 purple (dark, wound strands,
         // purple and ink shards). floor(seed / 4) = level: 1 ready / charged (busier), 2 bursting (core floods the sphere).
         float variant = mod(seed, 4.0), level = floor(seed / 4.0);
-        bool isBlue = variant == 0.0, isRed = variant == 1.0, isPurple = variant == 2.0;
+        bool isBlue = variant == 0.0, isRed = variant == 1.0, isPurple = variant == 2.0, isPlanet = variant == 3.0;
         float R = 1.0 / 1.55;
         float d = length(q) / R;
         float ang = atan(q.y, q.x);
@@ -121,6 +121,15 @@ void main() {
             c3 += hot * rimLine * 1.5 + tint * fres * 0.35;
             col = c3;
             a = smoothstep(1.0, 0.975, dd);
+            if (isPlanet) {
+                // A sphere of churning matter (the owner's 2D frame): cloudy texture flowing across it, dark and bright patches, fine speckles,
+                // a soft lit rim. level 0 drifts one way (Red), 1 the other (Blue).
+                float flow = (level > 0.5 ? -1.0 : 1.0) * t * 0.5;
+                vec3 m = n3 * 2.4 + vec3(flow, 0.0, 0.0);
+                float cloud = fbm(m + fbm(m * 1.7 - t * 0.2) * 1.4);
+                float speck = step(0.93, noise(n3 * 38.0 + t)) * 0.6;
+                col = tint * (0.12 + 1.25 * pow(cloud, 1.7)) + hot * (pow(cloud, 6.0) * 0.8 + speck) + hot * rimLine * 0.8 + tint * fres * 0.6;
+            }
         } else {
             float od = dd - 1.0;
             float corona = fbm(vec3(dir * 2.2, od * 4.0 - t * 1.4));
@@ -137,6 +146,7 @@ void main() {
                 fire = smoothstep(0.48, 0.78, fire) * exp(-od * 2.6) * (0.35 + smoothstep(-0.7, 1.0, q.y) * 1.1);
                 flames = max(flames, fire);
             }
+            if (isPlanet) { shards = 0.0; ink = 0.0; }
             float v = rimLine * 1.4 + glowF + shards * 1.3 + flames * 1.2;
             col = mix(tint * 1.1, hot, clamp(rimLine + shards, 0.0, 1.0));
             col = mix(col, vec3(0.03, 0.0, 0.05), ink);

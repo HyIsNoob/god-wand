@@ -150,8 +150,9 @@ public final class BlueRedRenderer {
             if (age >= BlueRedRules.PURPLE_MERGE) {
                 double grow = smooth((age - BlueRedRules.PURPLE_MERGE) / (double) (BlueRedRules.PURPLE_DETONATE - BlueRedRules.PURPLE_MERGE));
                 double after = age - BlueRedRules.PURPLE_DETONATE;
-                warp = after < 0 ? .25 + .45 * grow : .9 * Math.exp(-after / 14);
-                warpSize = BlueRedDraw.purpleSize(age) * 1.6 / Math.max(4, light.distanceTo(camera.getPosition()));
+                warp = after < 0 ? .4 + .4 * grow : .8 * Math.exp(-after / 16);
+                // The sphere's radius on screen, in screen heights (about a 70 degree view).
+                warpSize = BlueRedDraw.purpleSize(age) / (1.4 * Math.max(4, light.distanceTo(camera.getPosition())));
             }
             burst = .55 * (1 - clamp01((age - BlueRedRules.PURPLE_DETONATE) / 24.0)) * (age >= BlueRedRules.PURPLE_DETONATE ? 1 : 0)
                     + .35 * smooth((age - (BlueRedRules.PURPLE_MERGE - 20)) / 20.0) * (age < BlueRedRules.PURPLE_VOID_END ? 1 : 0);
@@ -235,7 +236,7 @@ public final class BlueRedRenderer {
             right = right.lengthSqr() < 1e-6 ? Vec3.ZERO : right.normalize();
             Vec3 at = owner.getEyePosition(partial).add(view.scale(1.9)).add(right.scale(.45)).add(0, -.3, 0);
             double age = now - charge.getValue();
-            BlueRedDraw.redOrb(c, at, BlueRedVisual.redChargeSize(age, GodWandConfig.SERVER.redChargeTicks), age);
+            BlueRedDraw.redOrb(c, at, BlueRedVisual.redChargeSize(age, GodWandConfig.SERVER.redChargeTicks), age, view.scale(-1).add(0, 1.2, 0).add(right.scale(.8)));
         }
         for (Flight f : FLIGHTS) {
             double age = now - f.at, after = f.endAt < 0 ? 0 : now - f.endAt;

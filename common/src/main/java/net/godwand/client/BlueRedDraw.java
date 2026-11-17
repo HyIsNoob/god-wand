@@ -67,7 +67,7 @@ final class BlueRedDraw {
         }
         if (!c.glow()) return;
         glow(c, at, r * 1.7, (.3 + .15 * beat) * appear * flicker(age, 3), ROYAL);
-        drain(c, at, r, age * (ready ? 1.4 : 1), ready ? 16 : 11, 640, appear);
+        radiate(c, at, r, age * (ready ? 1.4 : 1), ready ? 16 : 11, 640, appear);
         streaks(c, at, r * .5, r * 5, age, ready ? 48 : 32, CYAN, 620, 1.2, appear, true);
         sparks(c, at, r * .9, age, ready ? 18 : 10, ICE, 60);
         if (ready) for (int b = 0; b < 4; b++) {
@@ -78,27 +78,27 @@ final class BlueRedDraw {
         if (flash > 0) { glow(c, at, r * 6, flash, 0xFFFFFF); glow(c, at, r * 2.5, flash, 0xFFFFFF); }
     }
 
-    /** Blue's drain: spiral arms of energy that start far out and pour into the core, winding tighter as they near it (they speed up), each on its own
-     *  plane with its own length, width and brightness; the gaps along each arm stream inward, so the inflow reads even in a still frame. */
-    static void drain(Ctx c, Vec3 at, double r, double age, int count, long seed, double alpha) {
+    /** Blue's energy radiating outward (owner, 2026-11-18: the energy spreads out while the sphere pulls things in): spiral arms streaming out of
+     *  the core, unwinding and thinning as they leave, each on its own plane with its own reach, width and brightness; the gaps along each arm
+     *  travel outward. */
+    static void radiate(Ctx c, Vec3 at, double r, double age, int count, long seed, double alpha) {
         for (int i = 0; i < count; i++) {
             long sd = seed + i * 97L;
             Vec3 n = new Vec3(.2, 1, .15).add(nvec(sd, i * 1.7 + age * .003).scale(1.1)).normalize();
             Vec3[] uw = basis(n);
             double dirSign = hash(sd + 1) < .75 ? 1 : -1;
-            double rOut = r * (1.8 + 1.8 * hash(sd + 2)), turns = (1.1 + 1.4 * hash(sd + 3)) * Math.PI * dirSign;
+            double rOut = r * (1.8 + 1.8 * hash(sd + 2)), turns = (.8 + 1.1 * hash(sd + 3)) * Math.PI * dirSign;
             double phase = hash(sd + 4) * Math.PI * 2 + age * (.03 + .03 * hash(sd + 5)) * dirSign;
             double wmax = r * (.05 + .12 * hash(sd + 6) * hash(sd + 6)), bright = .35 + .5 * hash(sd + 7);
             int k = 28;
             Vec3[] pts = new Vec3[k + 1];
             double[] widths = new double[k + 1];
             for (int j = 0; j <= k; j++) {
-                double t = (double) j / k, rad = r * .45 + (rOut - r * .45) * Math.pow(1 - t, 1.6), a = phase + turns * t * t;
-                Vec3 off = n.scale(r * .25 * snoise(sd + 8, t * 3 + age * .05) * (1 - t));
+                double t = (double) j / k, rad = r * .6 + (rOut - r * .6) * Math.pow(t, .8), a = phase + turns * Math.sqrt(t);
+                Vec3 off = n.scale(r * .25 * snoise(sd + 8, t * 3 + age * .05) * t);
                 pts[j] = at.add(uw[0].scale(Math.cos(a) * rad)).add(uw[1].scale(Math.sin(a) * rad)).add(off);
-                double gap = smooth((vnoise(sd + 9, t * 4 - age * .12) - .28) / .12);
-                // Born out of nothing at the far end, thickest just before the core swallows it.
-                widths[j] = wmax * (.15 + .85 * t) * (1 - Math.pow(t, 8)) * gap * smooth(t / .3);
+                double gap = smooth((vnoise(sd + 9, t * 4 + age * .12) - .28) / .12);
+                widths[j] = wmax * (1 - .85 * t) * smooth(t / .06) * smooth((1 - t) / .3) * gap;
             }
             int color = i % 4 == 0 ? ICE : i % 2 == 1 ? CYAN : 0x5E9BFF;
             fxRibbon(c, pts, widths, FLOW, (int) (sd % 997), color, alpha * bright);
@@ -140,61 +140,31 @@ final class BlueRedDraw {
 
     // ---- Red: violent, unstable, repelling ----
 
-    /** Red's orb: a small, overloaded core that keeps rupturing: volleys of sharp strokes and torn fragments thrown outward, heaviest on one side. */
-    static void redOrb(Ctx c, Vec3 at, double size, double age) {
+    /** Red's orb with its energy blown back up and away (a default for the charge and the tests). */
+    static void redOrb(Ctx c, Vec3 at, double size, double age) { redOrb(c, at, size, age, new Vec3(0, 1, 0)); }
+
+    /** Red's orb: a small, overloaded core whose energy blows out behind it (owner, 2026-11-18), towards {@code back}: volleys of sharp strokes,
+     *  torn fragments and sparks streaming that way, like a comet's tail or a flame in a gale. */
+    static void redOrb(Ctx c, Vec3 at, double size, double age, Vec3 back) {
+        back = back.lengthSqr() < 1e-6 ? new Vec3(0, 1, 0) : back.normalize();
         if (c.body()) {
             orb(c, at, size * .75, 1, 0, RED, 1);
             fall(c, at, size * 1.1, age * 1.6, 20, 700, INK, .95, false);
         }
-        swirl(c, at, size, age, 9, 1);
-        ruptures(c, at, size, age, 730, 1);
+        ruptures(c, at, size, age, 730, 1, back);
         if (!c.glow()) return;
         glow(c, at, size * 1.6, .35 * flicker(age, 7), RED);
-        // Pressure pulses on two rhythms that drift in and out of step, so the release is never regular.
-        for (int k = 0; k < 2; k++) {
-            double ph = (age / (k == 0 ? 9 : 13) + k * .37) % 1;
-            fxSprite(c, at, size * (1 + 3.5 * ph), SHOCK, 760 + k, RED_LIGHT, .22 * (1 - ph) * (1 - ph), k);
-        }
         streaks(c, at, size * .8, size * 6, age, 44, RED_LIGHT, 720, 1.8, 1, false);
         sparks(c, at, size * 2.8, age * 1.6, 34, RED_LIGHT, 100);
         fall(c, at, size * .9, age * 2.2, 16, 770, RED_CORE, .9, false);
     }
 
-    /** Red's swirl (ref 36): painterly brush bands whirling round the core on spirals that open outward, each its own width, length, tilt and pace,
-     *  red and ink, ragged and broken; the whole swirl leans to one side. */
-    static void swirl(Ctx c, Vec3 at, double size, double age, int count, double alpha) {
-        Vec3 lean = nvec(7700, age * .01).scale(.5).add(0, 1, 0).normalize();
-        for (int i = 0; i < count; i++) {
-            long sd = 7800 + i * 89L;
-            Vec3 n = lean.add(nvec(sd, i + age * .004).scale(.55)).normalize();
-            Vec3[] uw = basis(n);
-            double speed = (.12 + .14 * hash(sd + 1)), sweep = 1.6 + 2.2 * hash(sd + 2);
-            double r0 = size * (1 + .5 * hash(sd + 3)), r1 = size * (3 + 3.5 * hash(sd + 4)), wmax = size * (.12 + .3 * hash(sd + 5));
-            boolean ink = i % 3 == 2;
-            if (ink ? !c.body() : !(c.body() || c.glow())) continue;
-            int k = 22;
-            Vec3[] pts = new Vec3[k + 1];
-            double[] widths = new double[k + 1];
-            double a0 = hash(sd + 6) * Math.PI * 2 + age * speed;
-            for (int j = 0; j <= k; j++) {
-                double t = (double) j / k, a = a0 - t * sweep, rad = r0 + (r1 - r0) * t * (1 + .15 * snoise(sd + 7, t * 3 + age * .06));
-                pts[j] = at.add(uw[0].scale(Math.cos(a) * rad)).add(uw[1].scale(Math.sin(a) * rad));
-                double gap = smooth((vnoise(sd + 8, t * 4 + age * .1) - .25) / .1);
-                widths[j] = wmax * Math.pow(1 - t, .6) * smooth(t / .12 + .2) * gap;
-            }
-            if (c.body()) fxRibbon(c, pts, widths, FLOW, (int) (sd % 977), ink ? INK : i % 3 == 0 ? RED_BODY : RED_DEEP, alpha);
-            if (!ink && c.glow()) {
-                double[] spine = new double[k + 1];
-                for (int j = 0; j <= k; j++) spine[j] = widths[j] * .2;
-                fxRibbon(c, pts, spine, BOLT, (int) (sd % 977) + 1, RED_LIGHT, .6 * alpha);
-            }
-        }
-    }
-
     /** Red's ruptures: in volleys (two drifting rhythms) the core spits long, sharp, nearly straight strokes outward, longest on the side the pressure
      *  is venting from; each shoots out, stretches, then tears into pieces and smoke. Red and deep red in the alpha pass with a hot spine; ink ones. */
-    static void ruptures(Ctx c, Vec3 at, double size, double age, long seed, double alpha) {
-        Vec3 bias = nvec(seed, age * .02).normalize();
+    static void ruptures(Ctx c, Vec3 at, double size, double age, long seed, double alpha) { ruptures(c, at, size, age, seed, alpha, nvec(seed, age * .02).normalize()); }
+
+    /** As above, venting mostly towards {@code bias}: the strokes stream that way in a ragged cone. */
+    static void ruptures(Ctx c, Vec3 at, double size, double age, long seed, double alpha, Vec3 bias) {
         for (int i = 0; i < 24; i++) {
             long sd = seed + i * 173L;
             double period = i % 2 == 0 ? 9 : 13, ph = age / period + hash(sd + 1) * .18;
@@ -203,7 +173,7 @@ final class BlueRedDraw {
             if (q > 1) continue;
             long cs = sd + cyc * 104729L;
             Vec3 rnd = new Vec3(hash(cs) * 2 - 1, hash(cs + 1) * 2 - 1, hash(cs + 2) * 2 - 1).normalize();
-            Vec3 dir = rnd.add(bias.scale(.9)).normalize();
+            Vec3 dir = rnd.scale(.55).add(bias.scale(1.4)).normalize();
             Vec3[] uw = basis(dir);
             double turn = hash(cs + 3) * Math.PI * 2;
             Vec3 side = uw[0].scale(Math.cos(turn)).add(uw[1].scale(Math.sin(turn)));
@@ -258,7 +228,7 @@ final class BlueRedDraw {
                 orbit(c, head.subtract(dir.scale(back)), dir, .35 + back / BlueRedRules.RED_SPEED * .22, .05, RED_LIGHT, .75 * fade * (1 - k / 7.0));
             }
         }
-        if (flying) redOrb(c, head, .5, age);
+        if (flying) redOrb(c, head, .5, age, dir.scale(-1));
         if (!c.glow()) return;
         Random rand = new Random(seed);
         for (int i = 0; i < 22; i++) {
@@ -456,7 +426,7 @@ final class BlueRedDraw {
         double f0 = c.fade;
         c.fade = f0 * (1 - .7 * comp);
         blue(c, blue, true, age + 40, -1);
-        redOrb(c, red, 1.4 * (1 - .4 * comp), age);
+        redOrb(c, red, 1.4 * (1 - .4 * comp), age, red.subtract(blue));
         c.fade = f0;
         if (!c.glow()) return;
         double contact = 1 - clamp01((age - BlueRedRules.PURPLE_BLINK) / (double) (ct - BlueRedRules.PURPLE_BLINK));
@@ -495,36 +465,6 @@ final class BlueRedDraw {
         fxRibbon(c, pts, widths, FLOW, 3500 + which, color, alpha);
     }
 
-    /** The two orbs drawn as themselves (Blue pulling, Red repelling) on asymmetric, interfering orbits round a common centre that tighten with k
-     *  (0 far apart, 1 merged). Lightning and energy stretched toward the centre thicken as they close. a/b: the plane of the orbit. */
-    static void pair(Ctx c, Vec3 at, double age, double k, Vec3 a, Vec3 b, double rr, double alpha, double orbs) {
-        double d = 3.4 * (1 - k) + .15;
-        double ta = age * (.09 + .2 * k), tb = age * (.07 + .26 * k) + 2.4;
-        Vec3 blueOff = a.scale(Math.cos(ta) * d * (1 + .2 * Math.sin(age * .05))).add(b.scale(Math.sin(ta) * d * .8)).add(0, Math.sin(age * .09) * d * .3, 0);
-        Vec3 redOff = a.scale(Math.cos(tb) * d * (1.1 + .25 * Math.sin(age * .04 + 1))).add(b.scale(Math.sin(tb) * d * .7)).add(0, Math.sin(age * .07 + 2) * d * .35, 0);
-        Vec3 blue = at.add(blueOff), red = at.subtract(redOff);
-        if (orbs > .02) {
-            // They sink into Purple: faded as a whole (c.fade scales every vertex they emit), never removed in one frame.
-            double f0 = c.fade;
-            c.fade = f0 * orbs;
-            blue(c, blue, true, age + 40, -1);
-            redOrb(c, red, rr, age);
-            c.fade = f0;
-        }
-        if (!c.glow()) return;
-        double close = k * k;
-        int bolts = (int) (2 + 12 * close);
-        for (int j = 0; j < bolts; j++) {
-            Vec3 from = red.add(nvec(3000 + j, age * .06).scale(rr * .4)), to = blue.add(nvec(3100 + j, age * .06).scale(rr * .4));
-            liveBolt(c, from, to, 8, .3, .015 + .08 * close, j % 3 == 0 ? PALE : ORCHID, .95 * alpha, 3200 + j * 29, age, .9);
-        }
-        // Energy pulled from both towards the centre, longer as they close.
-        if (k > .3) {
-            streaks(c, at, .3, d * 1.2 + rr, age, (int) (40 * k), ORCHID, 3400, 1.8, k * alpha, true);
-            glow(c, at, 1 + 5 * k, .5 * close * alpha, VIOLET);
-        }
-    }
-
     /** Black over the world for Purple's two players: a quick fade in after the swirl, a fade out over the world Purple. */
     static double voidAlpha(double age) {
         int in = BlueRedRules.PURPLE_SWIRL_END, merge = BlueRedRules.PURPLE_MERGE, end = BlueRedRules.PURPLE_VOID_END;
@@ -556,23 +496,29 @@ final class BlueRedDraw {
             }
         }
         double orbs = (1 - absorb) * (age < merge ? smooth((back - .55) / .45) : 1);
-        // Straight at each other, side to side (owner, 2026-11-17: no swirl): Red from the left, Blue from the right, closing until they meet.
-        double gapD = 5.2 * (1 - push) + .15 * (1 - absorb);
-        Vec3 red = at.subtract(axis.scale(gapD)), blue = at.add(axis.scale(gapD));
-        if (orbs > .02) {
-            double f0 = c.fade;
-            c.fade = f0 * orbs;
-            blue(c, blue, true, age + 40, -1);
-            redOrb(c, red, 1.9 * (1 - .65 * absorb), age);
-            c.fade = f0;
-        }
-        if (c.glow()) {
-            double close = push * push * (1 - absorb);
-            for (int j = 0; j < (int) (2 + 14 * close); j++) {
-                Vec3 from = red.add(nvec(3000 + j, age * .06).scale(.6)), to = blue.add(nvec(3100 + j, age * .06).scale(.6));
-                liveBolt(c, from, to, 8, .3, .015 + .08 * close, j % 3 == 0 ? PALE : ORCHID, .95 * back, 3200 + j * 29, age, .9);
+        // Red on the left, Blue on the right, gliding straight at each other: big textured spheres whose substance smears out behind them.
+        double gapD = 5.6 * (1 - push) + .15 * (1 - absorb), r = 2.4 * (1 - .65 * absorb);
+        // view x up points to screen left, so Red goes on +axis to sit on the left like the owner's frame.
+        Vec3 red = at.add(axis.scale(gapD)), blue = at.subtract(axis.scale(gapD));
+        if (orbs > .02) for (int side = 0; side < 2; side++) {
+            Vec3 p = side == 0 ? red : blue, outward = side == 0 ? axis : axis.scale(-1);
+            int tint = side == 0 ? RED : BLUE_TINT, smear = side == 0 ? RED_DEEP : ROYAL;
+            if (c.body()) {
+                for (int j = 0; j < 7; j++) {
+                    double y = (hash(4000 + side * 10 + j) - .5) * r * 1.6, len = r * (1.5 + 2.5 * hash(4100 + side * 10 + j));
+                    Vec3 from = p.add(0, y, 0).add(outward.scale(r * .3)), to = from.add(outward.scale(len));
+                    fxBeam(c, from, to, r * (.25 + .2 * hash(4200 + j)), r * .05, FLOW, 4300 + side * 10 + j, smear, .55 * orbs);
+                }
+                orb(c, p, r, 3, side, tint, orbs);
             }
-            if (push > .3) streaks(c, at, .3, gapD + 3, age, (int) (50 * push), ORCHID, 3400, 1.8, push * back, true);
+            if (c.glow()) glow(c, p, r * 2.2, .25 * orbs, tint);
+        }
+        if (c.glow() && push > .75) {
+            double close = smooth((push - .75) / .25) * (1 - absorb);
+            for (int j = 0; j < (int) (1 + 8 * close); j++) {
+                Vec3 from = red.add(nvec(3000 + j, age * .06).scale(.6)), to = blue.add(nvec(3100 + j, age * .06).scale(.6));
+                liveBolt(c, from, to, 8, .3, .02 + .06 * close, j % 3 == 0 ? PALE : ORCHID, .95 * back, 3200 + j * 29, age, .9);
+            }
         }
         if (form > 0) {
             double s = (1.2 + 4.8 * form) * (1 + .1 * Math.sin(age * .31));

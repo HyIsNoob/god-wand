@@ -78,7 +78,7 @@ class BlueRedDrawTest {
         BlueRedDraw.purpleVoid(body, AT, BlueRedRules.PURPLE_SWIRL_END + 15, AT.add(0, 0, -10), LOOK);
         assertTrue(body.quads > 20, "backdrop, smoke and the two orbs: " + body.quads);
         var seeds = orbs(body);
-        assertTrue(seeds.contains(1) && seeds.contains(4), "each orb true to itself (red orb, charged blue orb): " + seeds);
+        assertTrue(seeds.contains(3) && seeds.contains(3 + 4), "two textured spheres, Red drifting one way and Blue the other: " + seeds);
         var merged = ctx(0);
         BlueRedDraw.purpleVoid(merged, AT, BlueRedRules.PURPLE_MERGE - 4, AT.add(0, 0, -10), LOOK);
         assertTrue(orbs(merged).contains(2 + 4), "Purple forms over them");
