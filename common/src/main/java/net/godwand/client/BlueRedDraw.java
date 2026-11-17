@@ -66,9 +66,11 @@ final class BlueRedDraw {
             bands(c, at, r, age, ready, vel, appear, coreD, false);
             orb(c, at, sphere, 0, ready ? 1 : 0, BLUE_TINT, appear);
             bands(c, at, r, age, ready, vel, appear, coreD, true);
-            pressure(c, at, r, age, vel, ready, appear);
+            // Owner, 2026-11-18: built like Red's pressure bursts (swirling torn brush arcs breaking out of the sphere), in Blue's colours.
+            burst(c, at, sphere, age, vel.scale(-2), ready ? 1.15 : 1, true, BLUE_P, 0x061450);
         }
         if (!c.glow()) return;
+        burst(c, at, sphere, age, vel.scale(-2), ready ? 1.15 : 1, false, BLUE_P, 0x061450);
         glow(c, at, r * .5, .9 * appear, 0xFFFFFF);
         glow(c, at, r * 1.0, (.5 + .2 * beat) * appear, CYAN);
         glow(c, at, r * 2.1, (.2 + .1 * beat) * appear, ROYAL);
@@ -85,33 +87,6 @@ final class BlueRedDraw {
         Vec3 older = trail[n - 2].subtract(trail[n - 3]).scale(1 / Math.max(.5, ago[n - 3] - ago[n - 2]));
         double f = clamp01(ago[n - 1] / Math.max(.5, ago[n - 2] - ago[n - 1]));
         return older.add(newer.subtract(older).scale(f));
-    }
-
-    /** Visual pressure in front of the viewer (owner, 2026-11-18): a joined, blotchy collar of blue round the sphere's rim, on the camera side,
-     *  that never pops: four long overlapping strokes (five when ready) each cover a wide arc, rooted inside the sphere's edge, so together they
-     *  ring it; they turn slowly, and their width and reach keep swelling and shrinking along their length, so the collar's outline boils
-     *  instead of pieces fading in and out. Moving drags the collar back. */
-    private static void pressure(Ctx c, Vec3 at, double r, double age, Vec3 vel, boolean ready, double alpha) {
-        Vec3 toEye = c.eye.subtract(at);
-        if (toEye.lengthSqr() < 1e-6) return;
-        toEye = toEye.normalize();
-        Vec3[] uw = basis(toEye);
-        int count = ready ? 5 : 4;
-        for (int i = 0; i < count; i++) {
-            long sd = 2100 + i * 83L;
-            double sign = i % 2 == 0 ? 1 : -1, a0 = (double) i / count * Math.PI * 2 + age * (.04 + .02 * hash(sd)) * sign * (ready ? 1.5 : 1);
-            double span = Math.PI * 2 / count * 1.7;
-            int k = 26;
-            Vec3[] pts = new Vec3[k + 1];
-            double[] w = new double[k + 1];
-            for (int j = 0; j <= k; j++) {
-                double t = (double) j / k, a = a0 + span * t;
-                double reach = vnoise(sd + 5, a * 1.3 + age * .12), rr = r * (.8 + .3 * reach);
-                pts[j] = at.add(toEye.scale(r * .45)).add(uw[0].scale(Math.cos(a) * rr)).add(uw[1].scale(Math.sin(a) * rr)).subtract(vel.scale(1.5 * (.5 + .5 * reach)));
-                w[j] = r * (.18 + .32 * vnoise(sd + 6, a * 2.1 - age * .15)) * Math.pow(Math.sin(Math.PI * t), .35);
-            }
-            fxRibbon(c, pts, w, PLASMA, (int) (sd % 997), i % 2 == 0 ? ROYAL : DEEP_BLUE, alpha * .85);
-        }
     }
 
     /** A few bands going round the sphere on tilted circles, slowly (faster when ready or moving); the part on the trailing side is dragged back
@@ -372,11 +347,11 @@ final class BlueRedDraw {
             orb(c, at, size * .6, 1, 0, RED, 1);
             redMass(c, at, size, age, coreD, true);
             inkTorn(c, at, size, age, back, reach);
-            burst(c, at, size, age, back, reach, true);
+            burst(c, at, size, age, back, reach, true, RED_P, INK);
             fall(c, at, size * 1.1, age * 1.8, (int) (6 * reach), 700, INK, .9, false);
         }
         for (Wave w : waves) strokes(c, at, size, w, reach, 1);
-        if (c.glow()) burst(c, at, size, age, back, reach, false);
+        if (c.glow()) burst(c, at, size, age, back, reach, false, RED_P, INK);
         if (!c.glow()) return;
         glow(c, at, size * .6, .9, 0xFFFFFF);
         glow(c, at, size * 1.6, .9, RED_CORE);
@@ -437,7 +412,7 @@ final class BlueRedDraw {
      *  the mass while they expand: red ones sweeping over and through ink ones, their thickness jumping from fat to thin, ripping apart as they
      *  spread, the whole burst pushed towards {@code back}. Arcs go round, not out, so it reads as energy tearing the ink open in place, not as a
      *  ball throwing spikes. Two bursts overlap. {@code body}: the paint in the alpha pass, else the hot spines in the glow pass. */
-    private static void burst(Ctx c, Vec3 at, double size, double age, Vec3 back, double reach, boolean body) {
+    private static void burst(Ctx c, Vec3 at, double size, double age, Vec3 back, double reach, boolean body, Palette p, int dark) {
         double period = reach < 1 ? 7 : 10;
         for (int track = 0; track < 2; track++) {
             double ph = age / period + track * .5;
@@ -463,9 +438,9 @@ final class BlueRedDraw {
                     hot[i] = w[i] * .35 * smooth((vnoise(sd + 9, t * 2.5 + u * 3) - .45) / .15);
                 }
                 if (body) {
-                    fxRibbon(c, pts, w, BRUSH, (int) (sd % 977), ink ? INK : j % 2 == 0 ? RED : RED_BODY, env);
-                    if (!ink) fxRibbon(c, pts, hot, BRUSH, (int) (sd % 977) + 1, RED_LIGHT, env);
-                } else if (!ink) fxRibbon(c, pts, hot, FLOW, (int) (sd % 977) + 2, RED_CORE, env * .8);
+                    fxRibbon(c, pts, w, BRUSH, (int) (sd % 977), ink ? dark : j % 2 == 0 ? p.mid() : p.deep(), env);
+                    if (!ink) fxRibbon(c, pts, hot, BRUSH, (int) (sd % 977) + 1, p.light(), env);
+                } else if (!ink) fxRibbon(c, pts, hot, FLOW, (int) (sd % 977) + 2, p.hot(), env * .8);
             }
         }
     }
