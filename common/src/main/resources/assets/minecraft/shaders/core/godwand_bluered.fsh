@@ -239,7 +239,9 @@ void main() {
         float body = smoothstep(edge, edge + 0.03, across);
         float split = smoothstep(0.45, 0.65, noise(vec3(p.x * 3.0 - t * 0.8, seed + 2.0, 0.0)));
         float strands = smoothstep(0.25, 0.55, abs(sin((qy + warp) * 7.0 + seed)));
-        body *= mix(1.0, strands, split);
+        // Ink tears, it does not split into bristles (strands on wide ink strokes read as a zigzag pattern).
+        bool inkTint = dot(tint, vec3(0.3, 0.59, 0.11)) < 0.08;
+        body *= mix(1.0, strands, split * (inkTint ? 0.2 : 1.0));
         // Dry brush: the streaks punch holes along the stroke (more towards the tail) instead of shading it, so it never reads as a lit tube.
         float bristle = smoothstep(0.42, 0.56, striae + 0.45 * smoothstep(0.0, 0.5, p.x));
         a = body * bristle * smoothstep(1.0, 0.93, p.x);
