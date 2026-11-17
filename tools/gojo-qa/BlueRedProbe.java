@@ -170,7 +170,7 @@ public final class BlueRedProbe implements ClientModInitializer {
 
     /** Each subject for 60 ticks, a frame every 10 (and two back to back, to check nothing pops between frames). */
     /** Ticks per subject: Blue idle, Blue moved then flicked, Blue ready circling, Red charging, Red release and flight, Red held. */
-    private static final int[] LOOK = {40, 60, 40, 50, 25, 30};
+    private static final int[] LOOK = {40, 60, 40, 50, 30, 60, 30};
 
     /** Each subject filmed every tick (videos of the real motion); the FPS with an unlimited frame rate is logged at the end of each. */
     private void look(Minecraft c) {

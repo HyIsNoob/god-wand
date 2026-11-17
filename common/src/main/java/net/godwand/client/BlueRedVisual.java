@@ -35,6 +35,13 @@ final class BlueRedVisual {
         return origin.add(dir.scale(Math.min(range, age * BlueRedRules.RED_SPEED)));
     }
 
+    /** The squeeze right before Red fires by itself (owner, 2026-11-18): over the last five ticks of the charge the orb is crushed to about 60%
+     *  of its size; 0 before, 1 at the shot. */
+    static double redSqueeze(double age, double chargeTicks) {
+        double k = Math.max(0, Math.min(1, (age - (chargeTicks - 5)) / 5));
+        return k * k * (3 - 2 * k);
+    }
+
     /** Red's charging orb snaps into being in a few ticks and then holds its size (owner, 2026-11-16: no scaling animation). */
     static double redChargeSize(double age, double chargeTicks) {
         double k = Math.max(0, Math.min(1, age / 6));

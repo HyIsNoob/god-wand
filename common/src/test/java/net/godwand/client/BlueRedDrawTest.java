@@ -130,10 +130,11 @@ class BlueRedDrawTest {
         var red = ctx(-1);
         BlueRedDraw.redOrb(red, AT, 2, 30);
         java.util.Set<Integer> b = effects(blue), r = effects(red);
-        // Both are painted masses now (owner's reset, 2026-11-18); which way Red's fragments move is checked by redDebrisFliesOut.
+        // Both are painted masses now (owner's reset, 2026-11-18); which way Red streams is checked by redSmearsLeanBack.
         // Owner, 2026-11-18: Blue is a sphere wrapped in soft plasma, with no debris streaks (no thin pointed lines).
         assertTrue(b.contains(BlueRedDraw.ORB) && b.contains(BlueRedDraw.PLASMA) && !b.contains(BlueRedDraw.DEBRIS), "Blue: sphere and plasma, no debris " + b);
-        assertTrue(r.contains(BlueRedDraw.BRUSH) && r.contains(BlueRedDraw.DEBRIS), "Red: ink masses, brush strokes, flung fragments " + r);
+        // Owner, 2026-11-18: Red is a red plasma mass with torn ink (brush), no flying object-like fragments.
+        assertTrue(r.contains(BlueRedDraw.PLASMA) && r.contains(BlueRedDraw.BRUSH) && !r.contains(BlueRedDraw.DEBRIS), "Red: plasma mass, torn ink, no debris " + r);
     }
 
     /** Centres of the DEBRIS quads drawn into c, relative to the camera. */
@@ -173,8 +174,21 @@ class BlueRedDrawTest {
         return in / (double) n;
     }
 
-    @Test void redDebrisFliesOut() {
-        assertTrue(inwardShare((c, t) -> BlueRedDraw.redOrb(c, AT, 1.5, t), 60) < .2, "Red throws");
+    /** Red's energy streams one way (owner, 2026-11-18): its smears lean towards {@code back}, so the mass reads as surging the other way. */
+    @Test void redSmearsLeanBack() {
+        Vec3 back = new Vec3(1, 0, 0);
+        var c = ctx(0);
+        BlueRedDraw.redOrb(c, AT, 1.5, 40, back, 1);
+        var sink = (Sink) c.v;
+        double sum = 0; int n = 0;
+        Vec3 core = AT.subtract(EYE);
+        for (int i = 0; i < sink.uv.size(); i++) {
+            float[] uv = sink.uv.get(i);
+            if (uv[1] < 2 || (int) Math.floor(uv[1]) - 2 != BlueRedDraw.PLASMA) continue;
+            float[] q = sink.pos.get(i);
+            sum += new Vec3(q[0], q[1], q[2]).subtract(core).dot(back); n++;
+        }
+        assertTrue(n > 0 && sum / n > .2, "smears lean back: " + (n == 0 ? 0 : sum / n));
     }
 
     @Test void convergenceHasItsBeats() {

@@ -118,7 +118,8 @@ void main() {
                 float coil = sin(lat * 26.0 + lon * 1.5 + fbm(m * 2.5 + t * 0.3) * 6.0 - t * 2.2);
                 c3 += hot * pow(max(coil, 0.0), 22.0) * (0.35 + 0.65 * z) * 1.3;
             }
-            c3 += vec3(1.0, 0.97, 1.0) * core * (1.1 + 0.6 * level);
+            // Red keeps its core hot red with only a small white heart (owner, 2026-11-18: red dominant, not a white lamp).
+            c3 += (isRed ? mix(vec3(1.0, 0.25, 0.3), vec3(1.0), core * core) * 0.75 : vec3(1.0, 0.97, 1.0)) * core * (1.1 + 0.6 * level);
             if (isBlue) {
                 // Glassy energy (owner, 2026-11-18): no drawn outline. The edge is a soft cyan fresnel band that thickens towards the rim, a wide
                 // refraction glow just inside it, and soft highlights that follow the curve of the surface; the edge melts into the glow outside.

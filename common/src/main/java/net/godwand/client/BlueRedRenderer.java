@@ -27,7 +27,9 @@ public final class BlueRedRenderer {
         /** Where it has been (oldest first) and when, for the smears it leaves behind. */
         final java.util.ArrayDeque<Vec3> trail = new java.util.ArrayDeque<>(); final java.util.ArrayDeque<Double> trailAt = new java.util.ArrayDeque<>();
     }
-    record Burst(Vec3 pos, double at, boolean blue) {}
+    record Burst(Vec3 pos, double at, boolean blue, Vec3 dir) {
+        Burst(Vec3 pos, double at, boolean blue) { this(pos, at, blue, Vec3.ZERO); }
+    }
     record Purple(Vec3 pos, double at) {}
     static final class Flight { final int owner; final Vec3 origin, dir; final double at; Vec3 end; double endAt = -1;
         Flight(int owner, Vec3 origin, Vec3 dir, double at) { this.owner = owner; this.origin = origin; this.dir = dir; this.at = at; } }
@@ -70,12 +72,17 @@ public final class BlueRedRenderer {
                 CHARGES.remove(p.ownerId());
                 FLIGHTS.add(new Flight(p.ownerId(), at, new Vec3(p.dx(), p.dy(), p.dz()), clock));
                 impactNear(at);
+                // The shooter feels the force leave: a short, hard kick and a brief widening of the view.
+                var me = Minecraft.getInstance().player;
+                if (me != null && me.getId() == p.ownerId()) { GodWandCinematicEngine.addTrauma(.35f, 8); GodWandCinematicEngine.setFovPunch(1.08f, 2); }
                 sound(at, SoundEvents.WARDEN_SONIC_BOOM, 1.5f, 1.5f);
             }
             case BlueRedPayload.RED_END -> {
                 endFlight(p.ownerId(), at);
-                BURSTS.add(new Burst(at, clock, false));
+                BURSTS.add(new Burst(at, clock, false, new Vec3(p.dx(), p.dy(), p.dz())));
                 impactNear(at);
+                var me = Minecraft.getInstance().player;
+                if (me != null) GodWandCinematicEngine.addTrauma((float) Math.max(0, .45 * (1 - me.position().distanceTo(at) / 40)), 10);
                 sound(at, SoundEvents.GENERIC_EXPLODE.value(), 3f, .8f);
             }
             case BlueRedPayload.PURPLE -> {
@@ -250,14 +257,15 @@ public final class BlueRedRenderer {
             right = right.lengthSqr() < 1e-6 ? Vec3.ZERO : right.normalize();
             Vec3 at = owner.getEyePosition(partial).add(view.scale(1.9)).add(right.scale(.45)).add(0, -.3, 0);
             double age = now - charge.getValue();
-            BlueRedDraw.redOrb(c, at, BlueRedVisual.redChargeSize(age, GodWandConfig.SERVER.redChargeTicks), age, view.scale(.3).add(0, 1, 0).add(right.scale(.8)), .45);
+            double squeeze = BlueRedVisual.redSqueeze(age, GodWandConfig.SERVER.redChargeTicks);
+            BlueRedDraw.redOrb(c, at, BlueRedVisual.redChargeSize(age, GodWandConfig.SERVER.redChargeTicks) * (1 - .4 * squeeze), age, view.scale(.3).add(0, 1, 0).add(right.scale(.8)), .45);
         }
         for (Flight f : FLIGHTS) {
             double age = now - f.at, after = f.endAt < 0 ? 0 : now - f.endAt;
             Vec3 head = BlueRedVisual.redHead(f.origin, f.dir, age, Math.min(160, GodWandConfig.SERVER.redRange), f.end);
             BlueRedDraw.redFlight(c, f.origin, f.dir, head, age, 1 - clamp01(after / 10), f.owner * 31L + (long) f.at, f.end == null);
         }
-        for (Burst b : BURSTS) BlueRedDraw.burst(c, b.pos(), now - b.at(), b.blue());
+        for (Burst b : BURSTS) BlueRedDraw.burst(c, b.pos(), now - b.at(), b.blue(), b.dir());
         if (!PurpleCinematic.blackout()) for (Purple p : PURPLES) {
             double age = now - p.at();
             // For the two players the world pair is gone before the void's pair shows (a dip through black), so two pairs never show at once.

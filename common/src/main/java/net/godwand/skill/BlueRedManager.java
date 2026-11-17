@@ -155,8 +155,12 @@ public final class BlueRedManager {
         for (Entity e : finder.find(red.level, new AABB(from, to).inflate(BlueRedRules.RED_HIT_RADIUS + 1))) {
             if (!(e instanceof LivingEntity) || SpellDamage.isCaster(e, red.shooter) || e.isSpectator()) continue;
             Vec3 middle = e.position().add(0, e.getBbHeight() / 2, 0);
-            if (BlueRedRules.distanceToSegment(middle, from, to) <= BlueRedRules.RED_HIT_RADIUS + e.getBbWidth() / 2 && red.struck.add(e.getUUID()))
+            if (BlueRedRules.distanceToSegment(middle, from, to) <= BlueRedRules.RED_HIT_RADIUS + e.getBbWidth() / 2 && red.struck.add(e.getUUID())) {
                 hurter.hurt(e, red.shooter, damage);
+                // Owner, 2026-11-18: the target is visibly blown away along the shot, in the same tick the hit shows.
+                e.setDeltaMovement(e.getDeltaMovement().add(red.dir.scale(1.8)).add(0, 0.45, 0));
+                e.hurtMarked = true;
+            }
         }
         int used = 0;
         double length = from.distanceTo(to);
@@ -174,7 +178,7 @@ public final class BlueRedManager {
             Vec3 out = e.position().subtract(at);
             if (out.length() > radius) continue;
             if (e instanceof LivingEntity) hurter.hurt(e, red.shooter, cfg.redDamage * cfg.damageMultiplier);
-            e.setDeltaMovement(e.getDeltaMovement().add(out.normalize().scale(1.6)).add(0, 0.5, 0));
+            e.setDeltaMovement(e.getDeltaMovement().add(out.normalize().scale(1.0)).add(red.dir.scale(1.4)).add(0, 0.5, 0));
             e.hurtMarked = true;
         }
         return BlueEater.carve(red.level, at, cfg.redCraterRadius, budget, deadline, Integer.MAX_VALUE, null, cfg.redTerrainDamage);

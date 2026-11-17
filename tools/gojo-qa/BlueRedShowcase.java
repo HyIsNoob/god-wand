@@ -14,8 +14,8 @@ import java.util.List;
  *  a scripted aim path with the server's own inertia (BlueRedRules.follow) and keeps the same position history the client keeps for its smears.
  *  Lives in net.godwand.client for package access to the draw code; the probe calls {@link #step} every tick. */
 public final class BlueRedShowcase {
-    /** 0 nothing, 1 Blue idle, 2 Blue moving then flicked the other way, 3 Blue ready circling, 4 Red charging, 5 Red released and flying,
-     *  6 Red held still (merge size). */
+    /** 0 nothing, 1 Blue idle, 2 Blue moving then flicked the other way, 3 Blue ready circling, 4 Red charging (50 ticks, squeezed at the end),
+     *  5 Red release, flight and impact at real speed, 6 the same at a quarter speed, 7 Red held still (merge size). */
     public static int what;
     public static Vec3 at = Vec3.ZERO, right = new Vec3(1, 0, 0);
     public static double age;
@@ -24,6 +24,8 @@ public final class BlueRedShowcase {
     private static final List<Double> trailAt = new ArrayList<>();
 
     private BlueRedShowcase() {}
+
+    private static double clamp(double v) { return Math.max(0, Math.min(1, v)); }
 
     /** Where the player aims Blue at tick k of subject s. */
     static Vec3 aim(int s, int k) {
@@ -37,8 +39,14 @@ public final class BlueRedShowcase {
         return at;
     }
 
+    /** Where the Red shot of subjects 5 and 6 hits: 14 blocks along the shot. */
+    static final double HIT = 14;
+
     public static void step(int s, int k) {
-        what = s; age = k;
+        what = s; age = s == 6 ? k * .25 : k;
+        // The camera kicks the renderer gives the shooter on release and everyone near the impact.
+        if ((s == 5 || s == 6) && k == 0) { GodWandCinematicEngine.addTrauma(.35f, 8); GodWandCinematicEngine.setFovPunch(1.08f, 2); }
+        if ((s == 5 || s == 6) && age >= HIT / BlueRedRules.RED_SPEED && age - (s == 6 ? .25 : 1) < HIT / BlueRedRules.RED_SPEED) GodWandCinematicEngine.addTrauma(.3f, 10);
         if (s > 3) return;
         if (k == 0) { pos = prev = aim(s, 0); vel = Vec3.ZERO; trail.clear(); trailAt.clear(); return; }
         trail.add(pos); trailAt.add((double) k);
@@ -73,15 +81,19 @@ public final class BlueRedShowcase {
                         // Where the renderer holds the charge: in front of the eye, low and to the right.
                         var l = context.camera().getLookVector();
                         Vec3 view = new Vec3(l.x(), l.y(), l.z()), hand = eye.add(view.scale(1.9)).add(right.scale(.45)).add(0, -.3, 0);
-                        BlueRedDraw.redOrb(c, hand, BlueRedVisual.redChargeSize(now, 50), now, view.scale(.3).add(0, 1, 0).add(right.scale(.8)), .45);
+                        BlueRedDraw.redOrb(c, hand, BlueRedVisual.redChargeSize(now, 50) * (1 - .4 * BlueRedVisual.redSqueeze(now, 50)), now, view.scale(.3).add(0, 1, 0).add(right.scale(.8)), .45);
                     }
-                    case 5 -> {
-                        // Close (about four blocks), shot across the view to the right, so the release and the first strokes are big on screen.
+                    case 5, 6 -> {
+                        // Shot across the view, 12 blocks out, from the left; it hits 14 blocks on.
                         var l = context.camera().getLookVector();
-                        Vec3 view = new Vec3(l.x(), l.y(), l.z()), dir = new Vec3(right.x, 0, right.z).normalize(), origin = eye.add(view.scale(4.5)).subtract(dir.scale(1.5));
-                        BlueRedDraw.redFlight(c, origin, dir, origin.add(dir.scale(Math.min(24, now * BlueRedRules.RED_SPEED))), now, 1, 7, true);
+                        double now2 = what == 6 ? age + partial * .25 : now, hitAt = HIT / BlueRedRules.RED_SPEED;
+                        Vec3 view = new Vec3(l.x(), l.y(), l.z()), dir = new Vec3(right.x, 0, right.z).normalize(), origin = eye.add(view.scale(12)).subtract(dir.scale(7));
+                        Vec3 end = origin.add(dir.scale(HIT));
+                        boolean flying = now2 < hitAt;
+                        BlueRedDraw.redFlight(c, origin, dir, flying ? origin.add(dir.scale(now2 * BlueRedRules.RED_SPEED)) : end, now2, 1 - clamp((now2 - hitAt) / 10), 7, flying);
+                        if (!flying) BlueRedDraw.burst(c, end, now2 - hitAt, false, dir);
                     }
-                    case 6 -> {
+                    case 7 -> {
                         var l = context.camera().getLookVector();
                         BlueRedDraw.redOrb(c, eye.add(new Vec3(l.x(), l.y(), l.z()).scale(4.5)), 1.2, now, back, 1);
                     }
