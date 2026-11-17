@@ -169,6 +169,10 @@ public final class BlueRedProbe implements ClientModInitializer {
     }
 
     /** Each subject for 60 ticks, a frame every 10 (and two back to back, to check nothing pops between frames). */
+    /** Ticks per subject: Blue idle, Blue moved then flicked, Blue ready circling, Red charging, Red release and flight, Red held. */
+    private static final int[] LOOK = {40, 60, 40, 50, 25, 30};
+
+    /** Each subject filmed every tick (videos of the real motion); the FPS with an unlimited frame rate is logged at the end of each. */
     private void look(Minecraft c) {
         int t = ticks - since;
         if (t == 1) {
@@ -176,18 +180,15 @@ public final class BlueRedProbe implements ClientModInitializer {
             c.options.framerateLimit().set(260); c.options.enableVsync().set(false);
             Vec3 eye = c.player.getEyePosition(), view = c.player.getViewVector(1);
             BlueRedShowcase.at = eye.add(view.scale(net.godwand.skill.BlueRedRules.BLUE_DISTANCE));
-            Vec3 right = view.cross(new Vec3(0, 1, 0)).normalize();
-            BlueRedShowcase.back = right.scale(-1).add(0, .3, 0).normalize();
+            BlueRedShowcase.right = view.cross(new Vec3(0, 1, 0)).normalize();
         }
-        int subject = 1 + (t - 20) / 60, in = (t - 20) % 60;
         if (t < 20) return;
-        if (in == 18) System.out.println("GOJO_QA LOOK fps subject=" + subject + " fps=" + c.getFps());
-        if (subject > 6) { BlueRedShowcase.what = 0; System.out.println("GOJO_QA LOOK done frames=" + frame); c.stop(); return; }
-        BlueRedShowcase.what = subject;
-        BlueRedShowcase.age = in;
-        // Every tick for ready Blue, Red and the flight (to judge motion and deformation), else a few stills.
-        boolean film = (subject == 2 || subject == 3) && in >= 20 && in < 45 || subject == 6 && in >= 20 && in < 30;
-        if (film || in >= 20 && (in % 10 == 0 || in == 41)) grab(c);
+        int k = t - 20, s = 0;
+        while (s < LOOK.length && k >= LOOK[s]) { k -= LOOK[s]; s++; }
+        if (s >= LOOK.length) { BlueRedShowcase.what = 0; System.out.println("GOJO_QA LOOK done frames=" + frame); c.stop(); return; }
+        if (k == LOOK[s] - 1) System.out.println("GOJO_QA LOOK fps subject=" + (s + 1) + " fps=" + c.getFps());
+        BlueRedShowcase.step(s + 1, k);
+        grab(c);
     }
 
     private void aftermath(Minecraft c, MinecraftServer server) {

@@ -13,6 +13,15 @@ public final class BlueRedRules {
     public static final int CORE_PERIOD = 5;
     /** Red flies RED_SPEED blocks per tick and hurts anything within RED_HIT_RADIUS of its path. */
     public static final double RED_SPEED = 3.0, RED_HIT_RADIUS = 2.0;
+    /** Blue's inertia (owner, 2026-11-18): how hard it is pulled towards the aim point each tick, and how much of its speed it keeps. */
+    public static final double BLUE_PULL = .22, BLUE_DAMP = .62;
+
+    /** One tick of a held Blue chasing the aim point like a heavy weight on a spring: it lags behind turns, carries its momentum a little past
+     *  the point and settles in about half a second. Returns {position, velocity}. */
+    public static net.minecraft.world.phys.Vec3[] follow(net.minecraft.world.phys.Vec3 pos, net.minecraft.world.phys.Vec3 vel, net.minecraft.world.phys.Vec3 target) {
+        var v = vel.scale(BLUE_DAMP).add(target.subtract(pos).scale(BLUE_PULL));
+        return new net.minecraft.world.phys.Vec3[]{pos.add(v), v};
+    }
     /** Purple timeline in ticks (owner's direction, 2026-11-16): a blink, the orbs swirl in the world, a quick fade to the 2D void where they are pushed
      *  together and Purple swallows them (the void thins out from MERGE to VOID_END), the camera races round Purple, it detonates, the cutscene
      *  ends, the crater stops growing. */

@@ -32,7 +32,7 @@ public final class BlueRedManager {
     public static final class Blue {
         final ServerPlayer owner;
         final ServerLevel level;
-        Vec3 pos;
+        Vec3 pos, vel = Vec3.ZERO;
         BlueState state = BlueState.CHARGING;
         int age, anchoredAge;
         float credited;
@@ -292,7 +292,7 @@ public final class BlueRedManager {
             blue.age++;
             if (blue.held()) {
                 if (!blue.owner.isAlive() || !holdsBlueRed(blue.owner)) { release(blue); if (!BLUES.contains(blue)) continue; }
-                else blue.pos = aim(blue.owner);
+                else { Vec3[] next = BlueRedRules.follow(blue.pos, blue.vel, aim(blue.owner)); blue.pos = next[0]; blue.vel = next[1]; }
             } else blue.anchoredAge++;
             BlueState before = blue.state;
             blue.state = BlueRedRules.atChargeLimit(blue.state, blue.age, cfg.blueChargeTicks);
@@ -301,7 +301,8 @@ public final class BlueRedManager {
             budget -= BlueEater.eat(level, blue.pos, cfg.blueEatRadius, budget, deadline, blue.eaten);
             BlueEater.animate(blue.eaten, blue.pos);
             if (blue.state == BlueState.CHARGING && blue.credited >= cfg.blueReadyDamage) blue.state = BlueState.READY;
-            if (blue.state != before || blue.age % 2 == 0) broadcast(blue);
+            // Every tick while it moves, so the inertia and the smears behind it read smoothly; every other tick once it is still.
+            if (blue.state != before || blue.age % 2 == 0 || blue.held() && blue.vel.lengthSqr() > 1e-4) broadcast(blue);
         }
         for (Red red : new ArrayList<>(REDS))
             if (red.fired && red.level == level && REDS.contains(red)) budget -= fly(red, budget, deadline);

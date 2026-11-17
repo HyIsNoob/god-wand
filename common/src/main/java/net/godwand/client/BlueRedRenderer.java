@@ -22,7 +22,11 @@ import static net.godwand.client.GateDraw.*;
 
 /** Draws Blue, Red and their bursts for every nearby player, from BlueRedPayload events. */
 public final class BlueRedRenderer {
-    static final class BlueView { Vec3 prev, pos; double at, readyAt = -1, born; BlueState state = BlueState.CHARGING; }
+    static final class BlueView {
+        Vec3 prev, pos; double at, readyAt = -1, born; BlueState state = BlueState.CHARGING;
+        /** Where it has been (oldest first) and when, for the smears it leaves behind. */
+        final java.util.ArrayDeque<Vec3> trail = new java.util.ArrayDeque<>(); final java.util.ArrayDeque<Double> trailAt = new java.util.ArrayDeque<>();
+    }
     record Burst(Vec3 pos, double at, boolean blue) {}
     record Purple(Vec3 pos, double at) {}
     static final class Flight { final int owner; final Vec3 origin, dir; final double at; Vec3 end; double endAt = -1;
@@ -45,6 +49,8 @@ public final class BlueRedRenderer {
                 BlueView v = BLUES.get(p.ownerId());
                 if (v == null) { v = new BlueView(); v.prev = at; v.born = clock; BLUES.put(p.ownerId(), v); sound(at, SoundEvents.BEACON_ACTIVATE, 1.2f, 1.6f); }
                 else v.prev = drawn(v, 1);
+                v.trail.addLast(v.pos == null ? at : v.pos); v.trailAt.addLast(clock);
+                while (v.trail.size() > 16) { v.trail.removeFirst(); v.trailAt.removeFirst(); }
                 v.pos = at; v.at = clock;
                 BlueState state = BlueState.values()[p.state()];
                 if (state != BlueState.CHARGING && v.readyAt < 0) {
@@ -226,7 +232,13 @@ public final class BlueRedRenderer {
         Ctx c = new Ctx(); c.v = v; c.m = m; c.eye = eye; c.layer = layer; c.nearMin = .05; c.nearMax = .4;
         double now = clock + partial;
         for (BlueView b : BLUES.values())
-            BlueRedDraw.blue(c, drawn(b, partial), b.state != BlueState.CHARGING, now - b.born, b.readyAt < 0 ? -1 : now - b.readyAt);
+        {
+            Vec3[] trail = b.trail.toArray(new Vec3[0]);
+            double[] ago = new double[trail.length];
+            int i = 0;
+            for (double t : b.trailAt) ago[i++] = now - t;
+            BlueRedDraw.blue(c, drawn(b, partial), b.state != BlueState.CHARGING, now - b.born, b.readyAt < 0 ? -1 : now - b.readyAt, trail, ago);
+        }
         var level = Minecraft.getInstance().level;
         for (var charge : CHARGES.entrySet()) {
             var owner = level == null ? null : level.getEntity(charge.getKey());

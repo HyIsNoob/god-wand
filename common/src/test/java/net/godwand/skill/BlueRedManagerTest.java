@@ -122,12 +122,17 @@ class BlueRedManagerTest {
         assertTrue(BlueRedManager.blues(world).isEmpty());
     }
 
-    @Test void heldBlueFollowsAim() {
+    /** Owner, 2026-11-18: a held Blue follows the aim with inertia: it lags behind a turn, then settles on the aim point. */
+    @Test void heldBlueFollowsAimWithInertia() {
         var p = player();
         BlueRedManager.input(p, true);
         when(p.getLookAngle()).thenReturn(new Vec3(1, 0, 0));
         ticks(1);
-        assertEquals(new Vec3(8, 65, 0), only().pos);
+        Vec3 aim = new Vec3(8, 65, 0);
+        double first = only().pos.distanceTo(aim);
+        assertTrue(first > 1, "it does not snap to a new aim at once: " + first);
+        ticks(40);
+        assertTrue(only().pos.distanceTo(aim) < .05, "it settles on the aim: " + only().pos);
     }
 
     @Test void unreadyReleaseVanishesAndStartsCooldown() {
