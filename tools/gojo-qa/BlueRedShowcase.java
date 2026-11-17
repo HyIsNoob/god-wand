@@ -76,10 +76,15 @@ public final class BlueRedShowcase {
                         BlueRedDraw.redOrb(c, hand, BlueRedVisual.redChargeSize(now, 50), now, view.scale(.3).add(0, 1, 0).add(right.scale(.8)), .45);
                     }
                     case 5 -> {
-                        Vec3 dir = new Vec3(right.x, 0, right.z).normalize(), origin = at.subtract(dir.scale(4));
+                        // Close (about four blocks), shot across the view to the right, so the release and the first strokes are big on screen.
+                        var l = context.camera().getLookVector();
+                        Vec3 view = new Vec3(l.x(), l.y(), l.z()), dir = new Vec3(right.x, 0, right.z).normalize(), origin = eye.add(view.scale(4.5)).subtract(dir.scale(1.5));
                         BlueRedDraw.redFlight(c, origin, dir, origin.add(dir.scale(Math.min(24, now * BlueRedRules.RED_SPEED))), now, 1, 7, true);
                     }
-                    case 6 -> BlueRedDraw.redOrb(c, at, 1.2, now, back, 1);
+                    case 6 -> {
+                        var l = context.camera().getLookVector();
+                        BlueRedDraw.redOrb(c, eye.add(new Vec3(l.x(), l.y(), l.z()).scale(4.5)), 1.2, now, back, 1);
+                    }
                     default -> {}
                 }
                 var mesh = buffer.build();
