@@ -31,7 +31,7 @@ public final class BlueRedShowcase {
         if (s == 2) {
             if (k < 20) return at.add(right.scale(-5 + k * .5));
             if (k < 40) return at.add(right.scale(5)).add(up.scale((k - 20) * .15));
-            return at.add(right.scale(-5)).add(up.scale(-1));
+            return at.add(right.scale(-5));
         }
         if (s == 3) return at.add(right.scale(3.5 * Math.cos(k * .12))).add(up.scale(2 * Math.sin(k * .12)));
         return at;

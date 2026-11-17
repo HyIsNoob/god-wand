@@ -151,19 +151,22 @@ class BlueRedDrawTest {
 
     /** Fraction of debris pieces (matched by seed) that moved towards (inward) the core between two instants. */
     static double inwardShare(java.util.function.BiConsumer<GateDraw.Ctx, Double> draw, double age) {
-        var a = ctx(0); draw.accept(a, age);
-        var b = ctx(0); draw.accept(b, age + 1);
-        java.util.Map<Double, double[]> before = new java.util.HashMap<>();
-        for (double[] p : debrisCentres(a)) before.put(p[3], p);
         Vec3 core = AT.subtract(EYE);
         int in = 0, n = 0;
-        for (double[] p : debrisCentres(b)) {
-            double[] q = before.get(p[3]);
-            if (q == null) continue;
-            double d0 = core.distanceTo(new Vec3(q[0], q[1], q[2])), d1 = core.distanceTo(new Vec3(p[0], p[1], p[2]));
-            if (Math.abs(d1 - d0) < .05) continue; // the core trembles a little; judge only pieces that really moved
-            n++;
-            if (d1 < d0) in++;
+        // Pooled over a few instants: Red keeps only a handful of flung fragments.
+        for (double t0 = age; t0 < age + 30; t0 += 10) {
+            var a = ctx(0); draw.accept(a, t0);
+            var b = ctx(0); draw.accept(b, t0 + 1);
+            java.util.Map<Double, double[]> before = new java.util.HashMap<>();
+            for (double[] p : debrisCentres(a)) before.put(p[3], p);
+            for (double[] p : debrisCentres(b)) {
+                double[] q = before.get(p[3]);
+                if (q == null) continue;
+                double d0 = core.distanceTo(new Vec3(q[0], q[1], q[2])), d1 = core.distanceTo(new Vec3(p[0], p[1], p[2]));
+                if (Math.abs(d1 - d0) < .05) continue; // the core trembles a little; judge only pieces that really moved
+                n++;
+                if (d1 < d0) in++;
+            }
         }
         assertTrue(n >= 6, "enough moving pieces to judge: " + n);
         return in / (double) n;

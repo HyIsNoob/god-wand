@@ -23,7 +23,7 @@ import static net.godwand.client.GateDraw.*;
 /** Draws Blue, Red and their bursts for every nearby player, from BlueRedPayload events. */
 public final class BlueRedRenderer {
     static final class BlueView {
-        Vec3 prev, pos; double at, readyAt = -1, born; BlueState state = BlueState.CHARGING;
+        Vec3 prev, pos; double at, gap = 2, readyAt = -1, born; BlueState state = BlueState.CHARGING;
         /** Where it has been (oldest first) and when, for the smears it leaves behind. */
         final java.util.ArrayDeque<Vec3> trail = new java.util.ArrayDeque<>(); final java.util.ArrayDeque<Double> trailAt = new java.util.ArrayDeque<>();
     }
@@ -51,7 +51,8 @@ public final class BlueRedRenderer {
                 else v.prev = drawn(v, 1);
                 v.trail.addLast(v.pos == null ? at : v.pos); v.trailAt.addLast(clock);
                 while (v.trail.size() > 16) { v.trail.removeFirst(); v.trailAt.removeFirst(); }
-                v.pos = at; v.at = clock;
+                // The server sends every tick while Blue moves and every other tick when it is still: blend over the real gap, adding no lag.
+                v.gap = Math.max(1, Math.min(2, clock - v.at)); v.pos = at; v.at = clock;
                 BlueState state = BlueState.values()[p.state()];
                 if (state != BlueState.CHARGING && v.readyAt < 0) {
                     v.readyAt = clock;
@@ -129,7 +130,7 @@ public final class BlueRedRenderer {
     }
 
     private static Vec3 drawn(BlueView v, double partial) {
-        return BlueRedVisual.interp(v.prev, v.pos, (clock + partial - v.at) / 2);
+        return BlueRedVisual.interp(v.prev, v.pos, (clock + partial - v.at) / v.gap);
     }
 
     // ---- drawing ----

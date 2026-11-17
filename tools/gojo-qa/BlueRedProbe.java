@@ -175,11 +175,12 @@ public final class BlueRedProbe implements ClientModInitializer {
     /** Each subject filmed every tick (videos of the real motion); the FPS with an unlimited frame rate is logged at the end of each. */
     private void look(Minecraft c) {
         int t = ticks - since;
-        if (t == 1) {
-            c.options.hideGui = true;
-            c.options.framerateLimit().set(260); c.options.enableVsync().set(false);
+        if (t == 1) { c.options.hideGui = true; c.options.framerateLimit().set(260); c.options.enableVsync().set(false); }
+        // Anchored just before filming, once the client has caught up with the teleport (at t == 1 it can still be at the spawn height).
+        if (t == 19) {
             Vec3 eye = c.player.getEyePosition(), view = c.player.getViewVector(1);
-            BlueRedShowcase.at = eye.add(view.scale(net.godwand.skill.BlueRedRules.BLUE_DISTANCE));
+            // Raised so the whole sphere and its bands stay clear of the ground (at eye height its lower half sank into the grass).
+            BlueRedShowcase.at = eye.add(view.scale(net.godwand.skill.BlueRedRules.BLUE_DISTANCE)).add(0, 1.5, 0);
             BlueRedShowcase.right = view.cross(new Vec3(0, 1, 0)).normalize();
         }
         if (t < 20) return;
