@@ -79,7 +79,8 @@ void main() {
         float ang = atan(q.y, q.x);
         vec2 dir = vec2(cos(ang), sin(ang));
         // Blue's rim is never a clean circle: a slow lumpy swell plus fast crackle.
-        float wob = isBlue ? (fbm(vec3(dir * 1.3, t * 0.35)) - 0.5) * 0.3 + (fbm(vec3(dir * 4.0, t * 1.1)) - 0.5) * 0.12
+        // (Owner, 2026-11-18: soft and glossy, so only the slow swell and a little crackle: thicker and thinner in places, never noisy.)
+        float wob = isBlue ? (fbm(vec3(dir * 1.3, t * 0.35)) - 0.5) * 0.22 + (fbm(vec3(dir * 4.0, t * 1.1)) - 0.5) * 0.04
                            : (fbm(vec3(dir * 2.5, t * 0.8)) - 0.5) * 0.03;
         float dd = d - wob;
         vec3 hot = mix(tint, vec3(1.0), 0.6);
@@ -118,9 +119,24 @@ void main() {
                 c3 += hot * pow(max(coil, 0.0), 22.0) * (0.35 + 0.65 * z) * 1.3;
             }
             c3 += vec3(1.0, 0.97, 1.0) * core * (1.1 + 0.6 * level);
-            c3 += hot * rimLine * 1.5 + tint * fres * 0.35;
-            col = c3;
-            a = smoothstep(1.0, 0.975, dd);
+            if (isBlue) {
+                // Glassy energy (owner, 2026-11-18): no drawn outline. The edge is a soft cyan fresnel band that thickens towards the rim, a wide
+                // refraction glow just inside it, and soft highlights that follow the curve of the surface; the edge melts into the glow outside.
+                vec3 n0 = vec3(q / R, z);
+                vec3 cyan = mix(tint, vec3(0.55, 0.95, 1.0), 0.65);
+                c3 += cyan * pow(1.0 - z, 1.6) * 0.75;
+                c3 += cyan * exp(-pow((dd - 0.86) / 0.12, 2.0)) * 0.35;
+                float spec = pow(max(dot(n0, normalize(vec3(-0.45, 0.55, 0.7))), 0.0), 18.0);
+                float spec2 = pow(max(dot(n0, normalize(vec3(0.5, -0.4, 0.75))), 0.0), 40.0);
+                c3 += vec3(0.85, 0.97, 1.0) * (spec * 0.55 + spec2 * 0.25);
+                col = c3;
+                // Fades only over the last few percent, handing over to the halo outside at the same strength, so no gap opens between them.
+                a = mix(0.85, 1.0, smoothstep(1.0, 0.8, dd));
+            } else {
+                c3 += hot * rimLine * 1.5 + tint * fres * 0.35;
+                col = c3;
+                a = smoothstep(1.0, 0.975, dd);
+            }
             if (isPlanet) {
                 // A sphere of churning matter (the owner's 2D frame): cloudy texture flowing across it, dark and bright patches, fine speckles,
                 // a soft lit rim. level 0 drifts one way (Red), 1 the other (Blue).
@@ -150,8 +166,11 @@ void main() {
                 flames = max(flames, fire);
             }
             if (isPlanet) { shards = 0.0; ink = 0.0; }
-            float v = rimLine * 1.4 + glowF + shards * 1.3 + flames * 1.2;
-            col = mix(tint * 1.1, hot, clamp(rimLine + shards, 0.0, 1.0));
+            // Blue: no thin shards and no bright ring outside; a soft cyan halo continues the inside edge outward.
+            float ringK = isBlue ? 0.0 : 1.0;
+            if (isBlue) { shards = 0.0; glowF = exp(-od * 4.0) * (0.75 + 0.25 * corona) * 0.85 / 0.85; }
+            float v = rimLine * 1.4 * ringK + glowF + shards * 1.3 + flames * 1.2;
+            col = mix(isBlue ? mix(tint, vec3(0.55, 0.95, 1.0), 0.45) : tint * 1.1, hot, clamp(rimLine * ringK + shards, 0.0, 1.0));
             col = mix(col, vec3(0.03, 0.0, 0.05), ink);
             a = clamp(max(v, ink), 0.0, 1.0);
         }
