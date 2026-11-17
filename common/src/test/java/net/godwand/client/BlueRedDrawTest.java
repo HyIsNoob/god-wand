@@ -189,6 +189,28 @@ class BlueRedDrawTest {
                 "the orbit speeds up as it tightens");
     }
 
+    /** Owner's ref 40: while they chase, each orb drags a long ring of its own colour round the orbit, Red's as long as Blue's. */
+    @Test void bothOrbsDrawLongRings() {
+        for (double age : new double[]{24, 32, 40}) {
+            GateDraw.Ctx c = ctx(0);
+            BlueRedDraw.purple(c, AT, age, EYE, LOOK);
+            var s = (Sink) c.v;
+            double[] span = new double[2];
+            for (int which = 0; which < 2; which++) {
+                double minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
+                for (int i = 0; i < s.uv.size(); i++) {
+                    float[] uv = s.uv.get(i);
+                    if (uv[1] < 2 || (int) Math.floor(uv[1]) - 2 != BlueRedDraw.RING || (int) Math.floor(uv[0]) != 3500 + which) continue;
+                    float[] p = s.pos.get(i);
+                    minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minZ = Math.min(minZ, p[2]); maxZ = Math.max(maxZ, p[2]);
+                }
+                span[which] = Math.max(maxX - minX, maxZ - minZ);
+            }
+            // Well beyond a ribbon's own width: an arc round the wide orbit, not a blob at the head.
+            assertTrue(span[0] > 4 && span[1] > 4, "age " + age + ": blue ring " + span[0] + ", red ring " + span[1]);
+        }
+    }
+
     static java.util.Set<Integer> effects(GateDraw.Ctx c) {
         java.util.Set<Integer> out = new java.util.TreeSet<>();
         for (float[] uv : ((Sink) c.v).uv) if (uv[1] >= 2) out.add((int) Math.floor(uv[1]) - 2);

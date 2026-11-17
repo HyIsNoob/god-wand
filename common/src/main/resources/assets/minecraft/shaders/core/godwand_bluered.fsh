@@ -128,7 +128,10 @@ void main() {
                 vec3 m = n3 * 2.4 + vec3(flow, 0.0, 0.0);
                 float cloud = fbm(m + fbm(m * 1.7 - t * 0.2) * 1.4);
                 float speck = step(0.93, noise(n3 * 38.0 + t)) * 0.6;
-                col = tint * (0.12 + 1.25 * pow(cloud, 1.7)) + hot * (pow(cloud, 6.0) * 0.8 + speck) + hot * rimLine * 0.8 + tint * fres * 0.6;
+                // Ref 39: a burning ball, white-hot clouds over the colour, hottest towards the middle.
+                float core = clamp(1.0 - d, 0.0, 1.0);
+                float white = smoothstep(0.35, 0.8, cloud) * (0.45 + 0.55 * core);
+                col = mix(tint * (0.35 + 0.8 * cloud), vec3(1.0, 0.96, 0.92), white) * (0.6 + 0.4 * sqrt(core)) + hot * (speck + rimLine * 0.6) + tint * fres * 0.5;
             }
         } else {
             float od = dd - 1.0;
@@ -222,6 +225,15 @@ void main() {
         float vign = smoothstep(0.55, 1.35, d);
         col = mix(vec3(0.0), tint, lines);
         a = clamp(lines * 1.6 + vign * 0.75, 0.0, 1.0);
+    } else if (effect == 11) {
+        // RING: a FLOW-shaped ribbon that keeps its colour (the owner's ref 40 red and blue rings): saturated body, soft frayed edges, only a thin
+        // white thread down the middle.
+        float across = 1.0 - abs(q.y);
+        float n = fbm(vec3(p.x * 4.0 - t * 1.6, q.y * 1.2, seed));
+        float shape = across * smoothstep(0.0, 0.2, p.x) * smoothstep(1.0, 0.9, p.x);
+        float v = shape * (0.7 + n * 0.6);
+        col = tint * (0.75 + 0.5 * n) + vec3(1.0) * smoothstep(0.82, 0.97, across) * 0.45 * shape;
+        a = smoothstep(0.08, 0.35, v);
     } else if (effect == 10) {
         // DEBRIS: a jagged shard, dark with a lit rim on one side.
         float d = length(q);

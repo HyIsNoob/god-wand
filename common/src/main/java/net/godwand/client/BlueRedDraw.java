@@ -20,7 +20,7 @@ final class BlueRedDraw {
     static final int RED = 0xFF0A28, RED_BODY = 0xD4001A, RED_DEEP = 0x8A0010, RED_LIGHT = 0xFF4A60, RED_CORE = 0xFFD6DC, RED_DARK = 0x16000A;
     static final int VIOLET = 0x9A2CFF, ORCHID = 0xF064FF, PALE = 0xF6D8FF, NIGHT = 0x2A0650, VOID = 0x07020F, INK = 0x050002;
     /** Shader effects (godwand_bluered.fsh). ORB seeds: variant (0 blue, 1 red, 2 purple) + 4 * level. */
-    static final int ORB = 0, FLOW = 1, FLAME = 2, SMOKE = 3, SHOCK = 4, BOLT = 5, SPARK = 6, RAYS = 7, NEBULA = 8, SPEEDLINES = 9, DEBRIS = 10;
+    static final int ORB = 0, FLOW = 1, FLAME = 2, SMOKE = 3, SHOCK = 4, BOLT = 5, SPARK = 6, RAYS = 7, NEBULA = 8, SPEEDLINES = 9, DEBRIS = 10, RING = 11;
     static final int BLUE_TINT = 0x1A6CFF;
 
     private BlueRedDraw() {}
@@ -370,8 +370,9 @@ final class BlueRedDraw {
     /** Distance between the two orbs: they bounce apart on contact, chase each other wide, are drawn in as they lift, then crushed to a point. */
     static double separation(double age) {
         int b = BlueRedRules.PURPLE_BLINK, ct = BlueRedRules.PURPLE_CONTACT, pl = BlueRedRules.PURPLE_PLAY, le = BlueRedRules.PURPLE_LIFT_END, se = BlueRedRules.PURPLE_SWIRL_END;
-        if (age < ct) return .3 + 2.9 * (1 - Math.pow(1 - clamp01((age - b) / (double) (ct - b)), 2));
-        double play = 3.2 + .5 * Math.sin((Math.min(age, pl) - ct) * .21);
+        // Wide while they chase (owner's ref 40), so their rings circle well clear of the orbs instead of hiding behind them.
+        if (age < ct) return .3 + 4.9 * (1 - Math.pow(1 - clamp01((age - b) / (double) (ct - b)), 2));
+        double play = 5.2 + .7 * Math.sin((Math.min(age, pl) - ct) * .21);
         if (age < pl) return play;
         if (age < le) return play + (.9 - play) * smooth((age - pl) / (double) (le - pl));
         return .05 + .9 * (1 - smooth((age - le) / (double) (se - le)));
@@ -419,9 +420,11 @@ final class BlueRedDraw {
         }
         Vec3[] o = convergeOffsets(age);
         Vec3 blue = center.add(o[0]), red = center.add(o[1]);
-        if (c.glow() && age > ct) {
-            trail(c, base, age, 0, CYAN, .8);
-            trail(c, base, age, 1, RED_LIGHT, .8);
+        if (age > ct) {
+            double in = smooth((age - ct) / 8.0);
+            trail(c, base, age, 0, c.body() ? 0x2A7CFF : CYAN, in);
+            // The body ramp darkens pure red to wine, so Red's ring uses a lighter red to read as red like Blue's reads as blue.
+            trail(c, base, age, 1, c.body() ? RED_BODY : RED, in);
         }
         double f0 = c.fade;
         c.fade = f0 * (1 - .7 * comp);
@@ -448,21 +451,23 @@ final class BlueRedDraw {
         }
     }
 
-    /** One orb's trail: its actual positions over the last few ticks (longer as it speeds up), the older part drawn in towards the centre. */
+    /** One orb's trail (owner's ref 40): a long arc along its real past path, about two thirds of a turn whatever the speed, so the pair draws
+     *  round red and blue rings as they chase. Thick and dark-coloured on the body layer, a thinner bright core on the glow layer; it narrows and
+     *  fades towards the tail. Positions relative to the moving centre, so the rings stay round while the pair lifts. */
     private static void trail(Ctx c, Vec3 base, double age, int which, int color, double alpha) {
-        int pl = BlueRedRules.PURPLE_PLAY, le = BlueRedRules.PURPLE_LIFT_END;
-        double tight = smooth((age - pl) / (double) (le - pl)), span = 4 + 10 * tight;
+        double span = Math.min(40, 4.2 / spin(age));
         Vec3 now = base.add(0, BlueRedRules.purpleRise(age), 0);
-        int n = 20;
+        int n = 28;
         Vec3[] pts = new Vec3[n + 1];
         double[] widths = new double[n + 1];
+        // Additive glow over the ribbon burns it white, so the glow is only a thin, faint core and the colour comes from the body.
+        double w = c.body() ? .4 : .08;
         for (int j = 0; j <= n; j++) {
-            double t = (double) j / n, at = age - span * (1 - t);
-            Vec3 p = base.add(0, BlueRedRules.purpleRise(at), 0).add(convergeOffsets(at)[which]);
-            pts[j] = p.add(now.subtract(p).scale(.45 * tight * (1 - t)));
-            widths[j] = .03 + .22 * t;
+            double t = (double) j / n, at = Math.max(0, age - span * (1 - t));
+            pts[j] = now.add(convergeOffsets(at)[which]);
+            widths[j] = w * (.35 + .65 * t) * (1 + .15 * Math.sin(t * 9 - age * .4));
         }
-        fxRibbon(c, pts, widths, FLOW, 3500 + which, color, alpha);
+        fxRibbon(c, pts, widths, c.body() ? RING : FLOW, 3500 + which, color, alpha * (c.body() ? .9 : .35));
     }
 
     /** Black over the world for Purple's two players: a quick fade in after the swirl, a fade out over the world Purple. */
@@ -488,11 +493,12 @@ final class BlueRedDraw {
             Vec3[] uw = basis(look);
             Vec3 o = eye.add(look.scale(.5));
             fxQuad(c, o.subtract(uw[0].scale(4)).subtract(uw[1].scale(4)), o.add(uw[0].scale(4)).subtract(uw[1].scale(4)), o.add(uw[0].scale(4)).add(uw[1].scale(4)),
-                    o.subtract(uw[0].scale(4)).add(uw[1].scale(4)), NEBULA, 250, 0xFFFFFF, back, back, back, back, 0, 1);
+                    o.subtract(uw[0].scale(4)).add(uw[1].scale(4)), NEBULA, 250, 0x2E2640, back, back, back, back, 0, 1);
             for (int i = 0; i < 18; i++) {
                 double x = ((i * .37 + age * .012 * (1 + i % 3)) % 1) * 2 - 1, y = Math.sin(i * 2.1 + age * .03) * 2.5;
-                int color = x < -.3 ? 0x5A1030 : x > .3 ? 0x182A90 : 0x4A1888;
-                fxSprite(c, at.subtract(view.scale(3 + i % 4)).add(axis.scale(x * 14)).add(0, y, 0), 3 + (i % 3), SMOKE, 260 + i, color, .55 * back, i);
+                // Red haze on Red's side (+axis is screen left), blue on Blue's, a violet smear between; dark, like smoke lit from inside.
+                int color = x > .3 ? 0x3A0A1E : x < -.3 ? 0x101A5A : 0x2E0E5A;
+                fxSprite(c, at.subtract(view.scale(3 + i % 4)).add(axis.scale(x * 14)).add(0, y, 0), 3 + (i % 3), SMOKE, 260 + i, color, .35 * back, i);
             }
         }
         double orbs = (1 - absorb) * (age < merge ? smooth((back - .55) / .45) : 1);
@@ -511,10 +517,10 @@ final class BlueRedDraw {
                 }
                 orb(c, p, r, 3, side, tint, orbs);
             }
-            if (c.glow()) glow(c, p, r * 2.2, .25 * orbs, tint);
+            if (c.glow()) glow(c, p, r * 1.8, .16 * orbs, tint);
         }
-        if (c.glow() && push > .75) {
-            double close = smooth((push - .75) / .25) * (1 - absorb);
+        if (c.glow() && push > .35) {
+            double close = smooth((push - .35) / .65) * (1 - absorb);
             for (int j = 0; j < (int) (1 + 8 * close); j++) {
                 Vec3 from = red.add(nvec(3000 + j, age * .06).scale(.6)), to = blue.add(nvec(3100 + j, age * .06).scale(.6));
                 liveBolt(c, from, to, 8, .3, .02 + .06 * close, j % 3 == 0 ? PALE : ORCHID, .95 * back, 3200 + j * 29, age, .9);

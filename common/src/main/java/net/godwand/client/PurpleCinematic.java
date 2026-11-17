@@ -60,7 +60,7 @@ public final class PurpleCinematic {
             Vec3 s = turn(side, .5 + k * .45);
             // Pushing in for the compression.
             double press = GateDraw.smooth((age - BlueRedRules.PURPLE_LIFT_END) / (double) (swirl - BlueRedRules.PURPLE_LIFT_END));
-            return aim(center.add(s.scale(7.5 - 1.5 * k - 1.8 * press)).add(0, -.8 + .6 * k, 0), center);
+            return aim(center.add(s.scale(8.8 - 2.2 * k - 2.2 * press)).add(0, -.8 + .6 * k, 0), center);
         }
         if (age < merge) return aim(center.add(side.scale(9)).add(0, .6, 0), center);
         // Racing round it, low and close, then thrown far back and up by the blast.
