@@ -22,7 +22,7 @@ public final class BlueEater {
     static final int EAT_PER_TICK = 12;
     /** Live flying displays per Blue; further blocks vanish without one. */
     static final int MAX_DISPLAYS = 96;
-    static final int FLIGHT_TICKS = 30;
+    static final int FLIGHT_TICKS = 50;
 
     record Eaten(Display.BlockDisplay display, Vec3 from, int[] age) {
         Eaten(Display.BlockDisplay display, Vec3 from) { this(display, from, new int[1]); }
@@ -107,22 +107,28 @@ public final class BlueEater {
         return state;
     }
 
-    /** One tick of flight. Every 3 ticks each display gets a new keyframe (interpolated by the client): lifted off the ground, then spiralling into
-     *  the core faster and faster, tumbling and shrinking, like the blocks Supernova tears up. */
+    /** One tick of flight. Every 2 ticks each display gets a new keyframe (interpolated by the client). Owner's ref 41 (2026-11-18): torn up
+     *  and pulled out to a ring round Blue, then whirled round it on a tilted orbit, faster and faster, the ring tightening, tumbling and
+     *  shrinking until it is swallowed. */
     static void animate(List<Eaten> live, Vec3 center) {
         for (Iterator<Eaten> it = live.iterator(); it.hasNext(); ) {
             Eaten e = it.next();
             int age = ++e.age()[0];
-            if (age % 3 == 1) {
-                double p = Math.min(1, (age + 2) / (double) FLIGHT_TICKS), ease = p * p;
+            if (age % 2 == 1) {
+                double p = Math.min(1, (age + 1) / (double) FLIGHT_TICKS), ease = p * p;
                 Vec3 mid = e.from().add(.5, .5, .5), v0 = mid.subtract(center);
-                double turn = ((((int) Math.floor(e.from().x * 31 + e.from().z * 17)) & 1) == 0 ? 1 : -1) * 2.6 * ease;
-                Vec3 v = new Vec3(v0.x * Math.cos(turn) - v0.z * Math.sin(turn), v0.y, v0.x * Math.sin(turn) + v0.z * Math.cos(turn)).scale(1 - ease)
-                        .add(0, Math.sin(Math.PI * p) * 1.2, 0);
-                float scale = (float) (1 - .8 * ease);
+                long h = (long) Math.floor(e.from().x * 31 + e.from().y * 13 + e.from().z * 17);
+                double sign = (h & 1) == 0 ? 1 : -1, tilt = ((h >> 1) % 7) * .12 - .36, r0 = Math.max(1, Math.hypot(v0.x, v0.z));
+                // Out to the ring (first 30%), then round and round it as it tightens.
+                double ring = 2.2 + ((h >> 3) & 3) * .4, join = Math.min(1, p / .3), j = join * join * (3 - 2 * join);
+                double rad = (r0 + (ring - r0) * j) * (1 - .85 * Math.pow(Math.max(0, (p - .3) / .7), 2));
+                double a0 = Math.atan2(v0.z, v0.x), ang = a0 + sign * Math.PI * 5 * Math.pow(p, 1.4);
+                double y = v0.y * (1 - j) + Math.sin(ang) * rad * tilt;
+                Vec3 v = new Vec3(Math.cos(ang) * rad, y, Math.sin(ang) * rad);
+                float scale = (float) (1 - .75 * ease);
                 Vec3 to = center.add(v).subtract(e.from()).subtract(scale / 2.0, scale / 2.0, scale / 2.0);
                 e.display().setTransformationInterpolationDelay(0);
-                e.display().setTransformationInterpolationDuration(3);
+                e.display().setTransformationInterpolationDuration(2);
                 e.display().setTransformation(new Transformation(new Vector3f((float) to.x, (float) to.y, (float) to.z),
                         new Quaternionf().rotateXYZ((float) (ease * 2.1), (float) (ease * 3.4), (float) (ease * 1.3)), new Vector3f(scale), null));
             }

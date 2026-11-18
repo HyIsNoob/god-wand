@@ -141,9 +141,12 @@ void main() {
             if (isPlanet) {
                 // A sphere of churning matter (the owner's 2D frame): cloudy texture flowing across it, dark and bright patches, fine speckles,
                 // a soft lit rim. level 0 drifts one way (Red), 1 the other (Blue).
-                float flow = (level > 0.5 ? -1.0 : 1.0) * t * 0.5;
-                vec3 m = n3 * 2.4 + vec3(flow, 0.0, 0.0);
-                float cloud = fbm(m + fbm(m * 1.7 - t * 0.2) * 1.4);
+                // Churning (owner, 2026-11-18): the clouds boil and turn in all directions, they do not slide sideways.
+                vec3 m = n3 * 2.4;
+                m.xz *= rot(t * (level > 0.5 ? -0.35 : 0.35));
+                m.xy *= rot(t * 0.22);
+                vec3 wv = vec3(fbm(m * 1.3 + t * 0.4), fbm(m * 1.3 - t * 0.33 + 5.0), fbm(m * 1.3 + t * 0.27 + 9.0));
+                float cloud = fbm(m + (wv - 0.5) * 2.2);
                 float speck = step(0.93, noise(n3 * 38.0 + t)) * 0.6;
                 // Ref 39: a burning ball, white-hot clouds over the colour, hottest towards the middle.
                 float core = clamp(1.0 - d, 0.0, 1.0);
