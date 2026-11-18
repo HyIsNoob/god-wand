@@ -66,9 +66,9 @@ class BlueRedRulesTest {
     @Test void purpleRisesDuringTheSwirlThenHolds() {
         assertEquals(-PURPLE_LIFT, purpleRise(0), 1e-9, "starts where the Blue was");
         assertEquals(-PURPLE_LIFT, purpleRise(PURPLE_CONTACT), 1e-9, "they meet where the Blue was, then rise slowly all through the swirl");
-        double mid = (PURPLE_CONTACT + PURPLE_FACE) / 2.0;
+        double mid = (PURPLE_CONTACT + PURPLE_SWIRL_END) / 2.0;
         assertTrue(purpleRise(mid) > -PURPLE_LIFT && purpleRise(mid) < 0, "the pair lifts during the lift beat");
-        assertEquals(0, purpleRise(PURPLE_FACE), 1e-9, "up at the burst point for the face-off");
+        assertEquals(0, purpleRise(PURPLE_SWIRL_END + 12), 1e-9, "up at the burst point once they have come to rest");
         assertEquals(0, purpleRise(PURPLE_DETONATE), 1e-9);
     }
 

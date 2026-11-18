@@ -47,7 +47,8 @@ public final class BlueRedRules {
     /** Offset of the orbs below the burst point at this age: -PURPLE_LIFT at the Blue at contact, rising slowly all through the swirl to 0 at
      *  the face-off (owner, 2026-11-18). */
     public static double purpleRise(double age) {
-        double k = Math.max(0, Math.min(1, (age - PURPLE_CONTACT) / (double) (PURPLE_FACE - PURPLE_CONTACT)));
+        // Slow (owner, round 37): the rise lasts the whole swirl and the coast into the fade, so it never outpaces the spin.
+        double k = Math.max(0, Math.min(1, (age - PURPLE_CONTACT) / (double) (PURPLE_SWIRL_END + 12 - PURPLE_CONTACT)));
         return -PURPLE_LIFT * (1 - k * k * (3 - 2 * k));
     }
 

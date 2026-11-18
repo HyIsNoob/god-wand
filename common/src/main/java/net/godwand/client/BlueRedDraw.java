@@ -1013,7 +1013,10 @@ final class BlueRedDraw {
         int ct = BlueRedRules.PURPLE_CONTACT, pl = BlueRedRules.PURPLE_PLAY, le = BlueRedRules.PURPLE_LIFT_END, fa = BlueRedRules.PURPLE_FACE;
         // Slower than before (owner, 2026-11-18): about 2.5 turns a second at the peak.
         double up = .04 + .14 * smooth((age - ct) / (double) (pl - ct)) + .52 * Math.pow(clamp01((age - pl) / (double) (le - pl)), 1.5);
-        return up * (1 - smooth((age - le) / (double) (fa - le)));
+        // Inertia (owner, round 37): the brake bites hardest at once and the pair coasts on ever slower, still turning a little as the black
+        // falls; it only comes to rest after the fade (FACE_REST), never a sudden stop.
+        double k = clamp01((age - le) / (double) (FACE_REST - le));
+        return up * Math.pow(1 - k, 2.4);
     }
 
     /** Orbit angle: the integral of spin (half-tick steps, deterministic). */
@@ -1046,8 +1049,11 @@ final class BlueRedDraw {
     }
 
     /** The face-off axis: where Red's orbit leaves it when the spin stops, made level. Red ends on +axis, Blue on -axis. */
+    /** Where the coasting orbit finally rests (after the fade to black). */
+    static final int FACE_REST = BlueRedRules.PURPLE_SWIRL_END + 12;
+
     static Vec3 faceAxis() {
-        Vec3 r = orbitOffsets(BlueRedRules.PURPLE_FACE)[1];
+        Vec3 r = orbitOffsets(FACE_REST)[1];
         Vec3 h = new Vec3(r.x, 0, r.z);
         return h.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : h.normalize();
     }
@@ -1055,11 +1061,7 @@ final class BlueRedDraw {
     /** {blue, red} offsets from the pair's centre: on the orbit, then, while the spin brakes, eased onto the level face-off line (from where the
      *  orbit is already taking them, so nothing jumps), held there breathing. */
     static Vec3[] convergeOffsets(double age) {
-        Vec3[] o = orbitOffsets(age);
-        double f = smooth((age - BlueRedRules.PURPLE_LIFT_END) / (double) (BlueRedRules.PURPLE_FACE - BlueRedRules.PURPLE_LIFT_END));
-        if (f <= 0) return o;
-        Vec3 a = faceAxis().scale(separation(age) / 2), lift = Vec3.ZERO;
-        return new Vec3[]{o[0].add(a.scale(-1).add(lift).subtract(o[0]).scale(f)), o[1].add(a.add(lift.scale(-1)).subtract(o[1]).scale(f))};
+        return orbitOffsets(age);
     }
 
     /** The convergence in the world, from the stored base (where Blue was): the twin orbs, each trailing its real past path (sampled from the

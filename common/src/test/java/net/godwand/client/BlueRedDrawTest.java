@@ -200,7 +200,9 @@ class BlueRedDrawTest {
         assertTrue(BlueRedDraw.spin(le - 2) > .6, "fast at the peak: " + BlueRedDraw.spin(le - 2));
         double turns = BlueRedDraw.orbitAngle(fa) / (2 * Math.PI);
         assertTrue(turns > 3, "several turns, not one or two: " + turns);
-        assertEquals(0, BlueRedDraw.spin(fa + 1), 1e-9, "braked to a stop for the face-off");
+        assertTrue(BlueRedDraw.spin(fa + 1) < .15 * BlueRedDraw.spin(le), "braked hard, coasting into the face-off");
+        assertTrue(BlueRedDraw.spin(fa + 1) > 0, "still turning a little: no sudden stop");
+        assertEquals(0, BlueRedDraw.spin(BlueRedDraw.FACE_REST), 1e-9, "at rest once the black has fallen");
         Vec3[] o = BlueRedDraw.convergeOffsets(se - 1);
         assertTrue(o[0].distanceTo(o[1]) > 3.5, "apart, facing each other: " + o[0].distanceTo(o[1]));
         assertTrue(o[1].subtract(o[0]).normalize().dot(BlueRedDraw.faceAxis()) > .95, "on the face-off line, Red on +axis");
