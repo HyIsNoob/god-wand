@@ -44,6 +44,7 @@ public final class PurpleCinematic {
         // A strike shot frames the strike on the ground, not the sphere.
         if (strikeShot(age + delta) >= 0) return p;
         Vec3 orbs = center.add(0, BlueRedRules.purpleRise(age + delta), 0);
+        if (age + delta < BlueRedRules.PURPLE_MERGE) return new AtomicCinematic.Pose(unblocked(orbs, p.position()), p.yaw(), p.pitch());
         return aim(unblocked(orbs, p.position()), orbs);
     }
 
@@ -70,7 +71,10 @@ public final class PurpleCinematic {
             int le = BlueRedRules.PURPLE_LIFT_END;
             double out = GateDraw.smooth((age - blink) / (double) (le - 16 - blink)), in = GateDraw.smooth((age - (le - 16)) / 18.0);
             double a = a0 + da * k, dist = (4.5 + 3 * out) * (1 - in) + 3.4 * in, h = (-2.2 + 4 * out) * (1 - in) + .5 * in;
-            return aim(center.add(new Vec3(Math.cos(a), 0, Math.sin(a)).scale(dist)).add(0, h, 0), center);
+            // It follows Red at first, then eases back to the middle (owner, round 37).
+            double track = 1 - GateDraw.smooth((age - BlueRedRules.PURPLE_CONTACT) / (double) (le - BlueRedRules.PURPLE_CONTACT));
+            Vec3 look = center.add(BlueRedDraw.convergeOffsets(age)[1].scale(track));
+            return aim(center.add(new Vec3(Math.cos(a), 0, Math.sin(a)).scale(dist)).add(0, h, 0), look);
         }
         // Quick cuts to the ground strikes (owner, 2026-11-18): for a few ticks round a strike, a low shot next to it looking up the bolt.
         int shot = strikeShot(age);
@@ -90,19 +94,18 @@ public final class PurpleCinematic {
         }
         // Bolder (owner, 2026-11-18): a low hero shot looking up at it as it is born, a sweep round it rising to its level, a fast push in
         // just before the burst, then thrown far back and up by the blast.
-        double run = age - merge, thrown = GateDraw.smooth((age - det) / 18), span = det - merge;
-        double ang = 1.2 + run * .025 - Math.max(0, age - det) * .02;
-        double rise = GateDraw.smooth(run / (span * .75)), push = GateDraw.smooth((run - span * .75) / (span * .25));
-        // Thrown well clear of the blast (it grows past 80 blocks), so the column and the shockwaves are seen from outside.
-        double d = 20 - 6 * rise - 5 * push + thrown * 85 + Math.max(0, age - det - 18) * .2;
-        double h = -12 + 14 * rise - 1 * push + thrown * 30;
+        // Round 37 (owner): close, slowly pulling out and round it; the blast throws it farther still.
+        double run = age - merge, thrown = GateDraw.smooth((age - det) / 24), span = det - merge, out = GateDraw.smooth(run / span);
+        double ang = 1.2 + run * .02 - Math.max(0, age - det) * .01;
+        double d = 14 + 16 * out + thrown * 90 + Math.max(0, age - det - 24) * .2;
+        double h = -2 + 6 * out + thrown * 35;
         return aim(center.add(turn(side, ang).scale(d)).add(0, h, 0), center);
     }
 
     /** The strikes the camera cuts to, and how long each shot holds round its strike (from 2 ticks before to 8 after). */
     static final int[] STRIKE_SHOTS = {};
     /** The far shot holds from MERGE to here. */
-    static final int FAR_END = BlueRedRules.PURPLE_MERGE + 34;
+    static final int FAR_END = BlueRedRules.PURPLE_MERGE;
 
     /** The strike being shown at this age, or -1. */
     static int strikeShot(double age) {
@@ -113,7 +116,7 @@ public final class PurpleCinematic {
     /** Is a cut to or from a strike shot near this age? */
     static boolean nearStrikeCut(double age) {
         for (int k : STRIKE_SHOTS) { double t = age - BlueRedRules.strikeTick(k); if (Math.abs(t + 4) < .6 || Math.abs(t - 16) < .6) return true; }
-        return Math.abs(age - FAR_END) < .6;
+        return false;
     }
 
     /** Never inside a wall: if blocks stand between the sphere and the camera, the camera stops just in front of them. */

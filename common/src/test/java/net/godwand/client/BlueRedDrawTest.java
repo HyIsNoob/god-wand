@@ -202,7 +202,7 @@ class BlueRedDrawTest {
         assertTrue(turns > 3, "several turns, not one or two: " + turns);
         assertEquals(0, BlueRedDraw.spin(fa + 1), 1e-9, "braked to a stop for the face-off");
         Vec3[] o = BlueRedDraw.convergeOffsets(se - 1);
-        assertTrue(o[0].distanceTo(o[1]) > 4, "apart, facing each other: " + o[0].distanceTo(o[1]));
+        assertTrue(o[0].distanceTo(o[1]) > 3.5, "apart, facing each other: " + o[0].distanceTo(o[1]));
         assertTrue(o[1].subtract(o[0]).normalize().dot(BlueRedDraw.faceAxis()) > .95, "on the face-off line, Red on +axis");
         double maxStep = 0;
         for (double age = b; age < se; age += .5) maxStep = Math.max(maxStep, BlueRedDraw.convergeOffsets(age)[1].distanceTo(BlueRedDraw.convergeOffsets(age + .5)[1]));
@@ -211,7 +211,7 @@ class BlueRedDrawTest {
 
     /** Owner's ref 40: while they chase, each orb drags a long ring of its own colour round the orbit, Red's as long as Blue's. */
     @Test void bothOrbsDrawLongRings() {
-        for (double age : new double[]{58, 62, 66}) {
+        for (double age : new double[]{80, 86, 90}) {
             GateDraw.Ctx c = ctx(0);
             BlueRedDraw.purple(c, AT, age, EYE, LOOK);
             var s = (Sink) c.v;

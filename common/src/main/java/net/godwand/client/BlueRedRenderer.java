@@ -135,9 +135,9 @@ public final class BlueRedRenderer {
                 if (age == BlueRedRules.PURPLE_BLINK) {
                     GodWandCinematicEngine.addTrauma(.45f, 10);
                     // A pressure front hugging the ground, like Fuga's (owner, 2026-11-18).
-                    ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 18);
+                    ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 26);
                 }
-                if (age == BlueRedRules.PURPLE_DETONATE) ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 46);
+                if (age == BlueRedRules.PURPLE_DETONATE) { ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 64); GodWandCinematicEngine.addTrauma(.6f, 24); }
                 if (age > BlueRedRules.PURPLE_CONTACT && age < BlueRedRules.PURPLE_SWIRL_END) {
                     Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition(), centre = p.pos().add(0, BlueRedRules.purpleRise(age), 0);
                     for (Vec3 o : BlueRedDraw.convergeOffsets(age)) {

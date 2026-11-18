@@ -241,7 +241,7 @@ public final class BlueRedManager {
             double[] o = BlueRedRules.strikeOffset(k);
             int x = (int) Math.floor(p.center.x + o[0]), z = (int) Math.floor(p.center.z + o[1]);
             int y = p.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
-            used += BlueEater.carve(p.level, new Vec3(x + .5, y - 1, z + .5), 3, budget, deadline, Integer.MAX_VALUE, null, cfg.purpleTerrainDamage);
+            used += BlueEater.carve(p.level, new Vec3(x + .5, y - 1, z + .5), 4, budget, deadline, Integer.MAX_VALUE, null, cfg.purpleTerrainDamage);
         }
         budget -= used;
         if (p.age > BlueRedRules.PURPLE_TERRAIN_END) { PURPLES.remove(p); return used; }

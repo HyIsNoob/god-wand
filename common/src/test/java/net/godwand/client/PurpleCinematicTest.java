@@ -78,7 +78,8 @@ class PurpleCinematicTest {
     }
 
     @Test void looksAtThePurpleSphere() {
-        for (double age : new double[]{PURPLE_BLINK + 5, PURPLE_VOID_END + 10, PURPLE_DETONATE + 10}) {
+        // (Early in the swirl the camera follows Red, so it is not checked there.)
+        for (double age : new double[]{PURPLE_VOID_END + 10, PURPLE_DETONATE + 10}) {
             var pose = PurpleCinematic.pose(CENTER, EYE, age);
             Vec3 look = Vec3.directionFromRotation(pose.pitch(), pose.yaw());
             assertTrue(look.dot(at(age).subtract(pose.position()).normalize()) > .99, "age " + age);
@@ -91,7 +92,7 @@ class PurpleCinematicTest {
             Vec3 now = PurpleCinematic.pose(CENTER, EYE, age).position();
             boolean cut = Math.abs(age - PURPLE_BLINK) < .6 || Math.abs(age - PURPLE_SWIRL_END) < .6 || Math.abs(age - PURPLE_MERGE) < .6
                     || PurpleCinematic.nearStrikeCut(age) || PurpleCinematic.strikeShot(age) >= 0;
-            double limit = age > PURPLE_DETONATE && age < PURPLE_DETONATE + 18 ? 5 : age < PURPLE_SWIRL_END ? 2 : 1.4;
+            double limit = age > PURPLE_DETONATE && age < PURPLE_DETONATE + 28 ? 5 : age < PURPLE_SWIRL_END ? 2 : 1.4;
             if (!cut) assertTrue(now.distanceTo(prev) < limit, "jump at age " + age + ": " + now.distanceTo(prev));
             prev = now;
         }
