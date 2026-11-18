@@ -63,7 +63,8 @@ public final class PurpleCinematic {
             Vec3 axis = BlueRedDraw.faceAxis(), end = new Vec3(axis.z, 0, -axis.x);
             double a1 = Math.atan2(end.z, end.x), da = Math.IEEEremainder(a1 - a0, Math.PI * 2);
             double k = GateDraw.smooth((age - blink) / (double) (face - blink)), hold = GateDraw.smooth((age - face) / (double) (swirl - face));
-            double a = a0 + da * k, dist = 7 + 1.5 * GateDraw.smooth((age - BlueRedRules.PURPLE_PLAY) / 30.0) - 1.2 * hold;
+            double a = a0 + da * k, dist = 7 + 1.5 * GateDraw.smooth((age - BlueRedRules.PURPLE_PLAY) / 30.0)
+                    - 3.2 * GateDraw.smooth((age - BlueRedRules.PURPLE_LIFT_END) / (double) (swirl + 8 - BlueRedRules.PURPLE_LIFT_END));
             // Rising from a little below to a little above, so the level face-off orbit is seen as a ring, not edge-on.
             return aim(center.add(new Vec3(Math.cos(a), 0, Math.sin(a)).scale(dist)).add(0, -.8 + 3.3 * k, 0), center);
         }

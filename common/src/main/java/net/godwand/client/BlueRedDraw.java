@@ -27,6 +27,22 @@ final class BlueRedDraw {
 
     private BlueRedDraw() {}
 
+    /** The ground height under the Purple being drawn (set by the renderer each frame; NaN when unknown, e.g. in tests). */
+    static double groundY = Double.NaN;
+
+    /** Coloured light cast on the map (owner, 2026-11-18): a soft pool of {@code color} on the ground under {@code orb}, fading with height,
+     *  and a wide faint wash round the orb itself, so the world near Blue turns bluish and near Red reddish. Glow pass only. */
+    static void mapLight(Ctx c, Vec3 orb, double radius, int color, double alpha) {
+        if (!c.glow() || alpha <= 0) return;
+        glow(c, orb, radius, .12 * alpha, color);
+        if (Double.isNaN(groundY)) return;
+        double y = groundY + .06, h = orb.y - y;
+        if (h < -1 || h > 30) return;
+        double a = alpha * (1 - Math.max(0, h) / 30), R = radius * (1 + h / 20);
+        GateDraw.tex(c, new Vec3(orb.x - R, y, orb.z - R), new Vec3(orb.x + R, y, orb.z - R), new Vec3(orb.x + R, y, orb.z + R), new Vec3(orb.x - R, y, orb.z + R),
+                BlueRedAtlas.GLOW, 0, 1, 0, 1, color, a, a, a, a);
+    }
+
     // ---- deterministic noise ----
 
     static double hash(long n) {
@@ -202,14 +218,17 @@ final class BlueRedDraw {
 
     /** One of the twin orbs of the merge (owner, 2026-11-18): the sphere, and brush strokes of its own colours born on its surface. At rest they
      *  radiate out all round it, one after another; moving, they are swept back behind it by its inertia, longer the faster it goes. */
-    static void twinOrb(Ctx c, Vec3 at, double r, double age, Palette p, Vec3 vel, long seedOff) {
+    static void twinOrb(Ctx c, Vec3 at, double r, double age, Palette p, Vec3 vel, long seedOff) { twinOrb(c, at, r, age, p, vel, seedOff, 0); }
+
+    /** As above; {@code surge} (0..1, the face-off): more and stronger energy pouring out, pulses, and lightning of its colour round it. */
+    static void twinOrb(Ctx c, Vec3 at, double r, double age, Palette p, Vec3 vel, long seedOff, double surge) {
         // Owner, 2026-11-18: a dusty smear of its colours, not long strokes. Soft puffs leave the surface; at rest they drift out all round,
         // moving they are swept back a short way; they spread and fade fast.
         double speed = vel.length();
         Vec3 back = speed > 1e-4 ? vel.scale(-1 / speed) : Vec3.ZERO;
         double sweep = Math.min(1, speed / 1.2);
         if (c.body()) {
-            for (int i = 0; i < 18; i++) {
+            for (int i = 0; i < 18 + (int) (22 * surge); i++) {
                 long sd = 5200 + seedOff + i * 61L;
                 double life = 8 + 5 * hash(sd), ph = age / life + hash(sd + 1);
                 long cyc = (long) Math.floor(ph);
@@ -217,16 +236,28 @@ final class BlueRedDraw {
                 long cs = sd + cyc * 7919L;
                 Vec3 rnd = new Vec3(hash(cs) * 2 - 1, hash(cs + 1) * 2 - 1, hash(cs + 2) * 2 - 1).normalize();
                 Vec3 dir = rnd.scale(1 - .7 * sweep).add(back.scale(1.5 * sweep)).normalize();
-                double dist = r * (.7 + (.5 + .9 * sweep) * (1 - Math.pow(1 - u, 2)));
-                double size = r * (.22 + .2 * hash(cs + 3)) * (1 + 1.3 * u), a = smooth(u / .15) * (1 - u) * .7;
+                double dist = r * (.7 + (.5 + .9 * sweep + 1.3 * surge) * (1 - Math.pow(1 - u, 2)));
+                double size = r * (.22 + .2 * hash(cs + 3)) * (1 + 1.3 * u) * (1 + .4 * surge), a = smooth(u / .15) * (1 - u) * (.7 + .25 * surge);
                 int col = i % 3 == 0 ? p.light() : i % 3 == 1 ? p.mid() : p.deep();
                 fxSprite(c, at.add(dir.scale(dist)), size, SMOKE, (int) (cs % 991), col, a, age * .05 + i);
             }
             orb(c, at, r * .78, p.variant(), 1, p.tint(), 1);
         }
         if (!c.glow()) return;
-        glow(c, at, r * .9, .5, p.hot());
-        glow(c, at, r * 2, .2, p.halo());
+        glow(c, at, r * .9, .5 + .3 * surge, p.hot());
+        glow(c, at, r * (2 + surge), .2 + .2 * surge, p.halo());
+        if (surge <= 0) return;
+        // Pulses of pressure going out, one after another.
+        for (int k = 0; k < 2; k++) {
+            double ring = ((age + k * 5) / 10.0) % 1;
+            fxSprite(c, at, r * (1 + 1.8 * ring), SHOCK, (int) (5300 + seedOff % 97 + k), p.light(), .5 * (1 - ring) * surge, 0);
+        }
+        // Its own lightning (red round Red, blue round Blue), crackling all the time.
+        for (int b = 0; b < 2 + (int) (6 * surge); b++) {
+            Vec3 d = nvec(5400 + seedOff + b, age * .25).normalize(), d2 = d.add(nvec(5450 + seedOff + b, age * .3).scale(.8)).normalize();
+            liveBolt(c, at.add(d.scale(r * .8)), at.add(d2.scale(r * (1.5 + .9 * vnoise(5480 + seedOff + b, age * .4)))), 6, .45, .025 + .03 * surge,
+                    b % 2 == 0 ? p.light() : p.hot(), surge, 5500 + seedOff + b * 13, age, 1);
+        }
     }
 
     /** Colours of a swirling orb: its ORB variant and tint, the plasma tiers (deep, mid, light), the under-layer, the halo and the hot core. */
@@ -1005,8 +1036,8 @@ final class BlueRedDraw {
             Vec3 a = faceAxis().scale(FACE_GAP / 2 * (1 - born));
             double f0 = c.fade;
             c.fade = f0 * (1 - born);
-            twinOrb(c, center.subtract(a), 1.5 * (1 - .5 * born), age, BLUE_P, Vec3.ZERO, 0);
-            twinOrb(c, center.add(a), 1.5 * (1 - .5 * born), age, RED_P, Vec3.ZERO, 77777);
+            twinOrb(c, center.subtract(a), 1.5 * (1 - .5 * born), age, BLUE_P, Vec3.ZERO, 0, 1 - born);
+            twinOrb(c, center.add(a), 1.5 * (1 - .5 * born), age, RED_P, Vec3.ZERO, 77777, 1 - born);
             c.fade = f0;
             if (c.body()) orb(c, center, .3 + 5.7 * born, 2, 1, VIOLET, born);
             if (c.glow()) { glow(c, center, 2 + 10 * born, .7 * born, VIOLET); stormBands(c, center, .3 + 5.7 * born, age, 10, born); }
@@ -1026,8 +1057,21 @@ final class BlueRedDraw {
         // Owner, 2026-11-18: once they meet they are the same kind of orb, the same size, the same effect; only the colour differs.
         Vec3[] o0 = convergeOffsets(Math.max(0, age - .5));
         Vec3 c0 = base.add(0, BlueRedRules.purpleRise(Math.max(0, age - .5)), 0);
-        twinOrb(c, blue, 1.5, age, BLUE_P, blue.subtract(c0.add(o0[0])).scale(2), 0);
-        twinOrb(c, red, 1.5, age, RED_P, red.subtract(c0.add(o0[1])).scale(2), 77777);
+        double surge = smooth((age - le) / (double) (fa - le));
+        mapLight(c, blue, 9 + 3 * surge, 0x2A7CFF, .5 + .3 * surge);
+        mapLight(c, red, 9 + 3 * surge, RED, .5 + .3 * surge);
+        twinOrb(c, blue, 1.5, age, BLUE_P, blue.subtract(c0.add(o0[0])).scale(2), 0, surge);
+        twinOrb(c, red, 1.5, age, RED_P, red.subtract(c0.add(o0[1])).scale(2), 77777, surge);
+        // Small, bright purple lightning in the middle while they face off.
+        if (c.glow() && surge > 0) {
+            double flick = .6 + .4 * Math.abs(Math.sin(age * 2.3));
+            glow(c, center, .5 + .4 * flick, surge * flick, 0xFFFFFF);
+            glow(c, center, 1.4, .5 * surge, ORCHID);
+            for (int b = 0; b < 6; b++) {
+                Vec3 d = nvec(3880 + b, age * .35).normalize();
+                liveBolt(c, center, center.add(d.scale(.7 + .9 * vnoise(3890 + b, age * .5))), 5, .5, .018, b % 2 == 0 ? PALE : ORCHID, surge, 3895 + b * 11, age, 1);
+            }
+        }
         if (!c.glow()) return;
         double contact = 1 - clamp01((age - BlueRedRules.PURPLE_BLINK) / (double) (ct - BlueRedRules.PURPLE_BLINK));
         if (contact > 0) {
@@ -1113,6 +1157,16 @@ final class BlueRedDraw {
         return 1 - smooth((age - merge) / (end - merge));
     }
 
+    /** How close the 2D spheres are to touching (0..1) at this age: drives the shake. */
+    static double voidClose(double age) {
+        double v = age - BlueRedRules.PURPLE_SWIRL_END, span = BlueRedRules.PURPLE_MERGE - BlueRedRules.PURPLE_SWIRL_END;
+        double push = smooth((v - 14) / (span * .78)), absorb = smooth((v - span * .74) / (span * .26));
+        return smooth((push - .2) / .75) * (1 - absorb);
+    }
+
+    /** The tick the 2D spheres touch and Purple starts forming. */
+    static int voidTouch() { return BlueRedRules.PURPLE_SWIRL_END + (int) Math.round((BlueRedRules.PURPLE_MERGE - BlueRedRules.PURPLE_SWIRL_END) * .66); }
+
     /** The 2D act (owner, 2026-11-18, ref 42). The world fades to black, then the act fades in: dark smoke streaked pink and violet; big Red
      *  lower left and big Blue upper right, churning white-hot spheres, each streaming 2D brush strokes of its colours behind it; lightning
      *  crackles on Red's edge facing Blue; they are pushed together along the diagonal, Purple forms over them and takes their place. */
@@ -1149,7 +1203,7 @@ final class BlueRedDraw {
                 fxRibbon(c, pts, w, PLASMA, 4540 + i, i % 3 == 0 ? 0xC0408A : i % 3 == 1 ? 0x6A2AB0 : 0x3A1460, .35 * show);
             }
         }
-        double orbs = (1 - absorb) * show;
+        double orbs = (1 - absorb) * show, close = smooth((push - .2) / .75) * (1 - absorb);
         double gapD = 5.4 * (1 - .85 * push) + .15 * (1 - absorb), r = 2.6 * (1 - .65 * absorb);
         // view x up points to screen left: Red on +axis (left), Blue on -axis (right), level (owner: never tilted).
         Vec3 dirRed = axis;
@@ -1160,38 +1214,57 @@ final class BlueRedDraw {
             // A little darker than the world orbs (owner, 2026-11-18).
             int tint = side == 0 ? 0xB80C24 : 0x1448C8;
             if (c.body()) {
-                // 2D brush strokes streaming behind it, in the view plane, flowing and torn.
-                Vec3 across = outward.cross(view).normalize();
-                for (int j = 0; j < 8; j++) {
+                // Owner, 2026-11-18: the trail is as wide as the sphere itself, flat, shapeless and soft (overlapping smoke behind it), and dust
+                // flies off it backwards, away from the other sphere.
+                for (int j = 0; j < 7; j++) {
                     long sd = 4600 + side * 50 + j;
-                    double ph = (age * (.05 + .03 * hash(sd)) + hash(sd + 1)) % 1;
-                    double y = (hash(sd + 2) - .5) * r * 1.5, L = r * (1.4 + 2.2 * hash(sd + 3)) * (.6 + .4 * Math.sin(Math.PI * ph));
-                    int k = 12;
-                    Vec3[] pts = new Vec3[k + 1];
-                    double[] w = new double[k + 1];
-                    for (int q = 0; q <= k; q++) {
-                        double t = (double) q / k;
-                        pts[q] = p.add(across.scale(y * (1 - .3 * t))).add(outward.scale(r * .4 + L * t)).add(across.scale(r * .25 * snoise(sd + 4, t * 3 - age * .1)));
-                        w[q] = r * (.12 + .14 * hash(sd + 5)) * Math.pow(1 - t, .7) * (.5 + .7 * vnoise(sd + 6, t * 4 - age * .2));
-                    }
-                    fxRibbon(c, pts, w, j % 3 == 2 ? BRUSH : PLASMA, (int) (sd % 977), j % 3 == 0 ? pal.light() : j % 3 == 1 ? pal.mid() : pal.deep(), .75 * orbs);
+                    double d = r * (.35 + .5 * j) * (1 + .7 * close) + r * .3 * snoise(sd, age * .05), size = r * (1.15 - .09 * j) * (1 + .12 * snoise(sd + 1, age * .07));
+                    Vec3 q = p.add(outward.scale(d)).add(up.scale(r * .25 * snoise(sd + 2, age * .04)));
+                    fxSprite(c, q, size, SMOKE, (int) (sd % 977), j % 3 == 0 ? pal.mid() : j % 3 == 1 ? pal.deep() : pal.light(), (.42 - .04 * j) * orbs, age * .02 * (j % 2 == 0 ? 1 : -1) + j);
                 }
-                orb(c, p, r, 3, side, tint, orbs);
+                for (int j = 0; j < 30 + (int) (40 * close); j++) {
+                    long sd = 4700 + side * 100 + j;
+                    double life = (16 + 10 * hash(sd)) * (1 - .5 * close), ph = age / life + hash(sd + 1);
+                    long cyc = (long) Math.floor(ph);
+                    double u = ph - cyc;
+                    long cs = sd + cyc * 7919L;
+                    double ang = (hash(cs) - .5) * 2.4;
+                    Vec3 dir = outward.scale(Math.cos(ang)).add(up.scale(Math.sin(ang))).normalize();
+                    Vec3 q = p.add(dir.scale(r * (.85 + 3.2 * u))).add(view.scale(.2));
+                    fxSprite(c, q, r * (.05 + .07 * hash(cs + 2)) * (1 + 1.5 * u), SMOKE, (int) (cs % 991), j % 2 == 0 ? pal.light() : pal.hot(), smooth(u / .1) * (1 - u) * .8 * orbs, u * 3);
+                }
+                // Screen-aligned, so it stays a true circle even near the edge of the view.
+                orbFacing(c, p, r, 3, side, tint, orbs, look);
             }
-            if (c.glow()) glow(c, p, r * 1.6, .12 * orbs, tint);
+            if (c.glow()) {
+                glow(c, p, r * 1.6, .12 * orbs, tint);
+                // The backdrop lit by each sphere: reddish round Red, bluish round Blue (owner, 2026-11-18).
+                glow(c, p.subtract(view.scale(2)), r * 4.5, .22 * orbs, side == 0 ? RED : 0x2A6CFF);
+                // Its own lightning crackling round it, more as they close.
+                for (int b = 0; b < 2 + (int) (6 * close); b++) {
+                    Vec3 d0 = nvec(4900 + side * 40 + b, age * .3).normalize(), d1 = d0.add(nvec(4920 + side * 40 + b, age * .35).scale(.9)).normalize();
+                    liveBolt(c, p.add(d0.scale(r * .9)), p.add(d1.scale(r * (1.3 + .8 * vnoise(4940 + b, age * .4)))), 6, .5, .03 + .04 * close,
+                            b % 2 == 0 ? pal.light() : pal.hot(), orbs * (.5 + .5 * close), 4960 + side * 100 + b * 13, age, 1);
+                }
+            }
         }
         // Lightning crackling on Red's edge facing Blue (ref 42), growing as they close.
         if (c.glow() && orbs > .02) {
-            double close = smooth(push / .8) * (1 - absorb);
             Vec3 face = red.add(dirRed.scale(-r * .95));
             for (int j = 0; j < (int) (2 + 4 * close); j++) {
                 Vec3 to = face.add(nvec(3000 + j, age * .15).scale(r * .7)).subtract(dirRed.scale(r * .3));
                 liveBolt(c, face.add(nvec(3050 + j, age * .1).scale(r * .4)), to, 6, .5, .03 + .03 * close, j % 2 == 0 ? ORCHID : PALE, orbs, 3100 + j * 17, age, 1);
             }
-            for (int j = 0; j < (int) (3 * close); j++) {
+            for (int j = 0; j < (int) (10 * close); j++) {
                 Vec3 from = red.add(nvec(3200 + j, age * .06).scale(.6)), to = blue.add(nvec(3300 + j, age * .06).scale(.6));
                 liveBolt(c, from, to, 8, .3, .02 + .05 * close, j % 3 == 0 ? PALE : ORCHID, .95 * orbs, 3400 + j * 29, age, .9);
             }
+        }
+        if (c.glow() && close > 0) {
+            // Chaos where they meet: sparks flung all ways, energy wind streaming out past the camera.
+            sparks(c, at, 1.5 + 4 * close, age * 1.5, (int) (90 * close), PALE, 4980);
+            streaks(c, at, 1, 6 + 10 * close, age, (int) (70 * close), ORCHID, 4990, 2.8, close, false);
+            speedLines(c, eye, look, .55 * close, PALE);
         }
         // Birth of Hollow Purple between them: the centre flickers, lightning crackles out of it, sparks are pulled into it.
         double birth = smooth((push - .55) / .45) * (1 - form) * back;
@@ -1268,6 +1341,15 @@ final class BlueRedDraw {
         Vec3 q = pull(p.subtract(c.eye), farPlane);
         int k = (int) Math.round(clamp01(alpha * c.fade) * 255);
         c.v.addVertex(c.m, (float) q.x, (float) q.y, (float) q.z).setColor((color >> 16) & 255, (color >> 8) & 255, color & 255, k).setUv(u, v);
+    }
+
+    /** An ORB quad parallel to the screen (facing along {@code look}), so the sphere projects as a circle anywhere in the view. */
+    static void orbFacing(Ctx c, Vec3 at, double r, int variant, int level, int color, double alpha, Vec3 look) {
+        if (alpha <= 0) return;
+        Vec3 right = look.cross(new Vec3(0, 1, 0));
+        right = (right.lengthSqr() < 1e-8 ? new Vec3(1, 0, 0) : right.normalize()).scale(r * 1.55);
+        Vec3 up = right.cross(look).normalize().scale(r * 1.55);
+        fxQuad(c, at.subtract(right).add(up), at.add(right).add(up), at.add(right).subtract(up), at.subtract(right).subtract(up), ORB, variant + 4 * level, color, alpha, alpha, alpha, alpha, 0, 1);
     }
 
     /** A camera-facing shader quad (rolled), half size {@code size}. */

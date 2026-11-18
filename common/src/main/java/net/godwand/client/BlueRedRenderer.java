@@ -126,7 +126,16 @@ public final class BlueRedRenderer {
         IMPACTS.removeIf(b -> clock - b.at() > 6);
         FLIGHTS.removeIf(f -> f.endAt >= 0 ? clock - f.endAt > 10 : clock - f.at > 200);
         CHARGES.values().removeIf(at -> clock - at > 400);
-        for (Purple p : PURPLES) if (clock - p.at() == BlueRedRules.PURPLE_DETONATE) detonated(p.pos());
+        for (Purple p : PURPLES) {
+            double age = clock - p.at();
+            if (age == BlueRedRules.PURPLE_DETONATE) detonated(p.pos());
+            // The 2D act shakes harder as the spheres close in, and the touch hits with an impact frame (owner, 2026-11-18).
+            if (PurpleCinematic.active() && PurpleCinematic.inVoid()) {
+                double close = BlueRedDraw.voidClose(age);
+                if (close > 0) GodWandCinematicEngine.addTrauma((float) (.015 + .05 * close), 6);
+                if (age == BlueRedDraw.voidTouch() && GodWandConfig.CLIENT.impactFrames) { IMPACTS.clear(); IMPACTS.add(new Burst(p.pos(), clock, true)); GodWandCinematicEngine.addTrauma(.5f, 10); }
+            }
+        }
         PURPLES.removeIf(p -> clock - p.at() > BlueRedRules.PURPLE_CINEMATIC + 10);
     }
 
@@ -278,7 +287,10 @@ public final class BlueRedRenderer {
             double age = now - p.at();
             // For the two players the world pair is gone before the void's pair shows (a dip through black), so two pairs never show at once.
             c.fade = PurpleCinematic.active() && age < BlueRedRules.PURPLE_MERGE ? 1 - Math.min(1, BlueRedDraw.voidAlpha(age) / .55) : 1;
+            var lvl = Minecraft.getInstance().level;
+            BlueRedDraw.groundY = lvl == null ? Double.NaN : lvl.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, (int) Math.floor(p.pos().x), (int) Math.floor(p.pos().z));
             BlueRedDraw.purple(c, p.pos(), age, eye, look);
+            BlueRedDraw.groundY = Double.NaN;
             c.fade = 1;
         }
         return c.quads;
