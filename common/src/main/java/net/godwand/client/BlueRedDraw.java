@@ -182,7 +182,8 @@ final class BlueRedDraw {
             double fade = 1 - smooth(w0 / 16), torn = smooth((vnoise(1520, laid[j] * .5) - .5 * Math.pow(1 - t, 2)) / .15);
             // The tail does not narrow to a point (that read as a cone): it stays broad and dissolves (fade, erosion), while two washes fan
             // apart under it, so the end spreads out like paint thinning on a wet sheet.
-            main[j] = r * 1.05 * (.45 + .55 * Math.pow(t, .5)) * fade * torn * (.75 + .35 * vnoise(1521, laid[j] * .5));
+            // Broad all along (a bulge in the middle), thinning only a little with age: the tail dissolves instead of narrowing into a cone.
+            main[j] = r * .95 * (.7 + .3 * Math.sin(Math.PI * t)) * (.45 + .55 * fade) * torn * (.75 + .35 * vnoise(1521, laid[j] * .5)) * smooth(fade / .15);
             wash[j] = r * .95 * (.6 + .4 * t) * fade * (.6 + .5 * vnoise(1523, laid[j] * .4));
             streak[j] = wash[j];
         }
@@ -347,6 +348,8 @@ final class BlueRedDraw {
         if (c.body()) {
             double coreD = at.distanceTo(c.eye);
             redSmears(c, at, s, age, back, reach);
+            // While charging (reach < 1): the scribbled ink vortex of ref 16, winding into the core.
+            if (reach < 1) inkVortex(c, at, s, age);
             redMass(c, at, s, age, coreD, false);
             orb(c, at, s * .6, 1, 0, RED, 1);
             redMass(c, at, s, age, coreD, true);
@@ -359,6 +362,8 @@ final class BlueRedDraw {
         glow(c, at, s * 1.3, .75, RED_CORE);
         glow(c, at, s * 2.4, .6 * flicker(age, 7), RED_LIGHT);
         glow(c, at, s * 4, .45, RED);
+        // The pink-red haze of the Roblox refs: wide and soft, stronger while charging.
+        glow(c, at, s * (reach < 1 ? 9 : 6), (reach < 1 ? .4 : .25) * flicker(age, 11), 0xFF5A78);
     }
 
     /** Smears streaming off the mass towards {@code back}: five broad, soft strokes of red, rooted inside the mass, flowing and swelling (their
@@ -572,7 +577,7 @@ final class BlueRedDraw {
                 }
             }
         }
-        if (flying) redOrb(c, head, .5, age, dir.scale(-1));
+        if (flying) redOrb(c, head, .75, age, dir.scale(-1));
     }
 
     /** The release, {@code age} ticks after the shot: flash, two shock rings racing forward, big red smears and ink bursting forward in a cone. */
@@ -584,7 +589,7 @@ final class BlueRedDraw {
             double a = hash(sd) * Math.PI * 2, spread = (.12 + .45 * hash(sd + 1)) * (i == 0 ? .2 : 1);
             Vec3 d = dir.add(uw[0].scale(Math.cos(a) * spread)).add(uw[1].scale(Math.sin(a) * spread)).normalize();
             boolean ink = i % 4 == 3;
-            double L = (ink ? 3 : 5 + 3 * hash(sd + 2)) * out, w0 = (i == 0 ? 1.0 : .5 + .35 * hash(sd + 3)) * (1 - .6 * k) * (ink ? .4 : 1);
+            double L = (ink ? 4 : 7 + 4 * hash(sd + 2)) * out, w0 = (i == 0 ? 1.4 : .7 + .45 * hash(sd + 3)) * (1 - .6 * k) * (ink ? .5 : 1);
             int n = 14;
             Vec3[] pts = new Vec3[n + 1];
             double[] w = new double[n + 1];
@@ -597,7 +602,10 @@ final class BlueRedDraw {
             if (c.body()) fxRibbon(c, pts, w, ink ? BRUSH : PLASMA, (int) (sd % 977), ink ? INK : i % 2 == 0 ? RED : RED_LIGHT, env);
         }
         if (!c.glow()) return;
-        if (age < 4) { glow(c, origin, 3.5 * (1 - age / 4), 1 - age / 4, 0xFFFFFF); glow(c, origin, 6 * (1 - age / 5), .8 * (1 - age / 4), RED); }
+        if (age < 4) { glow(c, origin, 4.5 * (1 - age / 4), 1 - age / 4, 0xFFFFFF); glow(c, origin, 9 * (1 - age / 5), .85 * (1 - age / 4), RED); }
+        // Pink-white rays from the muzzle and a lingering haze (ref 17).
+        if (age < 6) fxSprite(c, origin, 3 + age * .6, RAYS, 7790, 0xFF7090, .45 * (1 - age / 6) * fade, age * .03);
+        glow(c, origin.add(dir.scale(2)), 7, .35 * (1 - k) * fade, 0xFF5A78);
         for (int r = 0; r < 2; r++) {
             double ra = age - r * 2.5;
             if (ra < 0 || ra > 10) continue;
@@ -658,11 +666,62 @@ final class BlueRedDraw {
             }
             if (c.body()) fxRibbon(c, pts, w, ink ? BRUSH : PLASMA, (int) (sd % 977), ink ? INK : i % 2 == 0 ? RED : RED_BODY, fade);
         }
-        if (c.body()) fxFlat(c, at.add(0, -.9, 0), 2.5 + age * 1.1, SHOCK, 170, RED_BODY, .7 * fade);
+        if (c.body()) {
+            fxFlat(c, at.add(0, -.9, 0), 2.5 + age * 1.1, SHOCK, 170, RED_BODY, .7 * fade);
+            // A red stain spreading on the ground (ref 20).
+            fxFlat(c, at.add(0, -.95, 0), 3 + 2.5 * out, SMOKE, 171, RED_BODY, .6 * fade);
+            splatter(c, at, age, dir);
+        }
         if (!c.glow()) return;
-        if (age < 4) { glow(c, at, 6 * (1 - age / 4), 1 - age / 4, 0xFFFFFF); glow(c, at, 9 * (1 - age / 5), .9 * (1 - age / 4), RED); }
+        if (age < 4) { glow(c, at, 7 * (1 - age / 4), 1 - age / 4, 0xFFFFFF); glow(c, at, 11 * (1 - age / 5), .95 * (1 - age / 4), RED); }
+        // Light rays and a pink haze (ref 19).
+        if (age < 8) fxSprite(c, at, 4 + age * .8, RAYS, 8890, 0xFF7090, .5 * (1 - age / 8), age * .02);
+        glow(c, at, 8, .4 * fade, 0xFF5A78);
         if (age < 12) orbit(c, at, dir, 1 + age * 1.1, .14 * (1 - age / 12), RED_CORE, 1 - age / 12);
         glow(c, at, 2 + age * .2, .6 * fade, RED);
+    }
+
+    /** Red paint and ink sprayed along the hit (ref 19): short fat drops flung out in a cone, fast then slowing, falling a little, smearing
+     *  out along their flight and fading. */
+    private static void splatter(Ctx c, Vec3 at, double age, Vec3 dir) {
+        double fade = 1 - clamp01(age / 20);
+        if (fade <= 0) return;
+        Vec3[] uw = basis(dir);
+        for (int i = 0; i < 22; i++) {
+            long sd = 9100 + i * 37L;
+            double a = hash(sd) * Math.PI * 2, spread = .15 + 1.1 * hash(sd + 1);
+            Vec3 d = dir.add(uw[0].scale(Math.cos(a) * spread)).add(uw[1].scale(Math.sin(a) * spread)).normalize();
+            double v = 3 + 6 * hash(sd + 2), dist = v * (1 - Math.pow(1 - Math.min(1, age / 12), 2));
+            Vec3 head = at.add(d.scale(dist)).add(0, -.04 * age * age * hash(sd + 3), 0), tail = at.add(d.scale(dist * .55));
+            double w0 = .12 + .2 * hash(sd + 4);
+            Vec3[] pts = {tail, tail.add(head.subtract(tail).scale(.5)), head};
+            double[] w = {w0 * .3, w0 * .8, w0};
+            fxRibbon(c, pts, w, BRUSH, (int) (sd % 977), i % 3 == 0 ? INK : i % 3 == 1 ? RED : RED_BODY, fade);
+        }
+    }
+
+    /** The scribbled ink vortex while Red charges (ref 16): many thin, rough ink lines wound round the core, spiralling inward and turning fast;
+     *  a few are dark red. */
+    private static void inkVortex(Ctx c, Vec3 at, double size, double age) {
+        Vec3 toEye = c.eye.subtract(at);
+        Vec3[] uw = basis(toEye.lengthSqr() < 1e-6 ? new Vec3(0, 0, 1) : toEye.normalize());
+        for (int i = 0; i < 12; i++) {
+            long sd = 9300 + i * 41L;
+            double rOut = size * (2.2 + 1.6 * hash(sd)), turns = 1.2 + .8 * hash(sd + 1), phase = hash(sd + 2) * Math.PI * 2 - age * (.35 + .2 * hash(sd + 3));
+            double in = (age * (.08 + .05 * hash(sd + 4)) + hash(sd + 5)) % 1;
+            int k = 40;
+            Vec3[] pts = new Vec3[k + 1];
+            double[] w = new double[k + 1];
+            for (int j = 0; j <= k; j++) {
+                // Scribbled, not drawn with a compass: the radius jerks along the line, it wanders off its plane, and it breaks into dashes.
+                double t = (double) j / k, a = phase + turns * Math.PI * 2 * t;
+                double rr = (rOut * Math.pow(1 - t, 1.3) * (1 - .4 * in) + size * .5) * (1 + .35 * snoise(sd + 8, t * 7 + age * .25));
+                pts[j] = at.add(uw[0].scale(Math.cos(a) * rr)).add(uw[1].scale(Math.sin(a) * rr)).add(toEye.normalize().scale(size * .8 * snoise(sd + 6, t * 4 + age * .1)));
+                double dash = smooth((vnoise(sd + 9, t * 9 + age * .4) - .3) / .08);
+                w[j] = size * (.025 + .07 * vnoise(sd + 7, t * 6 + age * .3)) * Math.sin(Math.PI * t) * dash;
+            }
+            fxRibbon(c, pts, w, BRUSH, (int) (sd % 977), i % 4 == 3 ? RED_DEEP : INK, .9 * Math.sin(Math.PI * in));
+        }
     }
 
     // ---- Purple: compression ----
