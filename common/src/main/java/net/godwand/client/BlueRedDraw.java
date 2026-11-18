@@ -917,19 +917,6 @@ final class BlueRedDraw {
         glow(c, at, s * 1.3, .35 * fade * haze, ORCHID);
         glow(c, at, Math.min(s * .55 * breathe * (1 + 2 * blast), 22), (.7 + .3 * blast) * fade * (1 - .5 * blast), 0xFFFFFF);
         sparks(c, at, s * 1.4, age, 70, PALE, 200);
-        // Red and blue currents spiralling in to it while it grows (owner, round 38: richer Purple).
-        if (pre > 0) for (int i = 0; i < 6; i++) {
-            Vec3[] uw = basis(nvec(2200 + i, age * .01).add(0, 1.5, 0).normalize());
-            int k = 24;
-            Vec3[] pts = new Vec3[k + 1];
-            double[] w = new double[k + 1];
-            for (int j = 0; j <= k; j++) {
-                double t = (double) j / k, a = i * Math.PI / 3 + age * .12 + t * 3.5, rr = s * (2.4 - 1.35 * t);
-                pts[j] = at.add(uw[0].scale(Math.cos(a) * rr)).add(uw[1].scale(Math.sin(a) * rr));
-                w[j] = s * .08 * Math.sin(Math.PI * t) * (.6 + .6 * vnoise(2210 + i, t * 3 - age * .2));
-            }
-            fxRibbon(c, pts, w, FLOW, 2220 + i, i % 2 == 0 ? RED_LIGHT : CYAN, .55 * pre * fade);
-        }
         // Lightning that never pops: each bolt keeps its identity, its anchor drifts over the sphere and its shape crawls with time.
         // Owner, 2026-11-18: much more lightning on the surface.
         int crawl = 16 + (int) (14 * grow);
@@ -1062,7 +1049,14 @@ final class BlueRedDraw {
         double rb = d * .5 * join, rr = d * .5 * (1 + .35 * (1 - join));
         Vec3 blue = uw[0].scale(Math.cos(th) * rb).add(uw[1].scale(Math.sin(th) * rb));
         Vec3 red = uw[0].scale(Math.cos(th + gap) * rr).add(uw[1].scale(Math.sin(th + gap) * rr));
-        return new Vec3[]{blue, red};
+        return new Vec3[]{yaw(blue, orbitPhase), yaw(red, orbitPhase)};
+    }
+
+    /** Turns the whole orbit about the vertical so Red opens on the watching player's side (set by PurpleCinematic.start). */
+    static double orbitPhase;
+
+    static Vec3 yaw(Vec3 v, double a) {
+        return new Vec3(v.x * Math.cos(a) - v.z * Math.sin(a), v.y, v.x * Math.sin(a) + v.z * Math.cos(a));
     }
 
     /** The face-off axis: where Red's orbit leaves it when the spin stops, made level. Red ends on +axis, Blue on -axis. */
@@ -1296,22 +1290,10 @@ final class BlueRedDraw {
             Vec3[] uw = basis(look);
             Vec3 o = eye.add(look.scale(.5));
             sprite(c, o, 4, back, 0x000000, BlueRedAtlas.SOLID);
-            fxQuad(c, o.subtract(uw[0].scale(4)).subtract(uw[1].scale(4)), o.add(uw[0].scale(4)).subtract(uw[1].scale(4)), o.add(uw[0].scale(4)).add(uw[1].scale(4)),
-                    o.subtract(uw[0].scale(4)).add(uw[1].scale(4)), NEBULA, 250, 0x2E2640, show, show, show, show, 0, 1);
-            // Smoke streaked along the diagonal, pink and violet, drifting (ref 42).
-            Vec3 diag = axis.scale(-1), across = diag.cross(view).normalize();
-            for (int i = 0; i < 9; i++) {
-                double off = (hash(4500 + i) - .5) * 9, len = 18;
-                Vec3 mid = at.subtract(view.scale(4 + i % 3)).add(across.scale(off)).add(diag.scale(((age * .05 * (1 + i % 2) + hash(4510 + i) * 10) % 10) - 5));
-                Vec3[] pts = new Vec3[9];
-                double[] w = new double[9];
-                for (int j = 0; j < 9; j++) {
-                    double t = j / 8.0;
-                    pts[j] = mid.add(diag.scale(len * (t - .5))).add(across.scale(.8 * snoise(4520 + i, t * 2 + age * .02)));
-                    w[j] = (1.2 + 1.6 * hash(4530 + i)) * Math.sin(Math.PI * t);
-                }
-                fxRibbon(c, pts, w, PLASMA, 4540 + i, i % 3 == 0 ? 0xC0408A : i % 3 == 1 ? 0x6A2AB0 : 0x3A1460, .22 * show);
-            }
+            // 1.6 blocks half-size at .5 in front: a little past the screen edges at normal FOVs, so the shader's q spans the view.
+            double H = 1.6;
+            fxQuad(c, o.subtract(uw[0].scale(H)).subtract(uw[1].scale(H)), o.add(uw[0].scale(H)).subtract(uw[1].scale(H)), o.add(uw[0].scale(H)).add(uw[1].scale(H)),
+                    o.subtract(uw[0].scale(H)).add(uw[1].scale(H)), NEBULA, 250, 0x2E2640, show, show, show, show, 0, 1);
         }
         double orbs = (1 - absorb) * show, close = smooth((push - .2) / .75) * (1 - absorb);
         double gapD = 4.8 * (1 - .8 * push) + .15 * (1 - absorb), r = 2.5 * (1 - .65 * absorb);

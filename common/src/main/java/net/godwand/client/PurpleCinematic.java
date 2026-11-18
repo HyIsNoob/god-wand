@@ -20,6 +20,13 @@ public final class PurpleCinematic {
     static void start(int ownerId, int shooterId, int localId, Vec3 at, Vec3 localEye) {
         if (localId != ownerId && localId != shooterId) return;
         center = at; eye = localEye; age = 0;
+        // Owner, round 39: the camera stays on the player's side; the orbit is turned so Red opens between it and Blue (a little off the line,
+        // so Blue still shows behind).
+        Vec3 away = new Vec3(localEye.x - at.x, 0, localEye.z - at.z);
+        Vec3 cam = turn(away.lengthSqr() < 1e-6 ? new Vec3(0, 0, -1) : away.normalize(), .5);
+        BlueRedDraw.orbitPhase = 0;
+        Vec3 r0 = BlueRedDraw.convergeOffsets(BlueRedRules.PURPLE_CONTACT)[1];
+        BlueRedDraw.orbitPhase = Math.atan2(cam.z, cam.x) + .35 - Math.atan2(r0.z, r0.x);
     }
 
     static void tick() {
@@ -78,7 +85,10 @@ public final class PurpleCinematic {
             // as big on screen as in the 2D act, square-on (Red left, Blue right), so the cut to 2D lands on the same picture.
             int le = BlueRedRules.PURPLE_LIFT_END;
             double out = GateDraw.smooth((age - blink) / (double) (le - 16 - blink)), in = GateDraw.smooth((age - (le - 16)) / 18.0);
-            double a = a0 + da * k, dist = (2.6 + 4.6 * out) * (1 - in) + 4.4 * in, h = (3 * out) * (1 - in) + .5 * in;
+            // Owner, round 39: it never rises faster than the orbs (a touch slower), and it comes in closer while they slow and stop.
+            // Starts once the coast is down to its last half-turn, so no orb sweeps across the lens on the way in.
+            double stop = GateDraw.smooth((age - (le + 10)) / (double) (swirl + 6 - le - 10));
+            double a = a0 + da * k, dist = (2.6 + 4.6 * out) * (1 - in) + 4.4 * in - 1.1 * stop, h = -.7 * out;
             // It starts right by Red and follows it, then eases back to the middle (owner, rounds 37-38).
             double track = 1 - GateDraw.smooth((age - BlueRedRules.PURPLE_CONTACT) / (double) (le - BlueRedRules.PURPLE_CONTACT));
             Vec3 red = BlueRedDraw.convergeOffsets(age)[1], look = center.add(red.scale(track));
@@ -105,9 +115,12 @@ public final class PurpleCinematic {
         // just before the burst, then thrown far back and up by the blast.
         // Round 37 (owner): close, slowly pulling out and round it; the blast throws it farther still.
         double run = age - merge, thrown = GateDraw.smooth((age - det) / 24), span = det - merge, out = GateDraw.smooth(run / span);
-        double ang = 1.2 + run * .02 - Math.max(0, age - det) * .01;
-        double d = 14 + 16 * out + thrown * 90 + Math.max(0, age - det - 24) * .2;
-        double h = -2 + 6 * out + thrown * 35;
+        // Round 39 (owner): shot from near the player (just behind and above where they stand), drifting slowly round; the blast still throws
+        // it back far enough to stay outside the sphere.
+        double ang = .1 + run * .006 - Math.max(0, age - det) * .003;
+        double d = Math.max(8, Math.sqrt((eye.x - center.x) * (eye.x - center.x) + (eye.z - center.z) * (eye.z - center.z))) + 3 + thrown * 80
+                + Math.max(0, age - det - 24) * .2;
+        double h = (eye.y - center.y) + 2 + thrown * 30;
         return aim(center.add(turn(side, ang).scale(d)).add(0, h, 0), center);
     }
 

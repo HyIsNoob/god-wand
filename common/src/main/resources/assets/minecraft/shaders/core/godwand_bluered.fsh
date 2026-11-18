@@ -313,13 +313,16 @@ void main() {
     } else if (effect == 8) {
         // NEBULA: the void behind the merge, dark smoke drifting, red on the left, blue on the right, violet between.
         // Darker (owner, 2026-11-18): near black, long streaks of smoke drifting sideways, red on one side, blue on the other, a violet seam.
-        vec2 s = q * 2.0;
-        float n1 = fbm(vec3(s.x * 0.5 + t * 0.04, s.y * 1.8, t * 0.03));
-        float n2 = fbm(vec3(s * vec2(1.0, 2.8) - n1 * 1.6, t * 0.06));
-        float wisp = pow(n2, 2.6);
-        vec3 side = mix(vec3(0.34, 0.02, 0.06), vec3(0.03, 0.07, 0.36), smoothstep(-0.6, 0.6, q.x));
-        side = mix(side, vec3(0.16, 0.03, 0.26), exp(-q.x * q.x * 6.0) * 0.6);
-        col = vec3(0.002, 0.0, 0.005) + side * wisp * 1.15 + vec3(0.03, 0.006, 0.05) * pow(n1, 3.0);
+        // Redone (owner, round 39): soft, blurred, no fine texture (ref 42). Wide horizontal smoke banks drifting sideways, lit red on the left,
+        // magenta in the middle, blue on the right, dark gaps between them; mostly black.
+        vec2 u = q * 2.6;   // roughly -1..1 across the screen
+        float w1 = noise(vec3(u.x * 0.7 - t * 0.05, u.y * 3.2, t * 0.02));
+        float w2 = noise(vec3(u.x * 1.3 + t * 0.03, u.y * 5.5 + w1 * 1.2, t * 0.03 + 5.0));
+        float bank = smoothstep(0.38, 0.85, w1 * 0.65 + w2 * 0.35);
+        vec3 side = mix(vec3(0.60, 0.05, 0.10), vec3(0.48, 0.10, 0.62), smoothstep(-0.9, 0.0, u.x));
+        side = mix(side, vec3(0.08, 0.16, 0.75), smoothstep(0.0, 0.9, u.x));
+        float fall = exp(-u.y * u.y * 2.2);   // brightest through the middle band, black towards top and bottom
+        col = vec3(0.004, 0.0, 0.008) + side * bank * fall * 0.42 + side * 0.035 * fall;
         a = 1.0;
     } else {
         discard;
