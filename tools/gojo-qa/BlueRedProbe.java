@@ -107,8 +107,12 @@ public final class BlueRedProbe implements ClientModInitializer {
                 other.setItemInHand(InteractionHand.MAIN_HAND, otherWand);
                 other.moveTo(OX + .5, stand, OZ + 30.5, 180, 0);
                 BlueRedManager.input(other, true);
-            } else if (scene.equals("hit")) {
+            } else if (scene.startsWith("hit")) {
                 Mob m = (Mob) EntityType.HUSK.create(level);
+                // Survives the hit (Red deals 200), so its reaction can be watched.
+                m.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH).setBaseValue(400); m.setHealth(400);
+                // Held in place until the shot (it wandered out of Red's range); knockback is velocity, so it still flies.
+                m.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 80, 255, false, false));
                 m.setPos(OX + .5, level.getHeight(Heightmap.Types.WORLD_SURFACE, OX, OZ + 12), OZ + 12.5);
                 m.setPersistenceRequired();
                 level.addFreshEntity(m);
@@ -124,7 +128,7 @@ public final class BlueRedProbe implements ClientModInitializer {
         c.player.getInventory().selected = 0; c.player.connection.send(new ServerboundSetCarriedItemPacket(0));
         try { Files.createDirectories(c.gameDirectory.toPath().resolve("screenshots/gojo-" + scene + "-" + run)); }
         catch (java.io.IOException e) { throw new RuntimeException(e); }
-        stage = scene.equals("shatter") || scene.equals("hit") ? 3 : scene.equals("look") ? 5 : 2; since = ticks;
+        stage = scene.equals("shatter") || scene.startsWith("hit") ? 3 : scene.equals("look") ? 5 : 2; since = ticks;
         System.out.println("GOJO_QA SETUP scene=" + scene + " run=" + run + " ground=" + ground);
     }
 
@@ -168,7 +172,9 @@ public final class BlueRedProbe implements ClientModInitializer {
         int t = ticks - since, charge = GodWandConfig.SERVER.redChargeTicks;
         if (t == 20) { c.options.keyUse.setDown(true); System.out.println("GOJO_QA RED hold"); }
         int fired = t - 20 - charge;
-        boolean hit = scene.equals("hit");
+        boolean hit = scene.startsWith("hit");
+        // Side view: once Red is away, the camera moves out to the side of the target's line (Red keeps its own path).
+        if (scene.equals("hitside") && fired == 2) server.submit(() -> me(server, c).connection.teleport(OX - 9.5, c.player.getY() + 1.5, OZ + 13.5, -90, 8)).join();
         if (t >= 20 && (hit ? fired >= -12 && fired < 40 : fired < -8 || fired > 12 ? t % 3 == 0 : true)) grab(c);
         if (hit && fired >= -2 && fired < 14) {
             var mob = server.submit(() -> me(server, c).serverLevel().getEntity(hitMob)).join();

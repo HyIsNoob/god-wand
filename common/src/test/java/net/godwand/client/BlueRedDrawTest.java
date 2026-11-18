@@ -248,9 +248,16 @@ class BlueRedDrawTest {
         assertEquals(BlueRedDraw.RED_BODY, BlueRedDraw.impactColor(1));
         assertEquals(BlueRedDraw.INK, BlueRedDraw.impactColor(2));
         assertTrue(BlueRedDraw.impactAlpha(0) > .8 && BlueRedDraw.impactAlpha(6) == 0);
-        var c = ctx(-1);
-        BlueRedDraw.impact(c, AT, 0, EYE, LOOK);
-        assertTrue(c.quads > 10);
+        // Owner, 2026-11-18: Red's frames are a light tint and a flash at the hit for two frames, so the target stays visible; Purple keeps the full frames.
+        var red = ctx(-1);
+        BlueRedDraw.impact(red, AT, 0, EYE, LOOK);
+        assertTrue(red.quads >= 2 && red.quads < 6, "red: " + red.quads);
+        var gone = ctx(-1);
+        BlueRedDraw.impact(gone, AT, 2, EYE, LOOK);
+        assertEquals(0, gone.quads);
+        var purple = ctx(-1);
+        BlueRedDraw.impact(purple, AT, 0, EYE, LOOK, true);
+        assertTrue(purple.quads > 10);
     }
 
     @Test void flightAndBurstsDraw() {

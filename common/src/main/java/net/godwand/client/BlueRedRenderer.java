@@ -71,7 +71,6 @@ public final class BlueRedRenderer {
             case BlueRedPayload.RED_FIRE -> {
                 CHARGES.remove(p.ownerId());
                 FLIGHTS.add(new Flight(p.ownerId(), at, new Vec3(p.dx(), p.dy(), p.dz()), clock));
-                impactNear(at);
                 // The shooter feels the force leave: a short, hard kick and a brief widening of the view.
                 var me = Minecraft.getInstance().player;
                 if (me != null && me.getId() == p.ownerId()) { GodWandCinematicEngine.addTrauma(.35f, 8); GodWandCinematicEngine.setFovPunch(1.08f, 2); }

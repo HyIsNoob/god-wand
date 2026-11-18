@@ -592,7 +592,7 @@ final class BlueRedDraw {
         for (int r = 0; r < 2; r++) {
             double ra = age - r * 2.5;
             if (ra < 0 || ra > 10) continue;
-            orbit(c, origin.add(dir.scale(.5 + ra * 1.1)), dir, .4 + ra * .55, .09 * (1 - ra / 10), r == 0 ? RED_CORE : RED_LIGHT, (1 - ra / 10) * fade);
+            pressureWave(c, origin.add(dir.scale(.5 + ra * 1.1)), dir, .4 + ra * .55, .25 * (1 - ra / 10), ra, 7720 + r, (1 - ra / 10) * fade);
         }
     }
 
@@ -611,8 +611,8 @@ final class BlueRedDraw {
             Vec3 side = d.cross(uw[0]).lengthSqr() > 1e-6 ? d.cross(uw[0]).normalize() : uw[1];
             boolean ink = i % 3 == 2;
             // Masses: short and wide (length about 2-3x width), the leading edge full, the tail tearing apart as they age.
-            double L = scale * (ink ? 1.6 + 1.2 * hash(sd + 2) : 2.2 + 2 * hash(sd + 2)) * (.4 + .6 * out);
-            double w0 = scale * (ink ? .35 : (i == 0 ? 1.3 : .8 + .5 * hash(sd + 3))) * (.6 + .6 * out) * (1 - .45 * k);
+            double L = scale * (ink ? 1.4 + 1.0 * hash(sd + 2) : 1.6 + 1.6 * hash(sd + 2)) * (.4 + .6 * out);
+            double w0 = scale * (ink ? .35 : (i == 0 ? 1.4 : .9 + .6 * hash(sd + 3))) * (.6 + .6 * out) * (1 - .45 * k);
             double travel = scale * (1 + 3 * hash(sd + 4)) * out, bend = (hash(sd + 5) - .5) * 1.2;
             int n = 12;
             Vec3[] pts = new Vec3[n + 1];
@@ -620,8 +620,9 @@ final class BlueRedDraw {
             for (int j = 0; j <= n; j++) {
                 double t = (double) j / n;
                 pts[j] = at.add(d.scale(travel + L * (t - .4))).add(side.scale(bend * L * (1 - t) * (1 - t) * .5)).add(nvec(sd + 6, t * 2 + age * .25).scale(scale * .3));
-                double tear = smooth((vnoise(sd + 7, t * 4 + age * .35) - .1 - .7 * k * Math.pow(1 - t, 1.5)) / .12);
-                w[j] = w0 * (.35 + .65 * Math.pow(Math.sin(Math.PI * (.2 + .8 * t)), .4)) * tear * (.6 + .6 * vnoise(sd + 8, t * 3 + age * .3));
+                // Soft round body whose width swings hard; the tail tears into pieces that spread forward as it ages.
+                double tear = smooth((vnoise(sd + 7, t * 5 + age * .35) - .05 - .85 * k * Math.pow(1 - t, 1.2)) / .1);
+                w[j] = w0 * Math.pow(Math.sin(Math.PI * (.08 + .84 * t)), .35) * tear * (.4 + .9 * vnoise(sd + 8, t * 3 + age * .3));
             }
             fxRibbon(c, pts, w, ink ? BRUSH : PLASMA, (int) (sd % 977), ink ? INK : i % 3 == 0 ? RED_LIGHT : i % 3 == 1 ? RED : RED_BODY, fade);
         }
@@ -655,31 +656,48 @@ final class BlueRedDraw {
         glow(c, at, 1 + age * .35, fade, blue ? ICE : RED_CORE);
     }
 
-    /** Red's impact (owner's review of round 25, ref 19): one clear beat, then residue. A very short red-white flash at the contact point; the
-     *  shock ring and the ground wave start in the same tick; a red pressure mass blasts on along the hit (thick soft masses and smears, torn
-     *  ink flung and breaking up fast), not a round explosion; paint sprays along the hit; a red stain spreads on the ground; then what is left
-     *  dissolves within about a second. */
+    /** Red's impact (owner's reviews of rounds 25-26, ref 19), in the world at the hit, in four beats. Contact (0-1.5 ticks): a small red-white
+     *  flash on the target. Squeeze (to 1.5): the flash pulls in to a hot point. Burst (from 1.5): a red pressure mass blasts on along the hit
+     *  (soft thick masses and smears, ink torn off and flung, soft paint drops), a ragged pressure wave and a ground wave go out with it.
+     *  Residue: what is left thins, tears and is gone within about a second; the target stays visible throughout. */
     private static void redImpact(Ctx c, Vec3 at, double age, Vec3 dir) {
-        double k = clamp01(age / 22), fade = 1 - k;
+        double b = age - 1.5, k = clamp01(age / 24), fade = 1 - k;
         if (fade <= 0) return;
-        double out = 1 - Math.pow(1 - Math.min(1, age / 10), 2.5);
-        pressureBlast(c, at, dir, age, 20, 1.7, 8800, 1);
+        if (c.glow() && age < 2) {
+            double squeeze = clamp01(age / 1.5);
+            glow(c, at, 2.4 * (1 - .6 * squeeze), 1, 0xFFFFFF);
+            glow(c, at, 4 * (1 - .5 * squeeze), .9, RED);
+        }
+        if (b < 0) return;
+        double out = 1 - Math.pow(1 - Math.min(1, b / 10), 2.5);
+        pressureBlast(c, at, dir, b, 20, 1.7, 8800, 1);
         if (c.body()) {
-            fxFlat(c, at.add(0, -.9, 0), 2 + age * 1.4, SHOCK, 170, RED_BODY, .8 * (1 - clamp01(age / 12)));
-            // A red stain spreading on the ground (ref 20).
-            fxFlat(c, at.add(0, -.95, 0), 3 + 2.5 * out, SMOKE, 171, RED_BODY, .6 * fade);
-            splatter(c, at, age, dir);
+            fxFlat(c, at.add(0, -.9, 0), 2 + b * 1.4, SHOCK, 170, RED_BODY, .5 * (1 - clamp01(b / 12)));
+            fxFlat(c, at.add(0, -.95, 0), 3 + 2.5 * out, SMOKE, 171, RED_BODY, .5 * fade);
+            splatter(c, at, b, dir);
         }
         if (!c.glow()) return;
-        if (age < 2.5) { glow(c, at, 7 * (1 - age / 2.5), 1 - age / 2.5, 0xFFFFFF); glow(c, at, 11 * (1 - age / 4), .95 * (1 - age / 2.5), RED); }
-        if (age < 8) fxSprite(c, at, 4 + age * .8, RAYS, 8890, 0xFF7090, .5 * (1 - age / 8), age * .02);
-        glow(c, at.add(dir.scale(2 * out)), 8, .4 * fade, 0xFF5A78);
-        // Two shock rings racing on along the hit, the first from the contact tick.
-        for (int r = 0; r < 2; r++) {
-            double ra = age - r * 2;
-            if (ra >= 0 && ra < 12) orbit(c, at.add(dir.scale(ra * .5)), dir, 1 + ra * 1.2, .18 * (1 - ra / 12), r == 0 ? RED_CORE : RED_LIGHT, 1 - ra / 12);
+        if (b < 2) glow(c, at, 6 * (1 - b / 2), .9 * (1 - b / 2), RED_CORE);
+        if (b < 6) fxSprite(c, at, 3 + b * .7, RAYS, 8890, 0xFF7090, .35 * (1 - b / 6), b * .02);
+        glow(c, at.add(dir.scale(2 * out)), 6, .3 * fade, 0xFF5A78);
+        if (b < 12) pressureWave(c, at.add(dir.scale(b * .4)), dir, 1 + b * 1.1, .5 * (1 - b / 12), b, 8870, 1 - b / 12);
+    }
+
+    /** A pressure wave: not a drawn circle but a ragged, broken band of hot red air round {@code n}: its radius bulges and dents, its width
+     *  swells and thins, and it is torn open in places. */
+    private static void pressureWave(Ctx c, Vec3 at, Vec3 n, double radius, double width, double age, long seed, double alpha) {
+        if (alpha <= 0) return;
+        Vec3[] uw = basis(n);
+        int k = 36;
+        Vec3[] pts = new Vec3[k + 1];
+        double[] w = new double[k + 1];
+        for (int j = 0; j <= k; j++) {
+            double t = (double) j / k, a = t * Math.PI * 2 + hash(seed) * 6;
+            double rr = radius * (1 + .18 * snoise(seed + 1, t * 6 + age * .2));
+            pts[j] = at.add(uw[0].scale(Math.cos(a) * rr)).add(uw[1].scale(Math.sin(a) * rr));
+            w[j] = width * (.3 + .9 * vnoise(seed + 2, t * 7 + age * .3)) * smooth((vnoise(seed + 3, t * 5) - .25) / .1);
         }
-        glow(c, at, 2 + age * .2, .6 * fade, RED);
+        fxRibbon(c, pts, w, PLASMA, (int) (seed % 977), RED_LIGHT, alpha * .8);
     }
 
     /** Red paint and ink sprayed along the hit (ref 19): short fat drops flung out in a cone, fast then slowing, falling a little, smearing
@@ -694,10 +712,18 @@ final class BlueRedDraw {
             Vec3 d = dir.add(uw[0].scale(Math.cos(a) * spread)).add(uw[1].scale(Math.sin(a) * spread)).normalize();
             double v = 3 + 6 * hash(sd + 2), dist = v * (1 - Math.pow(1 - Math.min(1, age / 12), 2));
             Vec3 head = at.add(d.scale(dist)).add(0, -.04 * age * age * hash(sd + 3), 0), tail = at.add(d.scale(dist * .55));
-            double w0 = .12 + .2 * hash(sd + 4);
-            Vec3[] pts = {tail, tail.add(head.subtract(tail).scale(.5)), head};
-            double[] w = {w0 * .3, w0 * .8, w0};
-            fxRibbon(c, pts, w, BRUSH, (int) (sd % 977), i % 3 == 0 ? INK : i % 3 == 1 ? RED : RED_BODY, fade);
+            // Soft round drops smeared along their flight (no three-point wedges): full in the middle, rounded at both ends.
+            double w0 = .14 + .2 * hash(sd + 4);
+            int n = 6;
+            Vec3[] pts = new Vec3[n];
+            double[] w = new double[n];
+            for (int j = 0; j < n; j++) {
+                double t = j / (n - 1.0);
+                pts[j] = tail.add(head.subtract(tail).scale(t));
+                w[j] = w0 * Math.pow(Math.sin(Math.PI * (.1 + .8 * t)), .5) * (.3 + .7 * t);
+            }
+            boolean ink = i % 3 == 0;
+            fxRibbon(c, pts, w, ink ? BRUSH : PLASMA, (int) (sd % 977), ink ? INK : i % 3 == 1 ? RED : RED_BODY, fade);
         }
     }
 
@@ -1020,6 +1046,13 @@ final class BlueRedDraw {
     static void impact(Ctx c, Vec3 at, int frame, Vec3 eye, Vec3 look, boolean purple) {
         double a = impactAlpha(frame);
         if (a <= 0 || !c.body()) return;
+        if (!purple) {
+            // Owner's review of round 26: the hit must stay visible. Two frames of a light red tint and a hot flash at the contact point only.
+            if (frame > 1) return;
+            sprite(c, eye.add(look.scale(.5)), 4, .22 * (1 - frame * .5), RED_BODY, BlueRedAtlas.SOLID);
+            sprite(c, at, Math.max(1, at.distanceTo(eye)) * .1, .9 * (1 - frame * .5), RED_CORE, BlueRedAtlas.GLOW);
+            return;
+        }
         int light = purple ? PALE : RED_BODY;
         int back = frame < 3 ? (frame % 2 == 0 ? INK : light) : light, stroke = back == INK ? light : INK;
         sprite(c, eye.add(look.scale(.5)), 4, a, back, BlueRedAtlas.SOLID);
