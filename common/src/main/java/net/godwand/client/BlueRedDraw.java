@@ -1003,8 +1003,9 @@ final class BlueRedDraw {
         // the 2D act starts while they part).
         // Round 37 (owner): close at first, slowly drifting apart, and still parting when the black falls over them.
         int se = BlueRedRules.PURPLE_SWIRL_END;
-        if (age < ct) return .3 + 2.1 * (1 - Math.pow(1 - clamp01((age - b) / (double) (ct - b)), 2));
-        double spinning = 2.4 + .8 * smooth((age - ct) / (double) (le - ct)) + .1 * Math.sin((age - ct) * .17);
+        // Round 40 (owner): knocked well apart on contact, then drawing in gradually as the spin builds.
+        if (age < ct) return .3 + 5.2 * (1 - Math.pow(1 - clamp01((age - b) / (double) (ct - b)), 2));
+        double spinning = 5.5 - 2.3 * smooth((age - ct) / (double) (le - ct)) + .1 * Math.sin((age - ct) * .17);
         return spinning + (FACE_GAP - spinning) * smooth((age - le) / (double) (se + 8 - le));
     }
 

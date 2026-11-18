@@ -88,7 +88,9 @@ public final class PurpleCinematic {
             // Owner, round 39: it never rises faster than the orbs (a touch slower), and it comes in closer while they slow and stop.
             // Starts once the coast is down to its last half-turn, so no orb sweeps across the lens on the way in.
             double stop = GateDraw.smooth((age - (le + 10)) / (double) (swirl + 6 - le - 10));
-            double a = a0 + da * k, dist = (2.6 + 4.6 * out) * (1 - in) + 4.4 * in - 1.1 * stop, h = -.7 * out;
+            // Round 40 (owner): starts far (Red is far out too) and comes in step by step as the two draw together.
+            double near = GateDraw.smooth((age - blink) / (double) (le - blink));
+            double a = a0 + da * k, dist = 8.5 - 4.1 * near - 1.1 * stop, h = -.7 * out;
             // While they coast, an orb swinging round to the camera's side pushes it back to keep ~2.8 blocks clear (no lens-filling glare);
             // orbs off to the sides need nothing, so the square-on close-up at the stop is untouched.
             double need = 0;
@@ -97,10 +99,10 @@ public final class PurpleCinematic {
                 need = Math.max(need, al + 2.8 * GateDraw.smooth(al / 1.2));
             }
             dist = Math.max(dist, need * GateDraw.smooth((age - (le - 4)) / 6.0));
-            // It starts right by Red and follows it, then eases back to the middle (owner, rounds 37-38).
+            // Round 40 (owner): it only turns its gaze part-way towards Red (no following it bodily, so no dizziness), easing back to the middle.
             double track = 1 - GateDraw.smooth((age - BlueRedRules.PURPLE_CONTACT) / (double) (le - BlueRedRules.PURPLE_CONTACT));
-            Vec3 red = BlueRedDraw.convergeOffsets(age)[1], look = center.add(red.scale(track));
-            Vec3 cam = center.add(new Vec3(Math.cos(a), 0, Math.sin(a)).scale(dist)).add(0, h, 0).add(red.scale(.6 * track));
+            Vec3 red = BlueRedDraw.convergeOffsets(age)[1], look = center.add(red.scale(.45 * track));
+            Vec3 cam = center.add(new Vec3(Math.cos(a), 0, Math.sin(a)).scale(dist)).add(0, h, 0);
             return aim(cam, look);
         }
         // Quick cuts to the ground strikes (owner, 2026-11-18): for a few ticks round a strike, a low shot next to it looking up the bolt.
