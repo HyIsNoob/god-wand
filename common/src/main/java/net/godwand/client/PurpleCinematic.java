@@ -78,7 +78,7 @@ public final class PurpleCinematic {
             // as big on screen as in the 2D act, square-on (Red left, Blue right), so the cut to 2D lands on the same picture.
             int le = BlueRedRules.PURPLE_LIFT_END;
             double out = GateDraw.smooth((age - blink) / (double) (le - 16 - blink)), in = GateDraw.smooth((age - (le - 16)) / 18.0);
-            double a = a0 + da * k, dist = (2.6 + 4.6 * out) * (1 - in) + 4.4 * in, h = (1.2 + 3 * out) * (1 - in) + .5 * in;
+            double a = a0 + da * k, dist = (2.6 + 4.6 * out) * (1 - in) + 4.4 * in, h = (3 * out) * (1 - in) + .5 * in;
             // It starts right by Red and follows it, then eases back to the middle (owner, rounds 37-38).
             double track = 1 - GateDraw.smooth((age - BlueRedRules.PURPLE_CONTACT) / (double) (le - BlueRedRules.PURPLE_CONTACT));
             Vec3 red = BlueRedDraw.convergeOffsets(age)[1], look = center.add(red.scale(track));

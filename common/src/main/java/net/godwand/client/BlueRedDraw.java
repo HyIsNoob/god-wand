@@ -1314,7 +1314,7 @@ final class BlueRedDraw {
             }
         }
         double orbs = (1 - absorb) * show, close = smooth((push - .2) / .75) * (1 - absorb);
-        double gapD = 4.8 * (1 - .8 * push) + .15 * (1 - absorb), r = 2.05 * (1 - .65 * absorb);
+        double gapD = 4.8 * (1 - .8 * push) + .15 * (1 - absorb), r = 2.5 * (1 - .65 * absorb);
         // view x up points to screen left: Red on +axis (left), Blue on -axis (right), level (owner: never tilted).
         Vec3 dirRed = axis;
         Vec3 red = at.add(dirRed.scale(gapD)), blue = at.subtract(dirRed.scale(gapD));
