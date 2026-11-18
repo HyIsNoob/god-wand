@@ -14,7 +14,7 @@ class BlueRedPayloadTest {
     }
 
     @Test void roundTrip() {
-        for (int kind = BlueRedPayload.BLUE; kind <= BlueRedPayload.PURPLE; kind++) {
+        for (int kind = BlueRedPayload.BLUE; kind <= BlueRedPayload.RED_HIT; kind++) {
             var p = new BlueRedPayload(kind, 12, kind == BlueRedPayload.PURPLE ? 34 : -1, 5000L + kind,
                     1.5, 64, -3.25, 0, 0.6, 0.8, kind == BlueRedPayload.BLUE ? 2 : 0);
             assertEquals(p, roundTrip(BlueRedPayload.CODEC, p));
@@ -24,7 +24,7 @@ class BlueRedPayloadTest {
     }
 
     @Test void rejectsBadKind() {
-        assertThrows(IllegalArgumentException.class, () -> new BlueRedPayload(8, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new BlueRedPayload(BlueRedPayload.RED_HIT + 1, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0));
         assertThrows(IllegalArgumentException.class, () -> new BlueRedPayload(-1, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0));
     }
 

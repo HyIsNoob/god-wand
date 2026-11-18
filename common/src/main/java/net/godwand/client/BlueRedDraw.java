@@ -582,34 +582,48 @@ final class BlueRedDraw {
 
     /** The release, {@code age} ticks after the shot: flash, two shock rings racing forward, big red smears and ink bursting forward in a cone. */
     private static void release(Ctx c, Vec3 origin, Vec3 dir, double age, double fade) {
-        double k = age / 14, out = 1 - Math.pow(1 - Math.min(1, age / 8), 2.5);
-        Vec3[] uw = basis(dir);
-        for (int i = 0; i < 7; i++) {
-            long sd = 7700 + i * 53L;
-            double a = hash(sd) * Math.PI * 2, spread = (.12 + .45 * hash(sd + 1)) * (i == 0 ? .2 : 1);
-            Vec3 d = dir.add(uw[0].scale(Math.cos(a) * spread)).add(uw[1].scale(Math.sin(a) * spread)).normalize();
-            boolean ink = i % 4 == 3;
-            double L = (ink ? 4 : 7 + 4 * hash(sd + 2)) * out, w0 = (i == 0 ? 1.4 : .7 + .45 * hash(sd + 3)) * (1 - .6 * k) * (ink ? .5 : 1);
-            int n = 14;
-            Vec3[] pts = new Vec3[n + 1];
-            double[] w = new double[n + 1];
-            for (int j = 0; j <= n; j++) {
-                double t = (double) j / n;
-                pts[j] = origin.add(d.scale(.3 + L * t)).add(nvec(sd + 4, t * 2 + age * .2).scale(.25 * t));
-                w[j] = w0 * Math.pow(Math.sin(Math.PI * (.1 + .9 * t)), .5) * (.6 + .6 * vnoise(sd + 5, t * 3 + age * .3));
-            }
-            double env = (1 - smooth((k - .3) / .7)) * fade;
-            if (c.body()) fxRibbon(c, pts, w, ink ? BRUSH : PLASMA, (int) (sd % 977), ink ? INK : i % 2 == 0 ? RED : RED_LIGHT, env);
-        }
+        // Owner's review of round 25: a pressure mass let go, not sword slashes. Short, wide, soft masses of red heave forward and outward,
+        // swelling and churning, their tails tearing and dissolving; ink is ripped off with them and breaks up fast.
+        pressureBlast(c, origin, dir, age, 14, 1.2, 7700, fade);
         if (!c.glow()) return;
         if (age < 4) { glow(c, origin, 4.5 * (1 - age / 4), 1 - age / 4, 0xFFFFFF); glow(c, origin, 9 * (1 - age / 5), .85 * (1 - age / 4), RED); }
-        // Pink-white rays from the muzzle and a lingering haze (ref 17).
         if (age < 6) fxSprite(c, origin, 3 + age * .6, RAYS, 7790, 0xFF7090, .45 * (1 - age / 6) * fade, age * .03);
-        glow(c, origin.add(dir.scale(2)), 7, .35 * (1 - k) * fade, 0xFF5A78);
+        glow(c, origin.add(dir.scale(2)), 7, .35 * (1 - age / 14) * fade, 0xFF5A78);
         for (int r = 0; r < 2; r++) {
             double ra = age - r * 2.5;
             if (ra < 0 || ra > 10) continue;
             orbit(c, origin.add(dir.scale(.5 + ra * 1.1)), dir, .4 + ra * .55, .09 * (1 - ra / 10), r == 0 ? RED_CORE : RED_LIGHT, (1 - ra / 10) * fade);
+        }
+    }
+
+    /** A blast of released pressure along {@code dir}, {@code age} ticks in, lasting {@code life} ticks, sized by {@code scale}: a few big soft
+     *  red masses heaving out in a cone (fast, then slowing; swelling, then torn from the tail and dissolving), wide red smears lagging behind
+     *  them, and ink ripped off and flung, breaking up quickly. Shared by Red's release and its impact. */
+    private static void pressureBlast(Ctx c, Vec3 at, Vec3 dir, double age, double life, double scale, long seed, double alpha) {
+        double k = clamp01(age / life), fade = (1 - smooth((k - .35) / .65)) * alpha;
+        if (fade <= 0 || !c.body()) return;
+        double out = 1 - Math.pow(1 - Math.min(1, age / (life * .55)), 2.5);
+        Vec3[] uw = basis(dir);
+        for (int i = 0; i < 9; i++) {
+            long sd = seed + i * 53L;
+            double a = hash(sd) * Math.PI * 2, spread = (.1 + .75 * hash(sd + 1)) * (i == 0 ? .3 : 1);
+            Vec3 d = dir.add(uw[0].scale(Math.cos(a) * spread)).add(uw[1].scale(Math.sin(a) * spread)).normalize();
+            Vec3 side = d.cross(uw[0]).lengthSqr() > 1e-6 ? d.cross(uw[0]).normalize() : uw[1];
+            boolean ink = i % 3 == 2;
+            // Masses: short and wide (length about 2-3x width), the leading edge full, the tail tearing apart as they age.
+            double L = scale * (ink ? 1.6 + 1.2 * hash(sd + 2) : 2.2 + 2 * hash(sd + 2)) * (.4 + .6 * out);
+            double w0 = scale * (ink ? .35 : (i == 0 ? 1.3 : .8 + .5 * hash(sd + 3))) * (.6 + .6 * out) * (1 - .45 * k);
+            double travel = scale * (1 + 3 * hash(sd + 4)) * out, bend = (hash(sd + 5) - .5) * 1.2;
+            int n = 12;
+            Vec3[] pts = new Vec3[n + 1];
+            double[] w = new double[n + 1];
+            for (int j = 0; j <= n; j++) {
+                double t = (double) j / n;
+                pts[j] = at.add(d.scale(travel + L * (t - .4))).add(side.scale(bend * L * (1 - t) * (1 - t) * .5)).add(nvec(sd + 6, t * 2 + age * .25).scale(scale * .3));
+                double tear = smooth((vnoise(sd + 7, t * 4 + age * .35) - .1 - .7 * k * Math.pow(1 - t, 1.5)) / .12);
+                w[j] = w0 * (.35 + .65 * Math.pow(Math.sin(Math.PI * (.2 + .8 * t)), .4)) * tear * (.6 + .6 * vnoise(sd + 8, t * 3 + age * .3));
+            }
+            fxRibbon(c, pts, w, ink ? BRUSH : PLASMA, (int) (sd % 977), ink ? INK : i % 3 == 0 ? RED_LIGHT : i % 3 == 1 ? RED : RED_BODY, fade);
         }
     }
 
@@ -641,43 +655,30 @@ final class BlueRedDraw {
         glow(c, at, 1 + age * .35, fade, blue ? ICE : RED_CORE);
     }
 
-    /** Red's impact (owner, 2026-11-18): a white-red flash, a shock ring and a ground wave, and the energy blown on along the hit: big red
-     *  smears and torn ink flung forward in a cone, fast at first then slowing; the smears linger a moment and fade (about twenty ticks). */
+    /** Red's impact (owner's review of round 25, ref 19): one clear beat, then residue. A very short red-white flash at the contact point; the
+     *  shock ring and the ground wave start in the same tick; a red pressure mass blasts on along the hit (thick soft masses and smears, torn
+     *  ink flung and breaking up fast), not a round explosion; paint sprays along the hit; a red stain spreads on the ground; then what is left
+     *  dissolves within about a second. */
     private static void redImpact(Ctx c, Vec3 at, double age, Vec3 dir) {
         double k = clamp01(age / 22), fade = 1 - k;
         if (fade <= 0) return;
         double out = 1 - Math.pow(1 - Math.min(1, age / 10), 2.5);
-        Vec3[] uw = basis(dir);
-        for (int i = 0; i < 12; i++) {
-            long sd = 8800 + i * 47L;
-            double a = hash(sd) * Math.PI * 2, spread = .2 + .9 * hash(sd + 1);
-            Vec3 d = dir.add(uw[0].scale(Math.cos(a) * spread)).add(uw[1].scale(Math.sin(a) * spread)).normalize();
-            boolean ink = i % 3 == 2;
-            double L = (ink ? 2.5 + 2 * hash(sd + 2) : 4 + 4 * hash(sd + 2)) * out, w0 = (ink ? .25 : .5 + .4 * hash(sd + 3)) * (1 - .5 * k);
-            Vec3 start = at.add(d.scale(L * .35 * k));
-            int n = 12;
-            Vec3[] pts = new Vec3[n + 1];
-            double[] w = new double[n + 1];
-            for (int j = 0; j <= n; j++) {
-                double t = (double) j / n;
-                pts[j] = start.add(d.scale(L * t)).add(nvec(sd + 4, t * 2 + age * .1).scale(.35 * t));
-                double tear = ink ? smooth((vnoise(sd + 6, t * 5 + age * .3) - .2 - .5 * k) / .08) : 1;
-                w[j] = w0 * Math.pow(Math.sin(Math.PI * (.1 + .9 * t)), .5) * (.55 + .6 * vnoise(sd + 5, t * 3 + age * .2)) * tear;
-            }
-            if (c.body()) fxRibbon(c, pts, w, ink ? BRUSH : PLASMA, (int) (sd % 977), ink ? INK : i % 2 == 0 ? RED : RED_BODY, fade);
-        }
+        pressureBlast(c, at, dir, age, 20, 1.7, 8800, 1);
         if (c.body()) {
-            fxFlat(c, at.add(0, -.9, 0), 2.5 + age * 1.1, SHOCK, 170, RED_BODY, .7 * fade);
+            fxFlat(c, at.add(0, -.9, 0), 2 + age * 1.4, SHOCK, 170, RED_BODY, .8 * (1 - clamp01(age / 12)));
             // A red stain spreading on the ground (ref 20).
             fxFlat(c, at.add(0, -.95, 0), 3 + 2.5 * out, SMOKE, 171, RED_BODY, .6 * fade);
             splatter(c, at, age, dir);
         }
         if (!c.glow()) return;
-        if (age < 4) { glow(c, at, 7 * (1 - age / 4), 1 - age / 4, 0xFFFFFF); glow(c, at, 11 * (1 - age / 5), .95 * (1 - age / 4), RED); }
-        // Light rays and a pink haze (ref 19).
+        if (age < 2.5) { glow(c, at, 7 * (1 - age / 2.5), 1 - age / 2.5, 0xFFFFFF); glow(c, at, 11 * (1 - age / 4), .95 * (1 - age / 2.5), RED); }
         if (age < 8) fxSprite(c, at, 4 + age * .8, RAYS, 8890, 0xFF7090, .5 * (1 - age / 8), age * .02);
-        glow(c, at, 8, .4 * fade, 0xFF5A78);
-        if (age < 12) orbit(c, at, dir, 1 + age * 1.1, .14 * (1 - age / 12), RED_CORE, 1 - age / 12);
+        glow(c, at.add(dir.scale(2 * out)), 8, .4 * fade, 0xFF5A78);
+        // Two shock rings racing on along the hit, the first from the contact tick.
+        for (int r = 0; r < 2; r++) {
+            double ra = age - r * 2;
+            if (ra >= 0 && ra < 12) orbit(c, at.add(dir.scale(ra * .5)), dir, 1 + ra * 1.2, .18 * (1 - ra / 12), r == 0 ? RED_CORE : RED_LIGHT, 1 - ra / 12);
+        }
         glow(c, at, 2 + age * .2, .6 * fade, RED);
     }
 
@@ -707,7 +708,8 @@ final class BlueRedDraw {
         Vec3[] uw = basis(toEye.lengthSqr() < 1e-6 ? new Vec3(0, 0, 1) : toEye.normalize());
         for (int i = 0; i < 12; i++) {
             long sd = 9300 + i * 41L;
-            double rOut = size * (2.2 + 1.6 * hash(sd)), turns = 1.2 + .8 * hash(sd + 1), phase = hash(sd + 2) * Math.PI * 2 - age * (.35 + .2 * hash(sd + 3));
+            // Each line its own length (partial spirals, short scraps to long winds) and weight (hair-thin to thick strokes).
+            double rOut = size * (1.4 + 2.8 * hash(sd)), turns = .5 + 1.6 * hash(sd + 1), weight = .4 + 1.8 * hash(sd + 10) * hash(sd + 10), phase = hash(sd + 2) * Math.PI * 2 - age * (.35 + .2 * hash(sd + 3));
             double in = (age * (.08 + .05 * hash(sd + 4)) + hash(sd + 5)) % 1;
             int k = 40;
             Vec3[] pts = new Vec3[k + 1];
@@ -718,7 +720,7 @@ final class BlueRedDraw {
                 double rr = (rOut * Math.pow(1 - t, 1.3) * (1 - .4 * in) + size * .5) * (1 + .35 * snoise(sd + 8, t * 7 + age * .25));
                 pts[j] = at.add(uw[0].scale(Math.cos(a) * rr)).add(uw[1].scale(Math.sin(a) * rr)).add(toEye.normalize().scale(size * .8 * snoise(sd + 6, t * 4 + age * .1)));
                 double dash = smooth((vnoise(sd + 9, t * 9 + age * .4) - .3) / .08);
-                w[j] = size * (.025 + .07 * vnoise(sd + 7, t * 6 + age * .3)) * Math.sin(Math.PI * t) * dash;
+                w[j] = size * weight * (.02 + .07 * vnoise(sd + 7, t * 6 + age * .3)) * Math.sin(Math.PI * t) * dash;
             }
             fxRibbon(c, pts, w, BRUSH, (int) (sd % 977), i % 4 == 3 ? RED_DEEP : INK, .9 * Math.sin(Math.PI * in));
         }

@@ -33,7 +33,7 @@ import java.util.*;
 /**
  * Development-only: drives Blue (real left-click hold through the attack mixin) and Red (real right-click hold) in the Fabric 1.21.1 client and captures frames.
  * Scene from build/fuga-qa/gojo-scene: combo (3 husks, Blue to READY, anchor, Red into it), shatter (Red through another player's unready Blue),
- * terrain (combo inside a stone hill, to see eating and MSPT), look (Blue, ready Blue, Red at merge size and at flight size, one after another at the
+ * terrain (combo inside a stone hill, to see eating and MSPT), hit (Red straight into one husk 12 blocks ahead: impact and knockback), look (Blue, ready Blue, Red at merge size and at flight size, one after another at the
  * same spot, Blue's gameplay distance ahead, same camera, HUD and hand hidden). build/fuga-qa/rd8 sets render distance 8; build/fuga-qa/stop quits.
  */
 public final class BlueRedProbe implements ClientModInitializer {
@@ -44,6 +44,7 @@ public final class BlueRedProbe implements ClientModInitializer {
     private long msptPeak, msptSeen = -1;
     private double msptSum; private int msptN;
     private boolean moved;
+    private java.util.UUID hitMob;
 
     public void onInitializeClient() {
         if (!Boolean.getBoolean("godwand.fuga.qa")) throw new IllegalStateException("QA flag required");
@@ -106,6 +107,12 @@ public final class BlueRedProbe implements ClientModInitializer {
                 other.setItemInHand(InteractionHand.MAIN_HAND, otherWand);
                 other.moveTo(OX + .5, stand, OZ + 30.5, 180, 0);
                 BlueRedManager.input(other, true);
+            } else if (scene.equals("hit")) {
+                Mob m = (Mob) EntityType.HUSK.create(level);
+                m.setPos(OX + .5, level.getHeight(Heightmap.Types.WORLD_SURFACE, OX, OZ + 12), OZ + 12.5);
+                m.setPersistenceRequired();
+                level.addFreshEntity(m);
+                hitMob = m.getUUID();
             } else if (!scene.equals("look")) for (int i = 0; i < 3; i++) {
                 Mob m = (Mob) EntityType.HUSK.create(level);
                 double x = OX + .5 + (i - 1) * 1.6, z = OZ + 8.5;
@@ -117,7 +124,7 @@ public final class BlueRedProbe implements ClientModInitializer {
         c.player.getInventory().selected = 0; c.player.connection.send(new ServerboundSetCarriedItemPacket(0));
         try { Files.createDirectories(c.gameDirectory.toPath().resolve("screenshots/gojo-" + scene + "-" + run)); }
         catch (java.io.IOException e) { throw new RuntimeException(e); }
-        stage = scene.equals("shatter") ? 3 : scene.equals("look") ? 5 : 2; since = ticks;
+        stage = scene.equals("shatter") || scene.equals("hit") ? 3 : scene.equals("look") ? 5 : 2; since = ticks;
         System.out.println("GOJO_QA SETUP scene=" + scene + " run=" + run + " ground=" + ground);
     }
 
@@ -161,7 +168,14 @@ public final class BlueRedProbe implements ClientModInitializer {
         int t = ticks - since, charge = GodWandConfig.SERVER.redChargeTicks;
         if (t == 20) { c.options.keyUse.setDown(true); System.out.println("GOJO_QA RED hold"); }
         int fired = t - 20 - charge;
-        if (t >= 20 && (fired < -8 || fired > 12 ? t % 3 == 0 : true)) grab(c);
+        boolean hit = scene.equals("hit");
+        if (t >= 20 && (hit ? fired >= -12 && fired < 40 : fired < -8 || fired > 12 ? t % 3 == 0 : true)) grab(c);
+        if (hit && fired >= -2 && fired < 14) {
+            var mob = server.submit(() -> me(server, c).serverLevel().getEntity(hitMob)).join();
+            if (mob != null) System.out.printf(Locale.ROOT, "GOJO_QA HIT fired=%d mob=%.2f,%.2f,%.2f hp=%.1f%n", fired, mob.getX(), mob.getY(), mob.getZ(),
+                    mob instanceof net.minecraft.world.entity.LivingEntity l ? l.getHealth() : -1f);
+        }
+        if (hit && fired > 45) { stage = 4; since = ticks; return; }
         if (fired == 4) c.options.keyUse.setDown(false);
         if (fired == 30 || fired == 100) System.out.println("GOJO_QA PURPLE fired+" + fired + " cutscene=" + net.godwand.client.PurpleCinematic.active()
                 + " purples=" + server.submit(() -> BlueRedManager.purples(me(server, c).serverLevel()).size()).join());

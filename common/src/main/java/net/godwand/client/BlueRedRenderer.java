@@ -85,6 +85,13 @@ public final class BlueRedRenderer {
                 if (me != null) GodWandCinematicEngine.addTrauma((float) Math.max(0, .45 * (1 - me.position().distanceTo(at) / 40)), 10);
                 sound(at, SoundEvents.GENERIC_EXPLODE.value(), 3f, .8f);
             }
+            case BlueRedPayload.RED_HIT -> {
+                BURSTS.add(new Burst(at, clock, false, new Vec3(p.dx(), p.dy(), p.dz())));
+                impactNear(at);
+                var me = Minecraft.getInstance().player;
+                if (me != null) GodWandCinematicEngine.addTrauma((float) Math.max(0, .35 * (1 - me.position().distanceTo(at) / 40)), 8);
+                sound(at, SoundEvents.GENERIC_EXPLODE.value(), 1.6f, 1.1f);
+            }
             case BlueRedPayload.PURPLE -> {
                 endFlight(p.otherId(), at); BLUES.remove(p.ownerId());
                 PURPLES.add(new Purple(at, clock));

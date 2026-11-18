@@ -160,6 +160,8 @@ public final class BlueRedManager {
                 // Owner, 2026-11-18: the target is visibly blown away along the shot, in the same tick the hit shows.
                 e.setDeltaMovement(e.getDeltaMovement().add(red.dir.scale(1.8)).add(0, 0.45, 0));
                 e.hurtMarked = true;
+                // The blast shows where it struck, in the same tick as the knockback.
+                send(red.level, middle, event(BlueRedPayload.RED_HIT, red.shooter, middle, red.dir));
             }
         }
         int used = 0;
