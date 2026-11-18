@@ -89,6 +89,14 @@ public final class PurpleCinematic {
             // Starts once the coast is down to its last half-turn, so no orb sweeps across the lens on the way in.
             double stop = GateDraw.smooth((age - (le + 10)) / (double) (swirl + 6 - le - 10));
             double a = a0 + da * k, dist = (2.6 + 4.6 * out) * (1 - in) + 4.4 * in - 1.1 * stop, h = -.7 * out;
+            // While they coast, an orb swinging round to the camera's side pushes it back to keep ~2.8 blocks clear (no lens-filling glare);
+            // orbs off to the sides need nothing, so the square-on close-up at the stop is untouched.
+            double need = 0;
+            for (Vec3 o : BlueRedDraw.convergeOffsets(age)) {
+                double al = o.x * Math.cos(a) + o.z * Math.sin(a);
+                need = Math.max(need, al + 2.8 * GateDraw.smooth(al / 1.2));
+            }
+            dist = Math.max(dist, need * GateDraw.smooth((age - (le - 4)) / 6.0));
             // It starts right by Red and follows it, then eases back to the middle (owner, rounds 37-38).
             double track = 1 - GateDraw.smooth((age - BlueRedRules.PURPLE_CONTACT) / (double) (le - BlueRedRules.PURPLE_CONTACT));
             Vec3 red = BlueRedDraw.convergeOffsets(age)[1], look = center.add(red.scale(track));
