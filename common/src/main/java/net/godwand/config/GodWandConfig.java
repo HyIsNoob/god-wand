@@ -102,7 +102,7 @@ public final class GodWandConfig {
         public int redRange = 100;
         public int redTunnelRadius = 2;
         public int redCraterRadius = 5;
-        public int purpleRadius = 24;
+        public int purpleRadius = 32;
         public float purpleDamage = 9999;
         public boolean blueTerrainDamage = true;
         public boolean redTerrainDamage = true;

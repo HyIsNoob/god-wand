@@ -129,6 +129,19 @@ public final class BlueRedRenderer {
         for (Purple p : PURPLES) {
             double age = clock - p.at();
             if (age == BlueRedRules.PURPLE_DETONATE) detonated(p.pos());
+            var me = Minecraft.getInstance().player;
+            if (me != null && me.position().distanceTo(p.pos()) < 60) {
+                // The contact hits (owner, 2026-11-18), and an orb sweeping past the camera shakes it a little.
+                if (age == BlueRedRules.PURPLE_BLINK) GodWandCinematicEngine.addTrauma(.45f, 10);
+                if (age > BlueRedRules.PURPLE_CONTACT && age < BlueRedRules.PURPLE_SWIRL_END) {
+                    Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition(), centre = p.pos().add(0, BlueRedRules.purpleRise(age), 0);
+                    for (Vec3 o : BlueRedDraw.convergeOffsets(age)) {
+                        double d = centre.add(o).distanceTo(cam);
+                        if (d < 6) GodWandCinematicEngine.addTrauma((float) (.03 * (6 - d) / 6), 4);
+                    }
+                }
+                for (int k = 0; k < BlueRedRules.PURPLE_STRIKES; k++) if (age == BlueRedRules.strikeTick(k)) GodWandCinematicEngine.addTrauma(.12f, 6);
+            }
             // The 2D act shakes harder as the spheres close in, and the touch hits with an impact frame (owner, 2026-11-18).
             if (PurpleCinematic.active() && PurpleCinematic.inVoid()) {
                 double close = BlueRedDraw.voidClose(age);
@@ -288,9 +301,11 @@ public final class BlueRedRenderer {
             // For the two players the world pair is gone before the void's pair shows (a dip through black), so two pairs never show at once.
             c.fade = PurpleCinematic.active() && age < BlueRedRules.PURPLE_MERGE ? 1 - Math.min(1, BlueRedDraw.voidAlpha(age) / .55) : 1;
             var lvl = Minecraft.getInstance().level;
+            BlueRedDraw.groundAt = lvl == null ? null : (x, z) -> lvl.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, (int) Math.floor(x), (int) Math.floor(z));
             BlueRedDraw.groundY = lvl == null ? Double.NaN : lvl.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, (int) Math.floor(p.pos().x), (int) Math.floor(p.pos().z));
             BlueRedDraw.purple(c, p.pos(), age, eye, look);
             BlueRedDraw.groundY = Double.NaN;
+            BlueRedDraw.groundAt = null;
             c.fade = 1;
         }
         return c.quads;

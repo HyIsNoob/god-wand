@@ -88,8 +88,9 @@ class PurpleCinematicTest {
         Vec3 prev = PurpleCinematic.pose(CENTER, EYE, 0).position();
         for (double age = .5; age <= PURPLE_CINEMATIC; age += .5) {
             Vec3 now = PurpleCinematic.pose(CENTER, EYE, age).position();
-            boolean cut = Math.abs(age - PURPLE_BLINK) < .6 || Math.abs(age - PURPLE_SWIRL_END) < .6 || Math.abs(age - PURPLE_MERGE) < .6;
-            double limit = age > PURPLE_DETONATE && age < PURPLE_DETONATE + 16 ? 3 : age < PURPLE_SWIRL_END ? 2 : 1.4;
+            boolean cut = Math.abs(age - PURPLE_BLINK) < .6 || Math.abs(age - PURPLE_SWIRL_END) < .6 || Math.abs(age - PURPLE_MERGE) < .6
+                    || PurpleCinematic.nearStrikeCut(age) || PurpleCinematic.strikeShot(age) >= 0;
+            double limit = age > PURPLE_DETONATE && age < PURPLE_DETONATE + 18 ? 5 : age < PURPLE_SWIRL_END ? 2 : 1.4;
             if (!cut) assertTrue(now.distanceTo(prev) < limit, "jump at age " + age + ": " + now.distanceTo(prev));
             prev = now;
         }

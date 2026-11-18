@@ -432,8 +432,11 @@ class BlueRedManagerTest {
         when(world.getMaxBuildHeight()).thenReturn(320);
         try (var displacement = mockStatic(net.godwand.spatial.SpatialDisplacementManager.class)) {
             displacement.when(() -> net.godwand.spatial.SpatialDisplacementManager.canDisplace(any(), any(), any())).thenReturn(true);
-            untilPurpleAge(BlueRedRules.PURPLE_DETONATE - 1);
-            assertEquals(0, writes[0], "the ground holds until the detonation");
+            untilPurpleAge(BlueRedRules.PURPLE_MERGE);
+            assertEquals(0, writes[0], "the ground holds through the convergence");
+            // Owner, 2026-11-18: from MERGE on, Purple's lightning strikes blow pits in the ground before the detonation.
+            untilPurpleAge(BlueRedRules.strikeTick(0) + 1);
+            assertTrue(writes[0] > 0, "a lightning strike blows out a pit");
             ticks(10);
             assertTrue(writes[0] > 0);
             ticks(BlueRedRules.PURPLE_TERRAIN_END);

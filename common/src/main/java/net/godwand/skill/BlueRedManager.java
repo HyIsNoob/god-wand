@@ -236,11 +236,19 @@ public final class BlueRedManager {
         var cfg = GodWandConfig.SERVER;
         p.age++;
         if (p.age == BlueRedRules.PURPLE_DETONATE) detonate(p);
-        if (p.age > BlueRedRules.PURPLE_TERRAIN_END) { PURPLES.remove(p); return 0; }
-        if (p.age < BlueRedRules.PURPLE_DETONATE || cfg.purpleRadius <= 0) return 0;
+        int used = 0;
+        for (int k = 0; k < BlueRedRules.PURPLE_STRIKES; k++) if (p.age == BlueRedRules.strikeTick(k) && p.level.getChunkSource() != null) {
+            double[] o = BlueRedRules.strikeOffset(k);
+            int x = (int) Math.floor(p.center.x + o[0]), z = (int) Math.floor(p.center.z + o[1]);
+            int y = p.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
+            used += BlueEater.carve(p.level, new Vec3(x + .5, y - 1, z + .5), 3, budget, deadline, Integer.MAX_VALUE, null, cfg.purpleTerrainDamage);
+        }
+        budget -= used;
+        if (p.age > BlueRedRules.PURPLE_TERRAIN_END) { PURPLES.remove(p); return used; }
+        if (p.age < BlueRedRules.PURPLE_DETONATE || cfg.purpleRadius <= 0) return used;
         int before = p.cursor;
         p.cursor = BlueEater.carveFrom(p.level, p.center, BlueEater.sphere(cfg.purpleRadius), p.cursor, budget, deadline, cfg.purpleTerrainDamage);
-        return p.cursor - before;
+        return p.cursor - before + used;
     }
 
     private static void detonate(Purple p) {

@@ -25,12 +25,22 @@ public final class BlueRedRules {
     /** Purple timeline in ticks (owner's direction, 2026-11-16): a blink, the orbs swirl in the world, a quick fade to the 2D void where they are pushed
      *  together and Purple swallows them (the void thins out from MERGE to VOID_END), the camera races round Purple, it detonates, the cutscene
      *  ends, the crater stops growing. */
-    public static final int PURPLE_BLINK = 4, PURPLE_SWIRL_END = 80, PURPLE_MERGE = 150, PURPLE_VOID_END = 158,
-            PURPLE_DETONATE = 210, PURPLE_CINEMATIC = 260, PURPLE_TERRAIN_END = 280;
-    /** The convergence in the world (owner, 2026-11-18), 4 seconds: contact until CONTACT; an orbit until PLAY; the build-up until LIFT_END, the
+    public static final int PURPLE_BLINK = 4, PURPLE_SWIRL_END = 98, PURPLE_MERGE = 168, PURPLE_VOID_END = 176,
+            PURPLE_DETONATE = 228, PURPLE_CINEMATIC = 284, PURPLE_TERRAIN_END = 304;
+    /** The convergence in the world (owner, 2026-11-18), about 5 seconds: contact until CONTACT; an orbit until PLAY; the build-up until LIFT_END, the
      *  spin climbing hard while the pair lifts; braking and parting to opposite sides until FACE; the face-off held until SWIRL_END, when the 2D
      *  act fades in. */
-    public static final int PURPLE_CONTACT = 12, PURPLE_PLAY = 30, PURPLE_LIFT_END = 66, PURPLE_FACE = 76;
+    public static final int PURPLE_CONTACT = 12, PURPLE_PLAY = 30, PURPLE_LIFT_END = 66, PURPLE_FACE = 92;
+    /** Purple's lightning strikes on the ground (owner, 2026-11-18): bolts hammer the ground round it from MERGE on, each blowing out a pit. */
+    public static final int PURPLE_STRIKES = 22;
+    public static int strikeTick(int k) { return PURPLE_MERGE + 6 + k * 4; }
+    /** Where strike k lands, as {dx, dz} from the centre: all round it, 7 to 30 blocks out (deterministic, same on server and client). */
+    public static double[] strikeOffset(int k) {
+        long z = (k + 1) * 0x9E3779B97F4A7C15L;
+        z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L; z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL; z ^= z >>> 31;
+        double a = (z & 0xFFFF) / 65536.0 * Math.PI * 2 + k * 2.4, d = 7 + 23 * (((z >>> 16) & 0xFFFF) / 65536.0);
+        return new double[]{Math.cos(a) * d, Math.sin(a) * d};
+    }
     /** Purple bursts this far above the Blue that made it (owner, 2026-11-16: "nổ trên trời"): the orbs soar up while they swirl. */
     public static final double PURPLE_LIFT = 16;
 

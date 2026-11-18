@@ -149,9 +149,10 @@ void main() {
                 float cloud = fbm(m + (wv - 0.5) * 2.2);
                 float speck = step(0.93, noise(n3 * 38.0 + t)) * 0.6;
                 // Ref 39: a burning ball, white-hot clouds over the colour, hottest towards the middle.
+                // Ref 43 (owner, 2026-11-18): dark, black and colour, not white: deep black patches, colour in the folds, white only in a few sparks.
                 float core = clamp(1.0 - d, 0.0, 1.0);
-                float white = smoothstep(0.35, 0.8, cloud) * (0.45 + 0.55 * core);
-                col = mix(tint * (0.35 + 0.8 * cloud), vec3(1.0, 0.96, 0.92), white) * (0.6 + 0.4 * sqrt(core)) + hot * (speck + rimLine * 0.6) + tint * fres * 0.5;
+                float lit = smoothstep(0.3, 0.75, cloud);
+                col = mix(tint * 0.03, tint * (0.55 + 0.7 * cloud), lit) + vec3(1.0) * pow(cloud, 7.0) * 0.5 + hot * (speck * 0.5 + rimLine * 0.5) + tint * fres * 0.6;
             }
         } else {
             float od = dd - 1.0;
