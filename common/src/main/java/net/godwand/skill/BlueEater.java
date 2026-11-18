@@ -22,7 +22,7 @@ public final class BlueEater {
     static final int EAT_PER_TICK = 12;
     /** Live flying displays per Blue; further blocks vanish without one. */
     static final int MAX_DISPLAYS = 96;
-    static final int FLIGHT_TICKS = 50;
+    static final int FLIGHT_TICKS = 32;
 
     record Eaten(Display.BlockDisplay display, Vec3 from, int[] age) {
         Eaten(Display.BlockDisplay display, Vec3 from) { this(display, from, new int[1]); }
@@ -118,13 +118,15 @@ public final class BlueEater {
                 double p = Math.min(1, (age + 1) / (double) FLIGHT_TICKS), ease = p * p;
                 Vec3 mid = e.from().add(.5, .5, .5), v0 = mid.subtract(center);
                 long h = (long) Math.floor(e.from().x * 31 + e.from().y * 13 + e.from().z * 17);
-                double sign = (h & 1) == 0 ? 1 : -1, tilt = ((h >> 1) % 7) * .12 - .36, r0 = Math.max(1, Math.hypot(v0.x, v0.z));
-                // Out to the ring (first 30%), then round and round it as it tightens.
-                double ring = 2.2 + ((h >> 3) & 3) * .4, join = Math.min(1, p / .3), j = join * join * (3 - 2 * join);
-                double rad = (r0 + (ring - r0) * j) * (1 - .85 * Math.pow(Math.max(0, (p - .3) / .7), 2));
-                double a0 = Math.atan2(v0.z, v0.x), ang = a0 + sign * Math.PI * 5 * Math.pow(p, 1.4);
-                double y = v0.y * (1 - j) + Math.sin(ang) * rad * tilt;
-                Vec3 v = new Vec3(Math.cos(ang) * rad, y, Math.sin(ang) * rad);
+                // Each block on its own orbit plane, any orientation (owner, 2026-11-18: all directions, not a flat disc), at its own radius.
+                Vec3 n = new Vec3(Math.sin(h * 1.7), Math.cos(h * 2.3), Math.sin(h * 3.1 + 1)).normalize();
+                Vec3 u = n.cross(Math.abs(n.y) < .9 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0)).normalize(), w = n.cross(u);
+                double sign = (h & 1) == 0 ? 1 : -1, ring = 2.4 + ((h >> 3) & 7) * .3;
+                double join = Math.min(1, p / .25), j = join * join * (3 - 2 * join);
+                double rad = ring * (1 - .9 * Math.pow(Math.max(0, (p - .5) / .5), 2));
+                double a0 = Math.atan2(v0.dot(w), v0.dot(u)), ang = a0 + sign * Math.PI * 3.5 * Math.pow(p, 1.2);
+                Vec3 onRing = u.scale(Math.cos(ang) * rad).add(w.scale(Math.sin(ang) * rad));
+                Vec3 v = v0.add(onRing.subtract(v0).scale(j));
                 float scale = (float) (1 - .75 * ease);
                 Vec3 to = center.add(v).subtract(e.from()).subtract(scale / 2.0, scale / 2.0, scale / 2.0);
                 e.display().setTransformationInterpolationDelay(0);

@@ -26,7 +26,8 @@ vec2 warped(vec2 uv) {
     float r = length(d), R = max(WarpRadius, 0.001);
     // Gravitational lensing round the sphere's edge: strongest just outside the rim, fading over about one radius; the light behind is pulled
     // towards the centre and dragged a little round it, so the background bends round Purple like round a black hole.
-    float ring = smoothstep(0.85 * R, R, r) * exp(-max(r - R, 0.0) / (0.7 * R));
+    // Owner, 2026-11-18: only a thin skin of bent space at the surface.
+    float ring = smoothstep(0.9 * R, R, r) * exp(-max(r - R, 0.0) / (0.22 * R));
     float k = Warp * ring;
     float a = k * 0.6 + 0.03 * k * sin(WarpTime * 3.0 + r * 40.0);
     d = mat2(cos(a), -sin(a), sin(a), cos(a)) * d;

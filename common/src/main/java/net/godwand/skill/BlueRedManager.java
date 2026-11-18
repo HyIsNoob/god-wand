@@ -245,7 +245,8 @@ public final class BlueRedManager {
 
     private static void detonate(Purple p) {
         var cfg = GodWandConfig.SERVER;
-        double radius = Math.max(cfg.purpleRadius, 2);
+        // Owner, 2026-11-18: the blast reaches half again further than the crater it digs.
+        double radius = Math.max(cfg.purpleRadius, 2) * 1.5;
         for (Entity e : finder.find(p.level, new AABB(p.center, p.center).inflate(radius))) {
             if (p.participant(e) || e.isSpectator() || e instanceof Display) continue;
             Vec3 out = e.position().subtract(p.center);

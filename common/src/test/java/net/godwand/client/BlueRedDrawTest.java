@@ -220,7 +220,7 @@ class BlueRedDrawTest {
                 double minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
                 for (int i = 0; i < s.uv.size(); i++) {
                     float[] uv = s.uv.get(i);
-                    if (uv[1] < 2 || (int) Math.floor(uv[1]) - 2 != BlueRedDraw.PLASMA || (int) Math.floor(uv[0]) / 10 != 350 + which) continue;
+                    if (uv[1] < 2 || (int) Math.floor(uv[1]) - 2 != BlueRedDraw.PLASMA || (int) Math.floor(uv[0]) != 3550 + which) continue;
                     float[] p = s.pos.get(i);
                     minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minZ = Math.min(minZ, p[2]); maxZ = Math.max(maxZ, p[2]);
                 }
