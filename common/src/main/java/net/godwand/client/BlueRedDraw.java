@@ -568,7 +568,9 @@ final class BlueRedDraw {
                 w[j] = (.32 + .02 * old) * Math.pow(t, .6) * (1 - .3 * t) * (.6 + .5 * vnoise(sd + 4, t * 3 + old * .2));
             }
             if (c.body()) {
-                fxRibbon(c, pts, w, PLASMA, (int) (sd % 977), n % 2 == 0 ? RED : RED_BODY, env * .9);
+                double[] near = new double[k + 1];
+                for (int j = 0; j <= k; j++) near[j] = nearFade(c, pts[j]);
+                fxRibbon(c, pts, w, near, PLASMA, (int) (sd % 977), n % 2 == 0 ? RED : RED_BODY, env * .9);
                 if (n % 3 == 1) {
                     // A scrap of ink left behind, torn and fading.
                     Vec3[] ip = {pts[3], pts[5], pts[7]};
@@ -598,10 +600,19 @@ final class BlueRedDraw {
         }
     }
 
+    /** How much of a piece of Red's energy shows at {@code p}: fades out within a few blocks of the eye, so a smear or mass passing by the
+     *  camera never fills the view as a solid wedge (owner's review of round 28). */
+    static double nearFade(Ctx c, Vec3 p) { return smooth((p.distanceTo(c.eye) - 1.5) / 4); }
+
     /** A blast of released pressure along {@code dir}, {@code age} ticks in, lasting {@code life} ticks, sized by {@code scale}: a few big soft
      *  red masses heaving out in a cone (fast, then slowing; swelling, then torn from the tail and dissolving), wide red smears lagging behind
      *  them, and ink ripped off and flung, breaking up quickly. Shared by Red's release and its impact. */
     private static void pressureBlast(Ctx c, Vec3 at, Vec3 dir, double age, double life, double scale, long seed, double alpha) {
+        pressureBlast(c, at, dir, age, life, scale, seed, alpha, false);
+    }
+
+    /** As above; {@code thinNear}: fade out near the camera (the impact; the release keeps its full body in front of the shooter). */
+    private static void pressureBlast(Ctx c, Vec3 at, Vec3 dir, double age, double life, double scale, long seed, double alpha, boolean thinNear) {
         double k = clamp01(age / life), fade = (1 - smooth((k - .35) / .65)) * alpha;
         if (fade <= 0 || !c.body()) return;
         double out = 1 - Math.pow(1 - Math.min(1, age / (life * .55)), 2.5);
@@ -625,8 +636,10 @@ final class BlueRedDraw {
                 double t = (double) j / n;
                 pts[j] = at.add(d.scale(travel + L * (t - .4))).add(side.scale(bend * L * (1 - t) * (1 - t) * .5)).add(nvec(sd + 6, t * 2 + age * .25).scale(scale * .3));
                 double tear = smooth((vnoise(sd + 7, t * 4 + age * .35) - .05 - .85 * k * Math.pow(1 - t, 1.2)) / .25);
-                w[j] = w0 * Math.pow(Math.sin(Math.PI * (.08 + .84 * t)), .35) * tear * (.5 + .7 * vnoise(sd + 8, t * 2.5 + age * .3));
-                al[j] = 1 - k * (1 - smooth(t / .55));
+                // Ragged outline (fine, fast width wobble) and patchy transparency, so no edge runs straight.
+                w[j] = w0 * Math.pow(Math.sin(Math.PI * (.08 + .84 * t)), .35) * tear * (.5 + .7 * vnoise(sd + 8, t * 2.5 + age * .3))
+                        * (.7 + .5 * vnoise(sd + 9, t * 9 + age * .6));
+                al[j] = (1 - k * (1 - smooth(t / .55))) * (.55 + .45 * vnoise(sd + 10, t * 4 - age * .3)) * (thinNear ? nearFade(c, pts[j]) : 1);
             }
             int col = ink ? INK : i % 3 == 0 ? RED_LIGHT : i % 3 == 1 ? RED : RED_BODY;
             fxRibbon(c, pts, w, al, ink ? BRUSH : PLASMA, (int) (sd % 977), col, fade);
@@ -686,12 +699,21 @@ final class BlueRedDraw {
             double far = at.distanceTo(c.eye);
             glow(c, at, Math.min(2.4, far * .1) * (1 - .6 * squeeze), 1, 0xFFFFFF);
             glow(c, at, Math.min(4, far * .22) * (1 - .5 * squeeze), .9, RED);
+            // The peak (owner's review of round 28): for about a tick and a half, a tight red-white star on the target; compact, so the
+            // camera is never washed out.
+            if (age < 1.5) {
+                double peak = 1 - age / 1.5;
+                glow(c, at, Math.min(1.6, far * .07), peak, 0xFFFFFF);
+                glow(c, at, Math.min(3, far * .14), peak, RED_CORE);
+                fxSprite(c, at, Math.min(3.5, far * .17), RAYS, 8895, 0xFFE0E6, peak, 0);
+            }
         }
         if (b < 0) return;
         double out = 1 - Math.pow(1 - Math.min(1, b / 10), 2.5);
-        pressureBlast(c, at, dir, b, 20, 1.7, 8800, 1);
+        pressureBlast(c, at, dir, b, 20, 1.7, 8800, 1, true);
         if (c.body()) {
-            fxFlat(c, at.add(0, -.9, 0), 2 + b * 1.4, SHOCK, 170, RED_BODY, .5 * (1 - clamp01(b / 12)));
+            // Ground wave: ragged and uneven, not a perfect ring.
+            if (b < 12) pressureWave(c, at.add(0, -.9, 0), new Vec3(0, 1, 0), 2 + b * 1.4, .6 * (1 - b / 12), b, 8860, .6 * (1 - b / 12));
             fxFlat(c, at.add(0, -.95, 0), 3 + 2.5 * out, SMOKE, 171, RED_BODY, .5 * fade);
             splatter(c, at, b, dir);
         }
