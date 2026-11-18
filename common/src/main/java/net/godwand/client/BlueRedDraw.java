@@ -586,8 +586,10 @@ final class BlueRedDraw {
         // swelling and churning, their tails tearing and dissolving; ink is ripped off with them and breaks up fast.
         pressureBlast(c, origin, dir, age, 14, 1.2, 7700, fade);
         if (!c.glow()) return;
-        if (age < 4) { glow(c, origin, 4.5 * (1 - age / 4), 1 - age / 4, 0xFFFFFF); glow(c, origin, 9 * (1 - age / 5), .85 * (1 - age / 4), RED); }
-        if (age < 6) fxSprite(c, origin, 3 + age * .6, RAYS, 7790, 0xFF7090, .45 * (1 - age / 6) * fade, age * .03);
+        // Flashes are capped by how big they look (owner's review of round 27: never a white-out in first person).
+        double far = origin.distanceTo(c.eye);
+        if (age < 4) { glow(c, origin, Math.min(4.5, far * .12) * (1 - age / 4), 1 - age / 4, 0xFFFFFF); glow(c, origin, Math.min(9, far * .3) * (1 - age / 5), .85 * (1 - age / 4), RED); }
+        if (age < 6) fxSprite(c, origin, Math.min(3 + age * .6, far * .3), RAYS, 7790, 0xFF7090, .45 * (1 - age / 6) * fade, age * .03);
         glow(c, origin.add(dir.scale(2)), 7, .35 * (1 - age / 14) * fade, 0xFF5A78);
         for (int r = 0; r < 2; r++) {
             double ra = age - r * 2.5;
@@ -614,17 +616,33 @@ final class BlueRedDraw {
             double L = scale * (ink ? 1.4 + 1.0 * hash(sd + 2) : 1.6 + 1.6 * hash(sd + 2)) * (.4 + .6 * out);
             double w0 = scale * (ink ? .35 : (i == 0 ? 1.4 : .9 + .6 * hash(sd + 3))) * (.6 + .6 * out) * (1 - .45 * k);
             double travel = scale * (1 + 3 * hash(sd + 4)) * out, bend = (hash(sd + 5) - .5) * 1.2;
-            int n = 12;
+            // Owner's review of round 27: no straight-edged plates. More points, gaps that open gradually, the tail fading point by point as it
+            // ages (head stays dense), and the tail breaking into a few thin strands.
+            int n = 22;
             Vec3[] pts = new Vec3[n + 1];
-            double[] w = new double[n + 1];
+            double[] w = new double[n + 1], al = new double[n + 1];
             for (int j = 0; j <= n; j++) {
                 double t = (double) j / n;
                 pts[j] = at.add(d.scale(travel + L * (t - .4))).add(side.scale(bend * L * (1 - t) * (1 - t) * .5)).add(nvec(sd + 6, t * 2 + age * .25).scale(scale * .3));
-                // Soft round body whose width swings hard; the tail tears into pieces that spread forward as it ages.
-                double tear = smooth((vnoise(sd + 7, t * 5 + age * .35) - .05 - .85 * k * Math.pow(1 - t, 1.2)) / .1);
-                w[j] = w0 * Math.pow(Math.sin(Math.PI * (.08 + .84 * t)), .35) * tear * (.4 + .9 * vnoise(sd + 8, t * 3 + age * .3));
+                double tear = smooth((vnoise(sd + 7, t * 4 + age * .35) - .05 - .85 * k * Math.pow(1 - t, 1.2)) / .25);
+                w[j] = w0 * Math.pow(Math.sin(Math.PI * (.08 + .84 * t)), .35) * tear * (.5 + .7 * vnoise(sd + 8, t * 2.5 + age * .3));
+                al[j] = 1 - k * (1 - smooth(t / .55));
             }
-            fxRibbon(c, pts, w, ink ? BRUSH : PLASMA, (int) (sd % 977), ink ? INK : i % 3 == 0 ? RED_LIGHT : i % 3 == 1 ? RED : RED_BODY, fade);
+            int col = ink ? INK : i % 3 == 0 ? RED_LIGHT : i % 3 == 1 ? RED : RED_BODY;
+            fxRibbon(c, pts, w, al, ink ? BRUSH : PLASMA, (int) (sd % 977), col, fade);
+            if (!ink) for (int h = 0; h < 2; h++) {
+                int m = 10;
+                Vec3[] sp = new Vec3[m + 1];
+                double[] sw = new double[m + 1], sa = new double[m + 1];
+                for (int j = 0; j <= m; j++) {
+                    double t = .55 * j / m;
+                    int q = (int) Math.round(t * n);
+                    sp[j] = pts[q].add(side.scale((h == 0 ? 1 : -1) * w0 * (.3 + .5 * (1 - t)) * (.5 + k)));
+                    sw[j] = w0 * .12 * Math.sin(Math.PI * j / m) * (.5 + .8 * vnoise(sd + 20 + h, t * 6 + age * .4));
+                    sa[j] = (j / (double) m) * (.4 + .6 * k);
+                }
+                fxRibbon(c, sp, sw, sa, BRUSH, (int) (sd % 977) + 30 + h, col, fade);
+            }
         }
     }
 
@@ -665,8 +683,9 @@ final class BlueRedDraw {
         if (fade <= 0) return;
         if (c.glow() && age < 2) {
             double squeeze = clamp01(age / 1.5);
-            glow(c, at, 2.4 * (1 - .6 * squeeze), 1, 0xFFFFFF);
-            glow(c, at, 4 * (1 - .5 * squeeze), .9, RED);
+            double far = at.distanceTo(c.eye);
+            glow(c, at, Math.min(2.4, far * .1) * (1 - .6 * squeeze), 1, 0xFFFFFF);
+            glow(c, at, Math.min(4, far * .22) * (1 - .5 * squeeze), .9, RED);
         }
         if (b < 0) return;
         double out = 1 - Math.pow(1 - Math.min(1, b / 10), 2.5);
@@ -677,8 +696,9 @@ final class BlueRedDraw {
             splatter(c, at, b, dir);
         }
         if (!c.glow()) return;
-        if (b < 2) glow(c, at, 6 * (1 - b / 2), .9 * (1 - b / 2), RED_CORE);
-        if (b < 6) fxSprite(c, at, 3 + b * .7, RAYS, 8890, 0xFF7090, .35 * (1 - b / 6), b * .02);
+        double far = at.distanceTo(c.eye);
+        if (b < 2) glow(c, at, Math.min(6, far * .2) * (1 - b / 2), .9 * (1 - b / 2), RED_CORE);
+        if (b < 6) fxSprite(c, at, Math.min(3 + b * .7, far * .3), RAYS, 8890, 0xFF7090, .35 * (1 - b / 6), b * .02);
         glow(c, at.add(dir.scale(2 * out)), 6, .3 * fade, 0xFF5A78);
         if (b < 12) pressureWave(c, at.add(dir.scale(b * .4)), dir, 1 + b * 1.1, .5 * (1 - b / 12), b, 8870, 1 - b / 12);
     }
@@ -1118,7 +1138,10 @@ final class BlueRedDraw {
     }
 
     /** A camera-facing shader ribbon through points (tail first), local x running 0..1 along it; a width of 0 leaves a gap. */
-    static void fxRibbon(Ctx c, Vec3[] pts, double[] widths, int effect, int seed, int color, double alpha) {
+    static void fxRibbon(Ctx c, Vec3[] pts, double[] widths, int effect, int seed, int color, double alpha) { fxRibbon(c, pts, widths, null, effect, seed, color, alpha); }
+
+    /** As above, with an alpha per point ({@code alphas}, times {@code alpha}; null for none), so parts of a stroke can fade on their own. */
+    static void fxRibbon(Ctx c, Vec3[] pts, double[] widths, double[] alphas, int effect, int seed, int color, double alpha) {
         if (alpha <= 0) return;
         int n = pts.length - 1;
         Vec3 pl = null, pr = null;
@@ -1130,7 +1153,10 @@ final class BlueRedDraw {
             side = side.normalize().scale(widths[i]);
             Vec3 l = pts[i].subtract(side), r = pts[i].add(side);
             if (pl != null && (pw > 1e-4 || widths[i] > 1e-4))
-                fxQuad(c, pl, l, r, pr, effect, seed, color, alpha, alpha, alpha, alpha, (i - 1) / (double) n, i / (double) n);
+            {
+                double a0 = alphas == null ? alpha : alpha * alphas[i - 1], a1 = alphas == null ? alpha : alpha * alphas[i];
+                fxQuad(c, pl, l, r, pr, effect, seed, color, a0, a1, a1, a0, (i - 1) / (double) n, i / (double) n);
+            }
             pl = l; pr = r; pw = widths[i];
         }
     }

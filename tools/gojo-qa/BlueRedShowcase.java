@@ -25,6 +25,9 @@ public final class BlueRedShowcase {
 
     private BlueRedShowcase() {}
 
+    /** For the hit QA: has the client seen Red fire (a flight is on)? */
+    public static boolean redFired() { return BlueRedRenderer.anyFlight(); }
+
     private static double clamp(double v) { return Math.max(0, Math.min(1, v)); }
 
     /** Where the player aims Blue at tick k of subject s. */

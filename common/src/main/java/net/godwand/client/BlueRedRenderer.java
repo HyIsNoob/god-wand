@@ -37,6 +37,8 @@ public final class BlueRedRenderer {
     private static final Map<Integer, BlueView> BLUES = new HashMap<>();
     private static final Map<Integer, Double> CHARGES = new HashMap<>();
     private static final List<Flight> FLIGHTS = new ArrayList<>();
+    /** Whether a Red is in flight (used by the QA probe to time its side camera). */
+    static boolean anyFlight() { return !FLIGHTS.isEmpty(); }
     private static final List<Burst> BURSTS = new ArrayList<>();
     private static final List<Purple> PURPLES = new ArrayList<>();
     private static final List<Burst> IMPACTS = new ArrayList<>();
