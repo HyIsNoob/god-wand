@@ -1013,19 +1013,22 @@ final class BlueRedDraw {
     /** Distance between the two orbs: they knock apart on contact, chase each other wide, tighten as the spin climbs, then part to the face-off. */
     static double separation(double age) {
         int b = BlueRedRules.PURPLE_BLINK, ct = BlueRedRules.PURPLE_CONTACT, pl = BlueRedRules.PURPLE_PLAY, le = BlueRedRules.PURPLE_LIFT_END, fa = BlueRedRules.PURPLE_FACE;
-        // Owner, 2026-11-18: knocked apart on contact, then kept wide the whole swirl (no closing in and parting again).
-        if (age < ct) return .3 + (FACE_GAP - .3) * (1 - Math.pow(1 - clamp01((age - b) / (double) (ct - b)), 2));
-        return FACE_GAP + .2 * Math.sin((age - ct) * .17);
+        // Owner, 2026-11-18: knocked apart on contact, then held close while they spin, and drifting apart again as they slow down (the fade to
+        // the 2D act starts while they part).
+        if (age < ct) return .3 + 3.9 * (1 - Math.pow(1 - clamp01((age - b) / (double) (ct - b)), 2));
+        double spinning = 3.6 + .2 * Math.sin((age - ct) * .17) - .4 * smooth((age - pl) / (double) (le - pl));
+        return spinning + (FACE_GAP - spinning) * smooth((age - le) / (double) (fa + 8 - le));
     }
 
     /** How far apart they hold at the face-off. */
-    static final double FACE_GAP = 6;
+    static final double FACE_GAP = 4.4;
 
     /** Orbit speed in radians per tick: a moderate start, climbing hard through the build-up (about 3.5 turns a second at the peak), braked to
      *  a stop for the face-off. */
     static double spin(double age) {
         int ct = BlueRedRules.PURPLE_CONTACT, pl = BlueRedRules.PURPLE_PLAY, le = BlueRedRules.PURPLE_LIFT_END, fa = BlueRedRules.PURPLE_FACE;
-        double up = .06 + .24 * smooth((age - ct) / (double) (pl - ct)) + .95 * Math.pow(clamp01((age - pl) / (double) (le - pl)), 1.5);
+        // Slower than before (owner, 2026-11-18): about 2.5 turns a second at the peak.
+        double up = .05 + .18 * smooth((age - ct) / (double) (pl - ct)) + .63 * Math.pow(clamp01((age - pl) / (double) (le - pl)), 1.5);
         return up * (1 - smooth((age - le) / (double) (fa - le)));
     }
 
@@ -1051,7 +1054,8 @@ final class BlueRedDraw {
         // Owner, 2026-11-18: Blue holds still at the centre (rising with the pair) while Red circles it, slow then faster; through the build-up
         // Blue is drawn out onto the orbit too, until the two chase each other on opposite sides. Their distance stays d throughout.
         double gap = Math.PI + .3 * Math.sin(age * .07) * (1 - settle), join = settle;
-        double rb = d * .5 * join, rr = d * (1 - .5 * join);
+        // Red circles close round Blue (owner, 2026-11-18: not far away), then both settle on opposite sides.
+        double rb = d * .5 * join, rr = d * .5 * (1 + .35 * (1 - join));
         Vec3 blue = uw[0].scale(Math.cos(th) * rb).add(uw[1].scale(Math.sin(th) * rb));
         Vec3 red = uw[0].scale(Math.cos(th + gap) * rr).add(uw[1].scale(Math.sin(th + gap) * rr));
         return new Vec3[]{blue, red};
@@ -1115,7 +1119,7 @@ final class BlueRedDraw {
         // Small, bright purple lightning in the middle while they face off.
         if (c.glow() && surge > 0) {
             double flick = .6 + .4 * Math.abs(Math.sin(age * 2.3));
-            glow(c, center, .5 + .4 * flick, surge * flick, 0xFFFFFF);
+            glow(c, center, .4 + .3 * flick, .5 * surge * flick, 0xFFFFFF);
             glow(c, center, 1.4, .5 * surge, ORCHID);
             for (int b = 0; b < 6; b++) {
                 Vec3 d = nvec(3880 + b, age * .35).normalize();
@@ -1128,7 +1132,7 @@ final class BlueRedDraw {
             fxSprite(c, center, 1 + 5 * (1 - contact), SHOCK, 3900, PALE, contact, 0);
             sparks(c, center, 1 + 3 * (1 - contact), age, 40, ORCHID, 3910);
         }
-        double build = spin(age) / 1.25, hold = smooth((age - fa) / 8.0);
+        double build = spin(age) / .86, hold = smooth((age - fa) / 8.0);
         // The link between them (owner, 2026-11-18): thick, bright and crowded with lightning, sparks along it.
         double link = Math.max(contact, Math.max(build, surge));
         int bolts = (int) (3 + 4 * contact + 7 * build + 6 * surge);
@@ -1136,7 +1140,8 @@ final class BlueRedDraw {
             Vec3 from = red.add(nvec(3000 + j, age * .06).scale(.5)), to = blue.add(nvec(3100 + j, age * .06).scale(.5));
             liveBolt(c, from, to, 9, .3, .025 + .07 * build + .05 * surge, j % 3 == 0 ? PALE : ORCHID, .95, 3200 + j * 29, age, .9);
         }
-        fxBeam(c, red, blue, .25 + .35 * link, .25 + .35 * link, FLOW, 3290, ORCHID, .45 * link);
+        // Seen up close at the face-off, so kept from burning the frame white.
+        fxBeam(c, red, blue, .2 + .25 * link, .2 + .25 * link, FLOW, 3290, ORCHID, .22 * link);
         for (int j = 0; j < 4; j++) sparks(c, red.add(blue.subtract(red).scale(.2 + .2 * j)), .8 + .6 * link, age * 1.5, (int) (8 + 22 * link), j % 2 == 0 ? PALE : ORCHID, 3300 + j * 7);
         if (contact > 0 && !Double.isNaN(groundY)) {
             double k = 1 - contact;
@@ -1150,7 +1155,7 @@ final class BlueRedDraw {
      *  brake. A thin bright core rides on it in the glow pass. */
     private static void spinBand(Ctx c, Vec3 base, double age, int which, double alpha) {
         if (alpha <= 0) return;
-        double sp = Math.max(.06, spin(age)), build = clamp01(sp / 1.25);
+        double sp = Math.max(.06, spin(age)), build = clamp01(sp / .86);
         double arc = 1.6 + 2.2 * build, span = Math.min(30, arc / sp);
         Vec3 now = base.add(0, BlueRedRules.purpleRise(age), 0);
         int n = 36;
@@ -1180,9 +1185,9 @@ final class BlueRedDraw {
      *  of it, mostly up and down, flickering as the bolts move. */
     private static void coreStorm(Ctx c, Vec3 center, double age, double alpha) {
         if (!c.glow() || alpha <= 0) return;
-        double build = clamp01(spin(age) / 1.25), hold = smooth((age - BlueRedRules.PURPLE_FACE) / 8.0), k = Math.max(build, smooth((age - BlueRedRules.PURPLE_LIFT_END) / 10.0)) * alpha;
+        double build = clamp01(spin(age) / .86), hold = smooth((age - BlueRedRules.PURPLE_FACE) / 8.0), k = Math.max(build, smooth((age - BlueRedRules.PURPLE_LIFT_END) / 10.0)) * alpha;
         if (k <= .02) return;
-        glow(c, center, .8 + 2.4 * k, .7 * k, 0xFFFFFF);
+        glow(c, center, .6 + 1.2 * k, .4 * k, 0xFFFFFF);
         glow(c, center, 2 + 3 * k, .45 * k, ORCHID);
         for (int b = 0; b < (int) (2 + 6 * k); b++) {
             // Short and all round (owner, 2026-11-18): a ball of crackling, not spikes up and down.
@@ -1233,7 +1238,7 @@ final class BlueRedDraw {
         double back = voidAlpha(age);
         if (back <= 0) return;
         // The 2D act is framed by the camera, not by the world: always 9 blocks in front of it, whatever the 3D camera did.
-        at = eye.add(look.scale(10));
+        at = eye.add(look.scale(7));
         int in = BlueRedRules.PURPLE_SWIRL_END, merge = BlueRedRules.PURPLE_MERGE;
         double v = age - in, span = merge - in;
         // Black first (8 ticks), then the act fades in over it.
@@ -1261,11 +1266,11 @@ final class BlueRedDraw {
                     pts[j] = mid.add(diag.scale(len * (t - .5))).add(across.scale(.8 * snoise(4520 + i, t * 2 + age * .02)));
                     w[j] = (1.2 + 1.6 * hash(4530 + i)) * Math.sin(Math.PI * t);
                 }
-                fxRibbon(c, pts, w, PLASMA, 4540 + i, i % 3 == 0 ? 0xC0408A : i % 3 == 1 ? 0x6A2AB0 : 0x3A1460, .35 * show);
+                fxRibbon(c, pts, w, PLASMA, 4540 + i, i % 3 == 0 ? 0xC0408A : i % 3 == 1 ? 0x6A2AB0 : 0x3A1460, .22 * show);
             }
         }
         double orbs = (1 - absorb) * show, close = smooth((push - .2) / .75) * (1 - absorb);
-        double gapD = 5.8 * (1 - .82 * push) + .15 * (1 - absorb), r = 3.1 * (1 - .65 * absorb);
+        double gapD = 4.8 * (1 - .8 * push) + .15 * (1 - absorb), r = 2.9 * (1 - .65 * absorb);
         // view x up points to screen left: Red on +axis (left), Blue on -axis (right), level (owner: never tilted).
         Vec3 dirRed = axis;
         Vec3 red = at.add(dirRed.scale(gapD)), blue = at.subtract(dirRed.scale(gapD));

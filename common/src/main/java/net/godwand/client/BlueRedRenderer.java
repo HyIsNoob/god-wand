@@ -145,7 +145,6 @@ public final class BlueRedRenderer {
                         if (d < 5) GodWandCinematicEngine.addTrauma((float) (.015 * (5 - d) / 5), 4);
                     }
                 }
-                for (int k : PurpleCinematic.STRIKE_SHOTS) if (age == BlueRedRules.strikeTick(k)) GodWandCinematicEngine.addTrauma(.25f, 8);
             }
             // The 2D act shakes harder as the spheres close in, and the touch hits with an impact frame (owner, 2026-11-18).
             if (PurpleCinematic.active() && PurpleCinematic.inVoid()) {

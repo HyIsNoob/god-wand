@@ -312,12 +312,14 @@ void main() {
         a = inside;
     } else if (effect == 8) {
         // NEBULA: the void behind the merge, dark smoke drifting, red on the left, blue on the right, violet between.
+        // Darker (owner, 2026-11-18): near black, long streaks of smoke drifting sideways, red on one side, blue on the other, a violet seam.
         vec2 s = q * 2.0;
-        float n1 = fbm(vec3(s + vec2(t * 0.05, 0.0), t * 0.04));
-        float n2 = fbm(vec3(s * 2.0 - n1 * 1.5, t * 0.07));
-        vec3 neb = mix(vec3(0.10, 0.02, 0.22), vec3(0.04, 0.05, 0.26), smoothstep(-1.0, 1.0, q.x));
-        neb = mix(neb, vec3(0.26, 0.02, 0.07), smoothstep(0.2, -1.0, q.x) * 0.6);
-        col = vec3(0.02, 0.005, 0.05) + neb * pow(n2, 1.8) * 2.2;
+        float n1 = fbm(vec3(s.x * 0.5 + t * 0.04, s.y * 1.8, t * 0.03));
+        float n2 = fbm(vec3(s * vec2(1.0, 2.8) - n1 * 1.6, t * 0.06));
+        float wisp = pow(n2, 2.6);
+        vec3 side = mix(vec3(0.34, 0.02, 0.06), vec3(0.03, 0.07, 0.36), smoothstep(-0.6, 0.6, q.x));
+        side = mix(side, vec3(0.16, 0.03, 0.26), exp(-q.x * q.x * 6.0) * 0.6);
+        col = vec3(0.004, 0.0, 0.01) + side * wisp * 1.8 + vec3(0.05, 0.01, 0.08) * pow(n1, 3.0);
         a = 1.0;
     } else {
         discard;

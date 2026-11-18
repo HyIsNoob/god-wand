@@ -65,12 +65,12 @@ public final class PurpleCinematic {
             Vec3 axis = BlueRedDraw.faceAxis(), end = new Vec3(axis.z, 0, -axis.x);
             double a1 = Math.atan2(end.z, end.x), da = Math.IEEEremainder(a1 - a0, Math.PI * 2);
             double k = GateDraw.smooth((age - blink) / (double) (face - blink)), hold = GateDraw.smooth((age - face) / (double) (swirl - face));
-            // Owner, 2026-11-18: from low and close, rising and pulling back, never too far or too high.
-            double rise = GateDraw.smooth((age - blink) / (double) (swirl + 8 - blink));
-            // ...and it comes back in close for the stop (owner, 2026-11-18).
-            double back = GateDraw.smooth((age - BlueRedRules.PURPLE_LIFT_END) / (double) (swirl + 8 - BlueRedRules.PURPLE_LIFT_END));
-            double a = a0 + da * k, dist = 4.5 + 4 * rise - 3.2 * back;
-            return aim(center.add(new Vec3(Math.cos(a), 0, Math.sin(a)).scale(dist)).add(0, -2.2 + 5 * rise, 0), center);
+            // Owner, 2026-11-18: from low and close, rising and pulling back; then, while they still spin, it closes in until the orbs are about
+            // as big on screen as in the 2D act, square-on (Red left, Blue right), so the cut to 2D lands on the same picture.
+            int le = BlueRedRules.PURPLE_LIFT_END;
+            double out = GateDraw.smooth((age - blink) / (double) (le - 16 - blink)), in = GateDraw.smooth((age - (le - 16)) / 18.0);
+            double a = a0 + da * k, dist = (4.5 + 3 * out) * (1 - in) + 3.4 * in, h = (-2.2 + 4 * out) * (1 - in) + .5 * in;
+            return aim(center.add(new Vec3(Math.cos(a), 0, Math.sin(a)).scale(dist)).add(0, h, 0), center);
         }
         // Quick cuts to the ground strikes (owner, 2026-11-18): for a few ticks round a strike, a low shot next to it looking up the bolt.
         int shot = strikeShot(age);
@@ -85,7 +85,8 @@ public final class PurpleCinematic {
         // A far shot first (owner, 2026-11-18): the whole sky and the ground round it, drifting slowly.
         if (age < FAR_END) {
             double f = (age - merge) / (double) (FAR_END - merge);
-            return aim(center.add(turn(side, .6 + .15 * f).scale(46 - 4 * f)).add(0, 4, 0), center);
+            // Far enough to see the strikes tearing up the ground round it.
+            return aim(center.add(turn(side, .6 + .2 * f).scale(48 - 6 * f)).add(0, 6, 0), center);
         }
         // Bolder (owner, 2026-11-18): a low hero shot looking up at it as it is born, a sweep round it rising to its level, a fast push in
         // just before the burst, then thrown far back and up by the blast.
@@ -99,9 +100,9 @@ public final class PurpleCinematic {
     }
 
     /** The strikes the camera cuts to, and how long each shot holds round its strike (from 2 ticks before to 8 after). */
-    static final int[] STRIKE_SHOTS = {6};
+    static final int[] STRIKE_SHOTS = {};
     /** The far shot holds from MERGE to here. */
-    static final int FAR_END = BlueRedRules.PURPLE_MERGE + 20;
+    static final int FAR_END = BlueRedRules.PURPLE_MERGE + 34;
 
     /** The strike being shown at this age, or -1. */
     static int strikeShot(double age) {

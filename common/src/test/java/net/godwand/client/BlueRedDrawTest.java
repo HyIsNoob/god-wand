@@ -197,12 +197,12 @@ class BlueRedDrawTest {
                 fa = BlueRedRules.PURPLE_FACE, se = BlueRedRules.PURPLE_SWIRL_END;
         assertTrue(BlueRedDraw.separation(ct) > BlueRedDraw.separation(b) + 1, "contact: they knock apart");
         assertTrue(BlueRedDraw.spin(le - 2) > 3 * BlueRedDraw.spin((ct + pl) / 2.0), "the spin climbs hard");
-        assertTrue(BlueRedDraw.spin(le - 2) > .9, "fast at the peak: " + BlueRedDraw.spin(le - 2));
+        assertTrue(BlueRedDraw.spin(le - 2) > .6, "fast at the peak: " + BlueRedDraw.spin(le - 2));
         double turns = BlueRedDraw.orbitAngle(fa) / (2 * Math.PI);
-        assertTrue(turns > 4.5, "several turns, not one or two: " + turns);
+        assertTrue(turns > 3, "several turns, not one or two: " + turns);
         assertEquals(0, BlueRedDraw.spin(fa + 1), 1e-9, "braked to a stop for the face-off");
         Vec3[] o = BlueRedDraw.convergeOffsets(se - 1);
-        assertTrue(o[0].distanceTo(o[1]) > 5, "apart, facing each other: " + o[0].distanceTo(o[1]));
+        assertTrue(o[0].distanceTo(o[1]) > 4, "apart, facing each other: " + o[0].distanceTo(o[1]));
         assertTrue(o[1].subtract(o[0]).normalize().dot(BlueRedDraw.faceAxis()) > .95, "on the face-off line, Red on +axis");
         double maxStep = 0;
         for (double age = b; age < se; age += .5) maxStep = Math.max(maxStep, BlueRedDraw.convergeOffsets(age)[1].distanceTo(BlueRedDraw.convergeOffsets(age + .5)[1]));
