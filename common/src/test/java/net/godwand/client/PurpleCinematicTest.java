@@ -59,7 +59,7 @@ class PurpleCinematicTest {
     @Test void blinkStartsFromTheOwnEyesThenCutsClose() {
         assertTrue(PurpleCinematic.pose(CENTER, EYE, 0).position().distanceTo(EYE) < 1e-6);
         double close = PurpleCinematic.pose(CENTER, EYE, PURPLE_BLINK + 2).position().distanceTo(at(PURPLE_BLINK + 2));
-        assertTrue(close >= 4 && close <= 9, "a close shot of the swirling orbs: " + close);
+        assertTrue(close >= 2 && close <= 9, "a close shot of the swirling orbs: " + close);
     }
 
     @Test void racesRoundPurpleThenIsThrownFar() {

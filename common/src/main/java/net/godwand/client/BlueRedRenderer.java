@@ -221,7 +221,12 @@ public final class BlueRedRenderer {
             Vec3 src = light.subtract(camera.getPosition());
             var clip = new org.joml.Vector4f((float) src.x, (float) src.y, (float) src.z, 1)
                     .mul(pose.last().pose()).mul(RenderSystem.getModelViewMatrix()).mul(RenderSystem.getProjectionMatrix());
-            if (clip.w > .001f) { sx = clip.x / clip.w * .5f + .5f; sy = clip.y / clip.w * .5f + .5f; } else burst = 0;
+            if (clip.w > .001f) { sx = clip.x / clip.w * .5f + .5f; sy = clip.y / clip.w * .5f + .5f; } else { burst = 0; warp = 0; }
+            // Inside or right at the sphere the lens has no rim to bend round: fade it out instead of tearing the frame.
+            if (!PURPLES.isEmpty()) {
+                double dist = light.distanceTo(camera.getPosition()), size = BlueRedDraw.purpleSize(now - PURPLES.get(PURPLES.size() - 1).at());
+                warp *= smooth((dist - size * 1.2) / (size * .8));
+            }
         }
         if (burst == 0 && light != null && sx == .5f && sy == .5f) warp = 0;
         // Black-and-white ink frames (the gate filter) on the contact and the blast: two frames, lit-on-black then inverted.

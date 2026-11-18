@@ -151,7 +151,7 @@ void main() {
                 // Ref 39: a burning ball, white-hot clouds over the colour, hottest towards the middle.
                 // Ref 43 (owner, 2026-11-18): dark, black and colour, not white: deep black patches, colour in the folds, white only in a few sparks.
                 float core = clamp(1.0 - d, 0.0, 1.0);
-                float lit = smoothstep(0.3, 0.75, cloud);
+                float lit = smoothstep(0.42, 0.85, cloud);
                 col = mix(tint * 0.03, tint * (0.55 + 0.7 * cloud), lit) + vec3(1.0) * pow(cloud, 7.0) * 0.5 + hot * (speck * 0.5 + rimLine * 0.5) + tint * fres * 0.6;
             }
         } else {
@@ -319,7 +319,7 @@ void main() {
         float wisp = pow(n2, 2.6);
         vec3 side = mix(vec3(0.34, 0.02, 0.06), vec3(0.03, 0.07, 0.36), smoothstep(-0.6, 0.6, q.x));
         side = mix(side, vec3(0.16, 0.03, 0.26), exp(-q.x * q.x * 6.0) * 0.6);
-        col = vec3(0.004, 0.0, 0.01) + side * wisp * 1.8 + vec3(0.05, 0.01, 0.08) * pow(n1, 3.0);
+        col = vec3(0.002, 0.0, 0.005) + side * wisp * 1.15 + vec3(0.03, 0.006, 0.05) * pow(n1, 3.0);
         a = 1.0;
     } else {
         discard;

@@ -896,6 +896,10 @@ final class BlueRedDraw {
             fxSprite(c, at, s * 1.9, SHOCK, 205, PALE, (.18 + .1 * grow) * pre * fade, 0);
             orb(c, at, s * breathe, 2, age >= detonate ? 2 : grow > .6 ? 1 : 0, VIOLET, bodyAlpha);
             debris(c, at, s * 1.4, age, 34, 0x1A0A26, 820, pre * fade, true);
+            for (int b = 0; b < 8; b++) {
+                Vec3 d = nvec(2300 + b, age * .03 + b).normalize(), along = d.cross(nvec(2310 + b, age * .04)).normalize();
+                liveBolt(c, at.add(d.scale(s * 1.01)), at.add(d.add(along.scale(.7)).normalize().scale(s * 1.03)), 7, .3, .03, INK, .8 * pre * fade, 2320 + b * 17, age, .8);
+            }
             fall(c, at, s, age, (int) (30 * blast), 1240, 0x1A0A26, blast * fade, false);
         }
         if (!c.glow()) return;
@@ -913,6 +917,19 @@ final class BlueRedDraw {
         glow(c, at, s * 1.3, .35 * fade * haze, ORCHID);
         glow(c, at, Math.min(s * .55 * breathe * (1 + 2 * blast), 22), (.7 + .3 * blast) * fade * (1 - .5 * blast), 0xFFFFFF);
         sparks(c, at, s * 1.4, age, 70, PALE, 200);
+        // Red and blue currents spiralling in to it while it grows (owner, round 38: richer Purple).
+        if (pre > 0) for (int i = 0; i < 6; i++) {
+            Vec3[] uw = basis(nvec(2200 + i, age * .01).add(0, 1.5, 0).normalize());
+            int k = 24;
+            Vec3[] pts = new Vec3[k + 1];
+            double[] w = new double[k + 1];
+            for (int j = 0; j <= k; j++) {
+                double t = (double) j / k, a = i * Math.PI / 3 + age * .12 + t * 3.5, rr = s * (2.4 - 1.35 * t);
+                pts[j] = at.add(uw[0].scale(Math.cos(a) * rr)).add(uw[1].scale(Math.sin(a) * rr));
+                w[j] = s * .08 * Math.sin(Math.PI * t) * (.6 + .6 * vnoise(2210 + i, t * 3 - age * .2));
+            }
+            fxRibbon(c, pts, w, FLOW, 2220 + i, i % 2 == 0 ? RED_LIGHT : CYAN, .55 * pre * fade);
+        }
         // Lightning that never pops: each bolt keeps its identity, its anchor drifts over the sphere and its shape crawls with time.
         // Owner, 2026-11-18: much more lightning on the surface.
         int crawl = 16 + (int) (14 * grow);
@@ -1012,7 +1029,7 @@ final class BlueRedDraw {
     static double spin(double age) {
         int ct = BlueRedRules.PURPLE_CONTACT, pl = BlueRedRules.PURPLE_PLAY, le = BlueRedRules.PURPLE_LIFT_END, fa = BlueRedRules.PURPLE_FACE;
         // Slower than before (owner, 2026-11-18): about 2.5 turns a second at the peak.
-        double up = .04 + .14 * smooth((age - ct) / (double) (pl - ct)) + .52 * Math.pow(clamp01((age - pl) / (double) (le - pl)), 1.5);
+        double up = .08 + .16 * smooth((age - ct) / (double) (pl - ct)) + .46 * Math.pow(clamp01((age - pl) / (double) (le - pl)), 1.5);
         // Inertia (owner, round 37): the brake bites hardest at once and the pair coasts on ever slower, still turning a little as the black
         // falls; it only comes to rest after the fade (FACE_REST), never a sudden stop.
         double k = clamp01((age - le) / (double) (FACE_REST - le));
@@ -1101,7 +1118,8 @@ final class BlueRedDraw {
         mapLight(c, blue, 9 + 3 * surge, 0x2A7CFF, .5 + .3 * surge);
         mapLight(c, red, 9 + 3 * surge, RED, .5 + .3 * surge);
         // Red starts small and grows (owner, round 37); the farther orb is drawn first, so the nearer one covers it.
-        double redR = .6 + .5 * smooth((age - ct) / (double) (le - ct));
+        double redR = .4 + .7 * smooth((age - ct) / (double) (le - ct));
+        if (age > ct) { orbTrail(c, base, age, 0, BLUE_P, 1.1); orbTrail(c, base, age, 1, RED_P, redR); }
         Vec3 vb = blue.subtract(c0.add(o0[0])).scale(2), vr = red.subtract(c0.add(o0[1])).scale(2);
         if (red.distanceTo(c.eye) > blue.distanceTo(c.eye)) {
             twinOrb(c, red, redR, age, RED_P, vr, 77777, surge);
@@ -1120,6 +1138,15 @@ final class BlueRedDraw {
                 liveBolt(c, center, center.add(d.scale(.7 + .9 * vnoise(3890 + b, age * .5))), 5, .5, .018, b % 2 == 0 ? PALE : ORCHID, surge, 3895 + b * 11, age, 1);
             }
         }
+        double spinNow = spin(age) / .7;
+        if (c.body()) {
+            // Black flash (owner, round 38): the link's lightning has a black core, its colour only at the edges.
+            int dark = (int) (2 + 4 * Math.max(spinNow, surge));
+            for (int j = 0; j < dark; j++) {
+                Vec3 from = red.add(nvec(3000 + j, age * .06).scale(.5)), to = blue.add(nvec(3100 + j, age * .06).scale(.5));
+                liveBolt(c, from, to, 9, .3, .008 + .01 * spinNow, INK, .9, 3200 + j * 29, age, .9);
+            }
+        }
         if (!c.glow()) return;
         double contact = 1 - clamp01((age - BlueRedRules.PURPLE_BLINK) / (double) (ct - BlueRedRules.PURPLE_BLINK));
         if (contact > 0) {
@@ -1132,7 +1159,8 @@ final class BlueRedDraw {
         int bolts = (int) (3 + 4 * contact + 7 * build + 6 * surge);
         for (int j = 0; j < bolts; j++) {
             Vec3 from = red.add(nvec(3000 + j, age * .06).scale(.5)), to = blue.add(nvec(3100 + j, age * .06).scale(.5));
-            liveBolt(c, from, to, 9, .3, .025 + .07 * build + .05 * surge, j % 3 == 0 ? PALE : ORCHID, .95, 3200 + j * 29, age, .9);
+            // Thinner and coloured: red from Red's side, blue from Blue's, violet between; dimmer so the colour shows.
+            liveBolt(c, from, to, 9, .3, .014 + .025 * build + .02 * surge, j % 3 == 0 ? RED_LIGHT : j % 3 == 1 ? CYAN : ORCHID, .6, 3200 + j * 29, age, .9);
         }
         // Seen up close at the face-off, so kept from burning the frame white.
         fxBeam(c, red, blue, .2 + .25 * link, .2 + .25 * link, FLOW, 3290, ORCHID, .22 * link);
@@ -1142,6 +1170,27 @@ final class BlueRedDraw {
             pressureWave(c, new Vec3(center.x, groundY + .1, center.z), new Vec3(0, 1, 0), 2 + 22 * k, 2.6 * contact, age, 3960, contact);
         }
         if (build > .2) streaks(c, center, .3, separation(age) + 4, age, (int) (50 * build), ORCHID, 3400, 2, build, true);
+    }
+
+    /** A trail behind one orb (owner, round 38, added to everything else): a soft ribbon along its real path over the last few ticks, as wide
+     *  as the orb at its head and thinning behind, in its own colours, fading at the tail. */
+    private static void orbTrail(Ctx c, Vec3 base, double age, int which, Palette p, double r) {
+        if (!c.body()) return;
+        double span = Math.min(10, 1.6 / Math.max(.05, spin(age)));
+        Vec3 now = base.add(0, BlueRedRules.purpleRise(age), 0);
+        int n = 20;
+        Vec3[] pts = new Vec3[n + 1];
+        double[] w = new double[n + 1], al = new double[n + 1];
+        for (int j = 0; j <= n; j++) {
+            double t = (double) j / n, at = Math.max(0, age - span * (1 - t));
+            pts[j] = now.add(convergeOffsets(at)[which]);
+            w[j] = r * (.15 + .7 * t);
+            al[j] = smooth(t / .6);
+        }
+        fxRibbon(c, pts, w, al, PLASMA, 3600 + which, p.mid(), .55);
+        double[] core = new double[n + 1];
+        for (int j = 0; j <= n; j++) core[j] = w[j] * .4;
+        fxRibbon(c, pts, core, al, PLASMA, 3602 + which, p.light(), .5);
     }
 
     /** The ring the spin makes (owner's refs, 2026-11-18): a thick, soft band along the orb's real path (red behind Red, pale electric blue
@@ -1265,7 +1314,7 @@ final class BlueRedDraw {
             }
         }
         double orbs = (1 - absorb) * show, close = smooth((push - .2) / .75) * (1 - absorb);
-        double gapD = 4.8 * (1 - .8 * push) + .15 * (1 - absorb), r = 2.9 * (1 - .65 * absorb);
+        double gapD = 4.8 * (1 - .8 * push) + .15 * (1 - absorb), r = 2.05 * (1 - .65 * absorb);
         // view x up points to screen left: Red on +axis (left), Blue on -axis (right), level (owner: never tilted).
         Vec3 dirRed = axis;
         Vec3 red = at.add(dirRed.scale(gapD)), blue = at.subtract(dirRed.scale(gapD));
@@ -1300,15 +1349,13 @@ final class BlueRedDraw {
                 for (int j = 0; j < 5; j++) {
                     long sd = 4800 + side * 30 + j;
                     double y = (hash(sd) - .5) * r * 1.5, L = r * (2.2 + 1.6 * hash(sd + 1)), drift = (age * .04 + hash(sd + 2)) % 1;
-                    int k = 12;
-                    Vec3[] pts = new Vec3[k + 1];
-                    double[] w = new double[k + 1];
-                    for (int q = 0; q <= k; q++) {
-                        double t = (double) q / k;
-                        pts[q] = p.add(up.scale(y + r * .1 * snoise(sd + 3, t * 3 - age * .1))).add(outward.scale(-r * .85 + L * t)).add(view.scale(.15));
-                        w[q] = r * (.2 + .24 * hash(sd + 4)) * Math.sin(Math.PI * Math.min(1, t * 1.15)) * (.5 + .7 * vnoise(sd + 5, t * 4 - drift * 6));
+                    // Dust, like the 3D trails (owner, round 38): soft puffs along the band drifting back, not a torn brush stroke.
+                    for (int q = 0; q < 10; q++) {
+                        double t = ((q / 10.0) + drift) % 1;
+                        Vec3 pq = p.add(up.scale(y + r * .12 * snoise(sd + 3, t * 3 - age * .1))).add(outward.scale(-r * .85 + L * t)).add(view.scale(.15));
+                        fxSprite(c, pq, r * (.16 + .1 * hash(sd + q)) * (.8 + .6 * t), SMOKE, (int) ((sd * 13 + q) % 977), j % 2 == 0 ? pal.light() : pal.deep(),
+                                .3 * orbs * Math.sin(Math.PI * t), age * .03 + q);
                     }
-                    fxRibbon(c, pts, w, BRUSH, (int) (sd % 977), j % 2 == 0 ? pal.light() : 0x0A0410, .28 * orbs);
                 }
             }
             if (c.glow()) {

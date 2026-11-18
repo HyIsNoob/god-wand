@@ -44,7 +44,15 @@ public final class PurpleCinematic {
         // A strike shot frames the strike on the ground, not the sphere.
         if (strikeShot(age + delta) >= 0) return p;
         Vec3 orbs = center.add(0, BlueRedRules.purpleRise(age + delta), 0);
-        if (age + delta < BlueRedRules.PURPLE_MERGE) return new AtomicCinematic.Pose(unblocked(orbs, p.position()), p.yaw(), p.pitch());
+        // The swirl is shot through blocks freely (owner, round 38).
+        if (age + delta < BlueRedRules.PURPLE_MERGE) return p;
+        // The last second hands the view back to the player, smoothly.
+        double back = GateDraw.smooth((age + delta - (BlueRedRules.PURPLE_CINEMATIC - 20)) / 20.0);
+        if (back > 0) {
+            AtomicCinematic.Pose q = aim(unblocked(orbs, p.position()), orbs);
+            float yaw = q.yaw() + (float) (Math.IEEEremainder(vanillaYaw - q.yaw(), 360) * back);
+            return new AtomicCinematic.Pose(q.position().add(vanillaPosition.subtract(q.position()).scale(back)), yaw, q.pitch() + (vanillaPitch - q.pitch()) * (float) back);
+        }
         return aim(unblocked(orbs, p.position()), orbs);
     }
 
@@ -70,11 +78,12 @@ public final class PurpleCinematic {
             // as big on screen as in the 2D act, square-on (Red left, Blue right), so the cut to 2D lands on the same picture.
             int le = BlueRedRules.PURPLE_LIFT_END;
             double out = GateDraw.smooth((age - blink) / (double) (le - 16 - blink)), in = GateDraw.smooth((age - (le - 16)) / 18.0);
-            double a = a0 + da * k, dist = (4.5 + 3 * out) * (1 - in) + 4.4 * in, h = (-2.2 + 4 * out) * (1 - in) + .5 * in;
-            // It follows Red at first, then eases back to the middle (owner, round 37).
+            double a = a0 + da * k, dist = (2.6 + 4.6 * out) * (1 - in) + 4.4 * in, h = (1.2 + 3 * out) * (1 - in) + .5 * in;
+            // It starts right by Red and follows it, then eases back to the middle (owner, rounds 37-38).
             double track = 1 - GateDraw.smooth((age - BlueRedRules.PURPLE_CONTACT) / (double) (le - BlueRedRules.PURPLE_CONTACT));
-            Vec3 look = center.add(BlueRedDraw.convergeOffsets(age)[1].scale(track));
-            return aim(center.add(new Vec3(Math.cos(a), 0, Math.sin(a)).scale(dist)).add(0, h, 0), look);
+            Vec3 red = BlueRedDraw.convergeOffsets(age)[1], look = center.add(red.scale(track));
+            Vec3 cam = center.add(new Vec3(Math.cos(a), 0, Math.sin(a)).scale(dist)).add(0, h, 0).add(red.scale(.6 * track));
+            return aim(cam, look);
         }
         // Quick cuts to the ground strikes (owner, 2026-11-18): for a few ticks round a strike, a low shot next to it looking up the bolt.
         int shot = strikeShot(age);
