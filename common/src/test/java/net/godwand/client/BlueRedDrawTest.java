@@ -191,25 +191,27 @@ class BlueRedDrawTest {
         assertTrue(n > 0 && sum / n > .2, "smears lean back: " + (n == 0 ? 0 : sum / n));
     }
 
+    /** Owner, 2026-11-18: contact, an orbit that speeds up hard over several turns, braking into a face-off on opposite sides, held. */
     @Test void convergenceHasItsBeats() {
-        double contactStart = BlueRedDraw.separation(BlueRedRules.PURPLE_BLINK), contactEnd = BlueRedDraw.separation(BlueRedRules.PURPLE_CONTACT);
-        assertTrue(contactEnd > contactStart + 1, "contact: they bounce apart before anything fuses " + contactStart + " -> " + contactEnd);
-        double play = BlueRedDraw.separation((BlueRedRules.PURPLE_CONTACT + BlueRedRules.PURPLE_PLAY) / 2.0);
-        assertTrue(play > 2, "playful orbit at a wide radius: " + play);
-        double prev = BlueRedDraw.separation(BlueRedRules.PURPLE_PLAY);
-        for (double age = BlueRedRules.PURPLE_PLAY + 1; age <= BlueRedRules.PURPLE_SWIRL_END; age += 1) {
-            double s = BlueRedDraw.separation(age);
-            assertTrue(s <= prev + .25, "lift and compression only tighten: age " + age);
-            prev = s;
-        }
-        assertTrue(BlueRedDraw.separation(BlueRedRules.PURPLE_SWIRL_END) < .4, "compressed to a point before the void");
-        assertTrue(BlueRedDraw.spin(BlueRedRules.PURPLE_LIFT_END - 2) > 2 * BlueRedDraw.spin((BlueRedRules.PURPLE_CONTACT + BlueRedRules.PURPLE_PLAY) / 2.0),
-                "the orbit speeds up as it tightens");
+        int b = BlueRedRules.PURPLE_BLINK, ct = BlueRedRules.PURPLE_CONTACT, pl = BlueRedRules.PURPLE_PLAY, le = BlueRedRules.PURPLE_LIFT_END,
+                fa = BlueRedRules.PURPLE_FACE, se = BlueRedRules.PURPLE_SWIRL_END;
+        assertTrue(BlueRedDraw.separation(ct) > BlueRedDraw.separation(b) + 1, "contact: they knock apart");
+        assertTrue(BlueRedDraw.spin(le - 2) > 3 * BlueRedDraw.spin((ct + pl) / 2.0), "the spin climbs hard");
+        assertTrue(BlueRedDraw.spin(le - 2) > .9, "fast at the peak: " + BlueRedDraw.spin(le - 2));
+        double turns = BlueRedDraw.orbitAngle(fa) / (2 * Math.PI);
+        assertTrue(turns > 4.5, "several turns, not one or two: " + turns);
+        assertEquals(0, BlueRedDraw.spin(fa + 1), 1e-9, "braked to a stop for the face-off");
+        Vec3[] o = BlueRedDraw.convergeOffsets(se - 1);
+        assertTrue(o[0].distanceTo(o[1]) > 5, "apart, facing each other: " + o[0].distanceTo(o[1]));
+        assertTrue(o[1].subtract(o[0]).normalize().dot(BlueRedDraw.faceAxis()) > .95, "on the face-off line, Red on +axis");
+        double maxStep = 0;
+        for (double age = b; age < se; age += .5) maxStep = Math.max(maxStep, BlueRedDraw.convergeOffsets(age)[1].distanceTo(BlueRedDraw.convergeOffsets(age + .5)[1]));
+        assertTrue(maxStep < 3.5, "no teleport, only fast motion: " + maxStep);
     }
 
     /** Owner's ref 40: while they chase, each orb drags a long ring of its own colour round the orbit, Red's as long as Blue's. */
     @Test void bothOrbsDrawLongRings() {
-        for (double age : new double[]{24, 32, 40}) {
+        for (double age : new double[]{34, 50, 70}) {
             GateDraw.Ctx c = ctx(0);
             BlueRedDraw.purple(c, AT, age, EYE, LOOK);
             var s = (Sink) c.v;
@@ -218,14 +220,15 @@ class BlueRedDrawTest {
                 double minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
                 for (int i = 0; i < s.uv.size(); i++) {
                     float[] uv = s.uv.get(i);
-                    if (uv[1] < 2 || (int) Math.floor(uv[1]) - 2 != BlueRedDraw.RING || (int) Math.floor(uv[0]) != 3500 + which) continue;
+                    if (uv[1] < 2 || (int) Math.floor(uv[1]) - 2 != BlueRedDraw.PLASMA || (int) Math.floor(uv[0]) / 10 != 350 + which) continue;
                     float[] p = s.pos.get(i);
                     minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minZ = Math.min(minZ, p[2]); maxZ = Math.max(maxZ, p[2]);
                 }
                 span[which] = Math.max(maxX - minX, maxZ - minZ);
             }
             // Well beyond a ribbon's own width: an arc round the wide orbit, not a blob at the head.
-            assertTrue(span[0] > 4 && span[1] > 4, "age " + age + ": blue ring " + span[0] + ", red ring " + span[1]);
+            // As wide as the orbit itself (it tightens as the spin climbs).
+            assertTrue(span[0] > 2 && span[1] > 2, "age " + age + ": blue ring " + span[0] + ", red ring " + span[1]);
         }
     }
 
@@ -237,7 +240,7 @@ class BlueRedDrawTest {
 
     @Test void voidFadesQuicklyInAndOutInsteadOfCutting() {
         assertEquals(0, BlueRedDraw.voidAlpha(BlueRedRules.PURPLE_SWIRL_END - 1), 1e-9);
-        assertEquals(1, BlueRedDraw.voidAlpha(BlueRedRules.PURPLE_SWIRL_END + 10), 1e-9);
+        assertEquals(1, BlueRedDraw.voidAlpha(BlueRedRules.PURPLE_SWIRL_END + 14), 1e-9);
         double out = BlueRedDraw.voidAlpha((BlueRedRules.PURPLE_MERGE + BlueRedRules.PURPLE_VOID_END) / 2.0);
         assertTrue(out > 0 && out < 1);
         assertEquals(0, BlueRedDraw.voidAlpha(BlueRedRules.PURPLE_VOID_END), 1e-9);

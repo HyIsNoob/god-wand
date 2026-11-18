@@ -177,7 +177,8 @@ public final class BlueRedProbe implements ClientModInitializer {
         // Side view: once Red is away, the camera moves out to the side of the target's line (Red keeps its own path).
         // Moved as soon as the client sees the shot leave (the server can fire a tick or two off the probe's own count when it lags).
         if (scene.equals("hitside") && !sideMoved && BlueRedShowcase.redFired()) { sideMoved = true; server.submit(() -> me(server, c).connection.teleport(OX - 9.5, c.player.getY() + 1.5, OZ + 13.5, -90, 8)).join(); }
-        if (t >= 20 && (hit ? fired >= -12 && fired < 40 : fired < -8 || fired > 12 ? t % 3 == 0 : true)) grab(c);
+        // Combo: every tick from just before the shot through the whole convergence in the world (for real-speed video), then every third.
+        if (t >= 20 && (hit ? fired >= -12 && fired < 40 : fired < -8 || fired > 140 ? t % 3 == 0 : true)) grab(c);
         if (hit && fired >= -2 && fired < 14) {
             var mob = server.submit(() -> me(server, c).serverLevel().getEntity(hitMob)).join();
             if (mob != null) System.out.printf(Locale.ROOT, "GOJO_QA HIT fired=%d mob=%.2f,%.2f,%.2f hp=%.1f%n", fired, mob.getX(), mob.getY(), mob.getZ(),

@@ -34,7 +34,7 @@ public final class PurpleCinematic {
     /** The two orbs meet against black (owner, 2026-11-16) before the cut back to the world. */
     public static boolean inVoid() { return active() && age >= BlueRedRules.PURPLE_SWIRL_END && age < BlueRedRules.PURPLE_VOID_END; }
     /** Fully black: the world Purple is not drawn yet (it shows under the black once that starts thinning). */
-    public static boolean blackout() { return active() && age >= BlueRedRules.PURPLE_SWIRL_END + 6 && age < BlueRedRules.PURPLE_MERGE; }
+    public static boolean blackout() { return active() && age >= BlueRedRules.PURPLE_SWIRL_END + 12 && age < BlueRedRules.PURPLE_MERGE; }
     static double age() { return age; }
     public static void reset() { age = -1; center = null; eye = null; }
 
@@ -54,15 +54,19 @@ public final class PurpleCinematic {
         Vec3 side = away.lengthSqr() < 1e-6 ? new Vec3(0, 0, -1) : away.normalize();
         int blink = BlueRedRules.PURPLE_BLINK, swirl = BlueRedRules.PURPLE_SWIRL_END, merge = BlueRedRules.PURPLE_MERGE, det = BlueRedRules.PURPLE_DETONATE;
         if (age < blink) return aim(eye, center);
-        if (age < swirl) {
-            // Close, a little below, drifting round them.
-            double k = (age - blink) / (swirl - blink);
-            Vec3 s = turn(side, .5 + k * .45);
-            // Pushing in for the compression.
-            double press = GateDraw.smooth((age - BlueRedRules.PURPLE_LIFT_END) / (double) (swirl - BlueRedRules.PURPLE_LIFT_END));
-            return aim(center.add(s.scale(8.8 - 2.2 * k - 2.2 * press)).add(0, -.8 + .6 * k, 0), center);
+        if (age < merge) {
+            // Owner, 2026-11-18: a slow cinematic arc, never turning with the orbs. It starts close and a little below, eases back as they speed
+            // up, and lands square-on to the face-off line (Red on the left, Blue on the right, ready for the 2D act), then creeps in for the hold.
+            int face = BlueRedRules.PURPLE_FACE;
+            double a0 = Math.atan2(turn(side, .5).z, turn(side, .5).x);
+            // up x axis: from there +axis (Red) is on screen-left, as in the 2D act.
+            Vec3 axis = BlueRedDraw.faceAxis(), end = new Vec3(axis.z, 0, -axis.x);
+            double a1 = Math.atan2(end.z, end.x), da = Math.IEEEremainder(a1 - a0, Math.PI * 2);
+            double k = GateDraw.smooth((age - blink) / (double) (face - blink)), hold = GateDraw.smooth((age - face) / (double) (swirl - face));
+            double a = a0 + da * k, dist = 7 + 1.5 * GateDraw.smooth((age - BlueRedRules.PURPLE_PLAY) / 30.0) - 1.2 * hold;
+            // Rising from a little below to a little above, so the level face-off orbit is seen as a ring, not edge-on.
+            return aim(center.add(new Vec3(Math.cos(a), 0, Math.sin(a)).scale(dist)).add(0, -.8 + 3.3 * k, 0), center);
         }
-        if (age < merge) return aim(center.add(side.scale(9)).add(0, .6, 0), center);
         // Racing round it, low and close, then thrown far back and up by the blast.
         double run = age - merge, thrown = GateDraw.smooth((age - det) / 18);
         double ang = 1.2 + run * .055 - Math.max(0, age - det) * .045;

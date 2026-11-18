@@ -17,7 +17,7 @@ class PurpleCinematicTest {
     static Vec3 at(double age) { return CENTER.add(0, BlueRedRules.purpleRise(age), 0); }
 
     @Test void timelineIsInOrder() {
-        assertTrue(PURPLE_BLINK < PURPLE_CONTACT && PURPLE_CONTACT < PURPLE_PLAY && PURPLE_PLAY < PURPLE_LIFT_END && PURPLE_LIFT_END < PURPLE_SWIRL_END
+        assertTrue(PURPLE_BLINK < PURPLE_CONTACT && PURPLE_CONTACT < PURPLE_PLAY && PURPLE_PLAY < PURPLE_LIFT_END && PURPLE_LIFT_END < PURPLE_FACE && PURPLE_FACE < PURPLE_SWIRL_END
                 && PURPLE_SWIRL_END < PURPLE_MERGE && PURPLE_MERGE < PURPLE_VOID_END
                 && PURPLE_VOID_END < PURPLE_DETONATE && PURPLE_DETONATE < PURPLE_CINEMATIC && PURPLE_CINEMATIC < PURPLE_TERRAIN_END);
     }
@@ -38,7 +38,7 @@ class PurpleCinematicTest {
         PurpleCinematic.start(7, 7, 7, CENTER, EYE);
         for (int i = 0; i < PURPLE_SWIRL_END - 1; i++) PurpleCinematic.tick();
         assertFalse(PurpleCinematic.inVoid(), "the orbs first swirl in the world");
-        for (int i = 0; i < 10; i++) PurpleCinematic.tick();
+        for (int i = 0; i < 16; i++) PurpleCinematic.tick();
         assertTrue(PurpleCinematic.blackout(), "then the 2D void");
         while (PurpleCinematic.age() < PURPLE_MERGE + 2) PurpleCinematic.tick();
         assertTrue(PurpleCinematic.inVoid() && !PurpleCinematic.blackout(), "the void thins out over the world Purple");

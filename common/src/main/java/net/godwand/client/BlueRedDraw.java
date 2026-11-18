@@ -896,23 +896,25 @@ final class BlueRedDraw {
         }
     }
 
-    // ---- Convergence (owner, 2026-11-17): contact, playful orbit, lift and tighten, compression ----
+    // ---- Convergence (owner, 2026-11-18): contact, orbit, build-up, face-off ----
 
-    /** Distance between the two orbs: they bounce apart on contact, chase each other wide, are drawn in as they lift, then crushed to a point. */
+    /** Distance between the two orbs: they knock apart on contact, chase each other wide, tighten as the spin climbs, then part to the face-off. */
     static double separation(double age) {
-        int b = BlueRedRules.PURPLE_BLINK, ct = BlueRedRules.PURPLE_CONTACT, pl = BlueRedRules.PURPLE_PLAY, le = BlueRedRules.PURPLE_LIFT_END, se = BlueRedRules.PURPLE_SWIRL_END;
-        // Wide while they chase (owner's ref 40), so their rings circle well clear of the orbs instead of hiding behind them.
-        if (age < ct) return .3 + 4.9 * (1 - Math.pow(1 - clamp01((age - b) / (double) (ct - b)), 2));
-        double play = 5.2 + .7 * Math.sin((Math.min(age, pl) - ct) * .21);
-        if (age < pl) return play;
-        if (age < le) return play + (.9 - play) * smooth((age - pl) / (double) (le - pl));
-        return .05 + .9 * (1 - smooth((age - le) / (double) (se - le)));
+        int b = BlueRedRules.PURPLE_BLINK, ct = BlueRedRules.PURPLE_CONTACT, pl = BlueRedRules.PURPLE_PLAY, le = BlueRedRules.PURPLE_LIFT_END, fa = BlueRedRules.PURPLE_FACE;
+        // Owner, 2026-11-18: knocked apart on contact, then kept wide the whole swirl (no closing in and parting again).
+        if (age < ct) return .3 + (FACE_GAP - .3) * (1 - Math.pow(1 - clamp01((age - b) / (double) (ct - b)), 2));
+        return FACE_GAP + .2 * Math.sin((age - ct) * .17);
     }
 
-    /** Orbit speed in radians per tick: easy while they play, rising as they tighten, fastest in the compression. */
+    /** How far apart they hold at the face-off. */
+    static final double FACE_GAP = 6;
+
+    /** Orbit speed in radians per tick: a moderate start, climbing hard through the build-up (about 3.5 turns a second at the peak), braked to
+     *  a stop for the face-off. */
     static double spin(double age) {
-        int pl = BlueRedRules.PURPLE_PLAY, le = BlueRedRules.PURPLE_LIFT_END, se = BlueRedRules.PURPLE_SWIRL_END;
-        return .09 + .36 * smooth((age - pl) / (double) (le - pl)) + .25 * smooth((age - le) / (double) (se - le));
+        int ct = BlueRedRules.PURPLE_CONTACT, pl = BlueRedRules.PURPLE_PLAY, le = BlueRedRules.PURPLE_LIFT_END, fa = BlueRedRules.PURPLE_FACE;
+        double up = .06 + .24 * smooth((age - ct) / (double) (pl - ct)) + .95 * Math.pow(clamp01((age - pl) / (double) (le - pl)), 1.5);
+        return up * (1 - smooth((age - le) / (double) (fa - le)));
     }
 
     /** Orbit angle: the integral of spin (half-tick steps, deterministic). */
@@ -922,92 +924,160 @@ final class BlueRedDraw {
         return a;
     }
 
-    /** {blue, red} offsets from the pair's centre: an orbit on a precessing plane with unequal, breathing radii; the gap between them wanders while
-     *  they play (they chase, nearly catch, fall back) and settles to opposite sides as they are drawn in. */
-    static Vec3[] convergeOffsets(double age) {
+    /** {blue, red} on the orbit: a precessing, tilted plane, unequal breathing radii, a gap that wanders while they chase and settles to
+     *  opposite sides as the spin climbs. */
+    /** The orbit plane's normal at this age: tilted and slowly precessing. */
+    static Vec3 orbitNormal(double age) { return new Vec3(Math.sin(age * .031) * .45, 1, Math.cos(age * .023) * .45).normalize(); }
+
+    static Vec3[] orbitOffsets(double age) {
         double th = orbitAngle(age), d = separation(age);
         double settle = smooth((age - BlueRedRules.PURPLE_PLAY) / (double) (BlueRedRules.PURPLE_LIFT_END - BlueRedRules.PURPLE_PLAY));
-        Vec3 n = new Vec3(Math.sin(age * .031) * .45, 1, Math.cos(age * .023) * .45).normalize();
+        Vec3 n = orbitNormal(age);
         Vec3[] uw = basis(n);
-        double gap = Math.PI + .9 * Math.sin(age * .07) * (1 - settle);
-        double rb = d * .45 * (1 + .15 * Math.sin(age * .05)), rr = d * .55 * (1 + .2 * Math.sin(age * .06 + 1));
-        Vec3 blue = uw[0].scale(Math.cos(th) * rb).add(uw[1].scale(Math.sin(th) * rb * .85)).add(n.scale(Math.sin(age * .09) * d * .12));
-        Vec3 red = uw[0].scale(Math.cos(th + gap) * rr).add(uw[1].scale(Math.sin(th + gap) * rr * .85)).add(n.scale(Math.sin(age * .08 + 2) * d * .15));
+        // Both ride the same circle (the electric orbit), opposite each other; early on the gap wanders a little (they chase).
+        double gap = Math.PI + .5 * Math.sin(age * .07) * (1 - settle), rad = d / 2;
+        Vec3 blue = uw[0].scale(Math.cos(th) * rad).add(uw[1].scale(Math.sin(th) * rad));
+        Vec3 red = uw[0].scale(Math.cos(th + gap) * rad).add(uw[1].scale(Math.sin(th + gap) * rad));
         return new Vec3[]{blue, red};
     }
 
-    /** The convergence in the world, from the stored base (where Blue was): each orb true to itself, trailing its real past path (sampled from the same
-     *  motion, so the trail is exactly where it has been), contact sparks, lightning thickening as they tighten, an imploding ring and a violet point
-     *  in the compression; after it (bystanders only) that point grows into the Purple that takes over at MERGE. */
+    /** The face-off axis: where Red's orbit leaves it when the spin stops, made level. Red ends on +axis, Blue on -axis. */
+    static Vec3 faceAxis() {
+        Vec3 r = orbitOffsets(BlueRedRules.PURPLE_FACE)[1];
+        Vec3 h = new Vec3(r.x, 0, r.z);
+        return h.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : h.normalize();
+    }
+
+    /** {blue, red} offsets from the pair's centre: on the orbit, then, while the spin brakes, eased onto the level face-off line (from where the
+     *  orbit is already taking them, so nothing jumps), held there breathing. */
+    static Vec3[] convergeOffsets(double age) {
+        Vec3[] o = orbitOffsets(age);
+        double f = smooth((age - BlueRedRules.PURPLE_LIFT_END) / (double) (BlueRedRules.PURPLE_FACE - BlueRedRules.PURPLE_LIFT_END));
+        if (f <= 0) return o;
+        Vec3 a = faceAxis().scale(separation(age) / 2), lift = new Vec3(0, .25 * Math.sin(age * .15), 0);
+        return new Vec3[]{o[0].add(a.scale(-1).add(lift).subtract(o[0]).scale(f)), o[1].add(a.add(lift.scale(-1)).subtract(o[1]).scale(f))};
+    }
+
+    /** The convergence in the world, from the stored base (where Blue was): the twin orbs, each trailing its real past path (sampled from the
+     *  same motion) that grows into a ring as they speed up and fades as they brake; contact flash and sparks; lightning between them,
+     *  thickening with the spin, crackling thin across the gap in the face-off. After SWIRL_END (bystanders only) the two glide together into
+     *  a violet point that grows into the Purple that takes over at MERGE. */
     static void converge(Ctx c, Vec3 base, double age, Vec3 eye, Vec3 look) {
-        int ct = BlueRedRules.PURPLE_CONTACT, pl = BlueRedRules.PURPLE_PLAY, le = BlueRedRules.PURPLE_LIFT_END, se = BlueRedRules.PURPLE_SWIRL_END;
+        int ct = BlueRedRules.PURPLE_CONTACT, pl = BlueRedRules.PURPLE_PLAY, le = BlueRedRules.PURPLE_LIFT_END, fa = BlueRedRules.PURPLE_FACE, se = BlueRedRules.PURPLE_SWIRL_END;
         Vec3 center = base.add(0, BlueRedRules.purpleRise(age), 0);
-        double comp = smooth((age - le) / (double) (se - le));
         if (age >= se) {
             double born = smooth((age - se) / (double) (BlueRedRules.PURPLE_MERGE - se));
-            if (c.body()) orb(c, center, .3 + 5.7 * born, 2, 1, VIOLET, 1);
-            if (c.glow()) { glow(c, center, 2 + 10 * born, .7, VIOLET); stormBands(c, center, .3 + 5.7 * born, age, 10, born); }
+            Vec3 a = faceAxis().scale(FACE_GAP / 2 * (1 - born));
+            double f0 = c.fade;
+            c.fade = f0 * (1 - born);
+            swirlOrb(c, center.subtract(a), 1.5 * (1 - .5 * born), age + 40, true, BLUE_P, 1, 0, 0);
+            swirlOrb(c, center.add(a), 1.5 * (1 - .5 * born), age + 40, true, RED_P, 1, 0, 77777);
+            c.fade = f0;
+            if (c.body()) orb(c, center, .3 + 5.7 * born, 2, 1, VIOLET, born);
+            if (c.glow()) { glow(c, center, 2 + 10 * born, .7 * born, VIOLET); stormBands(c, center, .3 + 5.7 * born, age, 10, born); }
             return;
         }
         Vec3[] o = convergeOffsets(age);
         Vec3 blue = center.add(o[0]), red = center.add(o[1]);
         if (age > ct) {
             double in = smooth((age - ct) / 8.0);
-            trail(c, base, age, 0, c.body() ? 0x2A7CFF : CYAN, in);
-            // The body ramp darkens pure red to wine, so Red's ring uses a lighter red to read as red like Blue's reads as blue.
-            trail(c, base, age, 1, c.body() ? RED_BODY : RED, in);
+            double ring = in * (1 - smooth((age - le) / (double) (fa - le + 10)));
+            spinBand(c, base, age, 0, ring);
+            spinBand(c, base, age, 1, ring);
+            coreStorm(c, center, age, in);
+            drag(c, base, age, 0, BLUE_P, in);
+            drag(c, base, age, 1, RED_P, in);
         }
-        double f0 = c.fade;
-        c.fade = f0 * (1 - .7 * comp);
         // Owner, 2026-11-18: once they meet they are the same kind of orb, the same size, the same effect; only the colour differs.
-        double twin = 1.5 * (1 - .4 * comp);
-        swirlOrb(c, blue, twin, age + 40, true, BLUE_P, 1, 0, 0);
-        swirlOrb(c, red, twin, age + 40, true, RED_P, 1, 0, 77777);
-        c.fade = f0;
+        swirlOrb(c, blue, 1.5, age + 40, true, BLUE_P, 1, 0, 0);
+        swirlOrb(c, red, 1.5, age + 40, true, RED_P, 1, 0, 77777);
         if (!c.glow()) return;
         double contact = 1 - clamp01((age - BlueRedRules.PURPLE_BLINK) / (double) (ct - BlueRedRules.PURPLE_BLINK));
         if (contact > 0) {
             fxSprite(c, center, 1 + 5 * (1 - contact), SHOCK, 3900, PALE, contact, 0);
             sparks(c, center, 1 + 3 * (1 - contact), age, 40, ORCHID, 3910);
         }
-        double tight = smooth((age - pl) / (double) (le - pl));
-        int bolts = (int) (1 + 4 * (1 - contact) + 10 * tight + 6 * comp);
+        double build = spin(age) / 1.25, hold = smooth((age - fa) / 8.0);
+        int bolts = (int) (1 + 4 * contact + 3 * build + 3 * hold);
         for (int j = 0; j < bolts; j++) {
             Vec3 from = red.add(nvec(3000 + j, age * .06).scale(.5)), to = blue.add(nvec(3100 + j, age * .06).scale(.5));
-            liveBolt(c, from, to, 8, .3, .015 + .06 * tight + .05 * comp, j % 3 == 0 ? PALE : ORCHID, .95, 3200 + j * 29, age, .9);
+            liveBolt(c, from, to, 8, .3, .012 + .05 * build + .01 * hold, j % 3 == 0 ? PALE : ORCHID, .95, 3200 + j * 29, age, .9);
         }
-        if (tight > 0) streaks(c, center, .3, separation(age) + 4, age, (int) (50 * tight), ORCHID, 3400, 2, tight, true);
-        if (comp > 0) {
-            fxSprite(c, center, .5 + 7 * (1 - comp), SHOCK, 3950, ORCHID, comp, age * .1);
-            orb(c, center, .2 + 1.2 * comp, 2, 1, VIOLET, comp);
-            glow(c, center, 1 + 6 * comp, comp, 0xFFFFFF);
-        }
+        if (build > .2) streaks(c, center, .3, separation(age) + 4, age, (int) (50 * build), ORCHID, 3400, 2, build, true);
     }
 
-    /** One orb's trail (owner's ref 40): a long arc along its real past path, about two thirds of a turn whatever the speed, so the pair draws
-     *  round red and blue rings as they chase. Thick and dark-coloured on the body layer, a thinner bright core on the glow layer; it narrows and
-     *  fades towards the tail. Positions relative to the moving centre, so the rings stay round while the pair lifts. */
-    private static void trail(Ctx c, Vec3 base, double age, int which, int color, double alpha) {
-        double span = Math.min(40, 4.2 / spin(age));
+    /** The ring the spin makes (owner's refs, 2026-11-18): a thick, soft band along the orb's real path (red behind Red, pale electric blue
+     *  behind Blue), lengthening as the spin climbs until the two halves close into one ring; lightning runs along it, and it fades as they
+     *  brake. A thin bright core rides on it in the glow pass. */
+    private static void spinBand(Ctx c, Vec3 base, double age, int which, double alpha) {
+        if (alpha <= 0) return;
+        double sp = Math.max(.06, spin(age)), build = clamp01(sp / 1.25);
+        double arc = 1.6 + 2.2 * build, span = Math.min(30, arc / sp);
         Vec3 now = base.add(0, BlueRedRules.purpleRise(age), 0);
-        int n = 28;
+        int n = 36;
         Vec3[] pts = new Vec3[n + 1];
-        double[] widths = new double[n + 1];
-        // Additive glow over the ribbon burns it white, so the glow is only a thin, faint core and the colour comes from the body.
-        double w = c.body() ? .4 : .08;
+        double[] w = new double[n + 1], al = new double[n + 1];
         for (int j = 0; j <= n; j++) {
             double t = (double) j / n, at = Math.max(0, age - span * (1 - t));
             pts[j] = now.add(convergeOffsets(at)[which]);
-            widths[j] = w * (.35 + .65 * t) * (1 + .15 * Math.sin(t * 9 - age * .4));
+            w[j] = (.35 + .55 * build) * (.25 + .75 * Math.pow(t, .6)) * (1 + .12 * Math.sin(t * 11 - age * .5));
+            al[j] = smooth(t / .4);
         }
-        fxRibbon(c, pts, widths, c.body() ? RING : FLOW, 3500 + which, color, alpha * (c.body() ? .9 : .35));
+        if (c.body()) {
+            fxRibbon(c, pts, w, al, PLASMA, 3550 + which, which == 1 ? RED : 0x7AC8FF, alpha * (.55 + .35 * build));
+            return;
+        }
+        double[] core = new double[n + 1];
+        for (int j = 0; j <= n; j++) core[j] = w[j] * .25;
+        fxRibbon(c, pts, core, al, FLOW, 3560 + which, which == 1 ? RED_LIGHT : ICE, alpha * .5 * build);
+        // Lightning running in the band: a few short live arcs between points along it.
+        for (int b = 0; b < (int) (2 + 5 * build); b++) {
+            int i0 = 6 + (int) (hash(3570 + b * 7 + which) * (n - 12)), i1 = Math.min(n, i0 + 4 + (int) (hash(3571 + b * 7) * 5));
+            liveBolt(c, pts[i0], pts[i1], 5, .4, .02 + .03 * build, b % 2 == 0 ? PALE : ORCHID, alpha * build, 3580 + b * 13 + which * 101, age, .9);
+        }
+    }
+
+    /** The core between them (owner's refs): a white-pink light at the centre of the ring, swelling with the spin, with lightning crackling out
+     *  of it, mostly up and down, flickering as the bolts move. */
+    private static void coreStorm(Ctx c, Vec3 center, double age, double alpha) {
+        if (!c.glow() || alpha <= 0) return;
+        double build = clamp01(spin(age) / 1.25), hold = smooth((age - BlueRedRules.PURPLE_FACE) / 8.0), k = Math.max(build, .35 * hold) * alpha;
+        if (k <= .02) return;
+        glow(c, center, .8 + 2.4 * k, .7 * k, 0xFFFFFF);
+        glow(c, center, 2 + 3 * k, .45 * k, ORCHID);
+        for (int b = 0; b < (int) (2 + 6 * k); b++) {
+            Vec3 d = new Vec3(snoise(3700 + b, age * .2) * .6, b % 2 == 0 ? 1 : -1, snoise(3710 + b, age * .2) * .6).normalize();
+            liveBolt(c, center, center.add(d.scale(1.5 + 2.5 * k * vnoise(3720 + b, age * .3))), 6, .45, .02 + .04 * k, b % 3 == 0 ? PALE : ORCHID, k, 3730 + b * 19, age, 1);
+        }
+    }
+
+    /** What the spin drags behind an orb (owner, 2026-11-18: inertia): three broad strokes of its own colours streaming back along the path it
+     *  really took, full at the orb and torn, thinning and fading behind it; longer the faster it goes. */
+    private static void drag(Ctx c, Vec3 base, double age, int which, Palette p, double alpha) {
+        if (!c.body() || alpha <= 0) return;
+        double sp = Math.max(.04, spin(age)), build = clamp01(sp / 1.25);
+        Vec3 now = base.add(0, BlueRedRules.purpleRise(age), 0), n = orbitNormal(age);
+        for (int h = 0; h < 3; h++) {
+            double arc = (.7 + .5 * h) * (.6 + 1.4 * build), span = Math.min(30, arc / sp);
+            int k = 16;
+            Vec3[] pts = new Vec3[k + 1];
+            double[] w = new double[k + 1], al = new double[k + 1];
+            for (int j = 0; j <= k; j++) {
+                double t = (double) j / k, at = Math.max(0, age - span * (1 - t));
+                pts[j] = now.add(convergeOffsets(at)[which]).add(n.scale((h - 1) * .35 * (1 - t)));
+                double tear = smooth((vnoise(3520 + which * 10 + h, t * 5 - age * .3) - .2 * (1 - t)) / .12);
+                w[j] = (.9 - .2 * h) * (.15 + .85 * Math.pow(t, .7)) * tear * (.6 + .5 * vnoise(3530 + which * 10 + h, t * 3 + age * .2));
+                al[j] = smooth(t / .5);
+            }
+            fxRibbon(c, pts, w, al, PLASMA, 3500 + which * 10 + h, h == 0 ? p.mid() : h == 1 ? p.deep() : p.light(), alpha * (h == 2 ? .6 : .85));
+        }
     }
 
     /** Black over the world for Purple's two players: a quick fade in after the swirl, a fade out over the world Purple. */
     static double voidAlpha(double age) {
         int in = BlueRedRules.PURPLE_SWIRL_END, merge = BlueRedRules.PURPLE_MERGE, end = BlueRedRules.PURPLE_VOID_END;
         if (age < in || age >= end) return 0;
-        if (age < merge) return smooth((age - in) / 6);
+        if (age < merge) return smooth((age - in) / 12);
         return 1 - smooth((age - merge) / (end - merge));
     }
 
@@ -1021,7 +1091,7 @@ final class BlueRedDraw {
         Vec3 view = new Vec3(eye.x - at.x, 0, eye.z - at.z);
         view = view.lengthSqr() < 1e-6 ? new Vec3(0, 0, -1) : view.normalize();
         Vec3 axis = view.cross(new Vec3(0, 1, 0)).normalize(), swing = new Vec3(0, 1, 0).scale(.6).add(view.scale(.4)).normalize();
-        double push = smooth(v / (span * .8)), form = smooth((v - span * .45) / (span * .35)), absorb = smooth((v - span * .6) / (span * .4));
+        double push = smooth((v - 10) / (span * .75)), form = smooth((v - span * .45) / (span * .35)), absorb = smooth((v - span * .6) / (span * .4));
         if (c.body()) {
             Vec3[] uw = basis(look);
             Vec3 o = eye.add(look.scale(.5));
@@ -1034,9 +1104,10 @@ final class BlueRedDraw {
                 fxSprite(c, at.subtract(view.scale(3 + i % 4)).add(axis.scale(x * 14)).add(0, y, 0), 3 + (i % 3), SMOKE, 260 + i, color, .35 * back, i);
             }
         }
-        double orbs = (1 - absorb) * (age < merge ? smooth((back - .55) / .45) : 1);
+        // Match cut (owner, 2026-11-18): the 2D orbs show up where the world orbs are as the backdrop fades in, then grow and part into the 2D layout.
+        double orbs = (1 - absorb) * (age < merge ? smooth(back / .35) : 1), intro = smooth(v / 16);
         // Red on the left, Blue on the right, gliding straight at each other: big textured spheres whose substance smears out behind them.
-        double gapD = 5.6 * (1 - push) + .15 * (1 - absorb), r = 2.4 * (1 - .65 * absorb);
+        double gapD = (FACE_GAP / 2 + (5.6 - FACE_GAP / 2) * intro) * (1 - push) + .15 * (1 - absorb), r = (1.5 + .9 * intro) * (1 - .65 * absorb);
         // view x up points to screen left, so Red goes on +axis to sit on the left like the owner's frame.
         Vec3 red = at.add(axis.scale(gapD)), blue = at.subtract(axis.scale(gapD));
         if (orbs > .02) for (int side = 0; side < 2; side++) {

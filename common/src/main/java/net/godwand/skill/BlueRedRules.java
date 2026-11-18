@@ -25,17 +25,19 @@ public final class BlueRedRules {
     /** Purple timeline in ticks (owner's direction, 2026-11-16): a blink, the orbs swirl in the world, a quick fade to the 2D void where they are pushed
      *  together and Purple swallows them (the void thins out from MERGE to VOID_END), the camera races round Purple, it detonates, the cutscene
      *  ends, the crater stops growing. */
-    public static final int PURPLE_BLINK = 4, PURPLE_SWIRL_END = 76, PURPLE_MERGE = 136, PURPLE_VOID_END = 144,
-            PURPLE_DETONATE = 196, PURPLE_CINEMATIC = 246, PURPLE_TERRAIN_END = 266;
-    /** The convergence beats in the world (owner, 2026-11-17): contact until CONTACT, a playful orbit until PLAY, lift and tighten until LIFT_END,
-     *  compression until SWIRL_END, when the 2D act fades in. */
-    public static final int PURPLE_CONTACT = 14, PURPLE_PLAY = 44, PURPLE_LIFT_END = 68;
+    public static final int PURPLE_BLINK = 4, PURPLE_SWIRL_END = 90, PURPLE_MERGE = 150, PURPLE_VOID_END = 158,
+            PURPLE_DETONATE = 210, PURPLE_CINEMATIC = 260, PURPLE_TERRAIN_END = 280;
+    /** The convergence in the world (owner, 2026-11-18), 4.5 seconds: contact until CONTACT; an orbit until PLAY; the build-up until LIFT_END, the
+     *  spin climbing hard while the pair lifts; braking and parting to opposite sides until FACE; the face-off held until SWIRL_END, when the 2D
+     *  act fades in. */
+    public static final int PURPLE_CONTACT = 12, PURPLE_PLAY = 30, PURPLE_LIFT_END = 66, PURPLE_FACE = 76;
     /** Purple bursts this far above the Blue that made it (owner, 2026-11-16: "nổ trên trời"): the orbs soar up while they swirl. */
     public static final double PURPLE_LIFT = 16;
 
-    /** Offset of the orbs below the burst point at this age: -PURPLE_LIFT at the Blue until the lift beat, rising to 0 by its end. */
+    /** Offset of the orbs below the burst point at this age: -PURPLE_LIFT at the Blue at contact, rising slowly all through the swirl to 0 at
+     *  the face-off (owner, 2026-11-18). */
     public static double purpleRise(double age) {
-        double k = Math.max(0, Math.min(1, (age - PURPLE_PLAY) / (PURPLE_LIFT_END - PURPLE_PLAY)));
+        double k = Math.max(0, Math.min(1, (age - PURPLE_CONTACT) / (double) (PURPLE_FACE - PURPLE_CONTACT)));
         return -PURPLE_LIFT * (1 - k * k * (3 - 2 * k));
     }
 
