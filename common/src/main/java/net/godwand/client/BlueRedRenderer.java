@@ -132,20 +132,25 @@ public final class BlueRedRenderer {
             var me = Minecraft.getInstance().player;
             if (me != null && me.position().distanceTo(p.pos()) < 60) {
                 // The contact hits (owner, 2026-11-18), and an orb sweeping past the camera shakes it a little.
-                if (age == BlueRedRules.PURPLE_BLINK) GodWandCinematicEngine.addTrauma(.45f, 10);
+                if (age == BlueRedRules.PURPLE_BLINK) {
+                    GodWandCinematicEngine.addTrauma(.45f, 10);
+                    // A pressure front hugging the ground, like Fuga's (owner, 2026-11-18).
+                    ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 18);
+                }
+                if (age == BlueRedRules.PURPLE_DETONATE) ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 46);
                 if (age > BlueRedRules.PURPLE_CONTACT && age < BlueRedRules.PURPLE_SWIRL_END) {
                     Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition(), centre = p.pos().add(0, BlueRedRules.purpleRise(age), 0);
                     for (Vec3 o : BlueRedDraw.convergeOffsets(age)) {
                         double d = centre.add(o).distanceTo(cam);
-                        if (d < 6) GodWandCinematicEngine.addTrauma((float) (.03 * (6 - d) / 6), 4);
+                        if (d < 5) GodWandCinematicEngine.addTrauma((float) (.015 * (5 - d) / 5), 4);
                     }
                 }
-                for (int k = 0; k < BlueRedRules.PURPLE_STRIKES; k++) if (age == BlueRedRules.strikeTick(k)) GodWandCinematicEngine.addTrauma(.12f, 6);
+                for (int k : PurpleCinematic.STRIKE_SHOTS) if (age == BlueRedRules.strikeTick(k)) GodWandCinematicEngine.addTrauma(.25f, 8);
             }
             // The 2D act shakes harder as the spheres close in, and the touch hits with an impact frame (owner, 2026-11-18).
             if (PurpleCinematic.active() && PurpleCinematic.inVoid()) {
                 double close = BlueRedDraw.voidClose(age);
-                if (close > 0) GodWandCinematicEngine.addTrauma((float) (.015 + .05 * close), 6);
+                if (close > .6) GodWandCinematicEngine.addTrauma((float) (.05 * (close - .6) / .4), 6);
                 if (age == BlueRedDraw.voidTouch() && GodWandConfig.CLIENT.impactFrames) { IMPACTS.clear(); IMPACTS.add(new Burst(p.pos(), clock, true)); GodWandCinematicEngine.addTrauma(.5f, 10); }
             }
         }
@@ -166,6 +171,11 @@ public final class BlueRedRenderer {
         }
     }
 
+    private static Vec3 groundUnder(Vec3 at) {
+        var lvl = Minecraft.getInstance().level;
+        return lvl == null ? at : new Vec3(at.x, lvl.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, (int) Math.floor(at.x), (int) Math.floor(at.z)), at.z);
+    }
+
     private static Vec3 drawn(BlueView v, double partial) {
         return BlueRedVisual.interp(v.prev, v.pos, (clock + partial - v.at) / v.gap);
     }
@@ -180,7 +190,7 @@ public final class BlueRedRenderer {
     public static boolean bloomPending() { return bloom != null; }
     public static void flushPostFx() {
         float[] b = bloom; bloom = null;
-        if (b != null) GatePostFx.process(b[0], b[1], b[2], b[3], b[4], 0, 0, b[5], b[6], (float) (clock / 20.0));
+        if (b != null) GatePostFx.process(b[0], b[1], b[2], b[3], b[4], b[7], 0, b[5], b[6], (float) (clock / 20.0));
     }
 
     private static void planBloom(PoseStack pose, Camera camera, float partial) {
@@ -215,7 +225,13 @@ public final class BlueRedRenderer {
             if (clip.w > .001f) { sx = clip.x / clip.w * .5f + .5f; sy = clip.y / clip.w * .5f + .5f; } else burst = 0;
         }
         if (burst == 0 && light != null && sx == .5f && sy == .5f) warp = 0;
-        bloom = new float[]{(float) (GodWandConfig.CLIENT.bloomStrength * strength), (float) burst, sx, sy, partial, (float) warp, (float) Math.min(.9, warpSize)};
+        // Black-and-white ink frames (the gate filter) on the contact and the blast: two frames, lit-on-black then inverted.
+        float ink = 0;
+        if (!PURPLES.isEmpty() && GodWandConfig.CLIENT.impactFrames) {
+            int age = (int) Math.floor(now - PURPLES.get(PURPLES.size() - 1).at());
+            for (int hit : new int[]{BlueRedRules.PURPLE_BLINK, BlueRedRules.PURPLE_DETONATE}) if (age == hit) ink = 1; else if (age == hit + 1) ink = 2;
+        }
+        bloom = new float[]{(float) (GodWandConfig.CLIENT.bloomStrength * strength), (float) burst, sx, sy, partial, (float) warp, (float) Math.min(.9, warpSize), ink};
     }
 
     public static void render(PoseStack pose, Camera camera, float partial) {

@@ -86,6 +86,9 @@ public final class ImpactDebrisRenderer {
         burst.sampleSurface();
         BURSTS.add(burst);
     }
+    /** A pressure front rolling out over the terrain from {@code center} (the seismic kind), for other skills' blasts. */
+    public static void groundWave(Vec3 center, double radius) { add(center, new Vec3(0, 1, 0), radius, 1); }
+
     public static void receive(CannonPressurePayload payload) {
         add(payload.center(), payload.surfaceNormal(), 3 + payload.level(), 0);
     }

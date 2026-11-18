@@ -79,12 +79,18 @@ public final class PurpleCinematic {
             Vec3 g = new Vec3(Math.floor(center.x + o[0]) + .5, center.y - BlueRedRules.PURPLE_LIFT - 1.6, Math.floor(center.z + o[1]) + .5);
             Vec3 outward = new Vec3(o[0], 0, o[1]).normalize();
             double t = age - BlueRedRules.strikeTick(shot);
-            return aim(g.add(outward.scale(7 - .2 * t)).add(turn(outward, Math.PI / 2).scale(2.5)).add(0, 1.4, 0), g.add(0, 4 + .2 * t, 0));
+            // Slow: a gentle drift in and tilt up the bolt.
+            return aim(g.add(outward.scale(8 - .08 * t)).add(turn(outward, Math.PI / 2).scale(2.5)).add(0, 1.4, 0), g.add(0, 4 + .1 * t, 0));
+        }
+        // A far shot first (owner, 2026-11-18): the whole sky and the ground round it, drifting slowly.
+        if (age < FAR_END) {
+            double f = (age - merge) / (double) (FAR_END - merge);
+            return aim(center.add(turn(side, .6 + .15 * f).scale(46 - 4 * f)).add(0, 4, 0), center);
         }
         // Bolder (owner, 2026-11-18): a low hero shot looking up at it as it is born, a sweep round it rising to its level, a fast push in
         // just before the burst, then thrown far back and up by the blast.
         double run = age - merge, thrown = GateDraw.smooth((age - det) / 18), span = det - merge;
-        double ang = 1.2 + run * .055 - Math.max(0, age - det) * .045;
+        double ang = 1.2 + run * .025 - Math.max(0, age - det) * .02;
         double rise = GateDraw.smooth(run / (span * .75)), push = GateDraw.smooth((run - span * .75) / (span * .25));
         // Thrown well clear of the blast (it grows past 80 blocks), so the column and the shockwaves are seen from outside.
         double d = 20 - 6 * rise - 5 * push + thrown * 85 + Math.max(0, age - det - 18) * .2;
@@ -93,18 +99,20 @@ public final class PurpleCinematic {
     }
 
     /** The strikes the camera cuts to, and how long each shot holds round its strike (from 2 ticks before to 8 after). */
-    static final int[] STRIKE_SHOTS = {1, 4, 8};
+    static final int[] STRIKE_SHOTS = {6};
+    /** The far shot holds from MERGE to here. */
+    static final int FAR_END = BlueRedRules.PURPLE_MERGE + 20;
 
     /** The strike being shown at this age, or -1. */
     static int strikeShot(double age) {
-        for (int k : STRIKE_SHOTS) { double t = age - BlueRedRules.strikeTick(k); if (t >= -2 && t < 8) return k; }
+        for (int k : STRIKE_SHOTS) { double t = age - BlueRedRules.strikeTick(k); if (t >= -4 && t < 16) return k; }
         return -1;
     }
 
     /** Is a cut to or from a strike shot near this age? */
     static boolean nearStrikeCut(double age) {
-        for (int k : STRIKE_SHOTS) { double t = age - BlueRedRules.strikeTick(k); if (Math.abs(t + 2) < .6 || Math.abs(t - 8) < .6) return true; }
-        return false;
+        for (int k : STRIKE_SHOTS) { double t = age - BlueRedRules.strikeTick(k); if (Math.abs(t + 4) < .6 || Math.abs(t - 16) < .6) return true; }
+        return Math.abs(age - FAR_END) < .6;
     }
 
     /** Never inside a wall: if blocks stand between the sphere and the camera, the camera stops just in front of them. */

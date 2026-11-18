@@ -65,13 +65,14 @@ class PurpleCinematicTest {
     @Test void racesRoundPurpleThenIsThrownFar() {
         double before = 0, turned = 0;
         Vec3 prev = null;
-        for (double age = PURPLE_VOID_END; age < PURPLE_DETONATE; age += 1) {
+        for (double age = PurpleCinematic.FAR_END + 1; age < PURPLE_DETONATE; age += 1) {
+            if (PurpleCinematic.strikeShot(age) >= 0) { prev = null; continue; }
             Vec3 p = PurpleCinematic.pose(CENTER, EYE, age).position().subtract(CENTER);
             if (prev != null) turned += Math.abs(Math.atan2(prev.x * p.z - prev.z * p.x, prev.x * p.x + prev.z * p.z));
             prev = p;
             before = p.length();
         }
-        assertTrue(turned > Math.PI * .8, "a fast move round it: " + turned);
+        assertTrue(turned > .3, "a slow move round it: " + turned);
         double after = PurpleCinematic.pose(CENTER, EYE, PURPLE_DETONATE + 20).position().distanceTo(CENTER);
         assertTrue(after > before + 15, before + " -> " + after);
     }

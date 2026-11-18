@@ -1048,9 +1048,12 @@ final class BlueRedDraw {
         Vec3 n = orbitNormal(age);
         Vec3[] uw = basis(n);
         // Both ride the same circle (the electric orbit), opposite each other; early on the gap wanders a little (they chase).
-        double gap = Math.PI + .5 * Math.sin(age * .07) * (1 - settle), rad = d / 2;
-        Vec3 blue = uw[0].scale(Math.cos(th) * rad).add(uw[1].scale(Math.sin(th) * rad));
-        Vec3 red = uw[0].scale(Math.cos(th + gap) * rad).add(uw[1].scale(Math.sin(th + gap) * rad));
+        // Owner, 2026-11-18: Blue holds still at the centre (rising with the pair) while Red circles it, slow then faster; through the build-up
+        // Blue is drawn out onto the orbit too, until the two chase each other on opposite sides. Their distance stays d throughout.
+        double gap = Math.PI + .3 * Math.sin(age * .07) * (1 - settle), join = settle;
+        double rb = d * .5 * join, rr = d * (1 - .5 * join);
+        Vec3 blue = uw[0].scale(Math.cos(th) * rb).add(uw[1].scale(Math.sin(th) * rb));
+        Vec3 red = uw[0].scale(Math.cos(th + gap) * rr).add(uw[1].scale(Math.sin(th + gap) * rr));
         return new Vec3[]{blue, red};
     }
 
@@ -1078,7 +1081,7 @@ final class BlueRedDraw {
     static void converge(Ctx c, Vec3 base, double age, Vec3 eye, Vec3 look) {
         int ct = BlueRedRules.PURPLE_CONTACT, pl = BlueRedRules.PURPLE_PLAY, le = BlueRedRules.PURPLE_LIFT_END, fa = BlueRedRules.PURPLE_FACE, se = BlueRedRules.PURPLE_SWIRL_END;
         Vec3 center = base.add(0, BlueRedRules.purpleRise(age), 0);
-        if (age >= se) {
+        if (age >= se + 12) {
             double born = smooth((age - se) / (double) (BlueRedRules.PURPLE_MERGE - se));
             Vec3 a = faceAxis().scale(FACE_GAP / 2 * (1 - born));
             double f0 = c.fade;
@@ -1182,8 +1185,9 @@ final class BlueRedDraw {
         glow(c, center, .8 + 2.4 * k, .7 * k, 0xFFFFFF);
         glow(c, center, 2 + 3 * k, .45 * k, ORCHID);
         for (int b = 0; b < (int) (2 + 6 * k); b++) {
-            Vec3 d = new Vec3(snoise(3700 + b, age * .2) * .6, b % 2 == 0 ? 1 : -1, snoise(3710 + b, age * .2) * .6).normalize();
-            liveBolt(c, center, center.add(d.scale(1.5 + 2.5 * k * vnoise(3720 + b, age * .3))), 6, .45, .02 + .04 * k, b % 3 == 0 ? PALE : ORCHID, k, 3730 + b * 19, age, 1);
+            // Short and all round (owner, 2026-11-18): a ball of crackling, not spikes up and down.
+            Vec3 d = nvec(3700 + b, age * .2).normalize();
+            liveBolt(c, center, center.add(d.scale(.7 + .9 * k * vnoise(3720 + b, age * .3))), 5, .45, .02 + .04 * k, b % 3 == 0 ? PALE : ORCHID, k, 3730 + b * 19, age, 1);
         }
     }
 
@@ -1229,7 +1233,7 @@ final class BlueRedDraw {
         double back = voidAlpha(age);
         if (back <= 0) return;
         // The 2D act is framed by the camera, not by the world: always 9 blocks in front of it, whatever the 3D camera did.
-        at = eye.add(look.scale(9));
+        at = eye.add(look.scale(10));
         int in = BlueRedRules.PURPLE_SWIRL_END, merge = BlueRedRules.PURPLE_MERGE;
         double v = age - in, span = merge - in;
         // Black first (8 ticks), then the act fades in over it.
@@ -1261,7 +1265,7 @@ final class BlueRedDraw {
             }
         }
         double orbs = (1 - absorb) * show, close = smooth((push - .2) / .75) * (1 - absorb);
-        double gapD = 5.4 * (1 - .85 * push) + .15 * (1 - absorb), r = 2.6 * (1 - .65 * absorb);
+        double gapD = 5.8 * (1 - .82 * push) + .15 * (1 - absorb), r = 3.1 * (1 - .65 * absorb);
         // view x up points to screen left: Red on +axis (left), Blue on -axis (right), level (owner: never tilted).
         Vec3 dirRed = axis;
         Vec3 red = at.add(dirRed.scale(gapD)), blue = at.subtract(dirRed.scale(gapD));
@@ -1302,9 +1306,9 @@ final class BlueRedDraw {
                     for (int q = 0; q <= k; q++) {
                         double t = (double) q / k;
                         pts[q] = p.add(up.scale(y + r * .1 * snoise(sd + 3, t * 3 - age * .1))).add(outward.scale(-r * .85 + L * t)).add(view.scale(.15));
-                        w[q] = r * (.05 + .07 * hash(sd + 4)) * Math.sin(Math.PI * Math.min(1, t * 1.15)) * (.5 + .7 * vnoise(sd + 5, t * 4 - drift * 6));
+                        w[q] = r * (.1 + .12 * hash(sd + 4)) * Math.sin(Math.PI * Math.min(1, t * 1.15)) * (.5 + .7 * vnoise(sd + 5, t * 4 - drift * 6));
                     }
-                    fxRibbon(c, pts, w, BRUSH, (int) (sd % 977), j % 2 == 0 ? pal.light() : 0x0A0410, .55 * orbs);
+                    fxRibbon(c, pts, w, BRUSH, (int) (sd % 977), j % 2 == 0 ? pal.light() : 0x0A0410, .33 * orbs);
                 }
             }
             if (c.glow()) {

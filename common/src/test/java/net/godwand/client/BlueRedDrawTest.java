@@ -211,7 +211,7 @@ class BlueRedDrawTest {
 
     /** Owner's ref 40: while they chase, each orb drags a long ring of its own colour round the orbit, Red's as long as Blue's. */
     @Test void bothOrbsDrawLongRings() {
-        for (double age : new double[]{34, 50, 70}) {
+        for (double age : new double[]{58, 62, 66}) {
             GateDraw.Ctx c = ctx(0);
             BlueRedDraw.purple(c, AT, age, EYE, LOOK);
             var s = (Sink) c.v;
