@@ -900,7 +900,7 @@ final class BlueRedDraw {
         double tremble = (.05 + .35 * grow * grow) * pre;
         at = at.add(jitter(age, tremble, 37));
         // The dome stays in view after the burst, translucent (owner, round 42).
-        double bodyAlpha = (1 - blast * .6) * fade, still = 1 - .8 * crush;
+        double clear = smooth((age - detonate - 12) / 20.0), bodyAlpha = (1 - blast * .6) * fade * (1 - clear), still = 1 - .8 * crush;
         if (c.body()) {
             fxSprite(c, at, s * 1.9, SHOCK, 205, PALE, (.18 + .1 * grow) * pre * fade, 0);
             orb(c, at, s * breathe, 2, age >= detonate ? 2 : grow > .6 ? 1 : 0, VIOLET, bodyAlpha);
@@ -918,7 +918,7 @@ final class BlueRedDraw {
             double ring = ((age + k * 3) / 9.0) % 1;
             fxFlat(c, at, s * (1.1 + 1.6 * ring), SHOCK, 840 + k, ORCHID, .55 * (1 - ring) * pre * fade);
         }
-        stormBands(c, at, s, age, 16, fade * still);
+        stormBands(c, at, s, age, 16, fade * still * (1 - clear));
         streaks(c, at, s * .95, s * 4, age, (int) (110 * pre), ORCHID, 860, 1.1, pre * fade, true);
         streaks(c, at, s * .4, s * 2.2, age, (int) (140 * blast), ORCHID, 1100, 2.6, blast * fade * (1 - clamp01((age - detonate - 10) / 30.0)), false);
         // After the burst the haze thins fast and the white core stays bounded, so the column and the shockwaves read instead of a white-out.
@@ -942,6 +942,16 @@ final class BlueRedDraw {
             double reach = s * (.9 + .6 * vnoise(1600 + b, age * .05)) + blast * (40 + 60 * hash(1700 + b));
             Vec3 from = at.add(d.scale(s * .95));
             liveBolt(c, from, from.add(d.scale(reach)), 10, .35, .1 + .12 * blast, b % 2 == 0 ? ORCHID : VIOLET, fade * (blast > 0 ? 1 - clamp01((age - detonate - 8) / 40.0) : still), 1800 + b * 23, age, .6);
+        }
+        // Charged chunks of ground floating round it (owner, 2026-11-19): each crackles down to the ground it tore from, and to a neighbour.
+        for (int i = 0; i < CHARGED.size() && i < 40; i++) {
+            Vec3 q = CHARGED.get(i);
+            double gy = groundAt == null ? q.y - 3 : groundAt.applyAsDouble(q.x, q.z);
+            double flick = .45 + .55 * Math.abs(Math.sin(age * 1.9 + i * 2.3));
+            liveBolt(c, q, new Vec3(q.x + .4 * snoise(7300 + i, age * .2), gy + .1, q.z + .4 * snoise(7310 + i, age * .2)), 7, .5, .03, i % 2 == 0 ? ORCHID : VIOLET, .8 * flick * pre * fade, 7320 + i * 13, age, 1);
+            if (i > 0 && q.distanceTo(CHARGED.get(i - 1)) < 9)
+                liveBolt(c, q, CHARGED.get(i - 1), 6, .45, .02, PALE, .6 * flick * pre * fade, 7330 + i * 17, age, 1);
+            glow(c, q, 1.2, .35 * flick * pre * fade, VIOLET);
         }
         // Lightning hammering the ground round it, each strike blowing out a pit (the server carves it on the same tick).
         if (groundAt != null) for (int k = 0; k < BlueRedRules.PURPLE_STRIKES; k++) {
@@ -979,6 +989,9 @@ final class BlueRedDraw {
         double white = age < detonate ? 0 : 1 - clamp01((age - detonate) / 4.0);
         if (white > 0) sprite(c, eye.add(look.scale(.8)), 6, .85 * white * white, PALE, BlueRedAtlas.SOLID);
     }
+
+    /** Charged chunks floating round Purple this frame (their centres), set by the renderer. */
+    static final List<Vec3> CHARGED = new ArrayList<>();
 
     /** Violet smoke after the burst (owner, round 42): a ring of heavy clouds rolling out over the ground far past the sphere, and billows
      *  heaving off the sphere itself. Dark and mid violets only. */
@@ -1261,12 +1274,13 @@ final class BlueRedDraw {
         if (!c.glow() || alpha <= 0) return;
         double build = clamp01(spin(age) / .7), hold = smooth((age - BlueRedRules.PURPLE_FACE) / 8.0), k = Math.max(build, smooth((age - BlueRedRules.PURPLE_LIFT_END) / 10.0)) * alpha;
         if (k <= .02) return;
-        glow(c, center, .6 + 1.2 * k, .4 * k, 0xFFFFFF);
-        glow(c, center, 2 + 3 * k, .45 * k, ORCHID);
+        // Violet, not white (owner, round 44): this ball sat right between the orbs at the stop.
+        glow(c, center, .6 + 1.2 * k, .25 * k, ORCHID);
+        glow(c, center, 2 + 3 * k, .3 * k, VIOLET);
         for (int b = 0; b < (int) (2 + 6 * k); b++) {
             // Short and all round (owner, 2026-11-18): a ball of crackling, not spikes up and down.
             Vec3 d = nvec(3700 + b, age * .2).normalize();
-            liveBolt(c, center, center.add(d.scale(.7 + .9 * k * vnoise(3720 + b, age * .3))), 5, .45, .02 + .04 * k, b % 3 == 0 ? PALE : ORCHID, k, 3730 + b * 19, age, 1);
+            liveBolt(c, center, center.add(d.scale(.7 + .9 * k * vnoise(3720 + b, age * .3))), 5, .45, .02 + .03 * k, b % 2 == 0 ? ORCHID : VIOLET, k, 3730 + b * 19, age, 1);
         }
     }
 

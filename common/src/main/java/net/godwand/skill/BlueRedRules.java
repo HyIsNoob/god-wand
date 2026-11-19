@@ -43,6 +43,15 @@ public final class BlueRedRules {
     }
     /** Purple bursts this far above the Blue that made it (owner, 2026-11-16: "nổ trên trời"): the orbs soar up while they swirl. */
     public static final double PURPLE_LIFT = 16;
+    /** How high a chunk of charged ground floats t ticks after it tore loose (owner, 2026-11-19); h is its own hash. Same on server and client. */
+    public static double liftRise(double t, long h) {
+        double top = 2.5 + 3.5 * ((h * 0x9E3779B97F4A7C15L >>> 40) & 0xFFFF) / 65536.0;
+        return top * (1 - Math.exp(-Math.max(0, t) / 22.0)) + .2 * Math.sin(t * .25 + h);
+    }
+    /** The hash a lifted chunk is keyed by, from its block's corner. */
+    public static long liftHash(double x, double y, double z) { return (long) Math.floor(x * 31 + y * 13 + z * 17); }
+    /** At most this many chunks float at once. */
+    public static final int LIFT_MAX = 48;
 
     /** Offset of the orbs below the burst point at this age: -PURPLE_LIFT at the Blue at contact, rising slowly all through the swirl to 0 at
      *  the face-off (owner, 2026-11-18). */

@@ -58,6 +58,7 @@ public final class BlueRedManager {
         final Vec3 center;
         final ServerPlayer owner, shooter;
         int age, cursor;
+        final List<BlueEater.Eaten> lifted = new ArrayList<>();
         Purple(ServerLevel level, Vec3 center, ServerPlayer owner, ServerPlayer shooter) { this.level = level; this.center = center; this.owner = owner; this.shooter = shooter; }
         public int age() { return age; }
         public Vec3 center() { return center; }
@@ -243,6 +244,17 @@ public final class BlueRedManager {
             int y = p.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
             used += BlueEater.carve(p.level, new Vec3(x + .5, y - 1, z + .5), 4, budget, deadline, Integer.MAX_VALUE, null, cfg.purpleTerrainDamage);
         }
+        // The ground round it charges and chunks of it tear loose and float, crackling, until the burst takes them (owner, 2026-11-19).
+        if (p.age > BlueRedRules.PURPLE_MERGE && p.age < BlueRedRules.PURPLE_DETONATE && p.age % 2 == 0 && cfg.purpleTerrainDamage && p.level.getChunkSource() != null)
+            for (int i = 0; i < 3 && p.lifted.size() < BlueRedRules.LIFT_MAX; i++) {
+                double[] o = BlueRedRules.strikeOffset(100 + p.age * 3 + i);
+                int x = (int) Math.floor(p.center.x + o[0]), z = (int) Math.floor(p.center.z + o[1]);
+                int y = p.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z) - 1;
+                var chunk = BlueEater.lift(p.level, new net.minecraft.core.BlockPos(x, y, z));
+                if (chunk != null) p.lifted.add(chunk);
+            }
+        BlueEater.hover(p.lifted);
+        if (p.age >= BlueRedRules.PURPLE_DETONATE && !p.lifted.isEmpty()) { p.lifted.forEach(BlueEater::retire); p.lifted.clear(); }
         budget -= used;
         if (p.age > BlueRedRules.PURPLE_TERRAIN_END) { PURPLES.remove(p); return used; }
         if (p.age < BlueRedRules.PURPLE_DETONATE || cfg.purpleRadius <= 0) return used;

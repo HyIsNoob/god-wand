@@ -137,6 +137,29 @@ public final class BlueEater {
         }
     }
 
+    /** Tears one block loose as a floating chunk (Purple's charged ground), or null if it may not go. */
+    static Eaten lift(ServerLevel level, BlockPos pos) {
+        BlockState state = clear(level, new BlockPos.MutableBlockPos(pos.getX(), pos.getY(), pos.getZ()));
+        if (state == null || !state.getFluidState().isEmpty()) return null;
+        return new Eaten(shower.show(level, pos, state), Vec3.atLowerCornerOf(pos));
+    }
+
+    /** One tick for the floating chunks: rising to their own height, trembling (charged) and turning slowly about their centre. */
+    static void hover(List<Eaten> lifted) {
+        for (Eaten e : lifted) {
+            int age = ++e.age()[0];
+            long h = BlueRedRules.liftHash(e.from().x, e.from().y, e.from().z);
+            double up = BlueRedRules.liftRise(age, h);
+            float spin = (float) (age * .03 * ((h & 1) == 0 ? 1 : -1));
+            Quaternionf q = new Quaternionf().rotateXYZ(spin * .7f, spin, spin * .4f);
+            Vector3f pivot = q.transform(new Vector3f(.5f, .5f, .5f));
+            Vector3f t = new Vector3f(.5f - pivot.x + (float) (.06 * Math.sin(age * 2.9 + h)), .5f - pivot.y + (float) up, .5f - pivot.z + (float) (.06 * Math.cos(age * 3.7 + h)));
+            e.display().setTransformationInterpolationDelay(0);
+            e.display().setTransformationInterpolationDuration(1);
+            e.display().setTransformation(new Transformation(t, q, null, null));
+        }
+    }
+
     static void retire(Eaten e) {
         SpatialDisplacementManager.untrackEntity(e.display().getUUID());
         e.display().discard();

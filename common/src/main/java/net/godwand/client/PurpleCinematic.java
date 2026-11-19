@@ -133,11 +133,19 @@ public final class PurpleCinematic {
         double near = Math.max(8, Math.sqrt((eye.x - center.x) * (eye.x - center.x) + (eye.z - center.z) * (eye.z - center.z)));
         double d = near * (1 - .3 * crush) + 3 + thrown * 110 + Math.max(0, age - det - 30) * .2;
         double h = (eye.y - center.y) + 2 + thrown * 40;
+        // A high crane shot over the aftermath (owner, round 44): the violet shock and smoke rolling over the map, seen from far above.
+        if (age >= HIGH_SHOT) {
+            double u = age - HIGH_SHOT;
+            Vec3 ground = center.add(0, -BlueRedRules.PURPLE_LIFT, 0);
+            return aim(ground.add(turn(side, ang + 1.1 + u * .004).scale(60 + u * .15)).add(0, 90 + u * .12, 0), ground);
+        }
         return aim(center.add(turn(side, ang).scale(d)).add(0, h, 0), center);
     }
 
     /** The strikes the camera cuts to, and how long each shot holds round its strike (from 2 ticks before to 8 after). */
     static final int[] STRIKE_SHOTS = {};
+    /** The cut to the high crane shot over the aftermath. */
+    static final int HIGH_SHOT = BlueRedRules.PURPLE_DETONATE + 34;
     /** The far shot holds from MERGE to here. */
     static final int FAR_END = BlueRedRules.PURPLE_MERGE;
 

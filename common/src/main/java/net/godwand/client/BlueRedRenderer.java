@@ -10,6 +10,8 @@ import net.godwand.skill.BlueRedRules.BlueState;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -62,6 +64,12 @@ public final class BlueRedRenderer {
                     v.readyAt = clock;
                     sound(at, SoundEvents.BEACON_POWER_SELECT, 2f, .7f);
                     sound(at, SoundEvents.WARDEN_SONIC_BOOM, 1f, 1.8f);
+                    // Real particles thrown out with the wave, and a pressure front hugging the ground (owner, round 44).
+                    for (int i = 0; i < 90; i++) {
+                        Vec3 d = randomDir();
+                        spray(i % 3 == 0 ? ParticleTypes.ELECTRIC_SPARK : ParticleTypes.SOUL_FIRE_FLAME, at.add(d.scale(.8)), d.scale(.55 + .6 * RANDOM.nextDouble()));
+                    }
+                    ImpactDebrisRenderer.groundWave(groundUnder(at), 22);
                 }
                 v.state = state;
             }
@@ -137,6 +145,7 @@ public final class BlueRedRenderer {
             if (d > BlueRedDraw.readyWave(t - 1) && d <= BlueRedDraw.readyWave(t) || t == 0 && d <= BlueRedDraw.readyWave(0))
                 GodWandCinematicEngine.addTrauma((float) Math.max(.15, .45 * (1 - d / 40)), 10);
         }
+        for (Purple p : PURPLES) particles(p, clock - p.at());
         for (Purple p : PURPLES) {
             double age = clock - p.at();
             if (age == BlueRedRules.PURPLE_DETONATE) detonated(p.pos());
@@ -180,6 +189,56 @@ public final class BlueRedRenderer {
         if (player != null && player.position().distanceTo(at) < 120) {
             GodWandCinematicEngine.addTrauma((float) Math.max(.15, 1 - player.position().distanceTo(at) / 120), 24);
             GodWandCinematicEngine.setFovPunch(1.2f, 5);
+        }
+    }
+
+    private static final Random RANDOM = new Random();
+    private static Vec3 randomDir() { return new Vec3(RANDOM.nextGaussian(), RANDOM.nextGaussian(), RANDOM.nextGaussian()).normalize(); }
+    private static void spray(ParticleOptions type, Vec3 p, Vec3 v) {
+        var level = Minecraft.getInstance().level;
+        if (level != null) level.addAlwaysVisibleParticle(type, true, p.x, p.y, p.z, v.x, v.y, v.z);
+    }
+
+    /** Real particles round Purple (owner, round 44: not only drawn sprites): the charged ground fizzing and the chunks floating off it before
+     *  the burst, its skin shedding violet motes, the burst throwing violet out every way, then violet drifting over the ground behind the
+     *  shock front. Also gathers the floating chunks for the lightning drawn between them. */
+    private static void particles(Purple p, double age) {
+        var level = Minecraft.getInstance().level;
+        if (level == null) return;
+        int merge = BlueRedRules.PURPLE_MERGE, det = BlueRedRules.PURPLE_DETONATE;
+        Vec3 sky = p.pos(), ground = groundUnder(sky);
+        double s = BlueRedDraw.purpleSize(age);
+        BlueRedDraw.CHARGED.clear();
+        if (age > merge && age < det) {
+            for (var e : level.getEntitiesOfClass(net.minecraft.world.entity.Display.BlockDisplay.class, new net.minecraft.world.phys.AABB(ground, ground).inflate(34, 14, 34))) {
+                Vec3 at = e.position();
+                BlueRedDraw.CHARGED.add(at.add(.5, .5 + BlueRedRules.liftRise(e.tickCount, BlueRedRules.liftHash(at.x, at.y, at.z)), .5));
+            }
+            for (int i = 0; i < 6; i++) {
+                double a = RANDOM.nextDouble() * Math.PI * 2, r = 5 + 25 * Math.sqrt(RANDOM.nextDouble());
+                double x = ground.x + Math.cos(a) * r, z = ground.z + Math.sin(a) * r;
+                double y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, (int) Math.floor(x), (int) Math.floor(z));
+                spray(ParticleTypes.REVERSE_PORTAL, new Vec3(x, y + .2, z), new Vec3(0, .15 + .25 * RANDOM.nextDouble(), 0));
+            }
+            for (int i = 0; i < 5; i++) { Vec3 d = randomDir(); spray(ParticleTypes.WITCH, sky.add(d.scale(s * 1.02)), d.scale(.08)); }
+            for (int i = 0; i < 3 && !BlueRedDraw.CHARGED.isEmpty(); i++)
+                spray(ParticleTypes.ELECTRIC_SPARK, BlueRedDraw.CHARGED.get(RANDOM.nextInt(BlueRedDraw.CHARGED.size())), randomDir().scale(.25));
+            // Held breath: violet drawn into it from all round.
+            if (age > det - 18) for (int i = 0; i < 14; i++) { Vec3 d = randomDir(); spray(ParticleTypes.PORTAL, sky, d.scale(s * 1.6)); }
+        }
+        if (age == det) for (int i = 0; i < 260; i++) {
+            Vec3 d = randomDir();
+            spray(i % 4 == 0 ? ParticleTypes.ELECTRIC_SPARK : i % 4 == 1 ? ParticleTypes.REVERSE_PORTAL : ParticleTypes.DRAGON_BREATH, sky.add(d.scale(s)), d.scale(1.2 + 1.6 * RANDOM.nextDouble()));
+        }
+        double t = age - det;
+        if (t > 0 && t < 90) {
+            double front = 160 * (1 - Math.pow(1 - Math.min(1, t / 60), 2)), fade = 1 - t / 90;
+            for (int i = 0; i < 14 * fade; i++) {
+                double a = RANDOM.nextDouble() * Math.PI * 2, r = front * (.6 + .4 * RANDOM.nextDouble());
+                double x = ground.x + Math.cos(a) * r, z = ground.z + Math.sin(a) * r;
+                double y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, (int) Math.floor(x), (int) Math.floor(z));
+                spray(i % 2 == 0 ? ParticleTypes.DRAGON_BREATH : ParticleTypes.REVERSE_PORTAL, new Vec3(x, y + .5, z), new Vec3(Math.cos(a) * .25, .12, Math.sin(a) * .25));
+            }
         }
     }
 
