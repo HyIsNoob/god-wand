@@ -14,6 +14,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.level.ClipContext;
 
 import java.util.*;
 
@@ -156,6 +158,9 @@ public final class BlueRedManager {
         Vec3 to = last ? red.origin.add(red.dir.scale(range)) : BlueRedRules.redAt(red.origin, red.dir, BlueRedRules.RED_SPEED, red.age);
         // Never load terrain: Red stops where loaded chunks stop.
         if (red.level.getChunkSource().getChunkNow(Mth.floor(to.x) >> 4, Mth.floor(to.z) >> 4) == null) { endRed(red, from); return 0; }
+        // It goes off where it meets the ground and stops there (owner, 2026-11-19: no second blast far off at the end of its range).
+        var ground = red.level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, red.shooter));
+        if (ground != null && ground.getType() == HitResult.Type.BLOCK) { to = ground.getLocation(); last = true; }
         Blue hit = null;
         double first = 2;
         for (Blue b : blues(red.level)) {

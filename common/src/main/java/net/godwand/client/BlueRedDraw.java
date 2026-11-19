@@ -122,7 +122,8 @@ final class BlueRedDraw {
                 fxSprite(c, at.add(dir.scale(rr * (.75 + .5 * u))), r * (.3 + .25 * u), SMOKE, (int) (cs % 991), i % 2 == 0 ? DEEP_BLUE : ROYAL,
                         smooth(u / .2) * (1 - u) * .5 * live, age * .04 + i);
             }
-            if (rr > .02) orb(c, at, rr * .78, 0, ready ? 1 : 0, BLUE_TINT, appear);
+            // Energy always running round it (owner's play-test, 2026-11-19: it looked static).
+            if (rr > .02) wrapped(c, at, rr, age, ready, BLUE_P, .85 * live, 0, () -> orb(c, at, rr * .78, 0, ready ? 1 : 0, BLUE_TINT, appear));
             // Forming: dust gathering in from all round.
             if (age < 12) for (int i = 0; i < 18; i++) {
                 Vec3 d = nvec(7500 + i, 0).normalize();
@@ -214,15 +215,7 @@ final class BlueRedDraw {
      *  the parts in front after it, so the currents really wrap round it. Blue's look; in the convergence Red and Blue both use it, same size,
      *  only the palette differs ({@code seedOff} keeps the two from being copies). */
     static void swirlOrb(Ctx c, Vec3 at, double r, double age, boolean charged, Palette p, double appear, double beat, long seedOff) {
-        double spin = charged ? 1.4 : 1;
-        List<Arm> arms = new ArrayList<>();
-        for (int i = 0; i < (charged ? 12 : 9); i++) {
-            long sd = 900 + seedOff + i * 131L;
-            arms.add(plasmaArm(c, at, r, age, sd, spin, 0));
-            if (hash(sd + 8) < .45) arms.add(plasmaArm(c, at, r, age, sd + 50000, spin, 1));
-        }
-        for (int i = 0; i < (charged ? 7 : 5); i++) arms.add(plasmaArm(c, at, r, age, 3900 + seedOff + i * 151L, spin, 1));
-        for (int i = 0; i < (charged ? 8 : 6); i++) arms.add(plasmaArm(c, at, r, age, 4700 + seedOff + i * 157L, spin, 2));
+        List<Arm> arms = currents(c, at, r, age, charged, seedOff);
         if (c.body()) {
             double coreD = at.distanceTo(c.eye);
             for (Arm a : arms) drawArm(c, a, appear, charged, p, at, r, coreD, false);
@@ -233,6 +226,30 @@ final class BlueRedDraw {
         glow(c, at, r * 1.1, (.5 + .25 * beat) * appear, p.hot());
         glow(c, at, r * .45, .8 * appear, 0xFFFFFF);
         glow(c, at, r * 2.2, (.18 + .1 * beat) * appear, p.halo());
+    }
+
+    /** The plasma currents winding round a sphere of radius {@code r} (more and faster when {@code charged}). */
+    static List<Arm> currents(Ctx c, Vec3 at, double r, double age, boolean charged, long seedOff) {
+        double spin = charged ? 1.4 : 1;
+        List<Arm> arms = new ArrayList<>();
+        for (int i = 0; i < (charged ? 12 : 9); i++) {
+            long sd = 900 + seedOff + i * 131L;
+            arms.add(plasmaArm(c, at, r, age, sd, spin, 0));
+            if (hash(sd + 8) < .45) arms.add(plasmaArm(c, at, r, age, sd + 50000, spin, 1));
+        }
+        for (int i = 0; i < (charged ? 7 : 5); i++) arms.add(plasmaArm(c, at, r, age, 3900 + seedOff + i * 151L, spin, 1));
+        for (int i = 0; i < (charged ? 8 : 6); i++) arms.add(plasmaArm(c, at, r, age, 4700 + seedOff + i * 157L, spin, 2));
+        return arms;
+    }
+
+    /** A sphere drawn by {@code core} with currents wrapping it: the ones behind before it, the ones in front after (body pass only). */
+    static void wrapped(Ctx c, Vec3 at, double r, double age, boolean charged, Palette p, double alpha, long seedOff, Runnable core) {
+        if (!c.body()) return;
+        List<Arm> arms = currents(c, at, r, age, charged, seedOff);
+        double coreD = at.distanceTo(c.eye);
+        for (Arm a : arms) drawArm(c, a, alpha, charged, p, at, r, coreD, false);
+        core.run();
+        for (Arm a : arms) drawArm(c, a, alpha, charged, p, at, r, coreD, true);
     }
 
     /** One current: its centreline from the outer tail (index 0) inward, its half-widths, seed, distance from the eye and tier (0 main,
@@ -607,7 +624,9 @@ final class BlueRedDraw {
             }
             chargeStreaks(c, head, hs, age, 1, dir.scale(-1));
             chargeMotes(c, head, hs, age, 1, dir.scale(-1));
-            redOrb(c, head, hs, age, dir.scale(-1));
+            Vec3 h0 = head;
+            wrapped(c, head, hs * .75, age, true, RED_P, .7 * fade, 78000, () -> {});
+            redOrb(c, h0, hs, age, dir.scale(-1));
         }
     }
 
@@ -744,9 +763,12 @@ final class BlueRedDraw {
         chargeMotes(c, at, s, age, full ? 1.8 : charge, back);
         if (c.body()) {
             double coreD = at.distanceTo(c.eye);
-            redMass(c, at, s * .9, age, coreD, false);
-            orb(c, at, s * .62, 1, 0, RED, 1);
-            redMass(c, at, s * .9, age, coreD, true);
+            // Currents always winding round it, faster when full (owner's play-test, 2026-11-19: it looked static).
+            wrapped(c, at, s * .8, age, full, RED_P, .6 + .3 * charge, 77000, () -> {
+                redMass(c, at, s * .9, age, coreD, false);
+                orb(c, at, s * .62, 1, 0, RED, 1);
+                redMass(c, at, s * .9, age, coreD, true);
+            });
         }
         for (int b = 0; b < 3 + (int) (5 * charge) + (full ? 3 : 0); b++) {
             Vec3 d = nvec(7800 + b, age * .3).normalize(), d2 = d.add(nvec(7810 + b, age * .35).scale(.9)).normalize();
@@ -1190,14 +1212,14 @@ final class BlueRedDraw {
     }
 
     /** Cinematic black bars, {@code amount} of the view height each (top and bottom), as camera-facing black quads half a block out. */
-    static void blackBars(Ctx c, Vec3 eye, Vec3 look, double amount, double fovDeg) {
+    static void blackBars(Ctx c, Vec3 eye, Vec3 look, double amount, double tanHalf) {
         if (amount <= 0) return;
         Vec3 right = look.cross(new Vec3(0, 1, 0));
         right = right.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : right.normalize();
         Vec3 up = right.cross(look).normalize(), o = eye.add(look.scale(.5));
-        double h = .5 * Math.tan(Math.toRadians(fovDeg) / 2), w = h * 3;
+        double h = .5 * tanHalf, w = h * 5;
         for (int e = -1; e <= 1; e += 2) {
-            Vec3 inner = o.add(up.scale(e * h * (1 - 2 * amount))), outer = o.add(up.scale(e * h * 1.3));
+            Vec3 inner = o.add(up.scale(e * h * (1 - 2 * amount))), outer = o.add(up.scale(e * h * 3));
             fxQuad(c, inner.subtract(right.scale(w)), inner.add(right.scale(w)), outer.add(right.scale(w)), outer.subtract(right.scale(w)), SOLID_FX, 0, 0x000000, 1, 1, 1, 1, 0, 1);
         }
     }

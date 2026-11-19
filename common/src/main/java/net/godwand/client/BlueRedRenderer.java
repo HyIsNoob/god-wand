@@ -47,6 +47,7 @@ public final class BlueRedRenderer {
     static boolean anyFlight() { return !FLIGHTS.isEmpty(); }
     private static final List<Burst> BURSTS = new ArrayList<>();
     private static final List<Burst> FIZZLES = new ArrayList<>();
+    private static double barsTan = Math.tan(Math.toRadians(35));
     private static final List<Purple> PURPLES = new ArrayList<>();
     private static final List<Burst> IMPACTS = new ArrayList<>();
     private static double clock;
@@ -433,6 +434,9 @@ public final class BlueRedRenderer {
     }
 
     public static void render(PoseStack pose, Camera camera, float partial) {
+        // The bars follow the frame's real projection (owner's play-test, 2026-11-19: with another FOV they shrank onto the screen).
+        float m11 = RenderSystem.getProjectionMatrix().m11();
+        if (m11 > 1e-3f) barsTan = 1 / m11;
         overlay = new Overlay(new Matrix4f(pose.last().pose()), camera, partial);
         planBloom(pose, camera, partial);
         if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && FIZZLES.isEmpty() && PURPLES.isEmpty() && IMPACTS.isEmpty()) return;
@@ -491,7 +495,7 @@ public final class BlueRedRenderer {
             return c.quads;
         }
         // Black bars (owner, 2026-11-19): drawn first and writing no depth, so every effect after them can spill over them.
-        if (layer == 0 && PurpleCinematic.active()) BlueRedDraw.blackBars(c, eye, look, PurpleCinematic.bars(partial), PurpleCinematic.fov(70, partial));
+        if (layer == 0 && PurpleCinematic.active()) BlueRedDraw.blackBars(c, eye, look, PurpleCinematic.bars(partial), barsTan);
         for (var e : BLUES.entrySet())
         {
             BlueView b = e.getValue();
