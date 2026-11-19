@@ -370,7 +370,8 @@ public final class BlueRedRenderer {
             if (age >= BlueRedRules.PURPLE_MERGE) {
                 double grow = smooth((age - BlueRedRules.PURPLE_MERGE) / (double) (BlueRedRules.PURPLE_DETONATE - BlueRedRules.PURPLE_MERGE));
                 double after = age - BlueRedRules.PURPLE_DETONATE;
-                warp = after < 0 ? .4 + .4 * grow : .8 * Math.exp(-after / 16);
+                // Owner, 2026-11-19: the bending cut parts of Purple away; it is left out.
+                warp = 0;
                 // The sphere's radius on screen, in screen heights (about a 70 degree view).
                 warpSize = BlueRedDraw.purpleSize(age) / (1.4 * Math.max(4, light.distanceTo(camera.getPosition())));
             }
