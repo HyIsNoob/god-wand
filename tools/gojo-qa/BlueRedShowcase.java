@@ -78,13 +78,13 @@ public final class BlueRedShowcase {
                     Vec3[] t = trail.toArray(new Vec3[0]);
                     double[] ago = new double[t.length];
                     for (int i = 0; i < t.length; i++) ago[i] = now - trailAt.get(i) + 1;
-                    BlueRedDraw.blue(c, drawn, what == 3, what == 3 ? now + 200 : now + 10, what == 3 ? now + 40 : -1, t, ago);
+                    BlueRedDraw.blue(c, drawn, what == 3, what == 3 ? now + 200 : now + 10, what == 3 ? now + 40 : -1);
                 } else switch (what) {
                     case 4 -> {
                         // Where the renderer holds the charge: in front of the eye, low and to the right.
                         var l = context.camera().getLookVector();
                         Vec3 view = new Vec3(l.x(), l.y(), l.z()), hand = eye.add(view.scale(1.9)).add(right.scale(.45)).add(0, -.3, 0);
-                        BlueRedDraw.redOrb(c, hand, BlueRedVisual.redChargeSize(now, 50) * (1 - .4 * BlueRedVisual.redSqueeze(now, 50)), now, view.scale(.3).add(0, 1, 0).add(right.scale(.8)), .45);
+                        BlueRedDraw.redCharge(c, hand, BlueRedVisual.redChargeSize(Math.min(now, 50), 50), now, Math.min(1, now / 50), now >= 50, view.scale(-.7).add(right.scale(.55)).add(0, .35, 0));
                     }
                     case 5, 6 -> {
                         // Shot across the view, 12 blocks out, from the left; it hits 14 blocks on.

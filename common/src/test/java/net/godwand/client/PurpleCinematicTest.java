@@ -86,6 +86,16 @@ class PurpleCinematicTest {
         }
     }
 
+    @Test void framedAtItsOwnFovWhateverThePlayersSetting() {
+        // Owner, 2026-11-19: the player's FOV must not change the cutscene.
+        PurpleCinematic.start(7, 7, 7, CENTER, EYE);
+        for (int i = 0; i < PURPLE_SWIRL_END + 20; i++) PurpleCinematic.tick();
+        assertEquals(70, PurpleCinematic.fov(110, 0), 1e-9);
+        assertEquals(70, PurpleCinematic.fov(30, 0), 1e-9);
+        while (PurpleCinematic.age() < PURPLE_CINEMATIC - 1) PurpleCinematic.tick();
+        assertTrue(PurpleCinematic.fov(110, 1) > 100, "hands back to the player's own at the end");
+    }
+
     @Test void smoothBetweenTheCuts() {
         Vec3 prev = PurpleCinematic.pose(CENTER, EYE, 0).position();
         for (double age = .5; age <= PURPLE_CINEMATIC; age += .5) {

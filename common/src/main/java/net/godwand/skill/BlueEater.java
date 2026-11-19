@@ -195,12 +195,12 @@ public final class BlueEater {
 
     /** Purple's after-image on the land (owner, 2026-11-19): the top block of each column turned violet, all over the crater and fading out
      *  over half a radius past its rim. Works through columns from {@code from}; returns where to resume. */
-    static int stainFrom(ServerLevel level, Vec3 center, int radius, int from, int budget, long deadline, boolean enabled) {
+    static int stainFrom(ServerLevel level, Vec3 center, int radius, int from, int budget, long deadline, boolean enabled, int cap) {
         if (!enabled || radius <= 0) return Integer.MAX_VALUE;
         int[][] cols = disc(radius * 3 / 2);
         var pos = new BlockPos.MutableBlockPos();
         int i = from, done = 0, written = 0;
-        while (i < cols.length && done < budget && written < STAIN_PER_TICK) {
+        while (i < cols.length && done < budget && written < cap) {
             if ((done & 31) == 0 && System.nanoTime() >= deadline) break;
             int[] c = cols[i++];
             done++;
@@ -211,7 +211,7 @@ public final class BlueEater {
             if (((h >>> 8) & 1023) / 1024.0 >= keep) continue;
             pos.set(x, level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z) - 1, z);
             BlockState state = level.getBlockState(pos);
-            if (state.isAir() || !state.getFluidState().isEmpty() || !SpatialDisplacementManager.canDisplace(level, pos, state)) continue;
+            if (state == null || state.isAir() || !state.getFluidState().isEmpty() || !SpatialDisplacementManager.canDisplace(level, pos, state)) continue;
             level.setBlock(pos.immutable(), STAIN[(int) Math.floorMod(h >>> 20, STAIN.length)], Block.UPDATE_CLIENTS);
             written++;
         }

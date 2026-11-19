@@ -60,6 +60,8 @@ public final class BlueRedManager {
         final Vec3 center;
         final ServerPlayer owner, shooter;
         int age, cursor, stain;
+        /** When the crater was dug and the land stained (ages), -1 until then. */
+        public int dugAt = -1, stainedAt = -1;
         final List<BlueEater.Eaten> lifted = new ArrayList<>();
         Purple(ServerLevel level, Vec3 center, ServerPlayer owner, ServerPlayer shooter) { this.level = level; this.center = center; this.owner = owner; this.shooter = shooter; }
         public int age() { return age; }
@@ -272,18 +274,25 @@ public final class BlueRedManager {
         budget -= used;
         if (p.age > BlueRedRules.PURPLE_TERRAIN_END) { PURPLES.remove(p); return used; }
         if (p.age < BlueRedRules.PURPLE_DETONATE || cfg.purpleRadius <= 0) return used;
+        // Owner, 2026-11-19: the crater must be dug while the blast is still going, not long after it. For the blast's first 40 ticks Purple
+        // gets a much larger share of the tick (its own 30 ms and a bigger cap); the shared 8 ms after that.
+        boolean rush = p.age < BlueRedRules.PURPLE_DETONATE + 40;
+        long until = rush ? Math.max(deadline, System.nanoTime() + 30_000_000L) : deadline;
+        int allowance = rush ? Math.max(budget, 120_000) : budget;
         int[][] cells = BlueEater.sphere(cfg.purpleRadius);
         if (p.cursor < cells.length) {
             int before = p.cursor;
-            p.cursor = BlueEater.carveFrom(p.level, p.center, cells, p.cursor, budget, deadline, cfg.purpleTerrainDamage, BlueEater.PURPLE_CLEAR_PER_TICK);
+            p.cursor = BlueEater.carveFrom(p.level, p.center, cells, p.cursor, allowance, until, cfg.purpleTerrainDamage, rush ? 9000 : BlueEater.PURPLE_CLEAR_PER_TICK);
             if (!cfg.purpleTerrainDamage) p.cursor = cells.length;
-            return p.cursor - before + used;
+            if (p.cursor >= cells.length) p.dugAt = p.age;
+            return Math.min(budget, p.cursor - before) + used;
         }
         // Once the crater is dug, the land round it is left stained violet.
         if (p.stain == Integer.MAX_VALUE || p.level.getChunkSource() == null) return used;
         int before = p.stain;
-        p.stain = BlueEater.stainFrom(p.level, p.center, cfg.purpleRadius, p.stain, budget, deadline, cfg.purpleTerrainDamage);
-        return (p.stain == Integer.MAX_VALUE ? 0 : p.stain - before) + used;
+        p.stain = BlueEater.stainFrom(p.level, p.center, cfg.purpleRadius, p.stain, allowance, until, cfg.purpleTerrainDamage, rush ? 4000 : BlueEater.STAIN_PER_TICK);
+        if (p.stain == Integer.MAX_VALUE) p.stainedAt = p.age;
+        return Math.min(budget, p.stain == Integer.MAX_VALUE ? 0 : p.stain - before) + used;
     }
 
     private static void detonate(Purple p) {

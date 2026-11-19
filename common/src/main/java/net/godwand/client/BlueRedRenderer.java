@@ -200,9 +200,14 @@ public final class BlueRedRenderer {
                 if (age == BlueRedRules.PURPLE_BLINK) {
                     GodWandCinematicEngine.addTrauma(.45f, 10);
                     // A pressure front hugging the ground, like Fuga's (owner, 2026-11-18).
-                    ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 26, 0xB050FF);
+                    ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 26, 0xF4F0FF);
                 }
                 if (age == BlueRedRules.PURPLE_DETONATE) { ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 96, 0xB050FF); GodWandCinematicEngine.addTrauma(.9f, 40); }
+                // An aftershock a second later: a second, wider violet front over the land and a heavy jolt.
+                if (age == BlueRedRules.PURPLE_DETONATE + 22) {
+                    ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 130, 0x8A30E0); GodWandCinematicEngine.addTrauma(.45f, 20);
+                    for (int i = 0; i < 120; i++) { Vec3 d = randomDir(); spray(i % 2 == 0 ? ParticleTypes.DRAGON_BREATH : ParticleTypes.REVERSE_PORTAL, p.pos().add(d.scale(20)), d.scale(1.5 + RANDOM.nextDouble())); }
+                }
                 // A low rumble while it holds its breath (owner, round 42).
                 if (age >= BlueRedRules.PURPLE_DETONATE - 18 && age < BlueRedRules.PURPLE_DETONATE) GodWandCinematicEngine.addTrauma(.06f, 4);
                 if (age > BlueRedRules.PURPLE_CONTACT && age < BlueRedRules.PURPLE_SWIRL_END) {
@@ -241,10 +246,10 @@ public final class BlueRedRenderer {
     /** Red's hit as real effects (owner, 2026-11-19: not only drawn sprites): a white pressure front over the ground, sparks, embers and smoke. */
     private static void impactFx(Vec3 at, int n) {
         Vec3 g = groundUnder(at);
-        if (at.y - g.y < 6) ImpactDebrisRenderer.groundWave(g, 8 + n * .3, 0xFFF4F4);
+        if (at.y - g.y < 6) ImpactDebrisRenderer.groundWave(g, 8 + n * .3, 0xFF2A3A);
         for (int i = 0; i < n; i++) {
             Vec3 d = randomDir();
-            spray(i % 3 == 0 ? ParticleTypes.ELECTRIC_SPARK : i % 3 == 1 ? ParticleTypes.CRIMSON_SPORE : ParticleTypes.LARGE_SMOKE, at.add(d.scale(.4)), d.scale(.25 + .35 * RANDOM.nextDouble()));
+            spray(i % 3 == 0 ? ParticleTypes.ELECTRIC_SPARK : i % 3 == 1 ? ParticleTypes.CRIMSON_SPORE : ParticleTypes.SMOKE, at.add(d.scale(.4)), d.scale(.25 + .35 * RANDOM.nextDouble()));
         }
         spray(ParticleTypes.EXPLOSION, at, Vec3.ZERO);
     }
@@ -392,7 +397,10 @@ public final class BlueRedRenderer {
         float ink = 0;
         if (!PURPLES.isEmpty() && GodWandConfig.CLIENT.impactFrames) {
             int age = (int) Math.floor(now - PURPLES.get(PURPLES.size() - 1).at());
-            for (int hit : new int[]{BlueRedRules.PURPLE_BLINK, BlueRedRules.PURPLE_DETONATE}) if (age == hit) ink = 1; else if (age == hit + 1) ink = 2;
+            if (age == BlueRedRules.PURPLE_BLINK) ink = 1; else if (age == BlueRedRules.PURPLE_BLINK + 1) ink = 2;
+            // The blast: heavy violet ink (owner, 2026-11-19), four frames flipping.
+            int t = age - BlueRedRules.PURPLE_DETONATE;
+            if (t >= 0 && t < 4) ink = t % 2 == 0 ? 3 : 4;
         }
         bloom = new float[]{(float) (GodWandConfig.CLIENT.bloomStrength * strength), (float) burst, sx, sy, partial, (float) warp, (float) Math.min(.9, warpSize), ink};
     }
@@ -469,7 +477,9 @@ public final class BlueRedRenderer {
             // The shooter's world darkens round the gathering Red so it stands out (owner, 2026-11-19); drawn before it, under it.
             var me = Minecraft.getInstance().player;
             if (layer == 0 && me != null && me.getId() == charge.getKey()) sprite(c, eye.add(look.scale(.5)), 4, .5 * smooth(age / 15), 0x050002, BlueRedAtlas.SOLID);
-            BlueRedDraw.redCharge(c, at, BlueRedVisual.redChargeSize(Math.min(age, full), (int) full), age, Math.min(1, age / full), age >= full);
+            // Its pressure is thrown back behind it and a little up and out to the side, never into the lens (owner, 2026-11-19).
+            Vec3 back = view.scale(-.7).add(right.scale(.55)).add(0, .35, 0);
+            BlueRedDraw.redCharge(c, at, BlueRedVisual.redChargeSize(Math.min(age, full), (int) full), age, Math.min(1, age / full), age >= full, back);
         }
         for (Flight f : FLIGHTS) {
             double age = now - f.at, after = f.endAt < 0 ? 0 : now - f.endAt;

@@ -43,7 +43,7 @@ public abstract class GameRendererMixin {
     private void godwand$applyDynamicFov(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Double> cir) {
         double current = cir.getReturnValue();
         double multiplier = GodWandCinematicEngine.getFovMultiplier(tickDelta);
-        double adjusted = net.godwand.client.FugaCinematic.fov(net.godwand.client.AtomicCinematic.fov(current * multiplier, tickDelta), tickDelta);
+        double adjusted = net.godwand.client.PurpleCinematic.fov(net.godwand.client.FugaCinematic.fov(net.godwand.client.AtomicCinematic.fov(current * multiplier, tickDelta), tickDelta), tickDelta);
         if (changingFov) net.godwand.client.FugaCinematic.recordFov(adjusted);
         if (adjusted != current) cir.setReturnValue(adjusted);
     }

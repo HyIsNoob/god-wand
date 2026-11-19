@@ -20,7 +20,7 @@ import static net.godwand.client.GateDraw.*;
 final class BlueRedDraw {
     static final int DEEP_BLUE = 0x0C24E8, ROYAL = 0x1E46FF, INDIGO = 0x0A12B4, CYAN = 0x46D2FF, ICE = 0xEAF8FF, SMOKE_WHITE = 0xE4EEFA;
     static final int RED = 0xFF0A28, RED_BODY = 0xD4001A, RED_DEEP = 0x8A0010, RED_LIGHT = 0xFF4A60, RED_CORE = 0xFFD6DC, RED_DARK = 0x16000A;
-    /** Red's shockwaves (owner, 2026-11-19): white, so they never read violet over the sky. */
+    /** The merge's shockwave (owner, 2026-11-19: white when Red meets Blue; Red's own are red, Blue's blue). */
     static final int SHOCK_WHITE = 0xFFF4F4;
     static final int VIOLET = 0x9A2CFF, ORCHID = 0xF064FF, PALE = 0xF6D8FF, NIGHT = 0x2A0650, VOID = 0x07020F, INK = 0x050002;
     /** Shader effects (godwand_bluered.fsh). ORB seeds: variant (0 blue, 1 red, 2 purple) + 4 * level. */
@@ -588,9 +588,40 @@ final class BlueRedDraw {
         }
     }
 
+    /** Red's pressure while it gathers (owner, 2026-11-19, like Stone Cannon's): bands of black ribbon rimmed in red, each a ring round it
+     *  that is thrown back along {@code back}, widening into a cone, thinning and fading, one after another; faster and stronger with charge. */
+    private static void pressureCone(Ctx c, Vec3 at, double s, double age, double charge, Vec3 back) {
+        Vec3[] uw = basis(back);
+        for (int k = 0; k < 4; k++) {
+            double ph = (age * (.045 + .05 * charge) + k / 4.0) % 1, al = Math.sin(Math.PI * ph) * (.45 + .55 * charge);
+            if (al <= .01) continue;
+            double d = s * (.15 + 2.2 * ph), rad = s * (.8 + 1.6 * ph);
+            int n = 40;
+            Vec3[] pts = new Vec3[n + 1];
+            double[] w = new double[n + 1];
+            for (int j = 0; j <= n; j++) {
+                double a = Math.PI * 2 * j / n + k * 1.3 + age * .05;
+                double wob = 1 + .12 * snoise(7870 + k, a * 1.5 + age * .2);
+                pts[j] = at.add(back.scale(d)).add(uw[0].scale(Math.cos(a) * rad * wob)).add(uw[1].scale(Math.sin(a) * rad * wob));
+                w[j] = s * .16 * (1 - .7 * ph) * (.6 + .6 * vnoise(7880 + k, a * 2 - age * .3));
+            }
+            if (c.body()) {
+                double[] rim = new double[n + 1];
+                for (int j = 0; j <= n; j++) rim[j] = w[j] * 1.5;
+                fxRibbon(c, pts, rim, PLASMA, 7890 + k, RED, al * .9);
+                fxRibbon(c, pts, w, BRUSH, 7895 + k, INK, al);
+            } else fxRibbon(c, pts, w, FLOW, 7899 + k, RED_LIGHT, al * .35);
+        }
+    }
+
     /** Red gathering in the hand (owner, 2026-11-19): a red heart (never white) inside a churning red mass, energy pouring in from all round,
      *  rings of it tightening, black-core red lightning crackling off it; {@code charge} 0..1 grows all of it; {@code full}: it pulses. */
-    static void redCharge(Ctx c, Vec3 at, double s, double age, double charge, boolean full) {
+    static void redCharge(Ctx c, Vec3 at, double s, double age, double charge, boolean full) { redCharge(c, at, s, age, charge, full, new Vec3(0, 1, 0)); }
+
+    /** {@code back}: where its pressure is thrown, behind it (owner, 2026-11-19). */
+    static void redCharge(Ctx c, Vec3 at, double s, double age, double charge, boolean full, Vec3 back) {
+        back = back.lengthSqr() < 1e-6 ? new Vec3(0, 1, 0) : back.normalize();
+        pressureCone(c, at, s, age, charge, back);
         if (c.body()) {
             double coreD = at.distanceTo(c.eye);
             redMass(c, at, s * .9, age, coreD, false);
@@ -604,12 +635,6 @@ final class BlueRedDraw {
             else liveBolt(c, from, to, 6, .45, .008 + .01 * charge, RED_LIGHT, .9, 7820 + b * 13, age, 1);
         }
         if (!c.glow()) return;
-        streaks(c, at, s * .5, s * (3 + 3 * charge), age, (int) (20 + 50 * charge), RED_LIGHT, 7830, 2.2, .8, true);
-        for (int k = 0; k < 3; k++) {
-            Vec3[] uw = basis(nvec(7840 + k, age * .02).add(0, .3, 0).normalize());
-            double ring = (age * (.05 + .04 * charge) + k / 3.0) % 1;
-            fxArc(c, at, uw[0], uw[1], s * (2.6 - 1.8 * ring), age * .2 + k, Math.PI * 1.4, s * .06, FLOW, 7850 + k, RED_LIGHT, .6 * Math.sin(Math.PI * ring));
-        }
         glow(c, at, s * .5, .8, RED_LIGHT);
         glow(c, at, s * 1.4, .7, RED);
         glow(c, at, s * 3.5, .3 + .25 * charge, RED_BODY);
@@ -628,13 +653,13 @@ final class BlueRedDraw {
         if (!c.glow()) return;
         // Flashes are capped by how big they look (owner's review of round 27: never a white-out in first person).
         double far = origin.distanceTo(c.eye);
-        if (age < 4) { glow(c, origin, Math.min(4.5, far * .12) * (1 - age / 4), 1 - age / 4, 0xFFFFFF); glow(c, origin, Math.min(9, far * .3) * (1 - age / 5), .85 * (1 - age / 4), RED); }
+        if (age < 4) { glow(c, origin, Math.min(4.5, far * .12) * (1 - age / 4), 1 - age / 4, RED_LIGHT); glow(c, origin, Math.min(9, far * .3) * (1 - age / 5), .85 * (1 - age / 4), RED); }
         if (age < 6) fxSprite(c, origin, Math.min(3 + age * .6, far * .3), RAYS, 7790, 0xFF7090, .45 * (1 - age / 6) * fade, age * .03);
         glow(c, origin.add(dir.scale(2)), 7, .35 * (1 - age / 14) * fade, 0xFF5A78);
         for (int r = 0; r < 2; r++) {
             double ra = age - r * 2.5;
             if (ra < 0 || ra > 10) continue;
-            pressureWave(c, origin.add(dir.scale(.5 + ra * 1.1)), dir, .4 + ra * .55, .25 * (1 - ra / 10), ra, 7720 + r, (1 - ra / 10) * fade, SHOCK_WHITE);
+            pressureWave(c, origin.add(dir.scale(.5 + ra * 1.1)), dir, .4 + ra * .55, .25 * (1 - ra / 10), ra, 7720 + r, (1 - ra / 10) * fade, RED);
         }
     }
 
@@ -722,7 +747,7 @@ final class BlueRedDraw {
         streaks(c, at, 1, 3 + age * 1.6, age, 40, color, blue ? 780 : 800, 2.2, fade, false);
         fxSprite(c, at, 2 + age * 1.3, SHOCK, 171, blue ? ICE : RED_LIGHT, fade, 0);
         fxSprite(c, at, 3 + age * 1.6, RAYS, 172, color, fade, age * .05);
-        glow(c, at, 1 + age * .35, fade, blue ? ICE : RED_CORE);
+        glow(c, at, 1 + age * .35, fade, blue ? ICE : RED);
     }
 
     /** Red's impact (owner's reviews of rounds 25-26, ref 19), in the world at the hit, in four beats. Contact (0-1.5 ticks): a small red-white
@@ -735,15 +760,15 @@ final class BlueRedDraw {
         if (c.glow() && age < 2) {
             double squeeze = clamp01(age / 1.5);
             double far = at.distanceTo(c.eye);
-            glow(c, at, Math.min(2.4, far * .1) * (1 - .6 * squeeze), 1, 0xFFFFFF);
+            glow(c, at, Math.min(2.4, far * .1) * (1 - .6 * squeeze), 1, RED_LIGHT);
             glow(c, at, Math.min(4, far * .22) * (1 - .5 * squeeze), .9, RED);
             // The peak (owner's review of round 28): for about a tick and a half, a tight red-white star on the target; compact, so the
             // camera is never washed out.
             if (age < 1.5) {
                 double peak = 1 - age / 1.5;
-                glow(c, at, Math.min(1.6, far * .07), peak, 0xFFFFFF);
-                glow(c, at, Math.min(3, far * .14), peak, RED_CORE);
-                fxSprite(c, at, Math.min(3.5, far * .17), RAYS, 8895, 0xFFE0E6, peak, 0);
+                glow(c, at, Math.min(1.6, far * .07), peak, RED_LIGHT);
+                glow(c, at, Math.min(3, far * .14), peak, RED);
+                fxSprite(c, at, Math.min(3.5, far * .17), RAYS, 8895, RED_LIGHT, peak, 0);
             }
         }
         if (b < 0) return;
@@ -751,16 +776,16 @@ final class BlueRedDraw {
         pressureBlast(c, at, dir, b, 20, 1.7, 8800, 1, true);
         if (c.body()) {
             // Ground wave: ragged and uneven, not a perfect ring.
-            if (b < 12) pressureWave(c, at.add(0, -.9, 0), new Vec3(0, 1, 0), 2 + b * 1.4, .6 * (1 - b / 12), b, 8860, .6 * (1 - b / 12), SHOCK_WHITE);
+            if (b < 12) pressureWave(c, at.add(0, -.9, 0), new Vec3(0, 1, 0), 2 + b * 1.4, .6 * (1 - b / 12), b, 8860, .6 * (1 - b / 12), RED);
             fxFlat(c, at.add(0, -.95, 0), 3 + 2.5 * out, SMOKE, 171, RED_BODY, .5 * fade);
             splatter(c, at, b, dir);
         }
         if (!c.glow()) return;
         double far = at.distanceTo(c.eye);
-        if (b < 2) glow(c, at, Math.min(6, far * .2) * (1 - b / 2), .9 * (1 - b / 2), RED_CORE);
+        if (b < 2) glow(c, at, Math.min(6, far * .2) * (1 - b / 2), .9 * (1 - b / 2), RED);
         if (b < 6) fxSprite(c, at, Math.min(3 + b * .7, far * .3), RAYS, 8890, 0xFF7090, .35 * (1 - b / 6), b * .02);
         glow(c, at.add(dir.scale(2 * out)), 6, .3 * fade, 0xFF5A78);
-        if (b < 12) pressureWave(c, at.add(dir.scale(b * .4)), dir, 1 + b * 1.1, .5 * (1 - b / 12), b, 8870, 1 - b / 12, SHOCK_WHITE);
+        if (b < 12) pressureWave(c, at.add(dir.scale(b * .4)), dir, 1 + b * 1.1, .5 * (1 - b / 12), b, 8870, 1 - b / 12, RED);
     }
 
     /** A pressure wave: not a drawn circle but a ragged, broken band of hot red air round {@code n}: its radius bulges and dents, its width
@@ -1200,7 +1225,7 @@ final class BlueRedDraw {
         for (int j = 0; j < 4; j++) sparks(c, red.add(blue.subtract(red).scale(.2 + .2 * j)), .8 + .6 * link, age * 1.5, (int) (8 + 22 * link - 14 * surge), j % 2 == 0 ? ORCHID : VIOLET, 3300 + j * 7);
         if (contact > 0 && !Double.isNaN(groundY)) {
             double k = 1 - contact;
-            pressureWave(c, new Vec3(center.x, groundY + .1, center.z), new Vec3(0, 1, 0), 2 + 22 * k, 2.6 * contact, age, 3960, contact, ORCHID);
+            pressureWave(c, new Vec3(center.x, groundY + .1, center.z), new Vec3(0, 1, 0), 2 + 22 * k, 2.6 * contact, age, 3960, contact, SHOCK_WHITE);
         }
         if (build > .2) streaks(c, center, .3, separation(age) + 4, age, (int) (50 * build), ORCHID, 3400, 2, build, true);
     }
@@ -1490,18 +1515,21 @@ final class BlueRedDraw {
             sprite(c, at, Math.max(1, at.distanceTo(eye)) * .1, .9 * (1 - frame * .5), RED_CORE, BlueRedAtlas.GLOW);
             return;
         }
-        int light = purple ? PALE : RED_BODY;
+        int light = purple ? 0xC070FF : RED_BODY;
         int back = frame < 3 ? (frame % 2 == 0 ? INK : light) : light, stroke = back == INK ? light : INK;
         sprite(c, eye.add(look.scale(.5)), 4, a, back, BlueRedAtlas.SOLID);
         double dist = Math.max(1, at.distanceTo(eye));
-        fxSprite(c, at, dist * .9, RAYS, 320 + frame, stroke, a, frame * .7);
+        fxSprite(c, at, dist * (purple ? 2.4 : .9), RAYS, 320 + frame, stroke, a, frame * .7);
+        // Purple's burst fills the frame (owner, 2026-11-19: it read small, a few rays at the centre).
+        if (purple) fxSprite(c, at, dist * (.9 + .25 * frame), SHOCK, 344, stroke, a, 0);
         Vec3[] uw = basis(look);
         for (int i = 0; i < 10; i++)
             if (!purple) fxArc(c, at, uw[0], uw[1], dist * (.12 + .05 * i), i * .63 + frame * .4, 1.4, dist * .012, FLOW, 330 + i, stroke, a);
         // Purple's frames: one big hard circle round it, and a thinner one inside (owner, round 37).
         if (purple) {
-            fxArc(c, at, uw[0], uw[1], dist * (.3 + .03 * frame), 0, Math.PI * 2.01, dist * .03, FLOW, 345, stroke, a);
-            fxArc(c, at, uw[0], uw[1], dist * (.2 + .02 * frame), 0, Math.PI * 2.01, dist * .01, FLOW, 346, stroke, a);
+            fxArc(c, at, uw[0], uw[1], dist * (.75 + .08 * frame), 0, Math.PI * 2.01, dist * .05, FLOW, 345, stroke, a);
+            fxArc(c, at, uw[0], uw[1], dist * (.55 + .05 * frame), 0, Math.PI * 2.01, dist * .02, FLOW, 346, stroke, a);
+            fxArc(c, at, uw[0], uw[1], dist * (.38 + .03 * frame), 0, Math.PI * 2.01, dist * .012, FLOW, 347, stroke, a);
         }
         if (frame < 3) sprite(c, at, dist * .12, a, stroke, BlueRedAtlas.GLOW);
     }

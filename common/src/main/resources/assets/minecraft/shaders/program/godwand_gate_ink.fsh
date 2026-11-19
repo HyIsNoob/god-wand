@@ -47,6 +47,10 @@ void main() {
                              lum(texCoord + vec2(0.0, px.y)) - lum(texCoord - vec2(0.0, px.y))));
     // Lit or not, and the outlines drawn in the other tone: black lines inside what is white, white lines in the dark. A flat silhouette would lose the drawing.
     float tone = abs(smoothstep(0.30, 0.36, dot(scene, vec3(0.2126, 0.7152, 0.0722))) - smoothstep(0.04, 0.10, edge));
-    if (Ink > 1.5) tone = 1.0 - tone;
-    fragColor = vec4(vec3(tone), 1.0);
+    // Ink 3 and 4: the same two frames in violet (Purple's blast, owner 2026-11-19), deep violet and bright lilac instead of black and white.
+    bool violet = Ink > 2.5;
+    float mode = violet ? Ink - 2.0 : Ink;
+    if (mode > 1.5) tone = 1.0 - tone;
+    vec3 col = violet ? mix(vec3(0.05, 0.0, 0.13), vec3(0.88, 0.48, 1.0), tone) : vec3(tone);
+    fragColor = vec4(col, 1.0);
 }

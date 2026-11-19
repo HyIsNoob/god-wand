@@ -43,6 +43,18 @@ public final class PurpleCinematic {
     /** Fully black: the world Purple is not drawn yet (it shows under the black once that starts thinning). */
     public static boolean blackout() { return active() && age >= BlueRedRules.PURPLE_SWIRL_END + 12 && age < BlueRedRules.PURPLE_MERGE; }
     static double age() { return age; }
+
+    /** The cutscene's own field of view (owner, 2026-11-19): the player's FOV setting must not change how it is framed. The 3D swirl and the
+     *  2D act are set up for the default 70; Purple narrows a little while it holds its breath, flares wide on the blast and settles, then
+     *  the last second eases back to the player's own. */
+    public static double fov(double vanilla, float delta) {
+        if (!active()) return vanilla;
+        double a = age + delta, det = BlueRedRules.PURPLE_DETONATE;
+        double crush = GateDraw.smooth((a - (det - 18)) / 16.0) * (1 - GateDraw.smooth((a - det) / 2.0));
+        double flare = a < det ? 0 : Math.exp(-(a - det) / 14.0);
+        double own = 70 - 8 * crush + 16 * flare;
+        return own + (vanilla - own) * GateDraw.smooth((a - (BlueRedRules.PURPLE_CINEMATIC - 20)) / 20.0);
+    }
     public static void reset() { age = -1; center = null; eye = null; }
 
     public static AtomicCinematic.Pose camera(float delta, Vec3 vanillaPosition, float vanillaYaw, float vanillaPitch) {
@@ -66,6 +78,10 @@ public final class PurpleCinematic {
     /** Owner's direction (2026-11-16): the player's own view for the blink, a cut to a close shot of the orbs swirling in the world, held still behind
      *  the 2D void, a cut back to a fast move round Purple as it swells, thrown far back by the blast. */
     static AtomicCinematic.Pose pose(Vec3 center, Vec3 eye, double age) {
+        // A hit-stop on the blast (owner, 2026-11-19: more weight): the camera holds dead still for four ticks, then is hurled.
+        int det0 = BlueRedRules.PURPLE_DETONATE;
+        if (age > det0 && age < det0 + 4) age = det0;
+        else if (age >= det0 + 4) age -= 4;
         // The camera follows the orbs as they soar to the burst point (center is the burst point, up in the sky).
         center = center.add(0, BlueRedRules.purpleRise(age), 0);
         Vec3 away = new Vec3(eye.x - center.x, 0, eye.z - center.z);

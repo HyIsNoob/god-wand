@@ -155,6 +155,11 @@ public final class BlueRedProbe implements ClientModInitializer {
         if (t == 40) { c.options.keyAttack.setDown(true); System.out.println("GOJO_QA BLUE hold"); }
         if (t < 40) return;
         BlueState s = myBlue(server, c);
+        if (t == 45 || t == 60 || t == 90) System.out.println("GOJO_QA BLUES t=" + t + " " + server.submit(() -> {
+            var p = me(server, c); var sb = new StringBuilder();
+            for (var x : BlueRedManager.blues(p.serverLevel())) sb.append(x.state()).append('@').append(String.format(java.util.Locale.ROOT, "%.1f", x.pos().distanceTo(p.getEyePosition()))).append(' ');
+            return sb.toString();
+        }).join());
         if (readyAt < 0 && s != null && s != BlueState.CHARGING) { readyAt = t; System.out.println("GOJO_QA BLUE ready after " + (t - 40) + " ticks"); }
         boolean nearReady = readyAt >= 0 && t - readyAt < 6;
         if (nearReady || t % 2 == 0) grab(c);
@@ -187,6 +192,10 @@ public final class BlueRedProbe implements ClientModInitializer {
                     mob instanceof net.minecraft.world.entity.LivingEntity l ? l.getHealth() : -1f);
         }
         if (hit && fired > 45) { stage = 4; since = ticks; return; }
+        if (fired == 340 || fired == 380) System.out.println("GOJO_QA TERRAIN fired+" + fired + " " + server.submit(() -> {
+            var ps = BlueRedManager.purples(me(server, c).serverLevel());
+            return ps.isEmpty() ? "none" : "age=" + ps.get(0).age() + " dugAt=" + ps.get(0).dugAt + " stainedAt=" + ps.get(0).stainedAt;
+        }).join());
         if (fired == 30 || fired == 100) System.out.println("GOJO_QA PURPLE fired+" + fired + " cutscene=" + net.godwand.client.PurpleCinematic.active()
                 + " purples=" + server.submit(() -> BlueRedManager.purples(me(server, c).serverLevel()).size()).join());
         if (fired > 450) { stage = 4; since = ticks; System.out.println("GOJO_QA RED done blues=" + server.submit(() -> BlueRedManager.blues(me(server, c).serverLevel()).size()).join()); }

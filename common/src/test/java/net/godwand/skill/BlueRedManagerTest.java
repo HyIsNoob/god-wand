@@ -37,6 +37,8 @@ class BlueRedManagerTest {
         previousConfig = net.godwand.config.GodWandConfig.SERVER;
         net.godwand.config.GodWandConfig.SERVER = new net.godwand.config.GodWandConfig.Server();
         net.godwand.config.GodWandConfig.SERVER.blueTerrainDamage = false; // terrain is BlueEaterTest's job
+        // No Purple crater unless a test asks: the mocked world records every call, and a radius-48 one runs the suite out of memory.
+        net.godwand.config.GodWandConfig.SERVER.purpleTerrainDamage = false;
         BlueRedManager.clearAll();
         BlueRedManager.sender = (level, pos, payload) -> sent.add((BlueRedPayload) payload);
         BlueRedManager.finder = (level, box) -> new ArrayList<>(nearby);
@@ -452,6 +454,7 @@ class BlueRedManagerTest {
     @Test void terrainOnlyBetweenDetonationAndEnd() {
         var pair = purple();
         net.godwand.config.GodWandConfig.SERVER.purpleTerrainDamage = true;
+        net.godwand.config.GodWandConfig.SERVER.purpleRadius = 8;
         when(lastChunk.getBlockState(any(net.minecraft.core.BlockPos.class))).thenReturn(net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
         int[] writes = {0};
         when(world.setBlock(any(net.minecraft.core.BlockPos.class), any(net.minecraft.world.level.block.state.BlockState.class), anyInt())).thenAnswer(i -> { writes[0]++; return true; });
