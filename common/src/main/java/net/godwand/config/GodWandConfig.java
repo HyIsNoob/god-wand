@@ -98,7 +98,7 @@ public final class GodWandConfig {
         public int blueChargeTicks = 160;
         public int blueAnchorTicks = 300;
         public int redChargeTicks = 50;
-        public float redDamage = 200;
+        public float redDamage = 500;
         public int redRange = 100;
         public int redTunnelRadius = 2;
         public int redCraterRadius = 5;
@@ -137,7 +137,7 @@ public final class GodWandConfig {
             blueChargeTicks=Mth.clamp(blueChargeTicks,20,600);
             blueAnchorTicks=Mth.clamp(blueAnchorTicks,20,1200);
             redChargeTicks=Mth.clamp(redChargeTicks,10,200);
-            redDamage=finiteClamp(redDamage,0,1_000_000,200);
+            redDamage=finiteClamp(redDamage,0,1_000_000,500);
             redRange=Mth.clamp(redRange,8,160);
             redTunnelRadius=Mth.clamp(redTunnelRadius,0,4);
             redCraterRadius=Mth.clamp(redCraterRadius,0,8);

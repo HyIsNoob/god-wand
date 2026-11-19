@@ -69,7 +69,7 @@ class GodWandConfigTest {
             assertEquals(1200,s.purpleCooldownTicks);assertEquals(50,s.blueReadyDamage);assertEquals(32,s.purpleRadius);
             s.blueReadyDamage=-1;s.purpleRadius=999;s.redRange=0;s.blueCoreDamage=Float.NaN;s.bluePullRadius=99;s.redChargeTicks=1;s.validate();
             assertTrue(s.blueReadyDamage>0);assertTrue(s.purpleRadius<=48);assertTrue(s.redRange>=8);
-            assertEquals(20,s.blueCoreDamage);assertEquals(200,s.redDamage);assertEquals(9999,s.purpleDamage);assertEquals(16,s.bluePullRadius);assertEquals(10,s.redChargeTicks);
+            assertEquals(20,s.blueCoreDamage);assertEquals(500,s.redDamage);assertEquals(9999,s.purpleDamage);assertEquals(16,s.bluePullRadius);assertEquals(10,s.redChargeTicks);
             assertTrue(s.blueTerrainDamage&&s.redTerrainDamage&&s.purpleTerrainDamage);
         } finally { GodWandConfig.SERVER=previous; }
     }

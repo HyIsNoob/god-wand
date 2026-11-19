@@ -22,7 +22,9 @@ public final class BlueEater {
     static final int EAT_PER_TICK = 12;
     /** Live flying displays per Blue; further blocks vanish without one. */
     static final int MAX_DISPLAYS = 96;
-    static final int FLIGHT_TICKS = 32;
+    // Owner, 2026-11-19: small pieces, whirled round on their orbit and swallowed quickly.
+    static final int FLIGHT_TICKS = 20;
+    static final float START_SCALE = .45f;
 
     record Eaten(Display.BlockDisplay display, Vec3 from, int[] age) {
         Eaten(Display.BlockDisplay display, Vec3 from) { this(display, from, new int[1]); }
@@ -35,7 +37,8 @@ public final class BlueEater {
         display.addTag("godwand_managed_displacement");
         display.setPos(pos.getX(), pos.getY(), pos.getZ());
         display.setBlockState(state);
-        display.setTransformation(Transformation.identity());
+        float o = (1 - START_SCALE) / 2;
+        display.setTransformation(new Transformation(new Vector3f(o, o, o), null, new Vector3f(START_SCALE), null));
         level.addFreshEntity(display);
         SpatialDisplacementManager.trackEntity(display.getUUID(), display);
         return display;
@@ -107,14 +110,15 @@ public final class BlueEater {
         return state;
     }
 
-    /** One tick of flight. Every 2 ticks each display gets a new keyframe (interpolated by the client). Owner's ref 41 (2026-11-18): torn up
+    /** One tick of flight: each display gets a new keyframe every tick (interpolated by the client). Owner's ref 41 (2026-11-18): torn up
      *  and pulled out to a ring round Blue, then whirled round it on a tilted orbit, faster and faster, the ring tightening, tumbling and
      *  shrinking until it is swallowed. */
     static void animate(List<Eaten> live, Vec3 center) {
         for (Iterator<Eaten> it = live.iterator(); it.hasNext(); ) {
             Eaten e = it.next();
             int age = ++e.age()[0];
-            if (age % 2 == 1) {
+            {
+                // A keyframe every tick (the orbit is fast; 2-tick keyframes would cut its corners).
                 double p = Math.min(1, (age + 1) / (double) FLIGHT_TICKS), ease = p * p;
                 Vec3 mid = e.from().add(.5, .5, .5), v0 = mid.subtract(center);
                 long h = (long) Math.floor(e.from().x * 31 + e.from().y * 13 + e.from().z * 17);
@@ -127,10 +131,10 @@ public final class BlueEater {
                 double a0 = Math.atan2(v0.dot(w), v0.dot(u)), ang = a0 + sign * Math.PI * 3.5 * Math.pow(p, 1.2);
                 Vec3 onRing = u.scale(Math.cos(ang) * rad).add(w.scale(Math.sin(ang) * rad));
                 Vec3 v = v0.add(onRing.subtract(v0).scale(j));
-                float scale = (float) (1 - .75 * ease);
+                float scale = (float) (START_SCALE * (1 - .8 * ease));
                 Vec3 to = center.add(v).subtract(e.from()).subtract(scale / 2.0, scale / 2.0, scale / 2.0);
                 e.display().setTransformationInterpolationDelay(0);
-                e.display().setTransformationInterpolationDuration(2);
+                e.display().setTransformationInterpolationDuration(1);
                 e.display().setTransformation(new Transformation(new Vector3f((float) to.x, (float) to.y, (float) to.z),
                         new Quaternionf().rotateXYZ((float) (ease * 2.1), (float) (ease * 3.4), (float) (ease * 1.3)), new Vector3f(scale), null));
             }
