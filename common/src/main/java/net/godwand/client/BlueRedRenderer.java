@@ -46,6 +46,7 @@ public final class BlueRedRenderer {
     /** Whether a Red is in flight (used by the QA probe to time its side camera). */
     static boolean anyFlight() { return !FLIGHTS.isEmpty(); }
     private static final List<Burst> BURSTS = new ArrayList<>();
+    private static final List<Burst> FIZZLES = new ArrayList<>();
     private static final List<Purple> PURPLES = new ArrayList<>();
     private static final List<Burst> IMPACTS = new ArrayList<>();
     private static double clock;
@@ -89,7 +90,19 @@ public final class BlueRedRenderer {
             }
             case BlueRedPayload.BLUE_SHATTER -> { BURSTS.add(new Burst(at, clock, true)); sound(at, SoundEvents.GLASS_BREAK, 2f, .6f); }
             case BlueRedPayload.RED_CHARGE -> { CHARGES.put(p.ownerId(), clock); sound(at, SoundEvents.RESPAWN_ANCHOR_CHARGE, 1f, 1.4f); }
-            case BlueRedPayload.RED_CANCEL -> CHARGES.remove(p.ownerId());
+            case BlueRedPayload.RED_CANCEL -> {
+                // It fizzles out where it was gathering (owner, 2026-11-19), with a hiss.
+                CHARGES.remove(p.ownerId());
+                var lvl = Minecraft.getInstance().level;
+                var owner = lvl == null ? null : lvl.getEntity(p.ownerId());
+                if (owner != null) {
+                    Vec3 view = owner.getViewVector(1), right = view.cross(new Vec3(0, 1, 0));
+                    right = right.lengthSqr() < 1e-6 ? Vec3.ZERO : right.normalize();
+                    Vec3 where = owner.getEyePosition().add(view.scale(1.9)).add(right.scale(.45)).add(0, -.3, 0);
+                    FIZZLES.add(new Burst(where, clock, false));
+                    sound(where, SoundEvents.FIRE_EXTINGUISH, 1f, 1.4f);
+                }
+            }
             case BlueRedPayload.RED_FIRE -> {
                 CHARGES.remove(p.ownerId());
                 Flight fl = new Flight(p.ownerId(), at, new Vec3(p.dx(), p.dy(), p.dz()), clock);
@@ -153,6 +166,7 @@ public final class BlueRedRenderer {
         if (client.isPaused()) return;
         clock++;
         BURSTS.removeIf(b -> clock - b.at() > 20);
+        FIZZLES.removeIf(b -> clock - b.at() > 14);
         IMPACTS.removeIf(b -> clock - b.at() > 6);
         FLIGHTS.removeIf(f -> f.endAt >= 0 ? clock - f.endAt > 10 : clock - f.at > 200);
         CHARGES.values().removeIf(at -> clock - at > 400);
@@ -180,6 +194,9 @@ public final class BlueRedRenderer {
                 // Full: a pulse, a sound, sparks (owner, 2026-11-19).
                 Vec3 at = owner.getEyePosition().add(owner.getViewVector(1).scale(1.9));
                 sound(at, SoundEvents.RESPAWN_ANCHOR_SET_SPAWN, 1.2f, 1.6f);
+                sound(at, SoundEvents.WARDEN_SONIC_BOOM, .6f, 2f);
+                var me = Minecraft.getInstance().player;
+                if (me != null && me.getId() == charge.getKey()) { GodWandCinematicEngine.addTrauma(.5f, 10); GodWandCinematicEngine.setFovPunch(1.05f, 3); }
             }
         }
         // Blue's dust: shed every tick off its skin; it stays where it was shed.
@@ -231,7 +248,7 @@ public final class BlueRedRenderer {
         PURPLES.removeIf(p -> clock - p.at() > BlueRedRules.PURPLE_CINEMATIC + 10);
     }
 
-    public static void reset() { BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); PURPLES.clear(); IMPACTS.clear(); clock = 0; }
+    public static void reset() { BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); FIZZLES.clear(); PURPLES.clear(); IMPACTS.clear(); clock = 0; }
 
     private static void detonated(Vec3 at) {
         var me = Minecraft.getInstance().player;
@@ -415,7 +432,7 @@ public final class BlueRedRenderer {
     public static void render(PoseStack pose, Camera camera, float partial) {
         overlay = new Overlay(new Matrix4f(pose.last().pose()), camera, partial);
         planBloom(pose, camera, partial);
-        if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && PURPLES.isEmpty() && IMPACTS.isEmpty()) return;
+        if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && FIZZLES.isEmpty() && PURPLES.isEmpty() && IMPACTS.isEmpty()) return;
         RenderSystem.enableBlend(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
         BlueRedAtlas.bind(); BlueRedShader.bind((float) (((clock + partial) / 20.0) % 3600));
         try {
@@ -501,7 +518,7 @@ public final class BlueRedRenderer {
             // Its pressure is thrown back behind it and a little up and out to the side, never into the lens (owner, 2026-11-19).
             // Front to back (owner, 2026-11-19): straight back along the view, fanning out evenly all round, not swept across the screen.
             Vec3 back = view.scale(-1);
-            BlueRedDraw.redCharge(c, at, BlueRedVisual.redChargeSize(Math.min(age, full), (int) full), age, Math.min(1, age / full), age >= full, back);
+            BlueRedDraw.redCharge(c, at, BlueRedVisual.redChargeSize(Math.min(age, full), (int) full), age, Math.min(1, age / full), age >= full, back, full);
             BlueRedDraw.darkSwirl(c, owner.getPosition(partial).add(0, 1.1, 0), age, Math.min(1, age / full), view);
         }
         for (Flight f : FLIGHTS) {
@@ -510,6 +527,7 @@ public final class BlueRedRenderer {
             BlueRedDraw.redFlight(c, f.origin, f.dir, head, age, 1 - clamp01(after / 10), f.owner * 31L + (long) f.at, f.end == null, f.power);
         }
         for (Burst b : BURSTS) BlueRedDraw.burst(c, b.pos(), now - b.at(), b.blue(), b.dir());
+        for (Burst b : FIZZLES) BlueRedDraw.redFizzle(c, b.pos(), now - b.at());
         if (!PurpleCinematic.blackout()) for (Purple p : PURPLES) {
             double age = now - p.at();
             // For the two players the world pair is gone before the void's pair shows (a dip through black), so two pairs never show at once.

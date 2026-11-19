@@ -57,8 +57,12 @@ class BlueRedDrawTest {
         BlueRedDraw.purple(swell, AT, BlueRedRules.PURPLE_MERGE + 5, EYE, LOOK);
         assertTrue(orbs(swell).size() == 1);
         assertEquals(java.util.List.of(2), orbs(swell));
+        // Owner, 2026-11-19: the texture blends into the bursting one over a few ticks instead of switching at once.
+        var mid = ctx(0);
+        BlueRedDraw.purple(mid, AT, BlueRedRules.PURPLE_DETONATE + 3, EYE, LOOK);
+        assertTrue(orbs(mid).contains(2 + 4 * 2) && orbs(mid).contains(2 + 4), "blending: " + orbs(mid));
         var blast = ctx(0);
-        BlueRedDraw.purple(blast, AT, BlueRedRules.PURPLE_DETONATE + 3, EYE, LOOK);
+        BlueRedDraw.purple(blast, AT, BlueRedRules.PURPLE_DETONATE + 8, EYE, LOOK);
         assertEquals(java.util.List.of(2 + 4 * 2), orbs(blast), "the bursting orb");
     }
 
@@ -123,9 +127,8 @@ class BlueRedDrawTest {
         assertEquals(6, prev, .01, "picks up from the size the void leaves it at");
         for (double age = BlueRedRules.PURPLE_MERGE + .25; age < BlueRedRules.PURPLE_CINEMATIC; age += .25) {
             double s = BlueRedDraw.purpleSize(age);
-            // It caves in smoothly while it holds its breath before the burst (owner, round 42); otherwise it only grows.
-            boolean caving = age > BlueRedRules.PURPLE_DETONATE - 18 && age <= BlueRedRules.PURPLE_DETONATE;
-            assertTrue(s >= prev - (caving ? .2 : 1e-9) && s - prev < 1.6, "age " + age + ": " + prev + " -> " + s);
+            // It only grows, swelling before the burst (owner, 2026-11-19: grow then blow, never shrink).
+            assertTrue(s >= prev - 1e-9 && s - prev < 1.6, "age " + age + ": " + prev + " -> " + s);
             prev = s;
         }
     }

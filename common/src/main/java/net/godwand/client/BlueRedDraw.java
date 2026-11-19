@@ -709,12 +709,35 @@ final class BlueRedDraw {
         }
     }
 
+    /** Red called off (owner, 2026-11-19: sneak or a tap): the gathered red collapses, its motes scatter and a puff of dark red smoke
+     *  rolls off, all gone in about twelve ticks. */
+    static void redFizzle(Ctx c, Vec3 at, double t) {
+        double k = clamp01(t / 12);
+        if (k >= 1) return;
+        if (c.body()) {
+            orb(c, at, .35 * (1 - k) * (1 - k), 1, 0, RED, 1 - k);
+            for (int i = 0; i < 8; i++) {
+                Vec3 d = nvec(8500 + i, 0).normalize();
+                fxSprite(c, at.add(d.scale(.2 + .9 * k)), .25 + .5 * k, SMOKE, 8510 + i, i % 2 == 0 ? RED_DARK : RED_DEEP, .45 * (1 - k), k + i);
+            }
+        }
+        if (!c.glow()) return;
+        glow(c, at, .6 * (1 - k) + .2, (1 - k), RED);
+        for (int i = 0; i < 30; i++) {
+            Vec3 d = nvec(8550 + i, 0).normalize();
+            glow(c, at.add(d.scale(.2 + 1.8 * (1 - (1 - k) * (1 - k)))), .05 + .04 * hash(8560 + i), (1 - k) * .9, i % 2 == 0 ? RED : RED_LIGHT);
+        }
+    }
+
     /** Red gathering in the hand (owner, 2026-11-19): a red heart (never white) inside a churning red mass, energy pouring in from all round,
      *  rings of it tightening, black-core red lightning crackling off it; {@code charge} 0..1 grows all of it; {@code full}: it pulses. */
     static void redCharge(Ctx c, Vec3 at, double s, double age, double charge, boolean full) { redCharge(c, at, s, age, charge, full, new Vec3(0, 1, 0)); }
 
     /** {@code back}: where its pressure is thrown, behind it (owner, 2026-11-19). */
-    static void redCharge(Ctx c, Vec3 at, double s, double age, double charge, boolean full, Vec3 back) {
+    static void redCharge(Ctx c, Vec3 at, double s, double age, double charge, boolean full, Vec3 back) { redCharge(c, at, s, age, charge, full, back, -1e9); }
+
+    /** {@code fullAt}: the age it filled at (for the one-shot burst). */
+    static void redCharge(Ctx c, Vec3 at, double s, double age, double charge, boolean full, Vec3 back, double fullAt) {
         back = back.lengthSqr() < 1e-6 ? new Vec3(0, 1, 0) : back.normalize();
         chargeStreaks(c, at, s, age, charge, back);
         chargeMotes(c, at, s, age, charge, back);
@@ -736,6 +759,15 @@ final class BlueRedDraw {
         glow(c, at, s * 1.6, .6, RED);
         glow(c, at, s * 3.5, .3 + .25 * charge, RED_BODY);
         if (full) {
+            // The instant it fills (owner, 2026-11-19: make it hit): a big red shock thrown out once, rays and a flash.
+            double since = age - fullAt;
+            if (since >= 0 && since < 12) {
+                double k = since / 12;
+                fxSprite(c, at, s * (1.5 + 9 * k), SHOCK, 7870, RED, .9 * (1 - k), 0);
+                fxSprite(c, at, s * (1 + 5 * k), SHOCK, 7871, RED_LIGHT, .7 * (1 - k), 1);
+                fxSprite(c, at, s * (3 + 4 * k), RAYS, 7872, RED, .6 * (1 - k), k);
+                glow(c, at, s * (4 - 2 * k), 1 - k, RED);
+            }
             double ring = (age % 10) / 10;
             fxSprite(c, at, s * (1 + 3 * ring), SHOCK, 7860, RED_LIGHT, .7 * (1 - ring), 0);
             glow(c, at, s * 2.2, .3 + .2 * flicker(age, 5), RED);
@@ -965,8 +997,8 @@ final class BlueRedDraw {
         int merge = BlueRedRules.PURPLE_MERGE, det = BlueRedRules.PURPLE_DETONATE;
         double grow = smooth((age - merge) / (double) (det - merge));
         double s = 6 + 6 * grow;
-        // The held breath before the burst (owner, round 42): it caves in on itself.
-        s *= 1 - .35 * smooth((age - (det - 18)) / 16.0);
+        // Before the burst it swells (owner, 2026-11-19: grow, then blow, not shrink).
+        s *= 1 + .3 * smooth((age - (det - 18)) / 16.0);
         // The blast bursts out fast and slows (ease-out), without the infinite first step of a square root; then keeps swelling slowly.
         if (age > det) s += 130 * (1 - Math.pow(1 - clamp01((age - det) / 45.0), 2)) + Math.max(0, age - det - 45) * .3;
         return s;
@@ -1005,7 +1037,12 @@ final class BlueRedDraw {
         if (c.body()) {
             // A softer skin before the blast so the lilac heart shows through (owner's refs).
             // Bright and solid (owner, 2026-11-19).
-            orb(c, at, s * breathe, 2, age >= detonate ? 2 : grow > .6 ? 1 : 0, VIOLET, bodyAlpha);
+            // Its texture's detail level blends from one step to the next instead of switching at once (owner, 2026-11-19).
+            double w1 = smooth((grow - .5) / .2), w2 = smooth((age - detonate) / 6.0);
+            double l0 = bodyAlpha * (1 - w1) * (1 - w2), l1 = bodyAlpha * w1 * (1 - w2), l2 = bodyAlpha * w2;
+            if (l0 > .01) orb(c, at, s * breathe, 2, 0, VIOLET, l0);
+            if (l1 > .01) orb(c, at, s * breathe, 2, 1, VIOLET, l1);
+            if (l2 > .01) orb(c, at, s * breathe, 2, 2, VIOLET, l2);
             debris(c, at, s * 1.4, age, 34, 0x1A0A26, 820, pre * fade, true);
             for (int b = 0; b < 8; b++) {
                 Vec3 d = nvec(2300 + b, age * .03 + b).normalize(), along = d.cross(nvec(2310 + b, age * .04)).normalize();
@@ -1506,11 +1543,14 @@ final class BlueRedDraw {
     // Owner, 2026-11-19: the touch is the cut, two ticks before MERGE: violet circular frames and Purple is there, whole (no growing).
     static final double TOUCH_V = BlueRedRules.PURPLE_MERGE - BlueRedRules.PURPLE_SWIRL_END - 2, VOID_R = 3.7, VOID_GAP = 5.8;
     /** The drawn sphere's rim glow reaches this far past its radius: the touch is rim on rim. */
+    // Measured on QA frames (2026-11-19): the drawn sphere's edge is r, so 1.0 is rim on rim at the hit.
     static final double VOID_RIM = 1.0;
 
     /** How far they have come (0..1) v ticks into the act: 1 exactly when their rims touch. */
-    // Slowing as they close (owner, 2026-11-19): heavy, the last stretch the slowest.
-    static double voidPush(double v) { return 1 - Math.pow(1 - clamp01((v - 14) / (TOUCH_V - 14)), 2.2); }
+    // Slowing as they close (owner, 2026-11-19), but still moving when the rims meet, so the touch and the impact frame are one instant (an
+    // ease that stops dead made them sit touching before the hit).
+    // One continuous ease (owner, 2026-11-19: no pause and lunge): fast at first, slower and slower, still moving when the rims meet.
+    static double voidPush(double v) { double k = clamp01((v - 14) / (TOUCH_V - 14)); return .6 * (1 - (1 - k) * (1 - k)) + .4 * k; }
 
     /** The tick the 2D spheres touch and Purple is born. */
     static int voidTouch() { return BlueRedRules.PURPLE_SWIRL_END + (int) Math.round(TOUCH_V); }
@@ -1537,7 +1577,8 @@ final class BlueRedDraw {
         Vec3[] sh = basis(look);
         // Heavy (owner, 2026-11-19): a slow rumble growing as they close, fine jitter over it, and a hard kick fading after the touch.
         double kick = v >= TOUCH_V ? Math.exp(-(v - TOUCH_V) / 3.0) : 0;
-        double rumble = .35 * Math.pow(push, 2) * (1 - absorb) + .6 * kick, fine = .08 * push * (1 - absorb) + .2 * kick;
+        // Owner, 2026-11-19: much stronger at the end, and a real jolt at the touch.
+        double rumble = .75 * Math.pow(push, 3) * (1 - absorb) + 1.4 * kick, fine = .15 * push * push * (1 - absorb) + .35 * kick;
         at = at.add(sh[0].scale(rumble * snoise(4990, age * .7) + fine * snoise(4992, age * 3.1)))
                .add(sh[1].scale(rumble * snoise(4991, age * .7) + fine * snoise(4993, age * 3.3)));
         if (c.body()) {
