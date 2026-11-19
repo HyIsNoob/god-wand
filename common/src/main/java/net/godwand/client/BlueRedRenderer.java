@@ -183,7 +183,8 @@ public final class BlueRedRenderer {
         var self = Minecraft.getInstance().player;
         if (self != null) {
             Double redStart = CHARGES.get(self.getId());
-            if (redStart != null) GodWandCinematicEngine.holdTrauma((float) (.14 + .12 * Math.min(1, (clock - redStart) / GodWandConfig.SERVER.redChargeTicks)));
+            // Stronger once it is full (owner, 2026-11-19).
+            if (redStart != null) { double k = (clock - redStart) / GodWandConfig.SERVER.redChargeTicks; GodWandCinematicEngine.holdTrauma((float) (k >= 1 ? .4 : .14 + .12 * k)); }
             BlueView mine = BLUES.get(self.getId());
             if (mine != null && mine.goneAt < 0 && mine.state != BlueState.ANCHORED) GodWandCinematicEngine.holdTrauma(.12f);
         }
@@ -222,6 +223,8 @@ public final class BlueRedRenderer {
                     // A pressure front hugging the ground, like Fuga's (owner, 2026-11-18).
                     ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 26, 0xF4F0FF);
                 }
+                // The cut from the 2D act into the world: still shaking hard as Purple appears (owner, 2026-11-19).
+                if (age >= BlueRedRules.PURPLE_MERGE && age < BlueRedRules.PURPLE_VOID_END + 10) GodWandCinematicEngine.holdTrauma((float) (.5 * (1 - (age - BlueRedRules.PURPLE_MERGE) / (BlueRedRules.PURPLE_VOID_END + 10.0 - BlueRedRules.PURPLE_MERGE))));
                 if (age == BlueRedRules.PURPLE_DETONATE) { ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 96, 0xB050FF); GodWandCinematicEngine.addTrauma(.9f, 40); }
                 // An aftershock a second later: a second, wider violet front over the land and a heavy jolt.
                 if (age == BlueRedRules.PURPLE_DETONATE + 22) {
@@ -242,7 +245,7 @@ public final class BlueRedRenderer {
             if (PurpleCinematic.active() && PurpleCinematic.inVoid()) {
                 double close = BlueRedDraw.voidClose(age);
                 if (close > .6) GodWandCinematicEngine.addTrauma((float) (.05 * (close - .6) / .4), 6);
-                if (age == BlueRedDraw.voidTouch()) { if (GodWandConfig.CLIENT.impactFrames) { IMPACTS.clear(); IMPACTS.add(new Burst(p.pos(), clock, true)); } GodWandCinematicEngine.addTrauma(.7f, 16); }
+                if (age == BlueRedDraw.voidTouch()) { if (GodWandConfig.CLIENT.impactFrames) { IMPACTS.clear(); IMPACTS.add(new Burst(p.pos(), clock, true)); } GodWandCinematicEngine.addTrauma(1f, 30); }
             }
         }
         PURPLES.removeIf(p -> clock - p.at() > BlueRedRules.PURPLE_CINEMATIC + 10);

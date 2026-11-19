@@ -740,7 +740,8 @@ final class BlueRedDraw {
     static void redCharge(Ctx c, Vec3 at, double s, double age, double charge, boolean full, Vec3 back, double fullAt) {
         back = back.lengthSqr() < 1e-6 ? new Vec3(0, 1, 0) : back.normalize();
         chargeStreaks(c, at, s, age, charge, back);
-        chargeMotes(c, at, s, age, charge, back);
+        // Fuller still once it is full (owner, 2026-11-19).
+        chargeMotes(c, at, s, age, full ? 1.8 : charge, back);
         if (c.body()) {
             double coreD = at.distanceTo(c.eye);
             redMass(c, at, s * .9, age, coreD, false);
@@ -997,8 +998,6 @@ final class BlueRedDraw {
         int merge = BlueRedRules.PURPLE_MERGE, det = BlueRedRules.PURPLE_DETONATE;
         double grow = smooth((age - merge) / (double) (det - merge));
         double s = 6 + 6 * grow;
-        // Before the burst it swells (owner, 2026-11-19: grow, then blow, not shrink).
-        s *= 1 + .3 * smooth((age - (det - 18)) / 16.0);
         // The blast bursts out fast and slows (ease-out), without the infinite first step of a square root; then keeps swelling slowly.
         if (age > det) s += 130 * (1 - Math.pow(1 - clamp01((age - det) / 45.0), 2)) + Math.max(0, age - det - 45) * .3;
         return s;
@@ -1063,7 +1062,7 @@ final class BlueRedDraw {
         if (side.lengthSqr() > 1e-6) {
             side = side.normalize();
             // A faint glow along the tear (its bright rim is in its own shader).
-            double reach = s * (3.8 + 1.5 * blast);
+            double reach = s * 4.56 + 600 * smooth(blast);
             fxBeam(c, at.subtract(side.scale(reach * .9)), at.add(side.scale(reach * .9)), s * .25, s * .25, BOLT, 2410, 0x9A50FF, .25 * fade);
         }
         streaks(c, at, s * .95, s * 4, age, (int) (40 * pre), ORCHID, 860, 1.1, .5 * pre * fade, true);
@@ -1220,7 +1219,8 @@ final class BlueRedDraw {
         band = band.normalize();
         // Just behind the sphere's centre, away from the camera.
         Vec3 mid = at.add(look.scale(s * .3));
-        double reach = s * (4.56 + 1.8 * blast), lw = s * .23;
+        // After the blast it runs right across the view, edge to edge (owner, 2026-11-19), not stopping half way.
+        double reach = s * 4.56 + 600 * smooth(blast), lw = s * .23;
         int n = 24;
         Vec3[] tp = new Vec3[n + 1];
         double[] tw = new double[n + 1];
@@ -1576,7 +1576,8 @@ final class BlueRedDraw {
         // here because the act is framed by the camera itself.
         Vec3[] sh = basis(look);
         // Heavy (owner, 2026-11-19): a slow rumble growing as they close, fine jitter over it, and a hard kick fading after the touch.
-        double kick = v >= TOUCH_V ? Math.exp(-(v - TOUCH_V) / 3.0) : 0;
+        // Long and hard after the touch, on through the cut to Purple (owner, 2026-11-19).
+        double kick = v >= TOUCH_V ? Math.exp(-(v - TOUCH_V) / 6.0) : 0;
         // Owner, 2026-11-19: much stronger at the end, and a real jolt at the touch.
         double rumble = .75 * Math.pow(push, 3) * (1 - absorb) + 1.4 * kick, fine = .15 * push * push * (1 - absorb) + .35 * kick;
         at = at.add(sh[0].scale(rumble * snoise(4990, age * .7) + fine * snoise(4992, age * 3.1)))

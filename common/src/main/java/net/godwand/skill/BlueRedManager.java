@@ -276,13 +276,15 @@ public final class BlueRedManager {
         if (p.age < BlueRedRules.PURPLE_DETONATE || cfg.purpleRadius <= 0) return used;
         // Owner, 2026-11-19: the crater must be dug while the blast is still going, not long after it. For the blast's first 40 ticks Purple
         // gets a much larger share of the tick (its own 30 ms and a bigger cap); the shared 8 ms after that.
-        boolean rush = p.age < BlueRedRules.PURPLE_DETONATE + 40;
-        long until = rush ? Math.max(deadline, System.nanoTime() + 30_000_000L) : deadline;
-        int allowance = rush ? Math.max(budget, 120_000) : budget;
+        // Owner, 2026-11-19: the ground breaks in the impact frames themselves. The first four ticks of the blast dig almost the whole crater
+        // (a hitch the owner accepts there), the next forty finish it at 30 ms a tick, then the shared allowance.
+        boolean frames = p.age < BlueRedRules.PURPLE_DETONATE + 4, rush = p.age < BlueRedRules.PURPLE_DETONATE + 40;
+        long until = frames ? System.nanoTime() + 300_000_000L : rush ? Math.max(deadline, System.nanoTime() + 30_000_000L) : deadline;
+        int allowance = frames ? 1_000_000 : rush ? Math.max(budget, 120_000) : budget;
         int[][] cells = BlueEater.sphere(cfg.purpleRadius);
         if (p.cursor < cells.length) {
             int before = p.cursor;
-            p.cursor = BlueEater.carveFrom(p.level, p.center, cells, p.cursor, allowance, until, cfg.purpleTerrainDamage, rush ? 9000 : BlueEater.PURPLE_CLEAR_PER_TICK);
+            p.cursor = BlueEater.carveFrom(p.level, p.center, cells, p.cursor, allowance, until, cfg.purpleTerrainDamage, frames ? 150000 : rush ? 9000 : BlueEater.PURPLE_CLEAR_PER_TICK);
             if (!cfg.purpleTerrainDamage) p.cursor = cells.length;
             if (p.cursor >= cells.length) p.dugAt = p.age;
             return Math.min(budget, p.cursor - before) + used;
