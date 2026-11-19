@@ -1010,7 +1010,8 @@ final class BlueRedDraw {
     }
 
     /** How far apart they hold at the face-off. */
-    static final double FACE_GAP = 4.2;
+    // Closer at the stop (owner, round 41): the surfaces nearly touch before the cut to 2D.
+    static final double FACE_GAP = 3.0;
 
     /** Orbit speed in radians per tick: a moderate start, climbing hard through the build-up (about 3.5 turns a second at the peak), braked to
      *  a stop for the face-off. */
@@ -1287,6 +1288,11 @@ final class BlueRedDraw {
         Vec3 axis = view.cross(new Vec3(0, 1, 0)).normalize(), up = new Vec3(0, 1, 0);
         // Slow approach (owner, 2026-11-18): they drift in over most of the act; Purple is born between them near the end.
         double push = smooth((v - 14) / (span * .78)), form = smooth((v - span * .66) / (span * .24)), absorb = smooth((v - span * .74) / (span * .26));
+        // A moderate shake of the whole act, none at first and building as they draw together (owner, round 40b). Camera trauma can't show
+        // here because the act is framed by the camera itself.
+        Vec3[] sh = basis(look);
+        double amp = .3 * Math.pow(push, 1.3) * (1 - absorb);
+        at = at.add(sh[0].scale(amp * snoise(4990, age * 1.7))).add(sh[1].scale(amp * snoise(4991, age * 1.7)));
         if (c.body()) {
             Vec3[] uw = basis(look);
             Vec3 o = eye.add(look.scale(.5));
@@ -1297,7 +1303,7 @@ final class BlueRedDraw {
                     o.subtract(uw[0].scale(H)).add(uw[1].scale(H)), NEBULA, 250, 0x2E2640, show, show, show, show, 0, 1);
         }
         double orbs = (1 - absorb) * show, close = smooth((push - .2) / .75) * (1 - absorb);
-        double gapD = 4.8 * (1 - .8 * push) + .15 * (1 - absorb), r = 2.5 * (1 - .65 * absorb);
+        double gapD = 4.9 * (1 - .8 * push) + .15 * (1 - absorb), r = 3.1 * (1 - .65 * absorb);
         // view x up points to screen left: Red on +axis (left), Blue on -axis (right), level (owner: never tilted).
         Vec3 dirRed = axis;
         Vec3 red = at.add(dirRed.scale(gapD)), blue = at.subtract(dirRed.scale(gapD));
@@ -1342,9 +1348,9 @@ final class BlueRedDraw {
                 }
             }
             if (c.glow()) {
-                glow(c, p, r * 1.6, .12 * orbs, tint);
+                glow(c, p, r * 1.5, .2 * orbs, tint);
                 // The backdrop lit by each sphere: reddish round Red, bluish round Blue (owner, 2026-11-18).
-                glow(c, p.subtract(view.scale(2)), r * 4.5, .22 * orbs, side == 0 ? RED : 0x2A6CFF);
+                glow(c, p.subtract(view.scale(2)), r * 3.6, .13 * orbs, side == 0 ? RED : 0x2A6CFF);
                 // Its own lightning crackling round it, more as they close.
                 for (int b = 0; b < 2 + (int) (6 * close); b++) {
                     Vec3 d0 = nvec(4900 + side * 40 + b, age * .3).normalize(), d1 = d0.add(nvec(4920 + side * 40 + b, age * .35).scale(.9)).normalize();

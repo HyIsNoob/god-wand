@@ -204,7 +204,7 @@ class BlueRedDrawTest {
         assertTrue(BlueRedDraw.spin(fa + 1) > 0, "still turning a little: no sudden stop");
         assertEquals(0, BlueRedDraw.spin(BlueRedDraw.FACE_REST), 1e-9, "at rest once the black has fallen");
         Vec3[] o = BlueRedDraw.convergeOffsets(se - 1);
-        assertTrue(o[0].distanceTo(o[1]) > 3.5, "apart, facing each other: " + o[0].distanceTo(o[1]));
+        assertTrue(o[0].distanceTo(o[1]) > 2.5, "apart, facing each other: " + o[0].distanceTo(o[1]));
         assertTrue(o[1].subtract(o[0]).normalize().dot(BlueRedDraw.faceAxis()) > .95, "on the face-off line, Red on +axis");
         double maxStep = 0;
         for (double age = b; age < se; age += .5) maxStep = Math.max(maxStep, BlueRedDraw.convergeOffsets(age)[1].distanceTo(BlueRedDraw.convergeOffsets(age + .5)[1]));

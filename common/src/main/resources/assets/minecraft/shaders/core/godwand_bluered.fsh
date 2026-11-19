@@ -322,7 +322,8 @@ void main() {
         vec3 side = mix(vec3(0.60, 0.05, 0.10), vec3(0.48, 0.10, 0.62), smoothstep(-0.9, 0.0, u.x));
         side = mix(side, vec3(0.08, 0.16, 0.75), smoothstep(0.0, 0.9, u.x));
         float fall = exp(-u.y * u.y * 2.2);   // brightest through the middle band, black towards top and bottom
-        col = vec3(0.004, 0.0, 0.008) + side * bank * fall * 0.42 + side * 0.035 * fall;
+        // Darker still (owner, round 41) so the spheres stand out.
+        col = vec3(0.002, 0.0, 0.004) + side * bank * fall * 0.22 + side * 0.012 * fall;
         a = 1.0;
     } else {
         discard;

@@ -90,7 +90,8 @@ public final class PurpleCinematic {
             double stop = GateDraw.smooth((age - (le + 10)) / (double) (swirl + 6 - le - 10));
             // Round 40 (owner): starts far (Red is far out too) and comes in step by step as the two draw together.
             double near = GateDraw.smooth((age - blink) / (double) (le - blink));
-            double a = a0 + da * k, dist = 8.5 - 4.1 * near - 1.1 * stop, h = -.7 * out;
+            // Round 40b (owner): closer still at the stop, just before the cut to 2D.
+            double a = a0 + da * k, dist = 8.5 - 4.1 * near - 2.3 * stop, h = -.7 * out;
             // While they coast, an orb swinging round to the camera's side pushes it back to keep ~2.8 blocks clear (no lens-filling glare);
             // orbs off to the sides need nothing, so the square-on close-up at the stop is untouched.
             double need = 0;
