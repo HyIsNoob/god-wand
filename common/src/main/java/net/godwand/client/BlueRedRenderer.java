@@ -69,7 +69,7 @@ public final class BlueRedRenderer {
                         Vec3 d = randomDir();
                         spray(i % 3 == 0 ? ParticleTypes.ELECTRIC_SPARK : ParticleTypes.SOUL_FIRE_FLAME, at.add(d.scale(.8)), d.scale(.55 + .6 * RANDOM.nextDouble()));
                     }
-                    ImpactDebrisRenderer.groundWave(groundUnder(at), 22);
+                    ImpactDebrisRenderer.groundWave(groundUnder(at), 22, 0x3A8CFF);
                 }
                 v.state = state;
             }
@@ -155,9 +155,9 @@ public final class BlueRedRenderer {
                 if (age == BlueRedRules.PURPLE_BLINK) {
                     GodWandCinematicEngine.addTrauma(.45f, 10);
                     // A pressure front hugging the ground, like Fuga's (owner, 2026-11-18).
-                    ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 26);
+                    ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 26, 0xB050FF);
                 }
-                if (age == BlueRedRules.PURPLE_DETONATE) { ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 96); GodWandCinematicEngine.addTrauma(.9f, 40); }
+                if (age == BlueRedRules.PURPLE_DETONATE) { ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 96, 0xB050FF); GodWandCinematicEngine.addTrauma(.9f, 40); }
                 // A low rumble while it holds its breath (owner, round 42).
                 if (age >= BlueRedRules.PURPLE_DETONATE - 18 && age < BlueRedRules.PURPLE_DETONATE) GodWandCinematicEngine.addTrauma(.06f, 4);
                 if (age > BlueRedRules.PURPLE_CONTACT && age < BlueRedRules.PURPLE_SWIRL_END) {
@@ -226,14 +226,14 @@ public final class BlueRedRenderer {
             // Held breath: violet drawn into it from all round.
             if (age > det - 18) for (int i = 0; i < 14; i++) { Vec3 d = randomDir(); spray(ParticleTypes.PORTAL, sky, d.scale(s * 1.6)); }
         }
-        if (age == det) for (int i = 0; i < 260; i++) {
+        if (age == det) for (int i = 0; i < 160; i++) {
             Vec3 d = randomDir();
             spray(i % 4 == 0 ? ParticleTypes.ELECTRIC_SPARK : i % 4 == 1 ? ParticleTypes.REVERSE_PORTAL : ParticleTypes.DRAGON_BREATH, sky.add(d.scale(s)), d.scale(1.2 + 1.6 * RANDOM.nextDouble()));
         }
         double t = age - det;
         if (t > 0 && t < 90) {
-            double front = 160 * (1 - Math.pow(1 - Math.min(1, t / 60), 2)), fade = 1 - t / 90;
-            for (int i = 0; i < 14 * fade; i++) {
+            double front = 200 * (1 - Math.pow(1 - Math.min(1, t / 60), 2)), fade = 1 - t / 90;
+            for (int i = 0; i < 16 * fade; i++) {
                 double a = RANDOM.nextDouble() * Math.PI * 2, r = front * (.6 + .4 * RANDOM.nextDouble());
                 double x = ground.x + Math.cos(a) * r, z = ground.z + Math.sin(a) * r;
                 double y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, (int) Math.floor(x), (int) Math.floor(z));

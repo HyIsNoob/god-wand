@@ -26,7 +26,7 @@ public final class BlueRedRules {
      *  together and Purple swallows them (the void thins out from MERGE to VOID_END), the camera races round Purple, it detonates, the cutscene
      *  ends, the crater stops growing. */
     public static final int PURPLE_BLINK = 4, PURPLE_SWIRL_END = 116, PURPLE_MERGE = 194, PURPLE_VOID_END = 202,
-            PURPLE_DETONATE = 272, PURPLE_CINEMATIC = 384, PURPLE_TERRAIN_END = 404;
+            PURPLE_DETONATE = 300, PURPLE_CINEMATIC = 412, PURPLE_TERRAIN_END = 498;
     /** The convergence in the world (owner, 2026-11-18), about 5 seconds: contact until CONTACT; an orbit until PLAY; the build-up until LIFT_END, the
      *  spin climbing hard while the pair lifts; braking and parting to opposite sides until FACE; the face-off held until SWIRL_END, when the 2D
      *  act fades in. */
@@ -45,7 +45,8 @@ public final class BlueRedRules {
     public static final double PURPLE_LIFT = 16;
     /** How high a chunk of charged ground floats t ticks after it tore loose (owner, 2026-11-19); h is its own hash. Same on server and client. */
     public static double liftRise(double t, long h) {
-        double top = 2.5 + 3.5 * ((h * 0x9E3779B97F4A7C15L >>> 40) & 0xFFFF) / 65536.0;
+        // Higher (owner, round 46), so the lifted ground reads from the camera.
+        double top = 5 + 6 * ((h * 0x9E3779B97F4A7C15L >>> 40) & 0xFFFF) / 65536.0;
         return top * (1 - Math.exp(-Math.max(0, t) / 22.0)) + .2 * Math.sin(t * .25 + h);
     }
     /** The hash a lifted chunk is keyed by, from its block's corner. */

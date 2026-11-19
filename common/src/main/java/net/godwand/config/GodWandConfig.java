@@ -102,7 +102,7 @@ public final class GodWandConfig {
         public int redRange = 100;
         public int redTunnelRadius = 2;
         public int redCraterRadius = 5;
-        public int purpleRadius = 32;
+        public int purpleRadius = 48;
         public float purpleDamage = 9999;
         public boolean blueTerrainDamage = true;
         public boolean redTerrainDamage = true;
@@ -141,7 +141,7 @@ public final class GodWandConfig {
             redRange=Mth.clamp(redRange,8,160);
             redTunnelRadius=Mth.clamp(redTunnelRadius,0,4);
             redCraterRadius=Mth.clamp(redCraterRadius,0,8);
-            purpleRadius=Mth.clamp(purpleRadius,0,48);
+            purpleRadius=Mth.clamp(purpleRadius,0,64);
             purpleDamage=finiteClamp(purpleDamage,0,1_000_000,9999);
             singularityCooldownTicks=validatedCooldowns(singularityCooldownTicks,new int[]{60,120,200});
             earthDrillCooldownTicks=validatedCooldowns(earthDrillCooldownTicks,new int[]{80,140,220,320});

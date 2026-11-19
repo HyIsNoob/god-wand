@@ -125,27 +125,22 @@ public final class PurpleCinematic {
         // Bolder (owner, 2026-11-18): a low hero shot looking up at it as it is born, a sweep round it rising to its level, a fast push in
         // just before the burst, then thrown far back and up by the blast.
         // Round 37 (owner): close, slowly pulling out and round it; the blast throws it farther still.
-        // Round 42 (owner): it creeps in while Purple caves in and holds its breath, then the burst hurls it far back and up, and it keeps
-        // drifting out over the violet world for the long aftermath.
-        double run = age - merge, thrown = GateDraw.smooth((age - det) / 30.0);
-        double crush = GateDraw.smooth((age - (det - 18)) / 16.0) * (1 - thrown);
-        double ang = .1 + run * .006 - Math.max(0, age - det) * .003;
+        // Round 45 (owner): one continuous move. It starts low and close by the player, slides off to one side and climbs as Purple grows,
+        // creeps in while it holds its breath, then the blast hurls it far out and up, and it keeps drifting out over the violet land.
+        double run = age - merge, span = det - merge, thrown = GateDraw.smooth((age - det) / 30.0);
+        double climb = GateDraw.smooth(run / span), crush = GateDraw.smooth((age - (det - 18)) / 16.0) * (1 - thrown);
+        double after = Math.max(0, age - det - 30);
+        double ang = .1 + 1.1 * climb + after * .003;
         double near = Math.max(8, Math.sqrt((eye.x - center.x) * (eye.x - center.x) + (eye.z - center.z) * (eye.z - center.z)));
-        double d = near * (1 - .3 * crush) + 3 + thrown * 110 + Math.max(0, age - det - 30) * .2;
-        double h = (eye.y - center.y) + 2 + thrown * 40;
-        // A high crane shot over the aftermath (owner, round 44): the violet shock and smoke rolling over the map, seen from far above.
-        if (age >= HIGH_SHOT) {
-            double u = age - HIGH_SHOT;
-            Vec3 ground = center.add(0, -BlueRedRules.PURPLE_LIFT, 0);
-            return aim(ground.add(turn(side, ang + 1.1 + u * .004).scale(60 + u * .15)).add(0, 90 + u * .12, 0), ground);
-        }
+        // Round 46 (owner): it climbs well above Purple so the charged ground and the chunks lifting off it show below, and the blast only
+        // pushes it a short way out (it was thrown too far).
+        double d = (near + 6 * climb) * (1 - .2 * crush) + thrown * 35 + after * .12;
+        double h = (eye.y - center.y + 2) * (1 - climb) + 16 * climb + thrown * 20 + after * .08;
         return aim(center.add(turn(side, ang).scale(d)).add(0, h, 0), center);
     }
 
     /** The strikes the camera cuts to, and how long each shot holds round its strike (from 2 ticks before to 8 after). */
     static final int[] STRIKE_SHOTS = {};
-    /** The cut to the high crane shot over the aftermath. */
-    static final int HIGH_SHOT = BlueRedRules.PURPLE_DETONATE + 34;
     /** The far shot holds from MERGE to here. */
     static final int FAR_END = BlueRedRules.PURPLE_MERGE;
 

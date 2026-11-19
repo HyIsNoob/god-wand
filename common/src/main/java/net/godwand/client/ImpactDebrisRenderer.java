@@ -35,6 +35,7 @@ public final class ImpactDebrisRenderer {
         final Vec3 center, normal, side, up;
         final double radius;
         final int kind;
+        int tint;
         final long tick;
         final double[][] surface = new double[RINGS + 1][SEGMENTS];
         boolean sounded;
@@ -77,17 +78,20 @@ public final class ImpactDebrisRenderer {
     }
 
     public static void reset() { BURSTS.clear(); world = null; }
-    private static void add(Vec3 center, Vec3 normal, double radius, int kind) {
+    private static Burst add(Vec3 center, Vec3 normal, double radius, int kind) {
         var current = Minecraft.getInstance().level;
         if (current != world) { reset(); world = current; }
-        if (world == null || normal.lengthSqr() < 0.01) return;
+        if (world == null || normal.lengthSqr() < 0.01) return null;
         if (BURSTS.size() >= 8) BURSTS.removeFirst();
         var burst = new Burst(center, normal, radius, kind, world.getGameTime());
         burst.sampleSurface();
         BURSTS.add(burst);
+        return burst;
     }
     /** A pressure front rolling out over the terrain from {@code center} (the seismic kind), for other skills' blasts. */
     public static void groundWave(Vec3 center, double radius) { add(center, new Vec3(0, 1, 0), radius, 1); }
+    /** The same front in a skill's own colour (0xRRGGBB): its dust and the cracks it opens take that colour (owner, 2026-11-19). */
+    public static void groundWave(Vec3 center, double radius, int rgb) { var b = add(center, new Vec3(0, 1, 0), radius, 1); if (b != null) b.tint = rgb; }
 
     public static void receive(CannonPressurePayload payload) {
         add(payload.center(), payload.surfaceNormal(), 3 + payload.level(), 0);
@@ -157,7 +161,11 @@ public final class ImpactDebrisRenderer {
                     double alpha = Math.sin(t * Math.PI) * fade * (layer == 0 ? 0.48 : 0.22);
                     if (!Double.isFinite(b.height(r, angle))) alpha = 0;
                     int shade = (int)(18 * Math.cos(angle - 0.8) * Math.sin(t * Math.PI));
-                    vertex(v, m, b.point(r, angle, height), 160 + row * 20 + shade, 133 + row * 18 + shade, 113 + row * 17 + shade, (int)(alpha * 255));
+                    if (b.tint != 0) {
+                        double k = .55 + .2 * row;
+                        vertex(v, m, b.point(r, angle, height), Math.max(0, Math.min(255, (int) ((b.tint >> 16 & 255) * k) + shade)), Math.max(0, Math.min(255, (int) ((b.tint >> 8 & 255) * k) + shade)),
+                                Math.max(0, Math.min(255, (int) ((b.tint & 255) * k) + shade)), (int)(alpha * 255));
+                    } else vertex(v, m, b.point(r, angle, height), 160 + row * 20 + shade, 133 + row * 18 + shade, 113 + row * 17 + shade, (int)(alpha * 255));
                 }
             }
         }
@@ -171,7 +179,7 @@ public final class ImpactDebrisRenderer {
                 if (!Double.isFinite(h) || !Double.isFinite(h2)) continue;
                 Vec3 a = b.point(r, angle, h + 0.055), end = b.point(next, angle + 0.025, h2 + 0.055);
                 Vec3 width = b.side.scale(-Math.sin(angle) * 0.04).add(b.up.scale(Math.cos(angle) * 0.04));
-                quad(v, m, a.subtract(width), end.subtract(width), end.add(width), a.add(width), 255, 160, 75, (int)(200 * (1 - age / 18)));
+                quad(v, m, a.subtract(width), end.subtract(width), end.add(width), a.add(width), b.tint != 0 ? b.tint >> 16 & 255 : 255, b.tint != 0 ? b.tint >> 8 & 255 : 160, b.tint != 0 ? b.tint & 255 : 75, (int)(200 * (1 - age / 18)));
             }
         }
         int count = nova ? 64 : 24;

@@ -92,7 +92,7 @@ public final class AtomicPostFx {
         chain.setUniform("FxFade",fade);
         chain.setUniform("BeamDepth",(float)net.godwand.skill.AtomicSequence.BEAM_DEPTH);
         chain.setUniform("BlastPulse",1);
-        chain.setUniform("ShockRadius",(float)(160*(1-Math.pow(1-Math.max(0,Math.min(1,t/60)),2))));
+        chain.setUniform("ShockRadius",(float)(200*(1-Math.pow(1-Math.max(0,Math.min(1,t/60)),2))));
         chain.setUniform("ObserverGain",AtomicRenderer.distanceGain(distance));
         chain.setUniform("ImpactFrames",GodWandConfig.CLIENT.impactFrames?1:0);
         chain.setUniform("Darken",GodWandConfig.CLIENT.skyBlackout?1:0);

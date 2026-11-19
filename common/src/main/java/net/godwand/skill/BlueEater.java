@@ -44,19 +44,29 @@ public final class BlueEater {
         return display;
     };
 
-    private static final Map<Integer, int[][]> SPHERES = new HashMap<>();
+    private static final Map<Integer, int[][]> SPHERES = new java.util.concurrent.ConcurrentHashMap<>();
 
-    private BlueEater() {}
+    /** Cell offsets within radius, nearest to the cell centre first. Built once per radius with a counting sort on the squared distance (a
+     *  radius-48 crater is ~460k cells; sorting them with a comparator on the blast tick stalled the server for half a second). */
+    static int[][] sphere(int radius) { return SPHERES.computeIfAbsent(radius, BlueEater::buildSphere); }
 
-    /** Cell offsets within radius, nearest to the cell centre first. */
-    static int[][] sphere(int radius) {
-        return SPHERES.computeIfAbsent(radius, r -> {
-            List<int[]> cells = new ArrayList<>();
-            for (int x = -r; x <= r; x++) for (int y = -r; y <= r; y++) for (int z = -r; z <= r; z++)
-                if (x * x + y * y + z * z <= r * r) cells.add(new int[]{x, y, z});
-            cells.sort(Comparator.comparingInt(c -> c[0] * c[0] + c[1] * c[1] + c[2] * c[2]));
-            return cells.toArray(new int[0][]);
-        });
+    /** Builds a radius's cell list on a worker thread ahead of need (Purple's crater, while its cutscene plays). */
+    static void prepare(int radius) { if (radius > 0 && !SPHERES.containsKey(radius)) java.util.concurrent.CompletableFuture.runAsync(() -> sphere(radius)); }
+
+    private static int[][] buildSphere(int r) {
+        int max = r * r;
+        int[] start = new int[max + 2];
+        for (int x = -r; x <= r; x++) for (int y = -r; y <= r; y++) for (int z = -r; z <= r; z++) {
+            int d = x * x + y * y + z * z;
+            if (d <= max) start[d + 1]++;
+        }
+        for (int d = 1; d < start.length; d++) start[d] += start[d - 1];
+        int[][] cells = new int[start[max + 1]][];
+        for (int x = -r; x <= r; x++) for (int y = -r; y <= r; y++) for (int z = -r; z <= r; z++) {
+            int d = x * x + y * y + z * z;
+            if (d <= max) cells[start[d]++] = new int[]{x, y, z};
+        }
+        return cells;
     }
 
     /** Eats up to EAT_PER_TICK blocks around center; returns the inspections used from the shared budget. */
@@ -86,7 +96,14 @@ public final class BlueEater {
 
     /** Clears cells[from..] around center (no cap, no displays) until the budget or deadline runs out; returns where to resume. */
     static int carveFrom(ServerLevel level, Vec3 center, int[][] cells, int from, int budget, long deadline, boolean enabled) {
+        return carveFrom(level, center, cells, from, budget, deadline, enabled, Integer.MAX_VALUE);
+    }
+
+    /** As above, clearing at most {@code cap} blocks this tick: the light and chunk updates that follow cost the server far more than the
+     *  inspection, so a big crater is spread over more ticks instead of stalling one. */
+    static int carveFrom(ServerLevel level, Vec3 center, int[][] cells, int from, int budget, long deadline, boolean enabled, int cap) {
         if (!enabled) return from;
+        int cleared = 0;
         BlockPos core = BlockPos.containing(center);
         var pos = new BlockPos.MutableBlockPos();
         int i = from, inspected = 0;
@@ -94,7 +111,7 @@ public final class BlueEater {
             if ((inspected & 31) == 0 && System.nanoTime() >= deadline) break;
             int[] c = cells[i++];
             inspected++;
-            clear(level, pos.set(core.getX() + c[0], core.getY() + c[1], core.getZ() + c[2]));
+            if (clear(level, pos.set(core.getX() + c[0], core.getY() + c[1], core.getZ() + c[2])) != null && ++cleared >= cap) break;
         }
         return i;
     }
@@ -158,6 +175,47 @@ public final class BlueEater {
             e.display().setTransformationInterpolationDuration(1);
             e.display().setTransformation(new Transformation(t, q, null, null));
         }
+    }
+
+    private static final BlockState[] STAIN = {Blocks.AMETHYST_BLOCK.defaultBlockState(), Blocks.PURPLE_CONCRETE.defaultBlockState(),
+            Blocks.PURPLE_TERRACOTTA.defaultBlockState(), Blocks.CRYING_OBSIDIAN.defaultBlockState(), Blocks.PURPUR_BLOCK.defaultBlockState(),
+            Blocks.PURPLE_TERRACOTTA.defaultBlockState(), Blocks.PURPLE_CONCRETE.defaultBlockState()};
+    private static final Map<Integer, int[][]> DISCS = new java.util.concurrent.ConcurrentHashMap<>();
+    static final int STAIN_PER_TICK = 600, PURPLE_CLEAR_PER_TICK = 2500;
+
+    /** Column offsets within radius, nearest first. */
+    static int[][] disc(int radius) {
+        return DISCS.computeIfAbsent(radius, r -> {
+            List<int[]> cells = new ArrayList<>();
+            for (int x = -r; x <= r; x++) for (int z = -r; z <= r; z++) if (x * x + z * z <= r * r) cells.add(new int[]{x, z});
+            cells.sort(Comparator.comparingInt(c -> c[0] * c[0] + c[1] * c[1]));
+            return cells.toArray(new int[0][]);
+        });
+    }
+
+    /** Purple's after-image on the land (owner, 2026-11-19): the top block of each column turned violet, all over the crater and fading out
+     *  over half a radius past its rim. Works through columns from {@code from}; returns where to resume. */
+    static int stainFrom(ServerLevel level, Vec3 center, int radius, int from, int budget, long deadline, boolean enabled) {
+        if (!enabled || radius <= 0) return Integer.MAX_VALUE;
+        int[][] cols = disc(radius * 3 / 2);
+        var pos = new BlockPos.MutableBlockPos();
+        int i = from, done = 0, written = 0;
+        while (i < cols.length && done < budget && written < STAIN_PER_TICK) {
+            if ((done & 31) == 0 && System.nanoTime() >= deadline) break;
+            int[] c = cols[i++];
+            done++;
+            int x = (int) Math.floor(center.x) + c[0], z = (int) Math.floor(center.z) + c[1];
+            if (level.getChunkSource().getChunkNow(x >> 4, z >> 4) == null) continue;
+            double r = Math.sqrt(c[0] * c[0] + c[1] * c[1]), keep = r < radius ? .9 : .9 * (1 - (r - radius) / (radius * .5));
+            long h = (x * 73856093L) ^ (z * 19349663L);
+            if (((h >>> 8) & 1023) / 1024.0 >= keep) continue;
+            pos.set(x, level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z) - 1, z);
+            BlockState state = level.getBlockState(pos);
+            if (state.isAir() || !state.getFluidState().isEmpty() || !SpatialDisplacementManager.canDisplace(level, pos, state)) continue;
+            level.setBlock(pos.immutable(), STAIN[(int) Math.floorMod(h >>> 20, STAIN.length)], Block.UPDATE_CLIENTS);
+            written++;
+        }
+        return i >= cols.length ? Integer.MAX_VALUE : i;
     }
 
     static void retire(Eaten e) {

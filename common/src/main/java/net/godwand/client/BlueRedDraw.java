@@ -867,7 +867,7 @@ final class BlueRedDraw {
         // The held breath before the burst (owner, round 42): it caves in on itself.
         s *= 1 - .35 * smooth((age - (det - 18)) / 16.0);
         // The blast bursts out fast and slows (ease-out), without the infinite first step of a square root; then keeps swelling slowly.
-        if (age > det) s += 96 * (1 - Math.pow(1 - clamp01((age - det) / 34.0), 2)) + Math.max(0, age - det - 34) * .3;
+        if (age > det) s += 130 * (1 - Math.pow(1 - clamp01((age - det) / 45.0), 2)) + Math.max(0, age - det - 45) * .3;
         return s;
     }
 
@@ -948,10 +948,11 @@ final class BlueRedDraw {
             Vec3 q = CHARGED.get(i);
             double gy = groundAt == null ? q.y - 3 : groundAt.applyAsDouble(q.x, q.z);
             double flick = .45 + .55 * Math.abs(Math.sin(age * 1.9 + i * 2.3));
-            liveBolt(c, q, new Vec3(q.x + .4 * snoise(7300 + i, age * .2), gy + .1, q.z + .4 * snoise(7310 + i, age * .2)), 7, .5, .03, i % 2 == 0 ? ORCHID : VIOLET, .8 * flick * pre * fade, 7320 + i * 13, age, 1);
+            liveBolt(c, q, new Vec3(q.x + .4 * snoise(7300 + i, age * .2), gy + .1, q.z + .4 * snoise(7310 + i, age * .2)), 9, .5, .06, i % 2 == 0 ? ORCHID : VIOLET, flick * pre * fade, 7320 + i * 13, age, 1);
             if (i > 0 && q.distanceTo(CHARGED.get(i - 1)) < 9)
                 liveBolt(c, q, CHARGED.get(i - 1), 6, .45, .02, PALE, .6 * flick * pre * fade, 7330 + i * 17, age, 1);
-            glow(c, q, 1.2, .35 * flick * pre * fade, VIOLET);
+            glow(c, q, 2, .5 * flick * pre * fade, VIOLET);
+            if (!Double.isNaN(gy)) glow(c, new Vec3(q.x, gy + .3, q.z), 2.5, .35 * flick * pre * fade, ORCHID);
         }
         // Lightning hammering the ground round it, each strike blowing out a pit (the server carves it on the same tick).
         if (groundAt != null) for (int k = 0; k < BlueRedRules.PURPLE_STRIKES; k++) {
@@ -997,7 +998,7 @@ final class BlueRedDraw {
      *  heaving off the sphere itself. Dark and mid violets only. */
     static void purpleSmoke(Ctx c, Vec3 at, double s, double after, double fade) {
         double ground = Double.isNaN(groundY) ? at.y - BlueRedRules.PURPLE_LIFT - 2 : groundY;
-        for (int i = 0; i < 56; i++) {
+        for (int i = 0; i < 40; i++) {
             long sd = 6100 + i;
             double a = i * 2.39996 + hash(sd) * .5, k = clamp01(after / (55 + 35 * hash(sd + 2)));
             double rad = 6 + (120 + 50 * hash(sd + 1)) * (1 - (1 - k) * (1 - k));
@@ -1006,7 +1007,17 @@ final class BlueRedDraw {
             fxSprite(c, new Vec3(at.x + Math.cos(a) * rad, y, at.z + Math.sin(a) * rad), size, SMOKE, (int) (sd % 977),
                     i % 3 == 0 ? NIGHT : i % 3 == 1 ? 0x4A1A80 : 0x7A3AC0, al, after * .008 + i);
         }
-        for (int i = 0; i < 28; i++) {
+        // Dust thrown up behind the front (owner, round 45): violet plumes rising and leaning outward as the shock passes.
+        double front = 200 * (1 - Math.pow(1 - clamp01(after / 60), 2));
+        for (int i = 0; i < 40; i++) {
+            long sd = 6500 + i;
+            double a = i * 2.39996 + hash(sd) * .7, r = Math.max(6, front * (.25 + .7 * hash(sd + 1))), life = clamp01((after - r / 160 * 40) / 50);
+            if (life <= 0 || life >= 1) continue;
+            double y = ground + 1 + 22 * life * (.5 + hash(sd + 2)), size = 4 + 14 * life + 6 * hash(sd + 3);
+            Vec3 q = new Vec3(at.x + Math.cos(a) * (r + 8 * life), y, at.z + Math.sin(a) * (r + 8 * life));
+            fxSprite(c, q, size, SMOKE, (int) (sd % 977), i % 3 == 0 ? 0x6A2AB0 : i % 3 == 1 ? 0x4A1A80 : 0x8A4AD0, .45 * Math.sin(Math.PI * life) * fade, after * .01 + i);
+        }
+        for (int i = 0; i < 16; i++) {
             long sd = 6300 + i;
             Vec3 d = nvec(sd, 0).normalize();
             double grow = 1 - Math.pow(1 - clamp01(after / 40), 2);

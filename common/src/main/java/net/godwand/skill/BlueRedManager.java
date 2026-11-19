@@ -57,7 +57,7 @@ public final class BlueRedManager {
         final ServerLevel level;
         final Vec3 center;
         final ServerPlayer owner, shooter;
-        int age, cursor;
+        int age, cursor, stain;
         final List<BlueEater.Eaten> lifted = new ArrayList<>();
         Purple(ServerLevel level, Vec3 center, ServerPlayer owner, ServerPlayer shooter) { this.level = level; this.center = center; this.owner = owner; this.shooter = shooter; }
         public int age() { return age; }
@@ -211,6 +211,7 @@ public final class BlueRedManager {
         BlueEater.retireAll(blue.eaten);
         Vec3 sky = blue.pos.add(0, BlueRedRules.PURPLE_LIFT, 0);
         PURPLES.add(new Purple(level, sky, blue.owner, shooter));
+        BlueEater.prepare(GodWandConfig.SERVER.purpleRadius);
         send(level, sky, new BlueRedPayload(BlueRedPayload.PURPLE, blue.owner.getId(), shooter.getId(), 0, sky.x, sky.y, sky.z, 0, 0, 0, 0));
         int lock = GodWandConfig.cooldownTicks(GodWandConfig.SERVER.purpleCooldownTicks);
         for (ServerPlayer p : SpellDamage.isCaster(blue.owner, shooter) ? List.of(shooter) : List.of(blue.owner, shooter)) {
@@ -258,9 +259,18 @@ public final class BlueRedManager {
         budget -= used;
         if (p.age > BlueRedRules.PURPLE_TERRAIN_END) { PURPLES.remove(p); return used; }
         if (p.age < BlueRedRules.PURPLE_DETONATE || cfg.purpleRadius <= 0) return used;
-        int before = p.cursor;
-        p.cursor = BlueEater.carveFrom(p.level, p.center, BlueEater.sphere(cfg.purpleRadius), p.cursor, budget, deadline, cfg.purpleTerrainDamage);
-        return p.cursor - before + used;
+        int[][] cells = BlueEater.sphere(cfg.purpleRadius);
+        if (p.cursor < cells.length) {
+            int before = p.cursor;
+            p.cursor = BlueEater.carveFrom(p.level, p.center, cells, p.cursor, budget, deadline, cfg.purpleTerrainDamage, BlueEater.PURPLE_CLEAR_PER_TICK);
+            if (!cfg.purpleTerrainDamage) p.cursor = cells.length;
+            return p.cursor - before + used;
+        }
+        // Once the crater is dug, the land round it is left stained violet.
+        if (p.stain == Integer.MAX_VALUE || p.level.getChunkSource() == null) return used;
+        int before = p.stain;
+        p.stain = BlueEater.stainFrom(p.level, p.center, cfg.purpleRadius, p.stain, budget, deadline, cfg.purpleTerrainDamage);
+        return (p.stain == Integer.MAX_VALUE ? 0 : p.stain - before) + used;
     }
 
     private static void detonate(Purple p) {

@@ -178,7 +178,7 @@ public final class BlueRedProbe implements ClientModInitializer {
         // Moved as soon as the client sees the shot leave (the server can fire a tick or two off the probe's own count when it lags).
         if (scene.equals("hitside") && !sideMoved && BlueRedShowcase.redFired()) { sideMoved = true; server.submit(() -> me(server, c).connection.teleport(OX - 9.5, c.player.getY() + 1.5, OZ + 13.5, -90, 8)).join(); }
         // Combo: every tick from just before the shot through the whole convergence in the world (for real-speed video), then every third.
-        if (t >= 20 && (hit ? fired >= -12 && fired < 40 : fired < -8 || fired > 400 ? t % 3 == 0 : true)) grab(c);
+        if (t >= 20 && (hit ? fired >= -12 && fired < 40 : fired < -8 || fired > 430 ? t % 3 == 0 : true)) grab(c);
         if (hit && fired >= -2 && fired < 14) {
             var mob = server.submit(() -> me(server, c).serverLevel().getEntity(hitMob)).join();
             if (mob != null) System.out.printf(Locale.ROOT, "GOJO_QA HIT fired=%d mob=%.2f,%.2f,%.2f hp=%.1f%n", fired, mob.getX(), mob.getY(), mob.getZ(),
@@ -188,7 +188,7 @@ public final class BlueRedProbe implements ClientModInitializer {
         if (fired == 4) c.options.keyUse.setDown(false);
         if (fired == 30 || fired == 100) System.out.println("GOJO_QA PURPLE fired+" + fired + " cutscene=" + net.godwand.client.PurpleCinematic.active()
                 + " purples=" + server.submit(() -> BlueRedManager.purples(me(server, c).serverLevel()).size()).join());
-        if (fired > 420) { stage = 4; since = ticks; System.out.println("GOJO_QA RED done blues=" + server.submit(() -> BlueRedManager.blues(me(server, c).serverLevel()).size()).join()); }
+        if (fired > 450) { stage = 4; since = ticks; System.out.println("GOJO_QA RED done blues=" + server.submit(() -> BlueRedManager.blues(me(server, c).serverLevel()).size()).join()); }
     }
 
     /** Each subject for 60 ticks, a frame every 10 (and two back to back, to check nothing pops between frames). */
