@@ -68,154 +68,71 @@ final class BlueRedDraw {
 
     // ---- Blue: a source of pull ----
 
-    static void blue(Ctx c, Vec3 at, boolean ready, double age, double sinceReady) { blue(c, at, ready, age, sinceReady, new Vec3[0], new double[0]); }
+    static void blue(Ctx c, Vec3 at, boolean ready, double age, double sinceReady) { blue(c, at, ready, age, sinceReady, List.of(), age, -1); }
 
-    /** Blue (owner's third direction, 2026-11-18): a whole, heavy, stable sphere of energy, a bright cyan-white core inside a clear blue body,
-     *  with only a few bands going round it for depth (the parts behind it hidden). Steered, it carries its momentum (the server's inertia, see
-     *  BlueRedRules.follow); its bands are dragged back from the way it moves and it leaves short-lived, blotchy blue smears behind it, longer and
-     *  stronger the faster it goes or the harder it turns. {@code trail}: where it has been, oldest first; {@code ago}: how many ticks ago. */
-    static void blue(Ctx c, Vec3 at, boolean ready, double age, double sinceReady, Vec3[] trail, double[] ago) {
+    /** A puff of dust Blue shed: it stays where it was shed (drifting a little), so a moving Blue leaves a trail of them. */
+    record Puff(Vec3 pos, Vec3 drift, double born, int seed) {}
+    static final double PUFF_LIFE = 18, VANISH_TICKS = 12;
+
+    /** Blue (owner, 2026-11-19): a heavy, clear blue sphere with a bright core that is always pouring deep-blue dust off its skin. The dust it
+     *  sheds ({@code puffs}, world-space) stays behind, so its trail is simply the dust it left. It forms with an overshoot, a ring of pressure
+     *  and dust gathering in; {@code vanishAge} >= 0: it is going, everything sucked back into it, shrinking, and a last pop. */
+    static void blue(Ctx c, Vec3 at, boolean ready, double age, double sinceReady, List<Puff> puffs, double now, double vanishAge) {
         double r = BlueRedVisual.blueRadius(ready ? BlueRedRules.BlueState.READY : BlueRedRules.BlueState.CHARGING, age);
-        double appear = smooth(age / 6), beat = ready ? BlueRedVisual.heartbeat(age) : 0, flash = BlueRedVisual.flash(sinceReady);
-        Vec3 vel = velocity(trail, ago);
-        double coreD = at.distanceTo(c.eye), sphere = r * .78;
+        double beat = ready ? BlueRedVisual.heartbeat(age) : 0, flash = BlueRedVisual.flash(sinceReady);
+        double appear = smooth(age / 8), gone = vanishAge < 0 ? 0 : clamp01(vanishAge / VANISH_TICKS);
+        double t = clamp01(age / 10) - 1, grow = 1 + 2.7 * t * t * t + 1.7 * t * t;
+        double rr = r * grow * (1 - Math.pow(gone, 1.6)), live = appear * (1 - gone);
         if (c.body()) {
-            smears(c, at, r, age, trail, ago, appear);
-            bands(c, at, r, age, ready, vel, appear, coreD, false);
-            orb(c, at, sphere, 0, ready ? 1 : 0, BLUE_TINT, appear);
-            bands(c, at, r, age, ready, vel, appear, coreD, true);
-            pressure(c, at, r, age, vel, ready, appear);
+            for (Puff p : puffs) {
+                double life = now - p.born(), k = life / PUFF_LIFE;
+                if (k < 0 || k >= 1) continue;
+                Vec3 q = p.pos().add(p.drift().scale(life));
+                if (gone > 0) q = q.add(at.subtract(q).scale(.9 * smooth(gone)));
+                double a = smooth(k / .12) * Math.pow(1 - k, 1.3) * .55 * (1 - .5 * gone);
+                int col = p.seed() % 3 == 0 ? DEEP_BLUE : p.seed() % 3 == 1 ? INDIGO : ROYAL;
+                fxSprite(c, q, r * (.35 + .85 * k) * (1 - .6 * gone), SMOKE, p.seed() % 977, col, a, k * 2 + p.seed());
+            }
+            // Its own breath close to the skin, always there even standing still.
+            for (int i = 0; i < 14; i++) {
+                long sd = 7400 + i * 61L;
+                double life = 9 + 4 * hash(sd), ph = age / life + hash(sd + 1);
+                long cyc = (long) Math.floor(ph);
+                double u = ph - cyc;
+                long cs = sd + cyc * 7919L;
+                Vec3 dir = new Vec3(hash(cs) * 2 - 1, hash(cs + 1) * 2 - 1, hash(cs + 2) * 2 - 1).normalize();
+                fxSprite(c, at.add(dir.scale(rr * (.75 + .5 * u))), r * (.3 + .25 * u), SMOKE, (int) (cs % 991), i % 2 == 0 ? DEEP_BLUE : ROYAL,
+                        smooth(u / .2) * (1 - u) * .5 * live, age * .04 + i);
+            }
+            if (rr > .02) orb(c, at, rr * .78, 0, ready ? 1 : 0, BLUE_TINT, appear);
+            // Forming: dust gathering in from all round.
+            if (age < 12) for (int i = 0; i < 18; i++) {
+                Vec3 d = nvec(7500 + i, 0).normalize();
+                double k = smooth(age / 10);
+                fxSprite(c, at.add(d.scale(r * (4 - 3.2 * k))), r * .4, SMOKE, 7510 + i, i % 2 == 0 ? ROYAL : DEEP_BLUE, .6 * (1 - age / 12), i);
+            }
         }
         if (!c.glow()) return;
-        glow(c, at, r * .5, .9 * appear, 0xFFFFFF);
-        glow(c, at, r * 1.0, (.5 + .2 * beat) * appear, CYAN);
-        glow(c, at, r * 2.1, (.2 + .1 * beat) * appear, ROYAL);
+        glow(c, at, rr * .5, .9 * live, 0xFFFFFF);
+        glow(c, at, rr * 1.0, (.5 + .2 * beat) * live, CYAN);
+        glow(c, at, rr * 2.1, (.2 + .1 * beat) * live, ROYAL);
         if (flash > 0) { glow(c, at, r * 6, flash, 0xFFFFFF); glow(c, at, r * 2.5, flash, 0xFFFFFF); }
-    }
-
-    /** Blue's velocity per tick, continuous in time: the last two segments of its history, blended by how long ago the newest point came in, so
-     *  it does not jump every time a new position arrives (that made the bands, the smears in front and the trail twitch while it moved). */
-    static Vec3 velocity(Vec3[] trail, double[] ago) {
-        int n = trail.length;
-        if (n < 2) return Vec3.ZERO;
-        Vec3 newer = trail[n - 1].subtract(trail[n - 2]).scale(1 / Math.max(.5, ago[n - 2] - ago[n - 1]));
-        if (n < 3) return newer;
-        Vec3 older = trail[n - 2].subtract(trail[n - 3]).scale(1 / Math.max(.5, ago[n - 3] - ago[n - 2]));
-        double f = clamp01(ago[n - 1] / Math.max(.5, ago[n - 2] - ago[n - 1]));
-        return older.add(newer.subtract(older).scale(f));
-    }
-
-    /** Soft bands of blue light round the sphere (owner's restore after round 22): a few broad, soft strokes rooted inside the rim on the
-     *  camera side, each sweeping round the edge in its own sector, see-through and light-coloured so they melt into the glow; each lives a
-     *  while (swells, sweeps, fades) and is reborn in the same sector. Moving drags them back. No sharp brushwork: Blue stays calm. */
-    private static void pressure(Ctx c, Vec3 at, double r, double age, Vec3 vel, boolean ready, double alpha) {
-        Vec3 toEye = c.eye.subtract(at);
-        if (toEye.lengthSqr() < 1e-6) return;
-        toEye = toEye.normalize();
-        Vec3[] uw = basis(toEye);
-        int count = ready ? 5 : 4;
-        for (int i = 0; i < count; i++) {
-            long sd = 2100 + i * 83L;
-            double life = 18 + 10 * hash(sd), ph = age / life + hash(sd + 1);
-            long cyc = (long) Math.floor(ph);
-            double u = ph - cyc;
-            long cs = sd + cyc * 7919L;
-            double env = smooth(u / .25) * (1 - smooth((u - .45) / .55)) * alpha;
-            if (env <= 0) continue;
-            double a0 = (i + .8 * hash(cs)) / count * Math.PI * 2, span = (1.4 + .8 * hash(cs + 1)) * (.7 + .3 * u), sign = hash(cs + 2) < .5 ? 1 : -1;
-            double out = r * (.3 + .4 * hash(cs + 3)) * (.5 + .5 * u), wid = r * (.42 + .28 * hash(cs + 4)) * (.8 + .4 * u);
-            int k = 20;
-            Vec3[] pts = new Vec3[k + 1];
-            double[] w = new double[k + 1];
-            for (int j = 0; j <= k; j++) {
-                double t = (double) j / k, a = a0 + sign * span * t, rr = r * .65 + out * t * (1 + .1 * snoise(cs + 5, t * 3 + age * .1));
-                pts[j] = at.add(toEye.scale(r * .45)).add(uw[0].scale(Math.cos(a) * rr)).add(uw[1].scale(Math.sin(a) * rr)).subtract(vel.scale(1.5 * t));
-                w[j] = wid * Math.pow(Math.sin(Math.PI * (.15 + .85 * t)), .6) * (.6 + .5 * vnoise(cs + 6, t * 3 + u * 2));
+        if (age < 12) {
+            double k = age / 12;
+            fxSprite(c, at, r * (1 + 3 * k), SHOCK, 7520, CYAN, .8 * (1 - k), 0);
+            glow(c, at, r * 2 * (1 - k) + .5, 1 - k, ICE);
+            sparks(c, at, r * (1 + 2 * k), age, (int) (30 * (1 - k)), ICE, 7530);
+        }
+        if (gone > 0) {
+            // Sucked into itself, then a last pop.
+            streaks(c, at, rr * .3, r * (4 - 2 * gone), age, (int) (70 * (1 - gone)), CYAN, 7540, 2.4, 1 - gone * .5, true);
+            glow(c, at, r * (1.6 - gone), 2.4 * gone * (1 - gone), ICE);
+            if (gone > .8) {
+                double k = (gone - .8) / .2;
+                fxSprite(c, at, r * (.5 + 3 * k), SHOCK, 7550, ICE, 1 - k, 0);
+                glow(c, at, r * 1.5 * (1 - k) + .3, 1 - k, 0xFFFFFF);
             }
-            int color = i % 2 == 0 ? 0x2A8CFF : ready ? CYAN : 0x4AA8FF;
-            fxRibbon(c, pts, w, PLASMA, (int) (cs % 997), color, env * .4);
         }
-    }
-
-    /** A few bands going round the sphere on tilted circles, slowly (faster when ready or moving); the part on the trailing side is dragged back
-     *  against the motion. Drawn in two halves: behind the sphere ({@code front} false) and in front of it. */
-    private static void bands(Ctx c, Vec3 at, double r, double age, boolean ready, Vec3 vel, double alpha, double coreD, boolean front) {
-        double speed = vel.length();
-        Vec3 vhat = speed > 1e-4 ? vel.scale(1 / speed) : Vec3.ZERO;
-        for (int i = 0; i < (ready ? 5 : 3); i++) {
-            long sd = 1300 + i * 97L;
-            Vec3 axis = nvec(sd, age * .004).add(0, .5, 0).normalize();
-            Vec3[] uw = basis(axis);
-            double rad = r * (.92 + .18 * hash(sd + 1)), arc = 2.2 + 1.4 * hash(sd + 2);
-            double phase = hash(sd + 3) * Math.PI * 2 + age * (.05 + .04 * hash(sd + 4)) * (ready ? 1.6 : 1) * (1 + Math.min(2, speed * 1.5));
-            double wmax = r * (.11 + .09 * hash(sd + 5));
-            int k = 24;
-            Vec3[] pts = new Vec3[k + 1];
-            double[] w = new double[k + 1];
-            for (int j = 0; j <= k; j++) {
-                double t = (double) j / k, a = phase + arc * t;
-                Vec3 radial = uw[0].scale(Math.cos(a)).add(uw[1].scale(Math.sin(a)));
-                double drag = .5 + .5 * Math.max(0, -radial.dot(vhat));
-                Vec3 p = at.add(radial.scale(rad * (1 + .05 * snoise(sd + 6, t * 4 + age * .08)))).subtract(vel.scale(2.2 * drag));
-                pts[j] = p;
-                double near = smooth(.5 - (p.distanceTo(c.eye) - coreD) / (r * .4));
-                w[j] = wmax * Math.pow(Math.sin(Math.PI * t), .6) * (.6 + .6 * vnoise(sd + 7, t * 3 - age * .1)) * (front ? near : 1 - near);
-            }
-            fxRibbon(c, pts, w, PLASMA, (int) (sd % 997), i % 3 == 0 ? ICE : i % 3 == 1 ? CYAN : 0x3A9BFF, alpha * .62);
-        }
-    }
-
-    /** The trail while it moves (owner's review of round 15): one ragged brush stroke of blue lying along the path it really took, its head dense
-     *  where Blue is, its tail torn and fading. Only the last stretch of the path is used, longer the faster it went (so a hard turn leaves a
-     *  long sweep, but never one straight spear back to an old position); the gaps in it are fixed to the paint, not to Blue, and it all fades as
-     *  the path ages, so it dissolves after Blue stops. A wash under it and a bright streak along it. */
-    private static void smears(Ctx c, Vec3 at, double r, double age, Vec3[] trail, double[] ago, double alpha) {
-        int n = trail.length;
-        if (n < 1) return;
-        List<Vec3> path = new ArrayList<>();
-        List<Double> when = new ArrayList<>();
-        path.add(at); when.add(0.0);
-        double len = 0, first = velocity(trail, ago).length();
-        double maxLen = r * (2 + 4 * Math.min(1, first / .8));
-        for (int i = n - 1; i >= 0 && len < maxLen && ago[i] <= 16; i--) {
-            len += trail[i].distanceTo(path.get(path.size() - 1));
-            path.add(trail[i]); when.add(ago[i]);
-        }
-        double tailAgo = when.get(when.size() - 1), strength = smooth((len / Math.max(.5, tailAgo) - .03) / .25) * alpha;
-        if (path.size() < 2 || len < r * .3 || strength <= .02) return;
-        double[] cum = new double[path.size()];
-        for (int i = 1; i < cum.length; i++) cum[i] = cum[i - 1] + path.get(i).distanceTo(path.get(i - 1));
-        int k = 24;
-        Vec3[] base = new Vec3[k + 1];
-        double[] laid = new double[k + 1], wash = new double[k + 1], main = new double[k + 1], streak = new double[k + 1];
-        for (int j = 0; j <= k; j++) {
-            double t = (double) j / k, d = Math.min(len, cum[cum.length - 1]) * (1 - t);
-            int i = 1;
-            while (i < cum.length - 1 && cum[i] < d) i++;
-            double f = (d - cum[i - 1]) / Math.max(1e-6, cum[i] - cum[i - 1]);
-            base[j] = path.get(i - 1).add(path.get(i).subtract(path.get(i - 1)).scale(f));
-            double w0 = when.get(i - 1) + (when.get(i) - when.get(i - 1)) * f;
-            laid[j] = age - w0;
-            // Smooth and full (owner, 2026-11-18): broad, no sharp streak; it only frays near the very end of the tail.
-            double fade = 1 - smooth(w0 / 16), torn = smooth((vnoise(1520, laid[j] * .5) - .5 * Math.pow(1 - t, 2)) / .15);
-            // The tail does not narrow to a point (that read as a cone): it stays broad and dissolves (fade, erosion), while two washes fan
-            // apart under it, so the end spreads out like paint thinning on a wet sheet.
-            // Broad all along (a bulge in the middle), thinning only a little with age: the tail dissolves instead of narrowing into a cone.
-            main[j] = r * .95 * (.7 + .3 * Math.sin(Math.PI * t)) * (.45 + .55 * fade) * torn * (.75 + .35 * vnoise(1521, laid[j] * .5)) * smooth(fade / .15);
-            wash[j] = r * .95 * (.6 + .4 * t) * fade * (.6 + .5 * vnoise(1523, laid[j] * .4));
-            streak[j] = wash[j];
-        }
-        Vec3[] washPts = new Vec3[k + 1], streakPts = new Vec3[k + 1];
-        for (int j = 0; j <= k; j++) {
-            double t = (double) j / k;
-            Vec3 spread = nvec(1530, laid[j] * .2).normalize().scale(r * .55 * (1 - t) * (1 - t));
-            washPts[j] = base[j].add(spread);
-            streakPts[j] = base[j].subtract(spread);
-        }
-        // One soft body with two washes fanning apart at its tail (round 19's look, owner's restore after round 22): no cloud of pieces.
-        fxRibbon(c, washPts, wash, PLASMA, 1525, DEEP_BLUE, strength * .45);
-        fxRibbon(c, streakPts, streak, PLASMA, 1527, 0x1E8CFF, strength * .4);
-        fxRibbon(c, base, main, PLASMA, 1526, ROYAL, strength * .75);
     }
 
     /** One of the twin orbs of the merge (owner, 2026-11-18): the sphere, and brush strokes of its own colours born on its surface. At rest they

@@ -164,6 +164,16 @@ class BlueRedManagerTest {
         assertTrue(sent.stream().anyMatch(s -> s.kind() == BlueRedPayload.BLUE && s.state() == BlueState.READY.ordinal()));
     }
 
+    @Test void readyAfterThreeKillsHoweverWeak() {
+        // Owner, 2026-11-19: three kills make it ready even when the damage dealt is tiny (three one-heart chickens).
+        for (int i = 0; i < 3; i++) health.get(zombie())[0] = .1f;
+        BlueRedManager.input(player(), true);
+        ticks(BlueRedRules.CORE_PERIOD * 2);
+        assertTrue(only().credited < 1, "barely any damage: " + only().credited);
+        assertEquals(3, only().kills);
+        assertEquals(BlueState.READY, only().state);
+    }
+
     @Test void readyReleaseAnchorsFor300Ticks() {
         zombie(); zombie(); zombie();
         var p = player();

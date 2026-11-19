@@ -25,7 +25,11 @@ import static net.godwand.client.GateDraw.*;
 /** Draws Blue, Red and their bursts for every nearby player, from BlueRedPayload events. */
 public final class BlueRedRenderer {
     static final class BlueView {
-        Vec3 prev, pos; double at, gap = 2, readyAt = -1, born; BlueState state = BlueState.CHARGING;
+        Vec3 prev, pos; double at, gap = 2, readyAt = -1, born, goneAt = -1; BlueState state = BlueState.CHARGING;
+        /** The dust it has shed (world-space). */
+        final List<BlueRedDraw.Puff> puffs = new ArrayList<>();
+        /** The owner's own Blue, predicted on the client each frame (so it follows the mouse smoothly). */
+        Vec3 own, ownVel = Vec3.ZERO; double ownAt = -1;
         /** Where it has been (oldest first) and when, for the smears it leaves behind. */
         final java.util.ArrayDeque<Vec3> trail = new java.util.ArrayDeque<>(); final java.util.ArrayDeque<Double> trailAt = new java.util.ArrayDeque<>();
     }
@@ -53,7 +57,7 @@ public final class BlueRedRenderer {
         switch (p.kind()) {
             case BlueRedPayload.BLUE -> {
                 BlueView v = BLUES.get(p.ownerId());
-                if (v == null) { v = new BlueView(); v.prev = at; v.born = clock; BLUES.put(p.ownerId(), v); sound(at, SoundEvents.BEACON_ACTIVATE, 1.2f, 1.6f); }
+                if (v == null || v.goneAt >= 0) { v = new BlueView(); v.prev = at; v.born = clock; BLUES.put(p.ownerId(), v); sound(at, SoundEvents.BEACON_ACTIVATE, 1.2f, 1.6f); }
                 else v.prev = drawn(v, 1);
                 v.trail.addLast(v.pos == null ? at : v.pos); v.trailAt.addLast(clock);
                 while (v.trail.size() > 16) { v.trail.removeFirst(); v.trailAt.removeFirst(); }
@@ -73,7 +77,16 @@ public final class BlueRedRenderer {
                 }
                 v.state = state;
             }
-            case BlueRedPayload.BLUE_GONE -> BLUES.remove(p.ownerId());
+            case BlueRedPayload.BLUE_GONE -> {
+                // It goes by being sucked into itself (owner, 2026-11-19), so the view lingers a moment.
+                BlueView v = BLUES.get(p.ownerId());
+                if (v != null && v.goneAt < 0) {
+                    v.goneAt = clock;
+                    Vec3 c = v.own != null ? v.own : v.pos;
+                    sound(c, SoundEvents.BEACON_DEACTIVATE, 1.4f, 1.5f);
+                    for (int i = 0; i < 40; i++) { Vec3 d = randomDir(); spray(i % 3 == 0 ? ParticleTypes.ELECTRIC_SPARK : ParticleTypes.SOUL_FIRE_FLAME, c.add(d.scale(4)), d.scale(-.28)); }
+                }
+            }
             case BlueRedPayload.BLUE_SHATTER -> { BURSTS.add(new Burst(at, clock, true)); sound(at, SoundEvents.GLASS_BREAK, 2f, .6f); }
             case BlueRedPayload.RED_CHARGE -> { CHARGES.put(p.ownerId(), clock); sound(at, SoundEvents.RESPAWN_ANCHOR_CHARGE, 1f, 1.4f); }
             case BlueRedPayload.RED_CANCEL -> CHARGES.remove(p.ownerId());
@@ -146,6 +159,18 @@ public final class BlueRedRenderer {
                 GodWandCinematicEngine.addTrauma((float) Math.max(.15, .45 * (1 - d / 40)), 10);
         }
         for (Purple p : PURPLES) particles(p, clock - p.at());
+        // Blue's dust: shed every tick off its skin; it stays where it was shed.
+        BLUES.values().removeIf(v -> v.goneAt >= 0 && clock - v.goneAt > BlueRedDraw.VANISH_TICKS + 2);
+        for (BlueView v : BLUES.values()) {
+            v.puffs.removeIf(q -> clock - q.born() > BlueRedDraw.PUFF_LIFE);
+            if (v.goneAt >= 0 || v.pos == null) continue;
+            Vec3 c = v.own != null ? v.own : v.pos;
+            double r = BlueRedVisual.blueRadius(v.state, clock - v.born);
+            for (int i = 0; i < (v.state == BlueState.CHARGING ? 4 : 6); i++) {
+                Vec3 d = randomDir();
+                v.puffs.add(new BlueRedDraw.Puff(c.add(d.scale(r * .75)), d.scale(.03 + .03 * RANDOM.nextDouble()), clock, RANDOM.nextInt(100000)));
+            }
+        }
         for (Purple p : PURPLES) {
             double age = clock - p.at();
             if (age == BlueRedRules.PURPLE_DETONATE) detonated(p.pos());
@@ -258,7 +283,29 @@ public final class BlueRedRenderer {
     }
 
     private static Vec3 drawn(BlueView v, double partial) {
+        if (v.own != null) return v.own;
         return BlueRedVisual.interp(v.prev, v.pos, (clock + partial - v.at) / v.gap);
+    }
+
+    /** The owner's own held Blue, run on the client every frame with the server's spring (BlueRedRules.follow) towards where the player is
+     *  looking right now, so it tracks the mouse smoothly instead of stepping with the server's packets; it is drawn back towards the server's
+     *  position only if the two drift apart. Everyone else's Blue, and an anchored one, use the server's positions. */
+    private static void predict(BlueView v, int ownerId, float partial) {
+        var me = Minecraft.getInstance().player;
+        if (me == null || me.getId() != ownerId || v.state == BlueState.ANCHORED || v.goneAt >= 0 || v.pos == null) { v.own = null; return; }
+        double now = clock + partial;
+        Vec3 server = BlueRedVisual.interp(v.prev, v.pos, (now - v.at) / v.gap);
+        if (v.own == null) { v.own = server; v.ownVel = Vec3.ZERO; v.ownAt = now; return; }
+        double dt = Math.min(2, now - v.ownAt);
+        if (dt <= 0) return;
+        v.ownAt = now;
+        Vec3 target = me.getEyePosition(partial).add(me.getViewVector(partial).scale(BlueRedRules.BLUE_DISTANCE));
+        for (double t = 0; t < dt; t += .25) {
+            double h = Math.min(.25, dt - t);
+            v.ownVel = v.ownVel.scale(Math.pow(BlueRedRules.BLUE_DAMP, h)).add(target.subtract(v.own).scale(BlueRedRules.BLUE_PULL * h));
+            v.own = v.own.add(v.ownVel.scale(h));
+        }
+        if (v.own.distanceTo(server) > 2.5) v.own = v.own.add(server.subtract(v.own).scale(.2));
     }
 
     // ---- drawing ----
@@ -371,13 +418,12 @@ public final class BlueRedRenderer {
     static int emit(VertexConsumer v, Matrix4f m, Vec3 eye, Vec3 look, int layer, float partial) {
         Ctx c = new Ctx(); c.v = v; c.m = m; c.eye = eye; c.layer = layer; c.nearMin = .05; c.nearMax = .4;
         double now = clock + partial;
-        for (BlueView b : BLUES.values())
+        for (var e : BLUES.entrySet())
         {
-            Vec3[] trail = b.trail.toArray(new Vec3[0]);
-            double[] ago = new double[trail.length];
-            int i = 0;
-            for (double t : b.trailAt) ago[i++] = now - t;
-            BlueRedDraw.blue(c, drawn(b, partial), b.state != BlueState.CHARGING, now - b.born, b.readyAt < 0 ? -1 : now - b.readyAt, trail, ago);
+            BlueView b = e.getValue();
+            if (layer == 0) predict(b, e.getKey(), partial);
+            BlueRedDraw.blue(c, drawn(b, partial), b.state != BlueState.CHARGING, now - b.born, b.readyAt < 0 ? -1 : now - b.readyAt, b.puffs, now,
+                    b.goneAt < 0 ? -1 : now - b.goneAt);
             if (b.readyAt >= 0 && now - b.readyAt < 16) BlueRedDraw.readyWave(c, drawn(b, partial), now - b.readyAt);
         }
         var level = Minecraft.getInstance().level;

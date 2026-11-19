@@ -92,6 +92,7 @@ public final class GodWandConfig {
         public int redCooldownTicks = 80;
         public int purpleCooldownTicks = 1200;
         public float blueReadyDamage = 50;
+        public int blueReadyKills = 3;
         public float blueCoreDamage = 20;
         public int bluePullRadius = 8;
         public int blueEatRadius = 5;
@@ -131,6 +132,7 @@ public final class GodWandConfig {
             redCooldownTicks=Mth.clamp(redCooldownTicks,0,72000);
             purpleCooldownTicks=Mth.clamp(purpleCooldownTicks,0,72000);
             blueReadyDamage=finiteClamp(blueReadyDamage,1,1_000_000,50);
+            blueReadyKills=Mth.clamp(blueReadyKills,1,1000);
             blueCoreDamage=finiteClamp(blueCoreDamage,0,1_000_000,20);
             bluePullRadius=Mth.clamp(bluePullRadius,2,16);
             blueEatRadius=Mth.clamp(blueEatRadius,0,8);

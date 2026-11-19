@@ -134,7 +134,8 @@ class BlueRedDrawTest {
         java.util.Set<Integer> b = effects(blue), r = effects(red);
         // Both are painted masses now (owner's reset, 2026-11-18); which way Red streams is checked by redSmearsLeanBack.
         // Owner, 2026-11-18: Blue is a sphere wrapped in soft plasma, with no debris streaks (no thin pointed lines).
-        assertTrue(b.contains(BlueRedDraw.ORB) && b.contains(BlueRedDraw.PLASMA) && !b.contains(BlueRedDraw.DEBRIS), "Blue: sphere and plasma, no debris " + b);
+        // Owner, 2026-11-19: no more bands; Blue is a sphere pouring dust.
+        assertTrue(b.contains(BlueRedDraw.ORB) && b.contains(BlueRedDraw.SMOKE) && !b.contains(BlueRedDraw.DEBRIS), "Blue: sphere and dust, no debris " + b);
         // Owner, 2026-11-18: Red is a red plasma mass with torn ink (brush), no flying object-like fragments.
         assertTrue(r.contains(BlueRedDraw.PLASMA) && r.contains(BlueRedDraw.BRUSH) && !r.contains(BlueRedDraw.DEBRIS), "Red: plasma mass, torn ink, no debris " + r);
     }

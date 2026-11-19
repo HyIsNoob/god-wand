@@ -36,6 +36,7 @@ public final class BlueRedManager {
         BlueState state = BlueState.CHARGING;
         int age, anchoredAge;
         float credited;
+        int kills;
         final List<BlueEater.Eaten> eaten = new ArrayList<>();
         Blue(ServerPlayer owner, ServerLevel level, Vec3 pos) { this.owner = owner; this.level = level; this.pos = pos; }
         boolean held() { return state != BlueState.ANCHORED; }
@@ -337,7 +338,8 @@ public final class BlueRedManager {
             pullAndHurt(blue, blue.age % BlueRedRules.CORE_PERIOD == 0);
             budget -= BlueEater.eat(level, blue.pos, cfg.blueEatRadius, budget, deadline, blue.eaten);
             BlueEater.animate(blue.eaten, blue.pos);
-            if (blue.state == BlueState.CHARGING && blue.credited >= cfg.blueReadyDamage) blue.state = BlueState.READY;
+            // Owner, 2026-11-19: ready at the damage threshold, or after killing enough mobs, however weak (three chickens count).
+            if (blue.state == BlueState.CHARGING && (blue.credited >= cfg.blueReadyDamage || blue.kills >= cfg.blueReadyKills)) blue.state = BlueState.READY;
             // Every tick while it moves, so the inertia and the smears behind it read smoothly; every other tick once it is still.
             if (blue.state != before || blue.age % 2 == 0 || blue.held() && blue.vel.lengthSqr() > 1e-4) broadcast(blue);
         }
@@ -361,7 +363,10 @@ public final class BlueRedManager {
             }
             if (strike && damage > 0 && e instanceof LivingEntity living && distance <= BlueRedRules.CORE_RADIUS + e.getBbWidth() / 2) {
                 float healthBefore = living.getHealth();
-                if (hurter.hurt(e, blue.owner, damage)) blue.credited += BlueRedRules.credit(healthBefore, living.getHealth());
+                if (hurter.hurt(e, blue.owner, damage)) {
+                    blue.credited += BlueRedRules.credit(healthBefore, living.getHealth());
+                    if (healthBefore > 0 && !living.isAlive()) blue.kills++;
+                }
             }
         }
     }
