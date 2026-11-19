@@ -225,7 +225,7 @@ public final class BlueRedRenderer {
             if (PurpleCinematic.active() && PurpleCinematic.inVoid()) {
                 double close = BlueRedDraw.voidClose(age);
                 if (close > .6) GodWandCinematicEngine.addTrauma((float) (.05 * (close - .6) / .4), 6);
-                if (age == BlueRedDraw.voidTouch() && GodWandConfig.CLIENT.impactFrames) { IMPACTS.clear(); IMPACTS.add(new Burst(p.pos(), clock, true)); GodWandCinematicEngine.addTrauma(.5f, 10); }
+                if (age == BlueRedDraw.voidTouch()) { if (GodWandConfig.CLIENT.impactFrames) { IMPACTS.clear(); IMPACTS.add(new Burst(p.pos(), clock, true)); } GodWandCinematicEngine.addTrauma(.7f, 16); }
             }
         }
         PURPLES.removeIf(p -> clock - p.at() > BlueRedRules.PURPLE_CINEMATIC + 10);

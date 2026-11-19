@@ -117,7 +117,7 @@ final class BlueRedDraw {
         if (!c.glow()) return;
         // Drawn in (owner, 2026-11-19): blue motes from farther out spiralling into it, quicker as they near, and thin streaks pulled in.
         if (gone <= 0) {
-            for (int i = 0; i < 40; i++) {
+            for (int i = 0; i < 80; i++) {
                 long sd = 7600 + i * 41L;
                 double life = 14 + 10 * hash(sd), ph = age / life + hash(sd + 1);
                 long cyc = (long) Math.floor(ph);
@@ -128,7 +128,7 @@ final class BlueRedDraw {
                 Vec3 q = at.add(new Vec3(dir.x * Math.cos(turn) - dir.z * Math.sin(turn), dir.y, dir.x * Math.sin(turn) + dir.z * Math.cos(turn)).scale(rad));
                 glow(c, q, .07 + .07 * hash(cs + 5), smooth(u / .15) * (1 - smooth((u - .85) / .15)) * .8 * live, i % 2 == 0 ? CYAN : ROYAL);
             }
-            streaks(c, at, r * .85, r * 4.5, age, 24, CYAN, 7650, 1.4, .45 * live, true);
+            streaks(c, at, r * .85, r * 5, age, 48, CYAN, 7650, 1.4, .5 * live, true);
         }
         glow(c, at, rr * .5, .9 * live, 0xFFFFFF);
         glow(c, at, rr * 1.0, (.5 + .2 * beat) * live, CYAN);
@@ -648,7 +648,7 @@ final class BlueRedDraw {
      *  faster the farther they go, fading out behind. */
     private static void chargeMotes(Ctx c, Vec3 at, double s, double age, double charge, Vec3 back) {
         if (!c.glow()) return;
-        for (int i = 0; i < 40 + (int) (60 * charge); i++) {
+        for (int i = 0; i < 70 + (int) (90 * charge); i++) {
             long sd = 8100 + i * 37L;
             double life = 8 + 8 * hash(sd), ph = age / life + hash(sd + 1);
             long cyc = (long) Math.floor(ph);
@@ -997,15 +997,15 @@ final class BlueRedDraw {
         // The dome stays in view after the burst, translucent (owner, round 42).
         double clear = smooth((age - detonate - 12) / 20.0), bodyAlpha = (1 - blast * .6) * fade * (1 - clear), still = 1 - .8 * crush;
         if (c.body()) {
-            fxSprite(c, at, s * 1.9, SHOCK, 205, PALE, (.18 + .1 * grow) * pre * fade, 0);
-            orb(c, at, s * breathe, 2, age >= detonate ? 2 : grow > .6 ? 1 : 0, VIOLET, bodyAlpha);
+            // A softer skin before the blast so the lilac heart shows through (owner's refs).
+            orb(c, at, s * breathe, 2, age >= detonate ? 2 : grow > .6 ? 1 : 0, VIOLET, bodyAlpha * (1 - .4 * pre));
             // A thick black ring round it, facing the camera (owner's refs: the dark rim of a hole in space).
             Vec3[] cam = basis(look);
             // Two overlapping halves, so the ring has no seam where a single stroke would start and end.
-            fxArc(c, at, cam[0], cam[1], s * breathe * 1.04, age * .02, Math.PI * 1.3, s * .18, SMOKE, 2400, INK, .75 * pre * fade);
-            fxArc(c, at, cam[0], cam[1], s * breathe * 1.04, age * .02 + Math.PI, Math.PI * 1.3, s * .18, SMOKE, 2402, INK, .75 * pre * fade);
-            fxArc(c, at, cam[0], cam[1], s * breathe * 1.1, -age * .03, Math.PI * 1.3, s * .07, SMOKE, 2401, 0x2A0050, .6 * pre * fade);
-            fxArc(c, at, cam[0], cam[1], s * breathe * 1.1, -age * .03 + Math.PI, Math.PI * 1.3, s * .07, SMOKE, 2403, 0x2A0050, .6 * pre * fade);
+            fxArc(c, at, cam[0], cam[1], s * breathe * 1.08, age * .02, Math.PI * 1.3, s * .34, SMOKE, 2400, INK, .9 * pre * fade);
+            fxArc(c, at, cam[0], cam[1], s * breathe * 1.08, age * .02 + Math.PI, Math.PI * 1.3, s * .34, SMOKE, 2402, INK, .9 * pre * fade);
+            fxArc(c, at, cam[0], cam[1], s * breathe * 1.2, -age * .03, Math.PI * 1.3, s * .14, SMOKE, 2401, 0x2A0060, .65 * pre * fade);
+            fxArc(c, at, cam[0], cam[1], s * breathe * 1.2, -age * .03 + Math.PI, Math.PI * 1.3, s * .14, SMOKE, 2403, 0x2A0060, .65 * pre * fade);
             // The band's dark body, across it (drawn here, under the glow, so it reads deep, not washed out).
             Vec3 band = look.cross(new Vec3(0, 1, 0));
             if (band.lengthSqr() > 1e-6) {
@@ -1025,9 +1025,9 @@ final class BlueRedDraw {
         // A disc of shockwaves spun off the equator, continuous: each ring is born, widens and fades on its own clock.
         for (int k = 0; k < 3; k++) {
             double ring = ((age + k * 3) / 9.0) % 1;
-            fxFlat(c, at, s * (1.1 + 1.6 * ring), SHOCK, 840 + k, ORCHID, .55 * (1 - ring) * pre * fade);
+            fxFlat(c, at, s * (1.1 + 1.6 * ring), SHOCK, 840 + k, ORCHID, .2 * (1 - ring) * pre * fade);
         }
-        stormBands(c, at, s, age, 16, fade * still * (1 - clear));
+        stormBands(c, at, s, age, 16, fade * blast * (1 - clear));
         // A thin horizontal line straight through it, far out either side (owner's refs: the 'cosmic' line).
         Vec3 side = look.cross(new Vec3(0, 1, 0));
         if (side.lengthSqr() > 1e-6) {
@@ -1038,19 +1038,33 @@ final class BlueRedDraw {
             fxBeam(c, at.subtract(side.scale(reach)), at.add(side.scale(reach)), lw * 1.6, lw * 1.6, FLOW, 2412, VIOLET, .7 * fade * (1 - .6 * blast));
             fxBeam(c, at.subtract(side.scale(reach * .9)), at.add(side.scale(reach * .9)), lw * .4, lw * .4, FLOW, 2410, PALE, .5 * fade * (1 - .6 * blast));
         }
-        streaks(c, at, s * .95, s * 4, age, (int) (110 * pre), ORCHID, 860, 1.1, pre * fade, true);
+        streaks(c, at, s * .95, s * 4, age, (int) (40 * pre), ORCHID, 860, 1.1, .5 * pre * fade, true);
         streaks(c, at, s * .4, s * 2.2, age, (int) (140 * blast), ORCHID, 1100, 2.6, blast * fade * (1 - clamp01((age - detonate - 10) / 30.0)), false);
         // After the burst the haze thins fast and the white core stays bounded, so the column and the shockwaves read instead of a white-out.
         double haze = 1 - blast;
         // Kept inside the black rim so the ring reads (owner's refs).
-        glow(c, at, s * 2.6, .2 * fade * haze, VIOLET);
-        glow(c, at, s * .95, .35 * fade * haze, ORCHID);
+        glow(c, at, s * 2.6, (.08 + .12 * blast) * fade * haze, VIOLET);
+        // A bright lilac heart inside the dark rim (owner's refs).
+        glow(c, at, s * .92, .75 * fade * haze, 0xE8C8FF);
+        glow(c, at, s * .55, .5 * fade * haze, 0xF6E8FF);
+        // Violet smoke drifting round the rim.
+        for (int i = 0; i < 10; i++) {
+            Vec3 d = nvec(2500 + i, age * .008 + i).normalize();
+            fxSprite(c, at.add(d.scale(s * (1.25 + .5 * hash(2510 + i)))), s * (.6 + .3 * hash(2520 + i)), SMOKE, 2530 + i, 0xC8A0FF, .18 * pre * fade, age * .01 + i);
+        }
+        // Big glowing bolts flung off the ring (owner's refs): a wide violet glow round a thin bright core.
+        for (int b = 0; b < 6 + (int) (4 * grow); b++) {
+            Vec3 d = nvec(2600 + b, age * .01 + b * 2).normalize();
+            Vec3 from = at.add(d.scale(s * 1.05)), to = from.add(d.add(nvec(2620 + b, age * .02).scale(.6)).normalize().scale(s * (1.2 + 1.5 * hash(2640 + b))));
+            liveBolt(c, from, to, 12, .45, s * .05, VIOLET, .35 * pre * fade, 2660 + b * 19, age, .7);
+            liveBolt(c, from, to, 12, .45, s * .014, PALE, .9 * pre * fade, 2660 + b * 19, age, .7);
+        }
         // Only violet (owner, round 42): the core is pale violet, not white.
         glow(c, at, Math.min(s * .55 * breathe * (1 + 2 * blast), 22), (.7 + .3 * blast) * fade * (1 - .5 * blast), PALE);
-        sparks(c, at, s * 1.4, age, 70, PALE, 200);
+        sparks(c, at, s * 1.4, age, 30, PALE, 200);
         // Lightning that never pops: each bolt keeps its identity, its anchor drifts over the sphere and its shape crawls with time.
         // Owner, 2026-11-18: much more lightning on the surface.
-        int crawl = 16 + (int) (14 * grow);
+        int crawl = 8 + (int) (6 * grow);
         for (int b = 0; b < crawl; b++) {
             Vec3 d = nvec(900 + b, age * .02 + b).normalize(), along = d.cross(nvec(950 + b, age * .03)).normalize();
             Vec3 from = at.add(d.scale(s));
@@ -1454,7 +1468,8 @@ final class BlueRedDraw {
     static final double VOID_RIM = 1.12;
 
     /** How far they have come (0..1) v ticks into the act: 1 exactly when their rims touch. */
-    static double voidPush(double v) { return Math.pow(clamp01((v - 14) / (TOUCH_V - 14)), 1.25); }
+    // Slowing as they close (owner, 2026-11-19): heavy, the last stretch the slowest.
+    static double voidPush(double v) { return 1 - Math.pow(1 - clamp01((v - 14) / (TOUCH_V - 14)), 2.2); }
 
     /** The tick the 2D spheres touch and Purple is born. */
     static int voidTouch() { return BlueRedRules.PURPLE_SWIRL_END + (int) Math.round(TOUCH_V); }
@@ -1479,8 +1494,11 @@ final class BlueRedDraw {
         // A moderate shake of the whole act, none at first and building as they draw together (owner, round 40b). Camera trauma can't show
         // here because the act is framed by the camera itself.
         Vec3[] sh = basis(look);
-        double amp = .3 * Math.pow(push, 1.3) * (1 - absorb);
-        at = at.add(sh[0].scale(amp * snoise(4990, age * 1.7))).add(sh[1].scale(amp * snoise(4991, age * 1.7)));
+        // Heavy (owner, 2026-11-19): a slow rumble growing as they close, fine jitter over it, and a hard kick fading after the touch.
+        double kick = v >= TOUCH_V ? Math.exp(-(v - TOUCH_V) / 3.0) : 0;
+        double rumble = .35 * Math.pow(push, 2) * (1 - absorb) + .6 * kick, fine = .08 * push * (1 - absorb) + .2 * kick;
+        at = at.add(sh[0].scale(rumble * snoise(4990, age * .7) + fine * snoise(4992, age * 3.1)))
+               .add(sh[1].scale(rumble * snoise(4991, age * .7) + fine * snoise(4993, age * 3.3)));
         if (c.body()) {
             Vec3[] uw = basis(look);
             Vec3 o = eye.add(look.scale(.5));
@@ -1541,10 +1559,12 @@ final class BlueRedDraw {
                 // The backdrop lit by each sphere: reddish round Red, bluish round Blue (owner, 2026-11-18).
                 glow(c, p.subtract(view.scale(2)), r * 3.6, .13 * orbs, side == 0 ? RED : 0x2A6CFF);
             }
-            // Its own lightning crawling on its skin (violet, black core; owner, 2026-11-19).
+            // Tendrils crawling along its rim on the side facing the other (owner's refs, 2026-11-19).
+            Vec3 toward = side == 0 ? dirRed.scale(-1) : dirRed;
             for (int b = 0; b < 1 + (int) (3 * close); b++) {
-                Vec3 d0 = nvec(4900 + side * 40 + b, age * .05).normalize(), d1 = d0.add(nvec(4920 + side * 40 + b, age * .06).scale(.8)).normalize();
-                softBolt(c, p.add(d0.scale(r * 1.02)), p.add(d1.scale(r * 1.05)), .03 + .02 * close, ORCHID, orbs * (.5 + .4 * close), 4960 + side * 100 + b * 13, age, 1);
+                Vec3 d0 = toward.add(up.scale(1.3 * snoise(4900 + side * 40 + b, age * .03))).add(view.scale(.4)).normalize();
+                Vec3 d1 = d0.add(up.scale(.7 * snoise(4920 + side * 40 + b, age * .04))).normalize();
+                softBolt(c, p.add(d0.scale(r * 1.01)), p.add(d1.scale(r * 1.03)), .015 + .02 * close, 0xFF50E8, orbs * (.4 + .4 * close), 4960 + side * 100 + b * 13, age, 0);
             }
         }
         // Lightning crackling on Red's edge facing Blue (ref 42), growing as they close.
@@ -1557,7 +1577,7 @@ final class BlueRedDraw {
                 double spread = r * (.6 - .45 * close);
                 Vec3 off = up.scale(spread * snoise(3200 + j, age * .04)).add(view.scale(spread * .3 * snoise(3210 + j, age * .05)));
                 Vec3 from = red.subtract(dirRed.scale(r * .97)).add(off), to = blue.add(dirRed.scale(r * .97)).add(off.scale(.8));
-                softBolt(c, from, to, .012 + .07 * cc, j % 2 == 0 ? 0xE040FF : ORCHID, (.35 + .55 * close) * orbs, 3400 + j * 29, age, close > .5 ? 2 : 1);
+                softBolt(c, from, to, .02 + .06 * cc, 0xFF50E8, (.4 + .5 * close) * orbs, 3400 + j * 29, age, close > .5 ? 2 : 1);
             }
         }
         if (close > 0) {
@@ -1565,13 +1585,11 @@ final class BlueRedDraw {
             Vec3 redFace = red.subtract(dirRed.scale(r * .95)), blueFace = blue.add(dirRed.scale(r * .95));
             for (int e = 0; e < 2; e++) {
                 Vec3 f = e == 0 ? redFace : blueFace, out = e == 0 ? dirRed.scale(-1) : dirRed;
-                if (c.glow()) sparks(c, f, .6 + 2 * close, age * 1.6, (int) (25 * close), e == 0 ? RED_LIGHT : CYAN, 4980 + e * 5);
                 for (int b = 0; b < (int) (1 + 2 * close); b++) {
                     Vec3 d = out.add(nvec(5010 + e * 40 + b, age * .08).scale(1.1)).normalize();
                     softBolt(c, f.add(up.scale((hash(5000 + b) - .5) * r * .8)), f.add(d.scale(r * (.6 + .8 * vnoise(5060 + b, age * .1)))), .035 + .03 * close,
-                            ORCHID, close, 5100 + e * 100 + b * 13, age, 1);
+                            0xFF50E8, .7 * close, 5100 + e * 100 + b * 13, age, 1);
                 }
-                if (c.glow()) glow(c, f, r * (.4 + .5 * close), .35 * close, e == 0 ? RED : CYAN);
             }
             if (c.glow()) speedLines(c, eye, look, .55 * close, PALE);
         }
@@ -1591,11 +1609,12 @@ final class BlueRedDraw {
                 stormBands(c, at, s, age, 12, form * back);
                 streaks(c, at, s * .95, s * 3.5, age, 60, PALE, 1450, 1.6, form * back, true);
                 fxSprite(c, at, 4 + 14 * form, RAYS, 300, PALE, form * back, age * .02);
-                for (int b = 0; b < 8; b++) {
-                    Vec3 d = nvec(3600 + b, age * .02 + b).normalize();
-                    liveBolt(c, at.add(d.scale(s)), at.add(d.scale(s * (1.6 + .6 * vnoise(3700 + b, age * .05)))), 8, .35, .04, ORCHID, form * back, 3800 + b * 31, age, .7);
-                }
                 sparks(c, at, s * 1.3, age, 50, PALE, 310);
+            }
+            // Born in a burst of lightning (owner, 2026-11-19): violet, black-cored, kinked, flung out every way.
+            for (int b = 0; b < 10; b++) {
+                Vec3 d = nvec(3600 + b, b * 1.7).normalize();
+                softBolt(c, at.add(d.scale(s * .9)), at.add(d.scale(s * (2.2 + 1.2 * hash(3700 + b)))), .08, ORCHID, form * back, 3800 + b * 31, age, 2);
             }
         }
         if (c.glow()) for (int i = 0; i < 14; i++) {
@@ -1817,46 +1836,31 @@ final class BlueRedDraw {
     static void softBolt(Ctx c, Vec3 a, Vec3 b, double width, int color, double alpha, long seed, double age, int branches) {
         Vec3 d = b.subtract(a);
         double len = d.length();
-        if (len < 1e-3 || alpha <= 0) return;
+        if (len < 1e-3 || alpha <= 0 || !c.glow()) return;
         Vec3[] uw = basis(d.normalize());
-        int k = 28;
+        int k = 32;
         Vec3[] pts = new Vec3[k + 1];
-        double[] wv = new double[k + 1];
-        double x = Math.floor(age * 1.5) * .37 + age * .12;
+        double[] halo = new double[k + 1], mid = new double[k + 1], core = new double[k + 1];
+        // Owner's refs (2026-11-19): a soft plasma tendril. Big lazy curves that writhe slowly, a little ripple on them, a thin pink-white core
+        // inside a wide magenta glow; thinner towards its ends.
+        double x = age * .08;
         for (int j = 0; j <= k; j++) {
             double t = (double) j / k, env = Math.sin(Math.PI * t);
-            double ox = .9 * snoise(seed, t * 2.2 + x) + .35 * snoise(seed + 1, t * 7 + x * 1.7) + .12 * snoise(seed + 2, t * 22 + x * 3.1);
-            double oy = .9 * snoise(seed + 3, t * 2.2 + x) + .35 * snoise(seed + 4, t * 7 + x * 1.7) + .12 * snoise(seed + 5, t * 22 + x * 3.1);
-            pts[j] = a.add(d.scale(t)).add(uw[0].scale(ox * len * .1 * env)).add(uw[1].scale(oy * len * .1 * env));
-            wv[j] = width * (.3 + .7 * Math.pow(env, .5));
+            double ox = .16 * snoise(seed, t * 1.6 + x) + .05 * snoise(seed + 1, t * 6 + x * 2) + .015 * snoise(seed + 2, t * 24 + x * 4);
+            double oy = .16 * snoise(seed + 3, t * 1.6 + x) + .05 * snoise(seed + 4, t * 6 + x * 2) + .015 * snoise(seed + 5, t * 24 + x * 4);
+            pts[j] = a.add(d.scale(t)).add(uw[0].scale(ox * len * env)).add(uw[1].scale(oy * len * env));
+            double w = width * (.35 + .65 * Math.pow(env, .6)) * (.8 + .4 * vnoise(seed + 6, t * 4 + x * 3));
+            halo[j] = w * 8; mid[j] = w * 2.2; core[j] = w * .7;
         }
         int sd = (int) Math.floorMod(seed, 977);
-        if (c.body()) {
-            // Black core (owner, 2026-11-19: violet lightning with a black heart, like the spheres' own dark cores).
-            double[] core = new double[k + 1];
-            for (int j = 0; j <= k; j++) core[j] = wv[j] * 1.1;
-            fxRibbon(c, pts, core, FLOW, sd + 2, INK, alpha * .95);
-        } else {
-            // Violet light along both edges of the black core (never over it, so it stays black), and a soft violet halo round it all.
-            double[] halo = new double[k + 1], edge = new double[k + 1];
-            Vec3[] left = new Vec3[k + 1], right = new Vec3[k + 1];
-            for (int j = 0; j <= k; j++) {
-                Vec3 along = pts[Math.min(k, j + 1)].subtract(pts[Math.max(0, j - 1)]);
-                Vec3 side = along.cross(c.eye.subtract(pts[j]));
-                side = side.lengthSqr() < 1e-9 ? uw[0] : side.normalize();
-                left[j] = pts[j].add(side.scale(wv[j] * 1.05));
-                right[j] = pts[j].subtract(side.scale(wv[j] * 1.05));
-                halo[j] = wv[j] * 9;
-                edge[j] = wv[j] * .9;
-            }
-            fxRibbon(c, pts, halo, FLOW, sd, color, alpha * .28);
-            fxRibbon(c, left, edge, FLOW, sd + 1, 0xD050FF, alpha * .9);
-            fxRibbon(c, right, edge, FLOW, sd + 3, 0xD050FF, alpha * .9);
-        }
+        // BOLT, the smooth beam texture (FLOW's streaks read as a comb across a short, wide stroke).
+        fxRibbon(c, pts, halo, BOLT, sd, 0xC030FF, alpha * .5);
+        fxRibbon(c, pts, mid, BOLT, sd + 1, color, alpha * .85);
+        fxRibbon(c, pts, core, BOLT, sd + 2, 0xFFE0FA, alpha * .9);
         for (int i = 0; i < branches; i++) {
             int at = (int) (k * (.25 + .5 * hash(seed + 10 + i)));
             Vec3 dir = d.normalize().add(uw[0].scale(snoise(seed + 20 + i, x * .5) * 1.4)).add(uw[1].scale(snoise(seed + 30 + i, x * .5) * 1.4)).normalize();
-            softBolt(c, pts[at], pts[at].add(dir.scale(len * (.18 + .2 * hash(seed + 40 + i)))), width * .5, color, alpha * .7, seed * 7 + 101 + i, age, 0);
+            softBolt(c, pts[at], pts[at].add(dir.scale(len * (.18 + .2 * hash(seed + 40 + i)))), width * .55, color, alpha * .7, seed * 7 + 101 + i, age, 0);
         }
     }
 
