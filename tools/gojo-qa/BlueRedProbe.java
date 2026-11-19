@@ -172,7 +172,9 @@ public final class BlueRedProbe implements ClientModInitializer {
     private void red(Minecraft c, MinecraftServer server) {
         int t = ticks - since, charge = GodWandConfig.SERVER.redChargeTicks;
         if (t == 20) { c.options.keyUse.setDown(true); System.out.println("GOJO_QA RED hold"); }
-        int fired = t - 20 - charge;
+        // Red no longer fires by itself (owner, 2026-11-19): held ten ticks past full (its full pulse), then let go; {@code fired} counts from the release.
+        int fired = t - 20 - charge - 10;
+        if (fired == 0) c.options.keyUse.setDown(false);
         boolean hit = scene.startsWith("hit");
         // Side view: once Red is away, the camera moves out to the side of the target's line (Red keeps its own path).
         // Moved as soon as the client sees the shot leave (the server can fire a tick or two off the probe's own count when it lags).
@@ -185,7 +187,6 @@ public final class BlueRedProbe implements ClientModInitializer {
                     mob instanceof net.minecraft.world.entity.LivingEntity l ? l.getHealth() : -1f);
         }
         if (hit && fired > 45) { stage = 4; since = ticks; return; }
-        if (fired == 4) c.options.keyUse.setDown(false);
         if (fired == 30 || fired == 100) System.out.println("GOJO_QA PURPLE fired+" + fired + " cutscene=" + net.godwand.client.PurpleCinematic.active()
                 + " purples=" + server.submit(() -> BlueRedManager.purples(me(server, c).serverLevel()).size()).join());
         if (fired > 450) { stage = 4; since = ticks; System.out.println("GOJO_QA RED done blues=" + server.submit(() -> BlueRedManager.blues(me(server, c).serverLevel()).size()).join()); }

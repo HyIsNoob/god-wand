@@ -37,5 +37,8 @@ class BlueRedPayloadTest {
     @Test void rejectsBadState() {
         assertThrows(IllegalArgumentException.class, () -> new BlueRedPayload(0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 3));
         assertThrows(IllegalArgumentException.class, () -> new BlueRedPayload(0, 1, -1, 0, 0, 0, 0, 0, 0, 0, -1));
+        // RED_FIRE carries Red's power in percent (owner, 2026-11-19).
+        assertDoesNotThrow(() -> new BlueRedPayload(BlueRedPayload.RED_FIRE, 1, -1, 0, 0, 0, 0, 0, 0, 1, 100));
+        assertThrows(IllegalArgumentException.class, () -> new BlueRedPayload(BlueRedPayload.RED_FIRE, 1, -1, 0, 0, 0, 0, 0, 0, 1, 101));
     }
 }

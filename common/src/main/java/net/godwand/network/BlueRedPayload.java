@@ -7,14 +7,14 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * One Blue/Red/Purple event (mode 8). ownerId: the Blue owner or Red shooter; otherId: the Red shooter on PURPLE, else -1.
- * x,y,z: Blue centre, Red origin or Purple centre; dx,dy,dz: Red direction (unit) on RED_FIRE; state: BlueState ordinal on BLUE.
+ * x,y,z: Blue centre, Red origin or Purple centre; dx,dy,dz: Red direction (unit) on RED_FIRE; state: BlueState ordinal on BLUE; Red's power in percent on RED_FIRE.
  */
 public record BlueRedPayload(int kind, int ownerId, int otherId, long tick, double x, double y, double z,
                              double dx, double dy, double dz, int state) implements CustomPacketPayload {
     public static final int BLUE = 0, BLUE_GONE = 1, BLUE_SHATTER = 2, RED_CHARGE = 3, RED_CANCEL = 4, RED_FIRE = 5, RED_END = 6, PURPLE = 7, RED_HIT = 8;
 
     public BlueRedPayload {
-        if (kind < BLUE || kind > RED_HIT || state < 0 || state > 2) throw new IllegalArgumentException("Invalid Blue/Red event");
+        if (kind < BLUE || kind > RED_HIT || state < 0 || state > (kind == RED_FIRE ? 100 : 2)) throw new IllegalArgumentException("Invalid Blue/Red event");
         for (double c : new double[]{x, y, z})
             if (!Double.isFinite(c) || Math.abs(c) > 30_000_000) throw new IllegalArgumentException("Invalid Blue/Red coordinate");
         for (double c : new double[]{dx, dy, dz})

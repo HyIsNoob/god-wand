@@ -20,6 +20,8 @@ import static net.godwand.client.GateDraw.*;
 final class BlueRedDraw {
     static final int DEEP_BLUE = 0x0C24E8, ROYAL = 0x1E46FF, INDIGO = 0x0A12B4, CYAN = 0x46D2FF, ICE = 0xEAF8FF, SMOKE_WHITE = 0xE4EEFA;
     static final int RED = 0xFF0A28, RED_BODY = 0xD4001A, RED_DEEP = 0x8A0010, RED_LIGHT = 0xFF4A60, RED_CORE = 0xFFD6DC, RED_DARK = 0x16000A;
+    /** Red's shockwaves (owner, 2026-11-19): white, so they never read violet over the sky. */
+    static final int SHOCK_WHITE = 0xFFF4F4;
     static final int VIOLET = 0x9A2CFF, ORCHID = 0xF064FF, PALE = 0xF6D8FF, NIGHT = 0x2A0650, VOID = 0x07020F, INK = 0x050002;
     /** Shader effects (godwand_bluered.fsh). ORB seeds: variant (0 blue, 1 red, 2 purple) + 4 * level. */
     static final int ORB = 0, FLOW = 1, FLAME = 2, SMOKE = 3, SHOCK = 4, BOLT = 5, SPARK = 6, RAYS = 7, NEBULA = 8, SPEEDLINES = 9, DEBRIS = 10, RING = 11, BRUSH = 12, PLASMA = 13;
@@ -338,8 +340,9 @@ final class BlueRedDraw {
         // Short flares: the wave strokes, kept short (the smears carry the big shapes).
         for (Wave w : waves) strokes(c, at, s, w, reach * .6, 1);
         if (!c.glow()) return;
-        glow(c, at, s * .4, .45, 0xFFFFFF);
-        glow(c, at, s * 1.3, .75, RED_CORE);
+        // A red heart, never white (owner, 2026-11-19).
+        glow(c, at, s * .4, .5, RED_LIGHT);
+        glow(c, at, s * 1.3, .75, RED);
         glow(c, at, s * 2.4, .6 * flicker(age, 7), RED_LIGHT);
         glow(c, at, s * 4, .45, RED);
         // The pink-red haze of the Roblox refs: wide and soft, stronger while charging.
@@ -524,7 +527,9 @@ final class BlueRedDraw {
      *  and big red smears bursting forward in a cone, with ink flung along them; all gone in about fourteen ticks. Flight: the hot red mass at the
      *  head (its smears streaming behind), and every other tick it leaves a broad red smear on its path that stays, spreads and fades within
      *  about twenty ticks, with a small ink scrap now and then; a broken, fading trail, never a beam. */
-    static void redFlight(Ctx c, Vec3 origin, Vec3 dir, Vec3 head, double age, double fade, long seed, boolean flying) {
+    static void redFlight(Ctx c, Vec3 origin, Vec3 dir, Vec3 head, double age, double fade, long seed, boolean flying) { redFlight(c, origin, dir, head, age, fade, seed, flying, 1); }
+
+    static void redFlight(Ctx c, Vec3 origin, Vec3 dir, Vec3 head, double age, double fade, long seed, boolean flying, double power) {
         if (fade <= 0) return;
         double total = head.distanceTo(origin);
         Vec3[] uw = basis(dir);
@@ -559,7 +564,60 @@ final class BlueRedDraw {
                 }
             }
         }
-        if (flying) redOrb(c, head, .75, age, dir.scale(-1));
+        if (flying) {
+            // A big mass of energy on the move (owner, 2026-11-19): the head, a tapering trail of it behind, black-core red lightning along it.
+            double hs = .75 * (.7 + .6 * power), trail = Math.min(total, 6 + 8 * power);
+            int k = 16;
+            Vec3[] pts = new Vec3[k + 1];
+            double[] w = new double[k + 1];
+            for (int j = 0; j <= k; j++) {
+                double t = (double) j / k;
+                pts[j] = head.subtract(dir.scale(trail * t)).add(uw[0].scale(hs * .25 * snoise(seed + 11, t * 3 - age * .3))).add(uw[1].scale(hs * .25 * snoise(seed + 12, t * 3 - age * .3)));
+                w[j] = hs * 1.5 * Math.pow(1 - t, .9) * (.75 + .35 * vnoise(seed + 13, t * 4 - age * .4));
+            }
+            if (c.body()) fxRibbon(c, pts, w, PLASMA, (int) (seed % 977) + 5, RED_BODY, .85 * fade);
+            if (c.glow()) fxRibbon(c, pts, w, FLOW, (int) (seed % 977) + 6, RED, .35 * fade);
+            for (int b = 0; b < 4 + (int) (3 * power); b++) {
+                double back = trail * (.35 + .65 * vnoise(seed + 20 + b, age * .3));
+                Vec3 to = head.subtract(dir.scale(back)).add(uw[0].scale(hs * 1.6 * snoise(seed + 30 + b, age * .4))).add(uw[1].scale(hs * 1.6 * snoise(seed + 40 + b, age * .4)));
+                Vec3 from = head.add(nvec(seed + 50 + b, age * .5).scale(hs * .5));
+                if (c.body()) liveBolt(c, from, to, 8, .45, .05 * (.6 + .4 * power), INK, .9 * fade, seed * 7 + b * 13, age, 1);
+                else liveBolt(c, from, to, 8, .45, .02 * (.6 + .4 * power), RED_LIGHT, .8 * fade, seed * 7 + b * 13, age, 1);
+            }
+            redOrb(c, head, hs, age, dir.scale(-1));
+        }
+    }
+
+    /** Red gathering in the hand (owner, 2026-11-19): a red heart (never white) inside a churning red mass, energy pouring in from all round,
+     *  rings of it tightening, black-core red lightning crackling off it; {@code charge} 0..1 grows all of it; {@code full}: it pulses. */
+    static void redCharge(Ctx c, Vec3 at, double s, double age, double charge, boolean full) {
+        if (c.body()) {
+            double coreD = at.distanceTo(c.eye);
+            redMass(c, at, s * .9, age, coreD, false);
+            orb(c, at, s * .62, 1, 0, RED, 1);
+            redMass(c, at, s * .9, age, coreD, true);
+        }
+        for (int b = 0; b < 3 + (int) (5 * charge) + (full ? 3 : 0); b++) {
+            Vec3 d = nvec(7800 + b, age * .3).normalize(), d2 = d.add(nvec(7810 + b, age * .35).scale(.9)).normalize();
+            Vec3 from = at.add(d.scale(s * .6)), to = at.add(d2.scale(s * (1.3 + 1.2 * charge + (full ? .6 : 0))));
+            if (c.body()) liveBolt(c, from, to, 6, .45, .02 + .025 * charge, INK, .9, 7820 + b * 13, age, 1);
+            else liveBolt(c, from, to, 6, .45, .008 + .01 * charge, RED_LIGHT, .9, 7820 + b * 13, age, 1);
+        }
+        if (!c.glow()) return;
+        streaks(c, at, s * .5, s * (3 + 3 * charge), age, (int) (20 + 50 * charge), RED_LIGHT, 7830, 2.2, .8, true);
+        for (int k = 0; k < 3; k++) {
+            Vec3[] uw = basis(nvec(7840 + k, age * .02).add(0, .3, 0).normalize());
+            double ring = (age * (.05 + .04 * charge) + k / 3.0) % 1;
+            fxArc(c, at, uw[0], uw[1], s * (2.6 - 1.8 * ring), age * .2 + k, Math.PI * 1.4, s * .06, FLOW, 7850 + k, RED_LIGHT, .6 * Math.sin(Math.PI * ring));
+        }
+        glow(c, at, s * .5, .8, RED_LIGHT);
+        glow(c, at, s * 1.4, .7, RED);
+        glow(c, at, s * 3.5, .3 + .25 * charge, RED_BODY);
+        if (full) {
+            double ring = (age % 10) / 10;
+            fxSprite(c, at, s * (1 + 3 * ring), SHOCK, 7860, RED_LIGHT, .7 * (1 - ring), 0);
+            glow(c, at, s * 2.2, .3 + .2 * flicker(age, 5), RED);
+        }
     }
 
     /** The release, {@code age} ticks after the shot: flash, two shock rings racing forward, big red smears and ink bursting forward in a cone. */
@@ -576,7 +634,7 @@ final class BlueRedDraw {
         for (int r = 0; r < 2; r++) {
             double ra = age - r * 2.5;
             if (ra < 0 || ra > 10) continue;
-            pressureWave(c, origin.add(dir.scale(.5 + ra * 1.1)), dir, .4 + ra * .55, .25 * (1 - ra / 10), ra, 7720 + r, (1 - ra / 10) * fade);
+            pressureWave(c, origin.add(dir.scale(.5 + ra * 1.1)), dir, .4 + ra * .55, .25 * (1 - ra / 10), ra, 7720 + r, (1 - ra / 10) * fade, SHOCK_WHITE);
         }
     }
 
@@ -693,7 +751,7 @@ final class BlueRedDraw {
         pressureBlast(c, at, dir, b, 20, 1.7, 8800, 1, true);
         if (c.body()) {
             // Ground wave: ragged and uneven, not a perfect ring.
-            if (b < 12) pressureWave(c, at.add(0, -.9, 0), new Vec3(0, 1, 0), 2 + b * 1.4, .6 * (1 - b / 12), b, 8860, .6 * (1 - b / 12));
+            if (b < 12) pressureWave(c, at.add(0, -.9, 0), new Vec3(0, 1, 0), 2 + b * 1.4, .6 * (1 - b / 12), b, 8860, .6 * (1 - b / 12), SHOCK_WHITE);
             fxFlat(c, at.add(0, -.95, 0), 3 + 2.5 * out, SMOKE, 171, RED_BODY, .5 * fade);
             splatter(c, at, b, dir);
         }
@@ -702,12 +760,16 @@ final class BlueRedDraw {
         if (b < 2) glow(c, at, Math.min(6, far * .2) * (1 - b / 2), .9 * (1 - b / 2), RED_CORE);
         if (b < 6) fxSprite(c, at, Math.min(3 + b * .7, far * .3), RAYS, 8890, 0xFF7090, .35 * (1 - b / 6), b * .02);
         glow(c, at.add(dir.scale(2 * out)), 6, .3 * fade, 0xFF5A78);
-        if (b < 12) pressureWave(c, at.add(dir.scale(b * .4)), dir, 1 + b * 1.1, .5 * (1 - b / 12), b, 8870, 1 - b / 12);
+        if (b < 12) pressureWave(c, at.add(dir.scale(b * .4)), dir, 1 + b * 1.1, .5 * (1 - b / 12), b, 8870, 1 - b / 12, SHOCK_WHITE);
     }
 
     /** A pressure wave: not a drawn circle but a ragged, broken band of hot red air round {@code n}: its radius bulges and dents, its width
      *  swells and thins, and it is torn open in places. */
     private static void pressureWave(Ctx c, Vec3 at, Vec3 n, double radius, double width, double age, long seed, double alpha) {
+        pressureWave(c, at, n, radius, width, age, seed, alpha, RED_LIGHT);
+    }
+
+    private static void pressureWave(Ctx c, Vec3 at, Vec3 n, double radius, double width, double age, long seed, double alpha, int color) {
         if (alpha <= 0) return;
         Vec3[] uw = basis(n);
         int k = 36;
@@ -719,7 +781,7 @@ final class BlueRedDraw {
             pts[j] = at.add(uw[0].scale(Math.cos(a) * rr)).add(uw[1].scale(Math.sin(a) * rr));
             w[j] = width * (.3 + .9 * vnoise(seed + 2, t * 7 + age * .3)) * smooth((vnoise(seed + 3, t * 5) - .25) / .1);
         }
-        fxRibbon(c, pts, w, PLASMA, (int) (seed % 977), RED_LIGHT, alpha * .8);
+        fxRibbon(c, pts, w, PLASMA, (int) (seed % 977), color, alpha * .8);
     }
 
     /** Red paint and ink sprayed along the hit (ref 19): short fat drops flung out in a cone, fast then slowing, falling a little, smearing
@@ -901,7 +963,7 @@ final class BlueRedDraw {
             for (int r = 0; r < 7; r++) {
                 double ra = after - r * 5;
                 if (ra < 0 || ra > 34) continue;
-                pressureWave(c, foot, new Vec3(0, 1, 0), 5 + ra * 2.8, 4.5 * (1 - ra / 34), ra, 2130 + r, (1 - ra / 34) * fade);
+                pressureWave(c, foot, new Vec3(0, 1, 0), 5 + ra * 2.8, 4.5 * (1 - ra / 34), ra, 2130 + r, (1 - ra / 34) * fade, ORCHID);
             }
         }
         double white = age < detonate ? 0 : 1 - clamp01((age - detonate) / 4.0);
@@ -1138,7 +1200,7 @@ final class BlueRedDraw {
         for (int j = 0; j < 4; j++) sparks(c, red.add(blue.subtract(red).scale(.2 + .2 * j)), .8 + .6 * link, age * 1.5, (int) (8 + 22 * link - 14 * surge), j % 2 == 0 ? ORCHID : VIOLET, 3300 + j * 7);
         if (contact > 0 && !Double.isNaN(groundY)) {
             double k = 1 - contact;
-            pressureWave(c, new Vec3(center.x, groundY + .1, center.z), new Vec3(0, 1, 0), 2 + 22 * k, 2.6 * contact, age, 3960, contact);
+            pressureWave(c, new Vec3(center.x, groundY + .1, center.z), new Vec3(0, 1, 0), 2 + 22 * k, 2.6 * contact, age, 3960, contact, ORCHID);
         }
         if (build > .2) streaks(c, center, .3, separation(age) + 4, age, (int) (50 * build), ORCHID, 3400, 2, build, true);
     }

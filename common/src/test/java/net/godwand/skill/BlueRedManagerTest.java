@@ -257,28 +257,45 @@ class BlueRedManagerTest {
     void fire(ServerPlayer p) {
         assertTrue(BlueRedManager.beginRed(p));
         BlueRedManager.chargeTick(p, net.godwand.config.GodWandConfig.SERVER.redChargeTicks);
+        BlueRedManager.releaseRed(p);
     }
+    int firedPower() { return sent.stream().filter(s -> s.kind() == BlueRedPayload.RED_FIRE).reduce((a, b) -> b).orElseThrow().state(); }
 
-    @Test void firesExactlyAt50() {
+    @Test void heldAsLongAsYouLikeThenFiredOnRelease() {
+        // Owner, 2026-11-19: no auto-fire; letting go fires with the power built, full from redChargeTicks on.
         var p = player();
         assertTrue(BlueRedManager.beginRed(p));
         assertEquals(1, count(BlueRedPayload.RED_CHARGE));
-        BlueRedManager.chargeTick(p, 49);
-        assertEquals(0, count(BlueRedPayload.RED_FIRE));
         BlueRedManager.chargeTick(p, 50);
+        BlueRedManager.chargeTick(p, 400);
+        assertEquals(0, count(BlueRedPayload.RED_FIRE), "never fires by itself");
+        BlueRedManager.releaseRed(p);
         assertEquals(1, count(BlueRedPayload.RED_FIRE));
+        assertEquals(100, firedPower());
         cooldowns.verify(() -> SkillCooldowns.start(p, net.godwand.skill.SkillCooldownState.RED_SLOT, 80));
-        BlueRedManager.cancelRed(p);
+        BlueRedManager.releaseRed(p);
         assertEquals(0, count(BlueRedPayload.RED_CANCEL), "letting go after the shot changes nothing");
     }
 
-    @Test void releaseBeforeFireCancelsWithoutCooldown() {
+    @Test void anEarlyShotIsWeaker() {
         var p = player();
         BlueRedManager.beginRed(p);
+        BlueRedManager.chargeTick(p, 10);
+        BlueRedManager.releaseRed(p);
+        assertEquals(36, firedPower(), "a fifth at once, rising to full over the charge");
+    }
+
+    @Test void tapOrSneakCallsItOffWithoutCooldown() {
+        var p = player();
+        BlueRedManager.beginRed(p);
+        BlueRedManager.chargeTick(p, 3);
+        BlueRedManager.releaseRed(p);
+        assertEquals(1, count(BlueRedPayload.RED_CANCEL), "a tap is not a shot");
+        BlueRedManager.beginRed(p);
+        when(p.isShiftKeyDown()).thenReturn(true);
         BlueRedManager.chargeTick(p, 30);
-        BlueRedManager.cancelRed(p);
-        assertEquals(1, count(BlueRedPayload.RED_CANCEL));
-        BlueRedManager.chargeTick(p, 50);
+        assertEquals(2, count(BlueRedPayload.RED_CANCEL), "sneaking calls it off");
+        BlueRedManager.releaseRed(p);
         assertEquals(0, count(BlueRedPayload.RED_FIRE));
         cooldowns.verify(() -> SkillCooldowns.start(eq(p), eq(net.godwand.skill.SkillCooldownState.RED_SLOT), anyInt()), never());
     }

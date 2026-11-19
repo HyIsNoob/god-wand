@@ -48,7 +48,8 @@ public final class BlueRedManager {
         final ServerPlayer shooter;
         final ServerLevel level;
         Vec3 origin = Vec3.ZERO, dir = Vec3.ZERO;
-        int age;
+        int age, charged;
+        double power = 1;
         boolean fired;
         final Set<UUID> struck = new HashSet<>();
         Red(ServerPlayer shooter, ServerLevel level) { this.shooter = shooter; this.level = level; }
@@ -113,19 +114,29 @@ public final class BlueRedManager {
         return true;
     }
 
-    /** Called every use tick; Red fires by itself once charged and cannot be fired earlier. */
+    /** Called every use tick (owner, 2026-11-19): Red is held as long as the player likes, gathering power; sneaking calls it off. */
     public static void chargeTick(ServerPlayer player, int usedTicks) {
         Red red = chargingRedOf(player);
-        if (red == null || usedTicks < GodWandConfig.SERVER.redChargeTicks) return;
+        if (red == null) return;
+        if (player.isShiftKeyDown()) { cancelRed(player); player.stopUsingItem(); return; }
+        red.charged = usedTicks;
+    }
+
+    /** Right click let go: Red fires with the power it has built (BlueRedRules.redPower); a tap is called off with no cooldown. */
+    public static void releaseRed(ServerPlayer player) {
+        Red red = chargingRedOf(player);
+        if (red == null) return;
+        if (red.charged < BlueRedRules.RED_MIN_CHARGE) { cancelRed(player); return; }
+        red.power = BlueRedRules.redPower(red.charged, GodWandConfig.SERVER.redChargeTicks);
         red.fired = true;
         red.dir = player.getLookAngle().normalize();
         red.origin = player.getEyePosition().add(red.dir.scale(1.5));
-        send(red.level, red.origin, event(BlueRedPayload.RED_FIRE, player, red.origin, red.dir));
+        send(red.level, red.origin, new BlueRedPayload(BlueRedPayload.RED_FIRE, player.getId(), -1, 0, red.origin.x, red.origin.y, red.origin.z,
+                red.dir.x, red.dir.y, red.dir.z, (int) Math.round(red.power * 100)));
         SkillCooldowns.start(player, SkillCooldownState.RED_SLOT, GodWandConfig.skillCooldownTicks(SkillCooldownState.RED_SLOT, 1));
-        player.stopUsingItem();
     }
 
-    /** Right click let go: an uncharged Red is cancelled with no cooldown; a fired one flies on. */
+    /** Called off (sneak, a tap, or switching skill): an unfired Red goes with no cooldown; a fired one flies on. */
     public static void cancelRed(ServerPlayer player) {
         Red red = chargingRedOf(player);
         if (red == null) return;
@@ -153,7 +164,7 @@ public final class BlueRedManager {
             if (BlueRedRules.meet(hit.state) == BlueRedRules.RedMeetsBlue.PURPLE) { REDS.remove(red); startPurple(red.level, hit, red.shooter); return 0; }
             shatter(hit);
         }
-        float damage = cfg.redDamage * cfg.damageMultiplier;
+        float damage = (float) (cfg.redDamage * cfg.damageMultiplier * red.power);
         for (Entity e : finder.find(red.level, new AABB(from, to).inflate(BlueRedRules.RED_HIT_RADIUS + 1))) {
             if (!(e instanceof LivingEntity) || SpellDamage.isCaster(e, red.shooter) || e.isSpectator()) continue;
             Vec3 middle = e.position().add(0, e.getBbHeight() / 2, 0);
@@ -181,11 +192,12 @@ public final class BlueRedManager {
             if (SpellDamage.isCaster(e, red.shooter) || e.isSpectator() || e instanceof Display) continue;
             Vec3 out = e.position().subtract(at);
             if (out.length() > radius) continue;
-            if (e instanceof LivingEntity) hurter.hurt(e, red.shooter, cfg.redDamage * cfg.damageMultiplier);
+            if (e instanceof LivingEntity) hurter.hurt(e, red.shooter, (float) (cfg.redDamage * cfg.damageMultiplier * red.power));
             e.setDeltaMovement(e.getDeltaMovement().add(out.normalize().scale(1.0)).add(red.dir.scale(1.4)).add(0, 0.5, 0));
             e.hurtMarked = true;
         }
-        return BlueEater.carve(red.level, at, cfg.redCraterRadius, budget, deadline, Integer.MAX_VALUE, null, cfg.redTerrainDamage);
+        int crater = cfg.redCraterRadius <= 0 ? 0 : Math.max(2, (int) Math.round(cfg.redCraterRadius * (.5 + .5 * red.power)));
+        return BlueEater.carve(red.level, at, crater, budget, deadline, Integer.MAX_VALUE, null, cfg.redTerrainDamage);
     }
 
     private static void endRed(Red red, Vec3 at) {

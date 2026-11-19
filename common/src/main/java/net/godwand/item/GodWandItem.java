@@ -377,7 +377,7 @@ public class GodWandItem extends Item {
     @Override
     public void releaseUsing(ItemStack stack, Level world, LivingEntity user, int remainingUseTicks) {
         if (getSkillMode(stack) == MODE_BLUE_RED) {
-            if (user instanceof ServerPlayer player) net.godwand.skill.BlueRedManager.cancelRed(player);
+            if (user instanceof ServerPlayer player) net.godwand.skill.BlueRedManager.releaseRed(player);
             return;
         }
         if (getSkillMode(stack) == MODE_FUGA) {

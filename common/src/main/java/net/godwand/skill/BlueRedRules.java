@@ -43,6 +43,10 @@ public final class BlueRedRules {
     }
     /** Purple bursts this far above the Blue that made it (owner, 2026-11-16: "nổ trên trời"): the orbs soar up while they swirl. */
     public static final double PURPLE_LIFT = 16;
+    /** A shorter hold than this is a tap: Red is called off, not fired. */
+    public static final int RED_MIN_CHARGE = 6;
+    /** Red's power from how long it was held (owner, 2026-11-19): a fifth at once, rising evenly to full at {@code full} ticks. */
+    public static double redPower(int held, int full) { return .2 + .8 * Math.min(1, held / (double) Math.max(1, full)); }
     /** How high a chunk of charged ground floats t ticks after it tore loose (owner, 2026-11-19); h is its own hash. Same on server and client. */
     public static double liftRise(double t, long h) {
         // Higher (owner, round 46), so the lifted ground reads from the camera.
