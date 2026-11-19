@@ -44,6 +44,16 @@ public final class PurpleCinematic {
     public static boolean blackout() { return active() && age >= BlueRedRules.PURPLE_SWIRL_END + 12 && age < BlueRedRules.PURPLE_MERGE; }
     static double age() { return age; }
 
+    /** The black bars' height (each, a fraction of the view): they slide in on the blink, close in while Purple holds its breath, open a
+     *  little after the blast, and slide out with the hand back (owner, 2026-11-19: dynamic). The 2D act is full black anyway. */
+    public static double bars(float delta) {
+        if (!active()) return 0;
+        double a = age + delta, det = BlueRedRules.PURPLE_DETONATE;
+        double in = GateDraw.smooth((a - BlueRedRules.PURPLE_BLINK) / 10.0), out = GateDraw.smooth((a - (BlueRedRules.PURPLE_CINEMATIC - 20)) / 20.0);
+        double tense = GateDraw.smooth((a - (det - 18)) / 16.0) * (1 - GateDraw.smooth((a - det) / 10.0));
+        return (.1 + .05 * tense) * in * (1 - out);
+    }
+
     /** The cutscene's own field of view (owner, 2026-11-19): the player's FOV setting must not change how it is framed. The 3D swirl and the
      *  2D act are set up for the default 70; Purple narrows a little while it holds its breath, flares wide on the blast and settles, then
      *  the last second eases back to the player's own. */

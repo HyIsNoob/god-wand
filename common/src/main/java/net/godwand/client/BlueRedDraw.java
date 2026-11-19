@@ -24,7 +24,7 @@ final class BlueRedDraw {
     static final int SHOCK_WHITE = 0xFFF4F4;
     static final int VIOLET = 0x9A2CFF, ORCHID = 0xF064FF, PALE = 0xF6D8FF, NIGHT = 0x2A0650, VOID = 0x07020F, INK = 0x050002;
     /** Shader effects (godwand_bluered.fsh). ORB seeds: variant (0 blue, 1 red, 2 purple) + 4 * level. */
-    static final int ORB = 0, FLOW = 1, FLAME = 2, SMOKE = 3, SHOCK = 4, BOLT = 5, SPARK = 6, RAYS = 7, NEBULA = 8, SPEEDLINES = 9, DEBRIS = 10, RING = 11, BRUSH = 12, PLASMA = 13, CHALK = 14;
+    static final int ORB = 0, FLOW = 1, FLAME = 2, SMOKE = 3, SHOCK = 4, BOLT = 5, SPARK = 6, RAYS = 7, NEBULA = 8, SPEEDLINES = 9, DEBRIS = 10, RING = 11, BRUSH = 12, PLASMA = 13, CHALK = 14, GALAXY = 15, SOLID_FX = 16;
     static final int BLUE_TINT = 0x1A6CFF;
 
     private BlueRedDraw() {}
@@ -997,15 +997,10 @@ final class BlueRedDraw {
         // The dome stays in view after the burst, translucent (owner, round 42).
         double clear = smooth((age - detonate - 12) / 20.0), bodyAlpha = (1 - blast * .6) * fade * (1 - clear), still = 1 - .8 * crush;
         if (c.body()) {
+            purpleTear(c, at, s, age, blast, fade, look);
             // A softer skin before the blast so the lilac heart shows through (owner's refs).
-            orb(c, at, s * breathe, 2, age >= detonate ? 2 : grow > .6 ? 1 : 0, VIOLET, bodyAlpha * (1 - .4 * pre));
-            // A thick black ring round it, facing the camera (owner's refs: the dark rim of a hole in space).
-            Vec3[] cam = basis(look);
-            // Two overlapping halves, so the ring has no seam where a single stroke would start and end.
-            fxArc(c, at, cam[0], cam[1], s * breathe * 1.08, age * .02, Math.PI * 1.3, s * .34, SMOKE, 2400, INK, .9 * pre * fade);
-            fxArc(c, at, cam[0], cam[1], s * breathe * 1.08, age * .02 + Math.PI, Math.PI * 1.3, s * .34, SMOKE, 2402, INK, .9 * pre * fade);
-            fxArc(c, at, cam[0], cam[1], s * breathe * 1.2, -age * .03, Math.PI * 1.3, s * .14, SMOKE, 2401, 0x2A0060, .65 * pre * fade);
-            fxArc(c, at, cam[0], cam[1], s * breathe * 1.2, -age * .03 + Math.PI, Math.PI * 1.3, s * .14, SMOKE, 2403, 0x2A0060, .65 * pre * fade);
+            // Bright and solid (owner, 2026-11-19).
+            orb(c, at, s * breathe, 2, age >= detonate ? 2 : grow > .6 ? 1 : 0, VIOLET, bodyAlpha);
             debris(c, at, s * 1.4, age, 34, 0x1A0A26, 820, pre * fade, true);
             for (int b = 0; b < 8; b++) {
                 Vec3 d = nvec(2300 + b, age * .03 + b).normalize(), along = d.cross(nvec(2310 + b, age * .04)).normalize();
@@ -1025,20 +1020,9 @@ final class BlueRedDraw {
         Vec3 side = look.cross(new Vec3(0, 1, 0));
         if (side.lengthSqr() > 1e-6) {
             side = side.normalize();
-            // Only a hairline of pale light along the tear's two edges (owner, 2026-11-19: black, like Vergil's portal, not a glow).
-            double reach = s * (3.8 + 1.5 * blast), lw = s * .45 * .55;
-            Vec3 upv = side.cross(look).normalize();
-            int n = 24;
-            for (int e = -1; e <= 1; e += 2) {
-                Vec3[] ep = new Vec3[n + 1];
-                double[] ew = new double[n + 1];
-                for (int j = 0; j <= n; j++) {
-                    double t = (double) j / n, half = lw * Math.pow(Math.sin(Math.PI * t), 1.4) * .5;
-                    ep[j] = at.add(side.scale(reach * (2 * t - 1))).add(upv.scale(e * half));
-                    ew[j] = s * .012 * Math.sin(Math.PI * t);
-                }
-                fxRibbon(c, ep, ew, BOLT, 2410 + e, PALE, .55 * fade);
-            }
+            // A faint glow along the tear (its bright rim is in its own shader).
+            double reach = s * (3.8 + 1.5 * blast);
+            fxBeam(c, at.subtract(side.scale(reach * .9)), at.add(side.scale(reach * .9)), s * .25, s * .25, BOLT, 2410, 0x9A50FF, .25 * fade);
         }
         streaks(c, at, s * .95, s * 4, age, (int) (40 * pre), ORCHID, 860, 1.1, .5 * pre * fade, true);
         streaks(c, at, s * .4, s * 2.2, age, (int) (140 * blast), ORCHID, 1100, 2.6, blast * fade * (1 - clamp01((age - detonate - 10) / 30.0)), false);
@@ -1047,8 +1031,10 @@ final class BlueRedDraw {
         // Kept inside the black rim so the ring reads (owner's refs).
         glow(c, at, s * 2.6, (.08 + .12 * blast) * fade * haze, VIOLET);
         // A bright lilac heart inside the dark rim (owner's refs).
-        glow(c, at, s * .92, .75 * fade * haze, 0xE8C8FF);
-        glow(c, at, s * .55, .5 * fade * haze, 0xF6E8FF);
+        // Bright violet body, white heart (owner, 2026-11-19).
+        glow(c, at, s * 1.15, .7 * fade * haze, 0xA040FF);
+        glow(c, at, s * .9, .8 * fade * haze, 0xD090FF);
+        glow(c, at, s * .5, .9 * fade * haze, 0xFFFFFF);
         // Violet smoke drifting round the rim.
         for (int i = 0; i < 10; i++) {
             Vec3 d = nvec(2500 + i, age * .008 + i).normalize();
@@ -1162,27 +1148,38 @@ final class BlueRedDraw {
         }
     }
 
-    /** Purple's black tear in space (owner, 2026-11-19: like Vergil's portal), straight across it, thick in the middle and pointed at both
-     *  ends. Drawn on its own alpha layer after the glow, so it stays black across the bright heart. */
-    static void purpleTear(Ctx c, Vec3 base, double age, Vec3 look) {
-        int detonate = BlueRedRules.PURPLE_DETONATE, end = BlueRedRules.PURPLE_CINEMATIC;
-        if (age < BlueRedRules.PURPLE_MERGE) return;
-        double blast = clamp01((age - detonate) / 18.0), fade = 1 - clamp01((age - detonate - 18) / (end - detonate - 18.0));
-        if (fade <= 0) return;
-        Vec3 at = base.add(0, BlueRedRules.purpleRise(age), 0), band = look.cross(new Vec3(0, 1, 0));
-        if (band.lengthSqr() < 1e-6) return;
+    /** Cinematic black bars, {@code amount} of the view height each (top and bottom), as camera-facing black quads half a block out. */
+    static void blackBars(Ctx c, Vec3 eye, Vec3 look, double amount, double fovDeg) {
+        if (amount <= 0) return;
+        Vec3 right = look.cross(new Vec3(0, 1, 0));
+        right = right.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : right.normalize();
+        Vec3 up = right.cross(look).normalize(), o = eye.add(look.scale(.5));
+        double h = .5 * Math.tan(Math.toRadians(fovDeg) / 2), w = h * 3;
+        for (int e = -1; e <= 1; e += 2) {
+            Vec3 inner = o.add(up.scale(e * h * (1 - 2 * amount))), outer = o.add(up.scale(e * h * 1.3));
+            fxQuad(c, inner.subtract(right.scale(w)), inner.add(right.scale(w)), outer.add(right.scale(w)), outer.subtract(right.scale(w)), SOLID_FX, 0, 0x000000, 1, 1, 1, 1, 0, 1);
+        }
+    }
+
+    /** Purple's tear in space (owner, 2026-11-19: like Vergil's portal), straight across behind it, thick in the middle and pointed at both
+     *  ends; inside it a galaxy (dark violet, stars, a drifting nebula), its rim bright. Drawn in the body pass before the sphere, so the
+     *  sphere sits in front of it. */
+    static void purpleTear(Ctx c, Vec3 at, double s, double age, double blast, double fade, Vec3 look) {
+        Vec3 band = look.cross(new Vec3(0, 1, 0));
+        if (band.lengthSqr() < 1e-6 || fade <= 0) return;
         band = band.normalize();
-        double s = purpleSize(age), reach = s * (3.8 + 1.5 * blast), lw = s * .45;
+        // Just behind the sphere's centre, away from the camera.
+        Vec3 mid = at.add(look.scale(s * .3));
+        double reach = s * (3.8 + 1.5 * blast), lw = s * .45;
         int n = 24;
         Vec3[] tp = new Vec3[n + 1];
         double[] tw = new double[n + 1];
         for (int j = 0; j <= n; j++) {
             double t = (double) j / n;
-            tp[j] = at.add(band.scale(reach * (2 * t - 1)));
+            tp[j] = mid.add(band.scale(reach * (2 * t - 1)));
             tw[j] = lw * Math.pow(Math.sin(Math.PI * t), 1.4);
         }
-        fxRibbon(c, tp, tw, BOLT, 2413, INK, .97 * fade);
-        fxRibbon(c, tp, tw, BOLT, 2414, INK, .97 * fade);
+        fxRibbon(c, tp, tw, GALAXY, 2413, 0x2A0858, fade);
     }
 
     /** Purple's vortex bands: each on its own slowly tumbling plane and turning at its own speed, its radius breathing and its outline warped along
@@ -1875,19 +1872,27 @@ final class BlueRedDraw {
         if (alpha <= .01) return;
         seed = seed + strike * 7919L;
         double x = hash(seed + 92) * 50;
+        // Real lightning (owner, 2026-11-19): midpoint displacement. Each level halves the segments and kinks every new midpoint sideways by
+        // a random amount that shrinks level by level, so a few big bends carry many tiny crinkles. Fixed for the whole strike.
+        double[] ox = new double[k + 1], oy = new double[k + 1];
+        double amp = .22;
+        for (int step = k / 2; step >= 1; step /= 2, amp *= .55)
+            for (int j = step; j < k; j += 2 * step) {
+                ox[j] = (ox[j - step] + ox[j + step]) / 2 + amp * (hash(seed + j * 31L + step * 7L) * 2 - 1);
+                oy[j] = (oy[j - step] + oy[j + step]) / 2 + amp * (hash(seed + j * 37L + step * 11L + 5) * 2 - 1);
+            }
         for (int j = 0; j <= k; j++) {
             double t = (double) j / k, env = Math.sin(Math.PI * t);
-            double ox = .16 * snoise(seed, t * 1.6 + x) + .05 * snoise(seed + 1, t * 6 + x * 2) + .015 * snoise(seed + 2, t * 24 + x * 4);
-            double oy = .16 * snoise(seed + 3, t * 1.6 + x) + .05 * snoise(seed + 4, t * 6 + x * 2) + .015 * snoise(seed + 5, t * 24 + x * 4);
-            pts[j] = a.add(d.scale(t)).add(uw[0].scale(ox * len * env)).add(uw[1].scale(oy * len * env));
-            double w = width * (.35 + .65 * Math.pow(env, .6)) * (.8 + .4 * vnoise(seed + 6, t * 4 + x * 3));
+            pts[j] = a.add(d.scale(t)).add(uw[0].scale(ox[j] * len)).add(uw[1].scale(oy[j] * len));
+            double w = width * (.4 + .6 * Math.pow(env, .5));
             halo[j] = w * 8; mid[j] = w * 2.2; core[j] = w * .7;
         }
         int sd = (int) Math.floorMod(seed, 977);
         // BOLT, the smooth beam texture (FLOW's streaks read as a comb across a short, wide stroke).
-        fxRibbon(c, pts, halo, BOLT, sd, 0xC030FF, alpha * .5);
-        fxRibbon(c, pts, mid, BOLT, sd + 1, color, alpha * .85);
-        fxRibbon(c, pts, core, BOLT, sd + 2, 0xFFE0FA, alpha * .9);
+        // Violet with a white core (owner, 2026-11-19).
+        fxRibbon(c, pts, halo, BOLT, sd, 0x8A28FF, alpha * .5);
+        fxRibbon(c, pts, mid, BOLT, sd + 1, 0xB050FF, alpha * .9);
+        fxRibbon(c, pts, core, BOLT, sd + 2, 0xFFFFFF, alpha * .95);
         for (int i = 0; i < branches; i++) {
             int at = (int) (k * (.25 + .5 * hash(seed + 10 + i)));
             Vec3 dir = d.normalize().add(uw[0].scale(snoise(seed + 20 + i, x * .5) * 1.4)).add(uw[1].scale(snoise(seed + 30 + i, x * .5) * 1.4)).normalize();

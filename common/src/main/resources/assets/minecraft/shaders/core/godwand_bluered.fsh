@@ -280,6 +280,23 @@ void main() {
         vec3 bright = ink ? vec3(0.62, 0.02, 0.05) : mix(tint, vec3(1.0, 0.92, 0.9), 0.65);
         col = tint * (0.85 + 0.3 * striae);
         col = mix(col, bright, hot);
+    } else if (effect == 15) {
+        // GALAXY (Purple's tear, owner 2026-11-19): deep space inside the slit, a drifting violet-pink-blue nebula, fine stars, and a bright rim.
+        float across = abs(q.y);
+        float neb = fbm(vec3(p.x * 4.0 + t * 0.04, q.y * 1.6, seed));
+        float swirl = fbm(vec3(p.x * 9.0 - neb * 2.0 - t * 0.06, q.y * 3.0, seed + 4.0));
+        vec3 space = vec3(0.015, 0.0, 0.04);
+        vec3 nebula = mix(vec3(0.35, 0.05, 0.75), vec3(0.95, 0.30, 0.85), smoothstep(0.4, 0.8, swirl));
+        nebula = mix(nebula, vec3(0.20, 0.35, 1.0), smoothstep(0.55, 0.9, neb) * 0.5);
+        float cloud = smoothstep(0.42, 0.85, neb * 0.6 + swirl * 0.4) * (1.0 - across * 0.6);
+        float star = step(0.9965, hash(vec3(floor(gl_FragCoord.xy * 0.5), seed))) * (1.0 - across);
+        float rim = smoothstep(0.62, 0.95, across);
+        col = space + nebula * cloud * 0.9 + vec3(star) + vec3(0.85, 0.65, 1.0) * rim * 1.2;
+        a = smoothstep(1.0, 0.92, across);
+    } else if (effect == 16) {
+        // SOLID: plain colour, fully opaque (cinematic bars).
+        col = tint;
+        a = 1.0;
     } else if (effect == 14) {
         // CHALK (Red's charge, owner refs 2026-11-19): a dry, grainy streak like chalk dragged fast. Many fine hairlines run along it, speckled
         // with grain; it breaks up towards its ragged edges and its tail; a pale hot line runs down its middle.
