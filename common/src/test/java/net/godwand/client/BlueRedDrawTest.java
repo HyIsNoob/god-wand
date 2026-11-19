@@ -119,7 +119,9 @@ class BlueRedDrawTest {
         assertEquals(6, prev, .01, "picks up from the size the void leaves it at");
         for (double age = BlueRedRules.PURPLE_MERGE + .25; age < BlueRedRules.PURPLE_CINEMATIC; age += .25) {
             double s = BlueRedDraw.purpleSize(age);
-            assertTrue(s >= prev - 1e-9 && s - prev < 1.6, "age " + age + ": " + prev + " -> " + s);
+            // It caves in smoothly while it holds its breath before the burst (owner, round 42); otherwise it only grows.
+            boolean caving = age > BlueRedRules.PURPLE_DETONATE - 18 && age <= BlueRedRules.PURPLE_DETONATE;
+            assertTrue(s >= prev - (caving ? .2 : 1e-9) && s - prev < 1.6, "age " + age + ": " + prev + " -> " + s);
             prev = s;
         }
     }

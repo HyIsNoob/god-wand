@@ -24,7 +24,7 @@ public final class BlueEater {
     static final int MAX_DISPLAYS = 96;
     // Owner, 2026-11-19: small pieces, whirled round on their orbit and swallowed quickly.
     static final int FLIGHT_TICKS = 20;
-    static final float START_SCALE = .45f;
+    static final float START_SCALE = 1f;
 
     record Eaten(Display.BlockDisplay display, Vec3 from, int[] age) {
         Eaten(Display.BlockDisplay display, Vec3 from) { this(display, from, new int[1]); }
@@ -110,34 +110,29 @@ public final class BlueEater {
         return state;
     }
 
-    /** One tick of flight: each display gets a new keyframe every tick (interpolated by the client). Owner's ref 41 (2026-11-18): torn up
-     *  and pulled out to a ring round Blue, then whirled round it on a tilted orbit, faster and faster, the ring tightening, tumbling and
-     *  shrinking until it is swallowed. */
+    /** One tick of flight: each display gets a new keyframe every tick (interpolated by the client). Owner, 2026-11-19: from its own size,
+     *  shrinking, along half an arc straight into Blue; each block bends its own way, so the swarm reads smooth, not chaotic. */
     static void animate(List<Eaten> live, Vec3 center) {
         for (Iterator<Eaten> it = live.iterator(); it.hasNext(); ) {
             Eaten e = it.next();
             int age = ++e.age()[0];
-            {
-                // A keyframe every tick (the orbit is fast; 2-tick keyframes would cut its corners).
-                double p = Math.min(1, (age + 1) / (double) FLIGHT_TICKS), ease = p * p;
-                Vec3 mid = e.from().add(.5, .5, .5), v0 = mid.subtract(center);
-                long h = (long) Math.floor(e.from().x * 31 + e.from().y * 13 + e.from().z * 17);
-                // Each block on its own orbit plane, any orientation (owner, 2026-11-18: all directions, not a flat disc), at its own radius.
-                Vec3 n = new Vec3(Math.sin(h * 1.7), Math.cos(h * 2.3), Math.sin(h * 3.1 + 1)).normalize();
-                Vec3 u = n.cross(Math.abs(n.y) < .9 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0)).normalize(), w = n.cross(u);
-                double sign = (h & 1) == 0 ? 1 : -1, ring = 2.4 + ((h >> 3) & 7) * .3;
-                double join = Math.min(1, p / .25), j = join * join * (3 - 2 * join);
-                double rad = ring * (1 - .9 * Math.pow(Math.max(0, (p - .5) / .5), 2));
-                double a0 = Math.atan2(v0.dot(w), v0.dot(u)), ang = a0 + sign * Math.PI * 3.5 * Math.pow(p, 1.2);
-                Vec3 onRing = u.scale(Math.cos(ang) * rad).add(w.scale(Math.sin(ang) * rad));
-                Vec3 v = v0.add(onRing.subtract(v0).scale(j));
-                float scale = (float) (START_SCALE * (1 - .8 * ease));
-                Vec3 to = center.add(v).subtract(e.from()).subtract(scale / 2.0, scale / 2.0, scale / 2.0);
-                e.display().setTransformationInterpolationDelay(0);
-                e.display().setTransformationInterpolationDuration(1);
-                e.display().setTransformation(new Transformation(new Vector3f((float) to.x, (float) to.y, (float) to.z),
-                        new Quaternionf().rotateXYZ((float) (ease * 2.1), (float) (ease * 3.4), (float) (ease * 1.3)), new Vector3f(scale), null));
-            }
+            double p = Math.min(1, (age + 1) / (double) FLIGHT_TICKS), k = Math.pow(p, 1.4);
+            Vec3 v0 = e.from().add(.5, .5, .5).subtract(center);
+            long h = (long) Math.floor(e.from().x * 31 + e.from().y * 13 + e.from().z * 17);
+            // The arc's axis: perpendicular to the way in, turned by the block's own hash.
+            Vec3 side = new Vec3(Math.sin(h * 1.7), Math.cos(h * 2.3), Math.sin(h * 3.1 + 1));
+            Vec3 n = v0.cross(side);
+            n = n.lengthSqr() < 1e-6 ? v0.cross(new Vec3(0, 1, 0.3)) : n;
+            n = n.lengthSqr() < 1e-6 ? new Vec3(0, 1, 0) : n.normalize();
+            double ang = Math.PI * k, cos = Math.cos(ang), sin = Math.sin(ang);
+            // Rodrigues: v0 turned by ang about n (n is perpendicular to v0), drawn in as it turns.
+            Vec3 v = v0.scale(cos).add(n.cross(v0).scale(sin)).scale(1 - k);
+            float scale = (float) (START_SCALE * (1 - .92 * k));
+            Vec3 to = center.add(v).subtract(e.from()).subtract(scale / 2.0, scale / 2.0, scale / 2.0);
+            e.display().setTransformationInterpolationDelay(0);
+            e.display().setTransformationInterpolationDuration(1);
+            e.display().setTransformation(new Transformation(new Vector3f((float) to.x, (float) to.y, (float) to.z),
+                    new Quaternionf().rotateXYZ((float) (k * 1.6), (float) (k * 2.4), 0), new Vector3f(scale), null));
             if (age >= FLIGHT_TICKS) { retire(e); it.remove(); }
         }
     }

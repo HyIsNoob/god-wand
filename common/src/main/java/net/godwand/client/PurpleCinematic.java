@@ -125,13 +125,14 @@ public final class PurpleCinematic {
         // Bolder (owner, 2026-11-18): a low hero shot looking up at it as it is born, a sweep round it rising to its level, a fast push in
         // just before the burst, then thrown far back and up by the blast.
         // Round 37 (owner): close, slowly pulling out and round it; the blast throws it farther still.
-        double run = age - merge, thrown = GateDraw.smooth((age - det) / 24), span = det - merge, out = GateDraw.smooth(run / span);
-        // Round 39 (owner): shot from near the player (just behind and above where they stand), drifting slowly round; the blast still throws
-        // it back far enough to stay outside the sphere.
+        // Round 42 (owner): it creeps in while Purple caves in and holds its breath, then the burst hurls it far back and up, and it keeps
+        // drifting out over the violet world for the long aftermath.
+        double run = age - merge, thrown = GateDraw.smooth((age - det) / 30.0);
+        double crush = GateDraw.smooth((age - (det - 18)) / 16.0) * (1 - thrown);
         double ang = .1 + run * .006 - Math.max(0, age - det) * .003;
-        double d = Math.max(8, Math.sqrt((eye.x - center.x) * (eye.x - center.x) + (eye.z - center.z) * (eye.z - center.z))) + 3 + thrown * 80
-                + Math.max(0, age - det - 24) * .2;
-        double h = (eye.y - center.y) + 2 + thrown * 30;
+        double near = Math.max(8, Math.sqrt((eye.x - center.x) * (eye.x - center.x) + (eye.z - center.z) * (eye.z - center.z)));
+        double d = near * (1 - .3 * crush) + 3 + thrown * 110 + Math.max(0, age - det - 30) * .2;
+        double h = (eye.y - center.y) + 2 + thrown * 40;
         return aim(center.add(turn(side, ang).scale(d)).add(0, h, 0), center);
     }
 

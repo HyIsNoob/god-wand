@@ -80,6 +80,27 @@ public final class AtomicPostFx {
         Minecraft.getInstance().getMainRenderTarget().bindWrite(true);
         RenderSystem.enableDepthTest(); RenderSystem.depthMask(true);
     }
+    /** Purple's age mapped onto Atomic's blast clock (twice as fast, stopping short of Atomic's own ground scars), no column, its own shock. */
+    private static void purpleUniforms(double age,double distance,float centerX,float centerY,boolean onScreen) {
+        double t=age-net.godwand.skill.BlueRedRules.PURPLE_DETONATE;
+        int end=net.godwand.skill.BlueRedRules.PURPLE_CINEMATIC;
+        float fade=(float)Math.max(0,Math.min(1,1-(age-(end-40))/45.0));
+        chain.setUniform("Age",(float)(net.godwand.skill.AtomicSequence.DETONATION+Math.min(t*2,226)));
+        chain.setUniform("SequenceEnd",net.godwand.skill.AtomicSequence.END);
+        chain.setUniform("DetonationTick",net.godwand.skill.AtomicSequence.DETONATION);
+        for(String zero:new String[]{"ChargeProgress","ReleaseFlash","Compression","Cut","HoloRadius","BeamRadius","BeamHeight","ImpactPulse"}) chain.setUniform(zero,0);
+        chain.setUniform("FxFade",fade);
+        chain.setUniform("BeamDepth",(float)net.godwand.skill.AtomicSequence.BEAM_DEPTH);
+        chain.setUniform("BlastPulse",1);
+        chain.setUniform("ShockRadius",(float)(160*(1-Math.pow(1-Math.max(0,Math.min(1,t/60)),2))));
+        chain.setUniform("ObserverGain",AtomicRenderer.distanceGain(distance));
+        chain.setUniform("ImpactFrames",GodWandConfig.CLIENT.impactFrames?1:0);
+        chain.setUniform("Darken",GodWandConfig.CLIENT.skyBlackout?1:0);
+        chain.setUniform("CenterX",onScreen?centerX:-10); chain.setUniform("CenterY",centerY);
+        chain.setUniform("BloomStrength",GodWandConfig.CLIENT.bloomStrength*.6f);
+        chain.setUniform("BloomBurst",onScreen?(float)Math.max(0,1-t/24):0);
+    }
+
     public static void renderAfterWorld() {
         // Under a shaderpack the fire mesh is drawn here, after the level pass, so the pack cannot repaint it; every frame
         // that deferred it, even when the post effect has nothing to do or failed, or the fire would drop out of frames.
@@ -90,16 +111,18 @@ public final class AtomicPostFx {
         if (context == null || failed) return;
         var fx = AtomicRenderer.nearestFrame(context.delta);
         var fuga=FugaRenderer.shaderFrame(context.delta);
+        // Hollow Purple borrows the Atomic world pass after it bursts (owner, round 42), when neither Atomic nor Fuga is running.
+        double[] purple=fx==null&&fuga==null?BlueRedRenderer.purpleWorld(context.delta):null;
         var client = Minecraft.getInstance();
-        if ((fx == null && fuga == null) || client.level == null) return;
+        if ((fx == null && fuga == null && purple == null) || client.level == null) return;
         // The chain is built behind the static opening shot, so the release frame never stalls on shader linking;
         // during the charge it only adds screen-space light (bloom, shafts, haze) around the mesh flame.
-        if(fx==null && fuga.phase()==0 && fuga.age()<4)return;
-        var center=fx!=null?fx.center():fuga.phase()==1?fuga.arrowPosition():fuga.center();
+        if(fx==null && fuga!=null && fuga.phase()==0 && fuga.age()<4)return;
+        var center=purple!=null?new net.minecraft.world.phys.Vec3(purple[0],purple[1],purple[2]):fx!=null?fx.center():fuga.phase()==1?fuga.arrowPosition():fuga.center();
         // During the hit-stop the fire phoenix leads the skyward beam: same head, pointed straight up at its top.
-        double rise=fx==null&&fuga.phase()==1?FugaRenderer.hitStop(fuga.casterId(),context.delta):-1;
+        double rise=fx==null&&fuga!=null&&fuga.phase()==1?FugaRenderer.hitStop(fuga.casterId(),context.delta):-1;
         if(rise>=0) center=center.add(0,6+110*FugaCinematic.smooth(rise,0,1)-3,0);
-        if(fx==null && fuga.phase()==0) {
+        if(fx==null && fuga!=null && fuga.phase()==0) {
             // Light source: the hands, sliding out to the arrowhead as it forms (projected at center.y+2 below).
             var d=fuga.target().subtract(fuga.origin()).normalize();
             center=FugaRenderer.chargeHand(fuga,fuga.origin(),false).add(d.scale(1.6*FugaCinematic.smooth(fuga.age(),144,190))).subtract(0,2,0);
@@ -135,9 +158,10 @@ public final class AtomicPostFx {
                 effect.safeGetUniform("CameraPos").set((float)camera.x,(float)camera.y,(float)camera.z);
                 effect.safeGetUniform("BlastCenter").set((float)center.x,(float)center.y,(float)center.z);
             }
-            chain.setUniform("FugaPhase",fx==null?fuga.phase():-1);
+            chain.setUniform("FugaPhase",fx==null&&fuga!=null?fuga.phase():-1);
             chain.setUniform("DepthTrust",shaderPackActive()?0:1);
-            if(fx==null) {
+            if(purple!=null) purpleUniforms(purple[3],client.player==null?0:client.player.position().distanceTo(center),centerX,centerY,clip.w>0);
+            else if(fx==null) {
                 var aim=FugaRenderer.shaderAxis(fuga);
                 // Rising, it leans a little away from the camera behind it, so its wings spread across the view
                 // instead of being seen edge-on.

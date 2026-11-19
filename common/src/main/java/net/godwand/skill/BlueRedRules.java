@@ -26,7 +26,7 @@ public final class BlueRedRules {
      *  together and Purple swallows them (the void thins out from MERGE to VOID_END), the camera races round Purple, it detonates, the cutscene
      *  ends, the crater stops growing. */
     public static final int PURPLE_BLINK = 4, PURPLE_SWIRL_END = 116, PURPLE_MERGE = 194, PURPLE_VOID_END = 202,
-            PURPLE_DETONATE = 254, PURPLE_CINEMATIC = 310, PURPLE_TERRAIN_END = 330;
+            PURPLE_DETONATE = 272, PURPLE_CINEMATIC = 384, PURPLE_TERRAIN_END = 404;
     /** The convergence in the world (owner, 2026-11-18), about 5 seconds: contact until CONTACT; an orbit until PLAY; the build-up until LIFT_END, the
      *  spin climbing hard while the pair lifts; braking and parting to opposite sides until FACE; the face-off held until SWIRL_END, when the 2D
      *  act fades in. */

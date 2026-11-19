@@ -61,8 +61,7 @@ public final class BlueRedRenderer {
                 if (state != BlueState.CHARGING && v.readyAt < 0) {
                     v.readyAt = clock;
                     sound(at, SoundEvents.BEACON_POWER_SELECT, 2f, .7f);
-                    var player = Minecraft.getInstance().player;
-                    if (player != null && player.position().distanceTo(at) < 32) GodWandCinematicEngine.addTrauma(.18f, 6);
+                    sound(at, SoundEvents.WARDEN_SONIC_BOOM, 1f, 1.8f);
                 }
                 v.state = state;
             }
@@ -75,7 +74,11 @@ public final class BlueRedRenderer {
                 FLIGHTS.add(new Flight(p.ownerId(), at, new Vec3(p.dx(), p.dy(), p.dz()), clock));
                 // The shooter feels the force leave: a short, hard kick and a brief widening of the view.
                 var me = Minecraft.getInstance().player;
-                if (me != null && me.getId() == p.ownerId()) { GodWandCinematicEngine.addTrauma(.35f, 8); GodWandCinematicEngine.setFovPunch(1.08f, 2); }
+                if (me != null && me.getId() == p.ownerId()) {
+                    GodWandCinematicEngine.addTrauma(.35f, 8); GodWandCinematicEngine.setFovPunch(1.08f, 2);
+                    // Black and red impact frames on the shot (owner, 2026-11-19).
+                    if (GodWandConfig.CLIENT.impactFrames) { IMPACTS.clear(); IMPACTS.add(new Burst(at, clock, false, new Vec3(p.dx(), p.dy(), p.dz()))); }
+                }
                 sound(at, SoundEvents.WARDEN_SONIC_BOOM, 1.5f, 1.5f);
             }
             case BlueRedPayload.RED_END -> {
@@ -126,6 +129,14 @@ public final class BlueRedRenderer {
         IMPACTS.removeIf(b -> clock - b.at() > 6);
         FLIGHTS.removeIf(f -> f.endAt >= 0 ? clock - f.endAt > 10 : clock - f.at > 200);
         CHARGES.values().removeIf(at -> clock - at > 400);
+        // Blue's ready wave shakes the camera as its front sweeps past it (owner, 2026-11-19).
+        var view = Minecraft.getInstance().gameRenderer.getMainCamera();
+        if (view != null) for (BlueView v : BLUES.values()) {
+            if (v.readyAt < 0 || v.pos == null) continue;
+            double d = v.pos.distanceTo(view.getPosition()), t = clock - v.readyAt;
+            if (d > BlueRedDraw.readyWave(t - 1) && d <= BlueRedDraw.readyWave(t) || t == 0 && d <= BlueRedDraw.readyWave(0))
+                GodWandCinematicEngine.addTrauma((float) Math.max(.15, .45 * (1 - d / 40)), 10);
+        }
         for (Purple p : PURPLES) {
             double age = clock - p.at();
             if (age == BlueRedRules.PURPLE_DETONATE) detonated(p.pos());
@@ -137,7 +148,9 @@ public final class BlueRedRenderer {
                     // A pressure front hugging the ground, like Fuga's (owner, 2026-11-18).
                     ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 26);
                 }
-                if (age == BlueRedRules.PURPLE_DETONATE) { ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 64); GodWandCinematicEngine.addTrauma(.6f, 24); }
+                if (age == BlueRedRules.PURPLE_DETONATE) { ImpactDebrisRenderer.groundWave(groundUnder(p.pos()), 96); GodWandCinematicEngine.addTrauma(.9f, 40); }
+                // A low rumble while it holds its breath (owner, round 42).
+                if (age >= BlueRedRules.PURPLE_DETONATE - 18 && age < BlueRedRules.PURPLE_DETONATE) GodWandCinematicEngine.addTrauma(.06f, 4);
                 if (age > BlueRedRules.PURPLE_CONTACT && age < BlueRedRules.PURPLE_SWIRL_END) {
                     Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition(), centre = p.pos().add(0, BlueRedRules.purpleRise(age), 0);
                     for (Vec3 o : BlueRedDraw.convergeOffsets(age)) {
@@ -168,6 +181,16 @@ public final class BlueRedRenderer {
             GodWandCinematicEngine.addTrauma((float) Math.max(.15, 1 - player.position().distanceTo(at) / 120), 24);
             GodWandCinematicEngine.setFovPunch(1.2f, 5);
         }
+    }
+
+    /** The latest Purple after it bursts, for I am Atomic's world pass (owner, round 42): {ground x, y, z, age}, or null. */
+    public static double[] purpleWorld(float partial) {
+        if (PURPLES.isEmpty()) return null;
+        Purple p = PURPLES.get(PURPLES.size() - 1);
+        double age = clock + partial - p.at();
+        if (age < BlueRedRules.PURPLE_DETONATE) return null;
+        Vec3 g = groundUnder(p.pos());
+        return new double[]{g.x, g.y, g.z, age};
     }
 
     private static Vec3 groundUnder(Vec3 at) {
@@ -277,7 +300,7 @@ public final class BlueRedRenderer {
                     Purple p = PURPLES.get(PURPLES.size() - 1);
                     BlueRedDraw.purpleVoid(c, p.pos(), clock + o.partial() - p.at(), eye, lookVec);
                 }
-                for (Burst b : IMPACTS) BlueRedDraw.impact(c, b.pos(), (int) (clock - b.at()), eye, lookVec, b.blue());
+                for (Burst b : IMPACTS) BlueRedDraw.impact(c, b.pos(), (int) (clock - b.at()), eye, lookVec, b.blue(), b.dir().lengthSqr() > 0);
                 var mesh = buffer.build();
                 if (mesh != null) BufferUploader.drawWithShader(mesh);
             }
@@ -296,6 +319,7 @@ public final class BlueRedRenderer {
             int i = 0;
             for (double t : b.trailAt) ago[i++] = now - t;
             BlueRedDraw.blue(c, drawn(b, partial), b.state != BlueState.CHARGING, now - b.born, b.readyAt < 0 ? -1 : now - b.readyAt, trail, ago);
+            if (b.readyAt >= 0 && now - b.readyAt < 16) BlueRedDraw.readyWave(c, drawn(b, partial), now - b.readyAt);
         }
         var level = Minecraft.getInstance().level;
         for (var charge : CHARGES.entrySet()) {
