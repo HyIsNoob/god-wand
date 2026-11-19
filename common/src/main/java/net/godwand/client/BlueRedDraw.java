@@ -588,29 +588,59 @@ final class BlueRedDraw {
         }
     }
 
-    /** Red's pressure while it gathers (owner, 2026-11-19, like Stone Cannon's): bands of black ribbon rimmed in red, each a ring round it
-     *  that is thrown back along {@code back}, widening into a cone, thinning and fading, one after another; faster and stronger with charge. */
-    private static void pressureCone(Ctx c, Vec3 at, double s, double age, double charge, Vec3 back) {
+    /** Red gathering (owner's refs, 2026-11-19): long scratchy brush streaks of red with a hot, pale core, flung out of the hand and swept
+     *  back past the user in a widening fan, each one lashing out, holding and fading while the next comes; more and longer with charge. */
+    private static void chargeStreaks(Ctx c, Vec3 at, double s, double age, double charge, Vec3 back) {
         Vec3[] uw = basis(back);
-        for (int k = 0; k < 4; k++) {
-            double ph = (age * (.045 + .05 * charge) + k / 4.0) % 1, al = Math.sin(Math.PI * ph) * (.45 + .55 * charge);
-            if (al <= .01) continue;
-            double d = s * (.15 + 2.2 * ph), rad = s * (.8 + 1.6 * ph);
-            int n = 40;
-            Vec3[] pts = new Vec3[n + 1];
-            double[] w = new double[n + 1];
-            for (int j = 0; j <= n; j++) {
-                double a = Math.PI * 2 * j / n + k * 1.3 + age * .05;
-                double wob = 1 + .12 * snoise(7870 + k, a * 1.5 + age * .2);
-                pts[j] = at.add(back.scale(d)).add(uw[0].scale(Math.cos(a) * rad * wob)).add(uw[1].scale(Math.sin(a) * rad * wob));
-                w[j] = s * .16 * (1 - .7 * ph) * (.6 + .6 * vnoise(7880 + k, a * 2 - age * .3));
+        int count = 6 + (int) (8 * charge);
+        for (int i = 0; i < count; i++) {
+            long sd = 7900 + i * 53L;
+            double life = 14 + 8 * hash(sd), ph = age / life + hash(sd + 1);
+            long cyc = (long) Math.floor(ph);
+            double u = ph - cyc;
+            long cs = sd + cyc * 7919L;
+            double ang = hash(cs) * Math.PI * 2, spread = .35 + .45 * hash(cs + 1), L = (3 + 5 * hash(cs + 2)) * (.6 + .6 * charge);
+            double head = smooth(u / .3), tail = smooth((u - .55) / .45), al = smooth(u / .08) * (1 - tail);
+            if (al <= .01 || head - tail < .03) continue;
+            Vec3 side = uw[0].scale(Math.cos(ang)).add(uw[1].scale(Math.sin(ang)));
+            int k = 14;
+            Vec3[] pts = new Vec3[k + 1];
+            double[] w = new double[k + 1], a = new double[k + 1];
+            for (int j = 0; j <= k; j++) {
+                double t = tail + (head - tail) * j / k, curl = t * (1.2 + hash(cs + 3)) * (hash(cs + 4) < .5 ? 1 : -1);
+                Vec3 sw = side.scale(Math.cos(curl)).add(side.cross(back).scale(Math.sin(curl)));
+                pts[j] = at.add(back.scale(L * t)).add(sw.scale(L * t * spread + s * .3)).add(nvec(cs + 5, t * 3 - age * .2).scale(s * .15));
+                w[j] = s * (.25 + .3 * hash(cs + 6)) * Math.sin(Math.PI * Math.min(1, .15 + .85 * (double) j / k)) * (1 + .8 * t);
+                a[j] = smooth((pts[j].distanceTo(c.eye) - .5) / 1.2);
             }
-            if (c.body()) {
-                double[] rim = new double[n + 1];
-                for (int j = 0; j <= n; j++) rim[j] = w[j] * 1.5;
-                fxRibbon(c, pts, rim, PLASMA, 7890 + k, RED, al * .9);
-                fxRibbon(c, pts, w, BRUSH, 7895 + k, INK, al);
-            } else fxRibbon(c, pts, w, FLOW, 7899 + k, RED_LIGHT, al * .35);
+            if (c.body()) fxRibbon(c, pts, w, a, BRUSH, (int) (cs % 977), i % 3 == 0 ? RED_BODY : RED, .85 * al);
+            else {
+                double[] core = new double[k + 1];
+                for (int j = 0; j <= k; j++) core[j] = w[j] * .35;
+                fxRibbon(c, pts, w, a, BRUSH, (int) (cs % 977) + 1, RED_LIGHT, .45 * al);
+                fxRibbon(c, pts, core, a, BRUSH, (int) (cs % 977) + 2, 0xFFC8B8, .6 * al);
+            }
+        }
+    }
+
+    /** Thin red threads looping round the gathering Red and the user (owner's ref): long, slow, glowing curves. */
+    private static void chargeThreads(Ctx c, Vec3 at, double s, double age, double charge, Vec3 back) {
+        if (!c.glow()) return;
+        for (int i = 0; i < 4 + (int) (3 * charge); i++) {
+            long sd = 7960 + i * 41L;
+            Vec3[] uw = basis(back.add(nvec(sd, age * .01).scale(.8)).normalize());
+            double rad = 1.4 + 2.2 * hash(sd + 1), a0 = hash(sd + 2) * Math.PI * 2 + age * (.03 + .03 * hash(sd + 3)) * (i % 2 == 0 ? 1 : -1);
+            Vec3 mid = at.add(back.scale(1 + 1.5 * hash(sd + 4)));
+            int k = 30;
+            Vec3[] pts = new Vec3[k + 1];
+            double[] w = new double[k + 1], a = new double[k + 1];
+            for (int j = 0; j <= k; j++) {
+                double t = (double) j / k, an = a0 + t * (2.5 + 1.5 * hash(sd + 5)), rr = rad * (1 + .25 * snoise(sd + 6, t * 3 + age * .05));
+                pts[j] = mid.add(uw[0].scale(Math.cos(an) * rr)).add(uw[1].scale(Math.sin(an) * rr));
+                w[j] = .03 * Math.sin(Math.PI * t);
+                a[j] = smooth((pts[j].distanceTo(c.eye) - .4) / 1.0);
+            }
+            fxRibbon(c, pts, w, a, FLOW, (int) (sd % 977), i % 2 == 0 ? RED_LIGHT : 0xFF9080, .55 + .3 * charge);
         }
     }
 
@@ -621,7 +651,8 @@ final class BlueRedDraw {
     /** {@code back}: where its pressure is thrown, behind it (owner, 2026-11-19). */
     static void redCharge(Ctx c, Vec3 at, double s, double age, double charge, boolean full, Vec3 back) {
         back = back.lengthSqr() < 1e-6 ? new Vec3(0, 1, 0) : back.normalize();
-        pressureCone(c, at, s, age, charge, back);
+        chargeStreaks(c, at, s, age, charge, back);
+        chargeThreads(c, at, s, age, charge, back);
         if (c.body()) {
             double coreD = at.distanceTo(c.eye);
             redMass(c, at, s * .9, age, coreD, false);

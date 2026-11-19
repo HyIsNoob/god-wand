@@ -173,6 +173,15 @@ public final class BlueRedRenderer {
                 for (int i = 0; i < 24; i++) spray(ParticleTypes.ELECTRIC_SPARK, at, randomDir().scale(.35));
             }
         }
+        // Embers floating round whoever is gathering Red (owner's refs).
+        if (lvl != null) for (var charge : CHARGES.entrySet()) {
+            var owner = lvl.getEntity(charge.getKey());
+            if (owner == null) continue;
+            for (int i = 0; i < 3; i++) {
+                Vec3 p = owner.getEyePosition().add(randomDir().scale(1 + 2.5 * RANDOM.nextDouble()));
+                spray(ParticleTypes.CRIMSON_SPORE, p, new Vec3(0, .02, 0));
+            }
+        }
         for (Flight f : FLIGHTS) {
             if (f.end != null) continue;
             Vec3 head = BlueRedVisual.redHead(f.origin, f.dir, clock - f.at, Math.min(160, GodWandConfig.SERVER.redRange), null);
@@ -476,9 +485,14 @@ public final class BlueRedRenderer {
             double age = now - charge.getValue(), full = GodWandConfig.SERVER.redChargeTicks;
             // The shooter's world darkens round the gathering Red so it stands out (owner, 2026-11-19); drawn before it, under it.
             var me = Minecraft.getInstance().player;
-            if (layer == 0 && me != null && me.getId() == charge.getKey()) sprite(c, eye.add(look.scale(.5)), 4, .5 * smooth(age / 15), 0x050002, BlueRedAtlas.SOLID);
+            if (me != null && me.getId() == charge.getKey()) {
+                // The frame goes dark red round it (owner's refs): darkened under it, a red wash over it.
+                double g = smooth(age / 15);
+                if (layer == 0) sprite(c, eye.add(look.scale(.5)), 4, .55 * g, 0x1A0003, BlueRedAtlas.SOLID);
+                else sprite(c, eye.add(look.scale(.5)), 4, (.1 + .08 * Math.min(1, age / full)) * g, 0xFF1A2A, BlueRedAtlas.SOLID);
+            }
             // Its pressure is thrown back behind it and a little up and out to the side, never into the lens (owner, 2026-11-19).
-            Vec3 back = view.scale(-.7).add(right.scale(.55)).add(0, .35, 0);
+            Vec3 back = view.scale(-1).add(right.scale(.25)).add(0, .15, 0);
             BlueRedDraw.redCharge(c, at, BlueRedVisual.redChargeSize(Math.min(age, full), (int) full), age, Math.min(1, age / full), age >= full, back);
         }
         for (Flight f : FLIGHTS) {
