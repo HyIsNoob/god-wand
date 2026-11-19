@@ -72,6 +72,22 @@ final class BlueRedDraw {
 
     static void blue(Ctx c, Vec3 at, boolean ready, double age, double sinceReady) { blue(c, at, ready, age, sinceReady, List.of(), age, -1); }
 
+    /** Motes drawn in from farther out (3 to 6 radii), spiralling into the sphere, quicker as they near; glow pass. */
+    static void inflow(Ctx c, Vec3 at, double r, double age, int count, int colA, int colB, long seed, double alpha) {
+        if (!c.glow() || alpha <= 0) return;
+        for (int i = 0; i < count; i++) {
+            long sd = seed + i * 41L;
+            double life = 14 + 10 * hash(sd), ph = age / life + hash(sd + 1);
+            long cyc = (long) Math.floor(ph);
+            double u = ph - cyc;
+            long cs = sd + cyc * 7919L;
+            Vec3 dir = new Vec3(hash(cs) * 2 - 1, hash(cs + 1) * 2 - 1, hash(cs + 2) * 2 - 1).normalize();
+            double r0 = r * (3 + 3 * hash(cs + 3)), rad = r0 - (r0 - r * .8) * u * u, turn = 2.5 * u * u * (hash(cs + 4) < .5 ? 1 : -1);
+            Vec3 q = at.add(new Vec3(dir.x * Math.cos(turn) - dir.z * Math.sin(turn), dir.y, dir.x * Math.sin(turn) + dir.z * Math.cos(turn)).scale(rad));
+            glow(c, q, (.07 + .07 * hash(cs + 5)) * Math.max(.6, r), smooth(u / .15) * (1 - smooth((u - .85) / .15)) * .8 * alpha, i % 2 == 0 ? colA : colB);
+        }
+    }
+
     /** A puff of dust Blue shed: it stays where it was shed (drifting a little), so a moving Blue leaves a trail of them. */
     record Puff(Vec3 pos, Vec3 drift, double born, int seed) {}
     static final double PUFF_LIFE = 18, VANISH_TICKS = 12;
@@ -117,17 +133,7 @@ final class BlueRedDraw {
         if (!c.glow()) return;
         // Drawn in (owner, 2026-11-19): blue motes from farther out spiralling into it, quicker as they near, and thin streaks pulled in.
         if (gone <= 0) {
-            for (int i = 0; i < 80; i++) {
-                long sd = 7600 + i * 41L;
-                double life = 14 + 10 * hash(sd), ph = age / life + hash(sd + 1);
-                long cyc = (long) Math.floor(ph);
-                double u = ph - cyc;
-                long cs = sd + cyc * 7919L;
-                Vec3 dir = new Vec3(hash(cs) * 2 - 1, hash(cs + 1) * 2 - 1, hash(cs + 2) * 2 - 1).normalize();
-                double r0 = r * (3 + 3 * hash(cs + 3)), rad = r0 - (r0 - r * .8) * u * u, turn = 2.5 * u * u * (hash(cs + 4) < .5 ? 1 : -1);
-                Vec3 q = at.add(new Vec3(dir.x * Math.cos(turn) - dir.z * Math.sin(turn), dir.y, dir.x * Math.sin(turn) + dir.z * Math.cos(turn)).scale(rad));
-                glow(c, q, .07 + .07 * hash(cs + 5), smooth(u / .15) * (1 - smooth((u - .85) / .15)) * .8 * live, i % 2 == 0 ? CYAN : ROYAL);
-            }
+            inflow(c, at, r, age, 80, CYAN, ROYAL, 7600, live);
             streaks(c, at, r * .85, r * 5, age, 48, CYAN, 7650, 1.4, .5 * live, true);
         }
         glow(c, at, rr * .5, .9 * live, 0xFFFFFF);
@@ -997,7 +1003,6 @@ final class BlueRedDraw {
         // The dome stays in view after the burst, translucent (owner, round 42).
         double clear = smooth((age - detonate - 12) / 20.0), bodyAlpha = (1 - blast * .6) * fade * (1 - clear), still = 1 - .8 * crush;
         if (c.body()) {
-            purpleTear(c, at, s, age, blast, fade, look);
             // A softer skin before the blast so the lilac heart shows through (owner's refs).
             // Bright and solid (owner, 2026-11-19).
             orb(c, at, s * breathe, 2, age >= detonate ? 2 : grow > .6 ? 1 : 0, VIOLET, bodyAlpha);
@@ -1164,13 +1169,21 @@ final class BlueRedDraw {
     /** Purple's tear in space (owner, 2026-11-19: like Vergil's portal), straight across behind it, thick in the middle and pointed at both
      *  ends; inside it a galaxy (dark violet, stars, a drifting nebula), its rim bright. Drawn in the body pass before the sphere, so the
      *  sphere sits in front of it. */
+    /** The tear for a Purple at {@code base}, {@code age} ticks in (its own pass, before everything, depth test off). */
+    static void purpleTear(Ctx c, Vec3 base, double age, Vec3 look) {
+        int detonate = BlueRedRules.PURPLE_DETONATE, end = BlueRedRules.PURPLE_CINEMATIC;
+        if (age < BlueRedRules.PURPLE_MERGE) return;
+        double blast = clamp01((age - detonate) / 18.0), fade = 1 - clamp01((age - detonate - 18) / (end - detonate - 18.0));
+        purpleTear(c, base.add(0, BlueRedRules.purpleRise(age), 0), purpleSize(age), age, blast, fade, look);
+    }
+
     static void purpleTear(Ctx c, Vec3 at, double s, double age, double blast, double fade, Vec3 look) {
         Vec3 band = look.cross(new Vec3(0, 1, 0));
         if (band.lengthSqr() < 1e-6 || fade <= 0) return;
         band = band.normalize();
         // Just behind the sphere's centre, away from the camera.
         Vec3 mid = at.add(look.scale(s * .3));
-        double reach = s * (3.8 + 1.5 * blast), lw = s * .45;
+        double reach = s * (4.56 + 1.8 * blast), lw = s * .23;
         int n = 24;
         Vec3[] tp = new Vec3[n + 1];
         double[] tw = new double[n + 1];
@@ -1330,6 +1343,12 @@ final class BlueRedDraw {
         double redR = .4 + .7 * smooth((age - ct) / (double) (le - ct));
         if (age > ct) { orbTrail(c, base, age, 0, BLUE_P, 1.1); orbTrail(c, base, age, 1, RED_P, redR); }
         Vec3 vb = blue.subtract(c0.add(o0[0])).scale(2), vr = red.subtract(c0.add(o0[1])).scale(2);
+        // Each pulls in motes of its own colour (owner, 2026-11-19): red into Red, blue into Blue.
+        if (age > ct) {
+            double pull = smooth((age - ct) / 8.0);
+            inflow(c, blue, 1.1, age, 45, CYAN, ROYAL, 7700, pull);
+            inflow(c, red, redR, age, 45, RED_LIGHT, RED, 7800, pull);
+        }
         if (red.distanceTo(c.eye) > blue.distanceTo(c.eye)) {
             twinOrb(c, red, redR, age, RED_P, vr, 77777, surge);
             twinOrb(c, blue, 1.1, age, BLUE_P, vb, 0, surge);
@@ -1487,7 +1506,7 @@ final class BlueRedDraw {
     // Owner, 2026-11-19: the touch is the cut, two ticks before MERGE: violet circular frames and Purple is there, whole (no growing).
     static final double TOUCH_V = BlueRedRules.PURPLE_MERGE - BlueRedRules.PURPLE_SWIRL_END - 2, VOID_R = 3.7, VOID_GAP = 5.8;
     /** The drawn sphere's rim glow reaches this far past its radius: the touch is rim on rim. */
-    static final double VOID_RIM = 1.12;
+    static final double VOID_RIM = 1.0;
 
     /** How far they have come (0..1) v ticks into the act: 1 exactly when their rims touch. */
     // Slowing as they close (owner, 2026-11-19): heavy, the last stretch the slowest.
@@ -1544,25 +1563,42 @@ final class BlueRedDraw {
             if (c.body()) {
                 // Owner, 2026-11-18: the trail is as wide as the sphere itself, flat, shapeless and soft (overlapping smoke behind it), and dust
                 // flies off it backwards, away from the other sphere.
-                for (int j = 0; j < 7; j++) {
+                // Owner, 2026-11-19: little at first, then more and faster as they close, over a wider area.
+                for (int j = 0; j < 5 + (int) (6 * push); j++) {
                     long sd = 4600 + side * 50 + j;
-                    double d = r * (.35 + .5 * j) * (1 + .7 * close) + r * .3 * snoise(sd, age * .05), size = r * (1.55 - .1 * j) * (1 + .12 * snoise(sd + 1, age * .07));
-                    Vec3 q = p.add(outward.scale(d)).add(up.scale(r * .25 * snoise(sd + 2, age * .04)));
-                    fxSprite(c, q, size, SMOKE, (int) (sd % 977), j % 3 == 0 ? pal.mid() : j % 3 == 1 ? pal.deep() : pal.light(), (.26 - .025 * j) * orbs, age * .02 * (j % 2 == 0 ? 1 : -1) + j);
+                    double d = r * (.35 + .6 * j) * (1 + 1.2 * push) + r * .3 * snoise(sd, age * .05), size = r * (1.7 - .08 * j) * (1 + .4 * push) * (1 + .12 * snoise(sd + 1, age * .07));
+                    Vec3 q = p.add(outward.scale(d)).add(up.scale(r * .35 * snoise(sd + 2, age * .04)));
+                    fxSprite(c, q, size, SMOKE, (int) (sd % 977), j % 3 == 0 ? pal.mid() : j % 3 == 1 ? pal.deep() : pal.light(), Math.max(.04, .22 + .1 * push - .02 * j) * orbs, age * .02 * (j % 2 == 0 ? 1 : -1) + j);
                 }
-                for (int j = 0; j < 30 + (int) (40 * close); j++) {
+                for (int j = 0; j < 15 + (int) (85 * push); j++) {
                     long sd = 4700 + side * 100 + j;
-                    double life = (16 + 10 * hash(sd)) * (1 - .5 * close), ph = age / life + hash(sd + 1);
+                    double life = 14 + 8 * hash(sd), ph = age / life + hash(sd + 1);
                     long cyc = (long) Math.floor(ph);
                     double u = ph - cyc;
                     long cs = sd + cyc * 7919L;
-                    double ang = (hash(cs) - .5) * 2.4;
+                    double ang = (hash(cs) - .5) * 3.0;
                     Vec3 dir = outward.scale(Math.cos(ang)).add(up.scale(Math.sin(ang))).normalize();
-                    Vec3 q = p.add(dir.scale(r * (.85 + 3.2 * u))).add(view.scale(.2));
-                    fxSprite(c, q, r * (.05 + .07 * hash(cs + 2)) * (1 + 1.5 * u), SMOKE, (int) (cs % 991), j % 2 == 0 ? pal.light() : pal.hot(), smooth(u / .1) * (1 - u) * .8 * orbs, u * 3);
+                    Vec3 q = p.add(dir.scale(r * (.85 + (3 + 5 * push) * u))).add(view.scale(.2));
+                    fxSprite(c, q, r * (.06 + .09 * hash(cs + 2)) * (1 + 2 * u) * (1 + .5 * push), SMOKE, (int) (cs % 991), j % 2 == 0 ? pal.light() : pal.hot(), smooth(u / .1) * (1 - u) * .8 * orbs, u * 3);
                 }
                 // Screen-aligned, so it stays a true circle even near the edge of the view.
                 orbFacing(c, p, r, 3, side, tint, orbs, look);
+                // Over its face (owner, 2026-11-19): smoke and dust born on the side facing the other sphere, streaming across the surface and
+                // off behind it; a few at first, then more and faster as they close.
+                Vec3 across = up.cross(view).normalize();
+                for (int j = 0; j < 10 + (int) (60 * push); j++) {
+                    long sd = 4750 + side * 100 + j;
+                    double life = 12 + 8 * hash(sd), ph = age / life + hash(sd + 1);
+                    long cyc = (long) Math.floor(ph);
+                    double u = ph - cyc;
+                    long cs = sd + cyc * 7919L;
+                    double yy = (hash(cs) * 2 - 1) * .85, start = -.8 + .5 * hash(cs + 1);
+                    double xx = start + (1.6 + 2.5 * push) * u;
+                    Vec3 q = p.add(outward.scale(r * xx)).add(up.scale(r * yy * Math.sqrt(Math.max(0, 1 - Math.min(1, xx * xx) * .6)))).add(view.scale(r * .35));
+                    double big = j % 4 == 0 ? 2.2 : 1;
+                    fxSprite(c, q, r * (.05 + .06 * hash(cs + 2)) * big * (1 + 1.5 * u), SMOKE, (int) (cs % 991), j % 2 == 0 ? pal.light() : pal.mid(),
+                            smooth(u / .12) * (1 - u) * (j % 4 == 0 ? .35 : .7) * orbs, u * 3);
+                }
                 // Brush bands from its front edge across it and out behind (ref 43).
                 for (int j = 0; j < 5; j++) {
                     long sd = 4800 + side * 30 + j;
