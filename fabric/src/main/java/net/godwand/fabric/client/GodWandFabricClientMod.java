@@ -141,7 +141,6 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             AtomicRenderer.render(matrices, camera, tickDelta);
             if (!net.godwand.client.FugaRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
             if (!net.godwand.client.SilentGateRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.SilentGateRenderer.render(matrices, camera, tickDelta);
-            net.godwand.client.BlueRedRenderer.render(matrices, camera, tickDelta);
         });
 
         WorldRenderEvents.BEFORE_BLOCK_OUTLINE.register((context, hitResult) -> {
@@ -161,6 +160,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             float tickDelta = context.tickCounter().getGameTimeDeltaPartialTick(false);
             GodWandPostFxManager.onWorldRender(context.positionMatrix(), context.projectionMatrix(), tickDelta);
             AtomicPostFx.capture(context.positionMatrix(), context.projectionMatrix(), tickDelta);
+            // After the clouds (owner, 2026-11-19): drawn earlier, the clouds behind painted over the orbs, which write no depth.
+            net.godwand.client.BlueRedRenderer.render(context.matrixStack(), context.camera(), tickDelta);
             net.godwand.client.BlueRedRenderer.renderOverlay();
         });
 

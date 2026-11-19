@@ -1006,13 +1006,6 @@ final class BlueRedDraw {
             fxArc(c, at, cam[0], cam[1], s * breathe * 1.08, age * .02 + Math.PI, Math.PI * 1.3, s * .34, SMOKE, 2402, INK, .9 * pre * fade);
             fxArc(c, at, cam[0], cam[1], s * breathe * 1.2, -age * .03, Math.PI * 1.3, s * .14, SMOKE, 2401, 0x2A0060, .65 * pre * fade);
             fxArc(c, at, cam[0], cam[1], s * breathe * 1.2, -age * .03 + Math.PI, Math.PI * 1.3, s * .14, SMOKE, 2403, 0x2A0060, .65 * pre * fade);
-            // The band's dark body, across it (drawn here, under the glow, so it reads deep, not washed out).
-            Vec3 band = look.cross(new Vec3(0, 1, 0));
-            if (band.lengthSqr() > 1e-6) {
-                band = band.normalize();
-                double reach = s * 3.6, lw = s * .16;
-                fxBeam(c, at.subtract(band.scale(reach)), at.add(band.scale(reach)), lw, lw, SMOKE, 2413, 0x1A0640, .7 * fade);
-            }
             debris(c, at, s * 1.4, age, 34, 0x1A0A26, 820, pre * fade, true);
             for (int b = 0; b < 8; b++) {
                 Vec3 d = nvec(2300 + b, age * .03 + b).normalize(), along = d.cross(nvec(2310 + b, age * .04)).normalize();
@@ -1032,11 +1025,20 @@ final class BlueRedDraw {
         Vec3 side = look.cross(new Vec3(0, 1, 0));
         if (side.lengthSqr() > 1e-6) {
             side = side.normalize();
-            // Thick and deep violet, like a band of space (owner, 2026-11-19); a thin bright seam down its middle.
-            double reach = s * (4 + 2 * blast), lw = s * (.05 + .03 * grow);
-            fxBeam(c, at.subtract(side.scale(reach * .85)), at.add(side.scale(reach * .85)), lw * 4, lw * 4, FLOW, 2411, 0x5A10C8, .55 * fade * (1 - .6 * blast));
-            fxBeam(c, at.subtract(side.scale(reach)), at.add(side.scale(reach)), lw * 1.6, lw * 1.6, FLOW, 2412, VIOLET, .7 * fade * (1 - .6 * blast));
-            fxBeam(c, at.subtract(side.scale(reach * .9)), at.add(side.scale(reach * .9)), lw * .4, lw * .4, FLOW, 2410, PALE, .5 * fade * (1 - .6 * blast));
+            // Only a hairline of pale light along the tear's two edges (owner, 2026-11-19: black, like Vergil's portal, not a glow).
+            double reach = s * (3.8 + 1.5 * blast), lw = s * .45 * .55;
+            Vec3 upv = side.cross(look).normalize();
+            int n = 24;
+            for (int e = -1; e <= 1; e += 2) {
+                Vec3[] ep = new Vec3[n + 1];
+                double[] ew = new double[n + 1];
+                for (int j = 0; j <= n; j++) {
+                    double t = (double) j / n, half = lw * Math.pow(Math.sin(Math.PI * t), 1.4) * .5;
+                    ep[j] = at.add(side.scale(reach * (2 * t - 1))).add(upv.scale(e * half));
+                    ew[j] = s * .012 * Math.sin(Math.PI * t);
+                }
+                fxRibbon(c, ep, ew, BOLT, 2410 + e, PALE, .55 * fade);
+            }
         }
         streaks(c, at, s * .95, s * 4, age, (int) (40 * pre), ORCHID, 860, 1.1, .5 * pre * fade, true);
         streaks(c, at, s * .4, s * 2.2, age, (int) (140 * blast), ORCHID, 1100, 2.6, blast * fade * (1 - clamp01((age - detonate - 10) / 30.0)), false);
@@ -1158,6 +1160,29 @@ final class BlueRedDraw {
             fxSprite(c, at.add(d.scale(s * (.85 + .35 * grow * hash(sd + 1)))), s * (.3 + .25 * hash(sd + 2)) * (1 + .6 * grow), SMOKE, (int) (sd % 977),
                     i % 2 == 0 ? 0x5A2096 : NIGHT, .35 * smooth(after / 4) * (1 - clamp01((after - 30) / 50)) * fade, after * .01 + i);
         }
+    }
+
+    /** Purple's black tear in space (owner, 2026-11-19: like Vergil's portal), straight across it, thick in the middle and pointed at both
+     *  ends. Drawn on its own alpha layer after the glow, so it stays black across the bright heart. */
+    static void purpleTear(Ctx c, Vec3 base, double age, Vec3 look) {
+        int detonate = BlueRedRules.PURPLE_DETONATE, end = BlueRedRules.PURPLE_CINEMATIC;
+        if (age < BlueRedRules.PURPLE_MERGE) return;
+        double blast = clamp01((age - detonate) / 18.0), fade = 1 - clamp01((age - detonate - 18) / (end - detonate - 18.0));
+        if (fade <= 0) return;
+        Vec3 at = base.add(0, BlueRedRules.purpleRise(age), 0), band = look.cross(new Vec3(0, 1, 0));
+        if (band.lengthSqr() < 1e-6) return;
+        band = band.normalize();
+        double s = purpleSize(age), reach = s * (3.8 + 1.5 * blast), lw = s * .45;
+        int n = 24;
+        Vec3[] tp = new Vec3[n + 1];
+        double[] tw = new double[n + 1];
+        for (int j = 0; j <= n; j++) {
+            double t = (double) j / n;
+            tp[j] = at.add(band.scale(reach * (2 * t - 1)));
+            tw[j] = lw * Math.pow(Math.sin(Math.PI * t), 1.4);
+        }
+        fxRibbon(c, tp, tw, BOLT, 2413, INK, .97 * fade);
+        fxRibbon(c, tp, tw, BOLT, 2414, INK, .97 * fade);
     }
 
     /** Purple's vortex bands: each on its own slowly tumbling plane and turning at its own speed, its radius breathing and its outline warped along
@@ -1841,9 +1866,15 @@ final class BlueRedDraw {
         int k = 32;
         Vec3[] pts = new Vec3[k + 1];
         double[] halo = new double[k + 1], mid = new double[k + 1], core = new double[k + 1];
-        // Owner's refs (2026-11-19): a soft plasma tendril. Big lazy curves that writhe slowly, a little ripple on them, a thin pink-white core
-        // inside a wide magenta glow; thinner towards its ends.
-        double x = age * .08;
+        // Owner, 2026-11-19: lightning strikes, it does not squirm. Each bolt has one fixed shape: it flashes in, holds a few ticks, fades,
+        // and the next strike takes a new shape. A thin pink-white core inside a wide magenta glow; thinner towards its ends.
+        double life = 6 + 5 * hash(seed + 90), ph = age / life + hash(seed + 91);
+        long strike = (long) Math.floor(ph);
+        double u = ph - strike;
+        alpha *= (u < .08 ? 1.3 : 1) * (1 - smooth((u - .4) / .5));
+        if (alpha <= .01) return;
+        seed = seed + strike * 7919L;
+        double x = hash(seed + 92) * 50;
         for (int j = 0; j <= k; j++) {
             double t = (double) j / k, env = Math.sin(Math.PI * t);
             double ox = .16 * snoise(seed, t * 1.6 + x) + .05 * snoise(seed + 1, t * 6 + x * 2) + .015 * snoise(seed + 2, t * 24 + x * 4);
