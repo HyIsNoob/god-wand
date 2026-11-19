@@ -170,7 +170,7 @@ public final class BlueRedRenderer {
                 // Full: a pulse, a sound, sparks (owner, 2026-11-19).
                 Vec3 at = owner.getEyePosition().add(owner.getViewVector(1).scale(1.9));
                 sound(at, SoundEvents.RESPAWN_ANCHOR_SET_SPAWN, 1.2f, 1.6f);
-                for (int i = 0; i < 24; i++) spray(ParticleTypes.ELECTRIC_SPARK, at, randomDir().scale(.35));
+                for (int i = 0; i < 24; i++) spray(ParticleTypes.CRIMSON_SPORE, at, randomDir().scale(.35));
             }
         }
         // Embers floating round whoever is gathering Red (owner's refs).
@@ -186,7 +186,7 @@ public final class BlueRedRenderer {
             if (f.end != null) continue;
             Vec3 head = BlueRedVisual.redHead(f.origin, f.dir, clock - f.at, Math.min(160, GodWandConfig.SERVER.redRange), null);
             for (int i = 0; i < 3; i++) spray(ParticleTypes.CRIMSON_SPORE, head.add(randomDir().scale(.6)), f.dir.scale(-.2).add(randomDir().scale(.05)));
-            if (RANDOM.nextInt(2) == 0) spray(ParticleTypes.ELECTRIC_SPARK, head.add(randomDir().scale(.5)), randomDir().scale(.2));
+            if (RANDOM.nextInt(2) == 0) spray(ParticleTypes.CRIMSON_SPORE, head.add(randomDir().scale(.5)), randomDir().scale(.2));
         }
         // Blue's dust: shed every tick off its skin; it stays where it was shed.
         BLUES.values().removeIf(v -> v.goneAt >= 0 && clock - v.goneAt > BlueRedDraw.VANISH_TICKS + 2);
@@ -488,8 +488,8 @@ public final class BlueRedRenderer {
             if (me != null && me.getId() == charge.getKey()) {
                 // The frame goes dark red round it (owner's refs): darkened under it, a red wash over it.
                 double g = smooth(age / 15);
-                if (layer == 0) sprite(c, eye.add(look.scale(.5)), 4, .55 * g, 0x1A0003, BlueRedAtlas.SOLID);
-                else sprite(c, eye.add(look.scale(.5)), 4, (.1 + .08 * Math.min(1, age / full)) * g, 0xFF1A2A, BlueRedAtlas.SOLID);
+                if (layer == 0) sprite(c, eye.add(look.scale(.5)), 4, .38 * g, 0x1A0003, BlueRedAtlas.SOLID);
+                else sprite(c, eye.add(look.scale(.5)), 4, (.06 + .05 * Math.min(1, age / full)) * g, 0xFF1A2A, BlueRedAtlas.SOLID);
             }
             // Its pressure is thrown back behind it and a little up and out to the side, never into the lens (owner, 2026-11-19).
             Vec3 back = view.scale(-1).add(right.scale(.25)).add(0, .15, 0);

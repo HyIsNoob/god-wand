@@ -119,7 +119,8 @@ void main() {
                 c3 += hot * pow(max(coil, 0.0), 22.0) * (0.35 + 0.65 * z) * 1.3;
             }
             // Red keeps its core hot red with only a small white heart (owner, 2026-11-18: red dominant, not a white lamp).
-            c3 += (isRed ? mix(vec3(1.0, 0.25, 0.3), vec3(1.0), core * core) * 0.75 : vec3(1.0, 0.97, 1.0)) * core * (1.1 + 0.6 * level);
+            // Red: bright but all red, no white heart at all (owner, round 49).
+            c3 += (isRed ? vec3(1.0, 0.12, 0.16) * 0.8 : vec3(1.0, 0.97, 1.0)) * core * (1.1 + 0.6 * level);
             if (isBlue) {
                 // Glassy energy (owner, 2026-11-18): no drawn outline. The edge is a soft cyan fresnel band that thickens towards the rim, a wide
                 // refraction glow just inside it, and soft highlights that follow the curve of the surface; the edge melts into the glow outside.
@@ -279,6 +280,21 @@ void main() {
         vec3 bright = ink ? vec3(0.62, 0.02, 0.05) : mix(tint, vec3(1.0, 0.92, 0.9), 0.65);
         col = tint * (0.85 + 0.3 * striae);
         col = mix(col, bright, hot);
+    } else if (effect == 14) {
+        // CHALK (Red's charge, owner refs 2026-11-19): a dry, grainy streak like chalk dragged fast. Many fine hairlines run along it, speckled
+        // with grain; it breaks up towards its ragged edges and its tail; a pale hot line runs down its middle.
+        float wob = noise(vec3(p.x * 3.0 - t * 0.5, seed, 1.0)) - 0.5;
+        float across = abs(q.y + wob * 0.35);
+        float hair = noise(vec3(p.x * 1.2 - t * 0.4, q.y * 26.0, seed));
+        float fine = noise(vec3(p.x * 6.0 - t * 0.9, q.y * 70.0, seed + 3.0));
+        float grain = hash(vec3(floor(p.x * 220.0), floor(q.y * 36.0), seed));
+        float edge = 0.55 + 0.35 * noise(vec3(p.x * 7.0, seed + 5.0, t * 0.6));
+        float body = smoothstep(edge, edge - 0.25, across);
+        a = body * smoothstep(0.32, 0.62, hair * 0.65 + fine * 0.35) * (0.45 + 0.55 * grain)
+          * smoothstep(0.0, 0.12, p.x) * smoothstep(1.0, 0.85, p.x) * (0.55 + 0.45 * p.x);
+        // Dark (ink) chalk keeps its colour; only a coloured stroke gets the hot line.
+        float lit = dot(tint, vec3(0.3, 0.59, 0.11)) < 0.08 ? 0.0 : 0.35;
+        col = mix(tint, tint * 1.6 + vec3(0.15, 0.0, 0.0), smoothstep(0.22, 0.0, across) * lit);
     } else if (effect == 13) {
         // PLASMA (Blue): liquid energy. A softer cousin of BRUSH: the body is eaten from the edges and from inside by slowly churning noise
         // (more towards the tail, which dissolves), its colour pools deep in thin parts and saturated in thick ones, and it glows in soft hot

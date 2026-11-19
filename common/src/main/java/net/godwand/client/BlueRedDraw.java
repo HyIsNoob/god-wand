@@ -24,7 +24,7 @@ final class BlueRedDraw {
     static final int SHOCK_WHITE = 0xFFF4F4;
     static final int VIOLET = 0x9A2CFF, ORCHID = 0xF064FF, PALE = 0xF6D8FF, NIGHT = 0x2A0650, VOID = 0x07020F, INK = 0x050002;
     /** Shader effects (godwand_bluered.fsh). ORB seeds: variant (0 blue, 1 red, 2 purple) + 4 * level. */
-    static final int ORB = 0, FLOW = 1, FLAME = 2, SMOKE = 3, SHOCK = 4, BOLT = 5, SPARK = 6, RAYS = 7, NEBULA = 8, SPEEDLINES = 9, DEBRIS = 10, RING = 11, BRUSH = 12, PLASMA = 13;
+    static final int ORB = 0, FLOW = 1, FLAME = 2, SMOKE = 3, SHOCK = 4, BOLT = 5, SPARK = 6, RAYS = 7, NEBULA = 8, SPEEDLINES = 9, DEBRIS = 10, RING = 11, BRUSH = 12, PLASMA = 13, CHALK = 14;
     static final int BLUE_TINT = 0x1A6CFF;
 
     private BlueRedDraw() {}
@@ -341,7 +341,7 @@ final class BlueRedDraw {
         for (Wave w : waves) strokes(c, at, s, w, reach * .6, 1);
         if (!c.glow()) return;
         // A red heart, never white (owner, 2026-11-19).
-        glow(c, at, s * .4, .5, RED_LIGHT);
+        glow(c, at, s * .4, .5, RED);
         glow(c, at, s * 1.3, .75, RED);
         glow(c, at, s * 2.4, .6 * flicker(age, 7), RED_LIGHT);
         glow(c, at, s * 4, .45, RED);
@@ -584,6 +584,8 @@ final class BlueRedDraw {
                 if (c.body()) liveBolt(c, from, to, 8, .45, .05 * (.6 + .4 * power), INK, .9 * fade, seed * 7 + b * 13, age, 1);
                 else liveBolt(c, from, to, 8, .45, .02 * (.6 + .4 * power), RED_LIGHT, .8 * fade, seed * 7 + b * 13, age, 1);
             }
+            chargeStreaks(c, head, hs, age, 1, dir.scale(-1));
+            chargeMotes(c, head, hs, age, 1, dir.scale(-1));
             redOrb(c, head, hs, age, dir.scale(-1));
         }
     }
@@ -603,23 +605,45 @@ final class BlueRedDraw {
             double head = smooth(u / .3), tail = smooth((u - .55) / .45), al = smooth(u / .08) * (1 - tail);
             if (al <= .01 || head - tail < .03) continue;
             Vec3 side = uw[0].scale(Math.cos(ang)).add(uw[1].scale(Math.sin(ang)));
+            // Rooted on its rim, not its centre (owner, round 49).
+            Vec3 root = at.add(side.scale(.85).add(back.scale(.5)).normalize().scale(s * .66));
             int k = 14;
             Vec3[] pts = new Vec3[k + 1];
             double[] w = new double[k + 1], a = new double[k + 1];
             for (int j = 0; j <= k; j++) {
                 double t = tail + (head - tail) * j / k, curl = t * (1.2 + hash(cs + 3)) * (hash(cs + 4) < .5 ? 1 : -1);
                 Vec3 sw = side.scale(Math.cos(curl)).add(side.cross(back).scale(Math.sin(curl)));
-                pts[j] = at.add(back.scale(L * t)).add(sw.scale(L * t * spread + s * .3)).add(nvec(cs + 5, t * 3 - age * .2).scale(s * .15));
+                pts[j] = root.add(back.scale(L * t)).add(sw.scale(L * t * spread)).add(nvec(cs + 5, t * 3 - age * .2).scale(s * .15 * t));
                 w[j] = s * (.25 + .3 * hash(cs + 6)) * Math.sin(Math.PI * Math.min(1, .15 + .85 * (double) j / k)) * (1 + .8 * t);
-                a[j] = smooth((pts[j].distanceTo(c.eye) - .5) / 1.2);
+                a[j] = smooth((pts[j].distanceTo(c.eye) - .8) / 1.8);
             }
-            if (c.body()) fxRibbon(c, pts, w, a, BRUSH, (int) (cs % 977), i % 3 == 0 ? RED_BODY : RED, .85 * al);
-            else {
+            // Faint (owner, round 49): the player must still see through them.
+            // Chalky and deep red (owner, round 49).
+            // Black edged red (owner, round 49): a red chalk stroke with a black one inside it.
+            if (c.body()) {
                 double[] core = new double[k + 1];
-                for (int j = 0; j <= k; j++) core[j] = w[j] * .35;
-                fxRibbon(c, pts, w, a, BRUSH, (int) (cs % 977) + 1, RED_LIGHT, .45 * al);
-                fxRibbon(c, pts, core, a, BRUSH, (int) (cs % 977) + 2, 0xFFC8B8, .6 * al);
-            }
+                for (int j = 0; j <= k; j++) core[j] = w[j] * .55;
+                fxRibbon(c, pts, w, a, CHALK, (int) (cs % 977), i % 3 == 0 ? RED_DEEP : RED_BODY, .55 * al);
+                fxRibbon(c, pts, core, a, CHALK, (int) (cs % 977) + 2, RED_DARK, .7 * al);
+            } else fxRibbon(c, pts, w, a, CHALK, (int) (cs % 977) + 1, RED, .18 * al);
+        }
+    }
+
+    /** Motes pouring out of Red (owner, round 49): many small hot sparks leaving its skin every way and dragged back with the streaks,
+     *  faster the farther they go, fading out behind. */
+    private static void chargeMotes(Ctx c, Vec3 at, double s, double age, double charge, Vec3 back) {
+        if (!c.glow()) return;
+        for (int i = 0; i < 40 + (int) (60 * charge); i++) {
+            long sd = 8100 + i * 37L;
+            double life = 8 + 8 * hash(sd), ph = age / life + hash(sd + 1);
+            long cyc = (long) Math.floor(ph);
+            double u = ph - cyc;
+            long cs = sd + cyc * 7919L;
+            Vec3 d = new Vec3(hash(cs) * 2 - 1, hash(cs + 1) * 2 - 1, hash(cs + 2) * 2 - 1).normalize();
+            double reach = (2 + 4 * hash(cs + 3)) * (.6 + .6 * charge);
+            Vec3 q = at.add(d.scale(s * (.66 + .8 * u))).add(back.scale(reach * u * u)).add(nvec(cs + 4, u * 2).scale(.15 * u));
+            double near = smooth((q.distanceTo(c.eye) - .6) / 1.2);
+            sprite(c, q, .04 + .06 * hash(cs + 5) * (1 - u), smooth(u / .1) * (1 - u) * .9 * near, i % 2 == 0 ? RED_LIGHT : RED);
         }
     }
 
@@ -640,7 +664,7 @@ final class BlueRedDraw {
                 w[j] = .03 * Math.sin(Math.PI * t);
                 a[j] = smooth((pts[j].distanceTo(c.eye) - .4) / 1.0);
             }
-            fxRibbon(c, pts, w, a, FLOW, (int) (sd % 977), i % 2 == 0 ? RED_LIGHT : 0xFF9080, .55 + .3 * charge);
+            fxRibbon(c, pts, w, a, FLOW, (int) (sd % 977), i % 2 == 0 ? RED : RED_BODY, .5 + .3 * charge);
         }
     }
 
@@ -653,6 +677,7 @@ final class BlueRedDraw {
         back = back.lengthSqr() < 1e-6 ? new Vec3(0, 1, 0) : back.normalize();
         chargeStreaks(c, at, s, age, charge, back);
         chargeThreads(c, at, s, age, charge, back);
+        chargeMotes(c, at, s, age, charge, back);
         if (c.body()) {
             double coreD = at.distanceTo(c.eye);
             redMass(c, at, s * .9, age, coreD, false);
@@ -666,8 +691,9 @@ final class BlueRedDraw {
             else liveBolt(c, from, to, 6, .45, .008 + .01 * charge, RED_LIGHT, .9, 7820 + b * 13, age, 1);
         }
         if (!c.glow()) return;
-        glow(c, at, s * .5, .8, RED_LIGHT);
-        glow(c, at, s * 1.4, .7, RED);
+        // Small and bright, all red, no white heart (owner, round 49): pure red light only, which never burns to white.
+        glow(c, at, s * .7, .9, RED);
+        glow(c, at, s * 1.6, .6, RED);
         glow(c, at, s * 3.5, .3 + .25 * charge, RED_BODY);
         if (full) {
             double ring = (age % 10) / 10;
