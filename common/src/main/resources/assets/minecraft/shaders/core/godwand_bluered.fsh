@@ -287,7 +287,8 @@ void main() {
         float across = abs(q.y + wob * 0.35);
         float hair = noise(vec3(p.x * 1.2 - t * 0.4, q.y * 26.0, seed));
         float fine = noise(vec3(p.x * 6.0 - t * 0.9, q.y * 70.0, seed + 3.0));
-        float grain = hash(vec3(floor(p.x * 220.0), floor(q.y * 36.0), seed));
+        // Smooth grain, never a grid (a hashed grid showed as squares up close).
+        float grain = noise(vec3(p.x * 260.0, q.y * 48.0, seed));
         float edge = 0.55 + 0.35 * noise(vec3(p.x * 7.0, seed + 5.0, t * 0.6));
         float body = smoothstep(edge, edge - 0.25, across);
         a = body * smoothstep(0.32, 0.62, hair * 0.65 + fine * 0.35) * (0.45 + 0.55 * grain)

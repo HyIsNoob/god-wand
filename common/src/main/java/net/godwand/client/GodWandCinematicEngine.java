@@ -112,6 +112,10 @@ public class GodWandCinematicEngine {
         }
     }
 
+    /** A sustained tremble while something is held (call every tick): trauma never drops below {@code floor}, and the decay of bigger hits
+     *  is left alone. */
+    public static void holdTrauma(float floor) { trauma = Math.max(trauma, Mth.clamp(floor, 0.0f, 1.0f)); }
+
     public static void setFovPunch(float multiplier, int holdTicks) {
         targetFovMultiplier = multiplier;
         currentFovMultiplier = multiplier;

@@ -98,7 +98,9 @@ public final class BlueRedRenderer {
                 // The shooter feels the force leave: a short, hard kick and a brief widening of the view.
                 var me = Minecraft.getInstance().player;
                 if (me != null && me.getId() == p.ownerId()) {
-                    GodWandCinematicEngine.addTrauma(.35f, 8); GodWandCinematicEngine.setFovPunch(1.08f, 2);
+                    // A hard kick on the shot (owner, 2026-11-19: it barely showed), harder the more it was charged.
+                    double power = p.state() > 0 ? p.state() / 100.0 : 1;
+                    GodWandCinematicEngine.addTrauma((float) (.55 + .35 * power), 14); GodWandCinematicEngine.setFovPunch((float) (1.06 + .06 * power), 3);
                     // Black and red impact frames on the shot (owner, 2026-11-19).
                     if (GodWandConfig.CLIENT.impactFrames) { IMPACTS.clear(); IMPACTS.add(new Burst(at, clock, false, new Vec3(p.dx(), p.dy(), p.dz()))); }
                 }
@@ -163,6 +165,14 @@ public final class BlueRedRenderer {
                 GodWandCinematicEngine.addTrauma((float) Math.max(.15, .45 * (1 - d / 40)), 10);
         }
         for (Purple p : PURPLES) particles(p, clock - p.at());
+        // A light tremble while you hold Red or Blue (owner, 2026-11-19), a little stronger as Red fills.
+        var self = Minecraft.getInstance().player;
+        if (self != null) {
+            Double redStart = CHARGES.get(self.getId());
+            if (redStart != null) GodWandCinematicEngine.holdTrauma((float) (.14 + .12 * Math.min(1, (clock - redStart) / GodWandConfig.SERVER.redChargeTicks)));
+            BlueView mine = BLUES.get(self.getId());
+            if (mine != null && mine.goneAt < 0 && mine.state != BlueState.ANCHORED) GodWandCinematicEngine.holdTrauma(.12f);
+        }
         var lvl = Minecraft.getInstance().level;
         if (lvl != null) for (var charge : CHARGES.entrySet()) {
             var owner = lvl.getEntity(charge.getKey());
@@ -170,23 +180,7 @@ public final class BlueRedRenderer {
                 // Full: a pulse, a sound, sparks (owner, 2026-11-19).
                 Vec3 at = owner.getEyePosition().add(owner.getViewVector(1).scale(1.9));
                 sound(at, SoundEvents.RESPAWN_ANCHOR_SET_SPAWN, 1.2f, 1.6f);
-                for (int i = 0; i < 24; i++) spray(ParticleTypes.CRIMSON_SPORE, at, randomDir().scale(.35));
             }
-        }
-        // Embers floating round whoever is gathering Red (owner's refs).
-        if (lvl != null) for (var charge : CHARGES.entrySet()) {
-            var owner = lvl.getEntity(charge.getKey());
-            if (owner == null) continue;
-            for (int i = 0; i < 3; i++) {
-                Vec3 p = owner.getEyePosition().add(randomDir().scale(1 + 2.5 * RANDOM.nextDouble()));
-                spray(ParticleTypes.CRIMSON_SPORE, p, new Vec3(0, .02, 0));
-            }
-        }
-        for (Flight f : FLIGHTS) {
-            if (f.end != null) continue;
-            Vec3 head = BlueRedVisual.redHead(f.origin, f.dir, clock - f.at, Math.min(160, GodWandConfig.SERVER.redRange), null);
-            for (int i = 0; i < 3; i++) spray(ParticleTypes.CRIMSON_SPORE, head.add(randomDir().scale(.6)), f.dir.scale(-.2).add(randomDir().scale(.05)));
-            if (RANDOM.nextInt(2) == 0) spray(ParticleTypes.CRIMSON_SPORE, head.add(randomDir().scale(.5)), randomDir().scale(.2));
         }
         // Blue's dust: shed every tick off its skin; it stays where it was shed.
         BLUES.values().removeIf(v -> v.goneAt >= 0 && clock - v.goneAt > BlueRedDraw.VANISH_TICKS + 2);
@@ -258,7 +252,7 @@ public final class BlueRedRenderer {
         if (at.y - g.y < 6) ImpactDebrisRenderer.groundWave(g, 8 + n * .3, 0xFF2A3A);
         for (int i = 0; i < n; i++) {
             Vec3 d = randomDir();
-            spray(i % 3 == 0 ? ParticleTypes.ELECTRIC_SPARK : i % 3 == 1 ? ParticleTypes.CRIMSON_SPORE : ParticleTypes.SMOKE, at.add(d.scale(.4)), d.scale(.25 + .35 * RANDOM.nextDouble()));
+            spray(ParticleTypes.SMOKE, at.add(d.scale(.4)), d.scale(.25 + .35 * RANDOM.nextDouble()));
         }
         spray(ParticleTypes.EXPLOSION, at, Vec3.ZERO);
     }
@@ -407,6 +401,9 @@ public final class BlueRedRenderer {
         if (!PURPLES.isEmpty() && GodWandConfig.CLIENT.impactFrames) {
             int age = (int) Math.floor(now - PURPLES.get(PURPLES.size() - 1).at());
             if (age == BlueRedRules.PURPLE_BLINK) ink = 1; else if (age == BlueRedRules.PURPLE_BLINK + 1) ink = 2;
+            // The 2D spheres' rims touch: ink frames, and Purple is born (owner, 2026-11-19).
+            // Violet ink, as on the blast: the cut to Purple.
+            if (age == BlueRedDraw.voidTouch()) ink = 3; else if (age == BlueRedDraw.voidTouch() + 1) ink = 4;
             // The blast: heavy violet ink (owner, 2026-11-19), four frames flipping.
             int t = age - BlueRedRules.PURPLE_DETONATE;
             if (t >= 0 && t < 4) ink = t % 2 == 0 ? 3 : 4;
@@ -492,8 +489,10 @@ public final class BlueRedRenderer {
                 else sprite(c, eye.add(look.scale(.5)), 4, (.06 + .05 * Math.min(1, age / full)) * g, 0xFF1A2A, BlueRedAtlas.SOLID);
             }
             // Its pressure is thrown back behind it and a little up and out to the side, never into the lens (owner, 2026-11-19).
-            Vec3 back = view.scale(-1).add(right.scale(.25)).add(0, .15, 0);
+            // Front to back (owner, 2026-11-19): straight back along the view, fanning out evenly all round, not swept across the screen.
+            Vec3 back = view.scale(-1);
             BlueRedDraw.redCharge(c, at, BlueRedVisual.redChargeSize(Math.min(age, full), (int) full), age, Math.min(1, age / full), age >= full, back);
+            BlueRedDraw.darkSwirl(c, owner.getPosition(partial).add(0, 1.1, 0), age, Math.min(1, age / full), view);
         }
         for (Flight f : FLIGHTS) {
             double age = now - f.at, after = f.endAt < 0 ? 0 : now - f.endAt;

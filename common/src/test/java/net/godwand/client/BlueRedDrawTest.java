@@ -80,8 +80,12 @@ class BlueRedDrawTest {
         var seeds = orbs(body);
         assertTrue(seeds.contains(3) && seeds.contains(3 + 4), "two textured spheres, Red drifting one way and Blue the other: " + seeds);
         var merged = ctx(0);
-        BlueRedDraw.purpleVoid(merged, AT, BlueRedRules.PURPLE_MERGE - 4, AT.add(0, 0, -10), LOOK);
-        assertTrue(orbs(merged).contains(2 + 4), "Purple forms over them");
+        // Owner, 2026-11-19: Purple is there, whole, the instant their rims touch (two ticks before MERGE), not grown over them.
+        BlueRedDraw.purpleVoid(merged, AT, BlueRedDraw.voidTouch(), AT.add(0, 0, -10), LOOK);
+        assertTrue(orbs(merged).contains(2 + 4), "Purple at the touch");
+        var before = ctx(0);
+        BlueRedDraw.purpleVoid(before, AT, BlueRedDraw.voidTouch() - 1, AT.add(0, 0, -10), LOOK);
+        assertFalse(orbs(before).contains(2 + 4), "not before it");
     }
 
     static float[][] mesh(java.util.function.Consumer<GateDraw.Ctx> draw) {
