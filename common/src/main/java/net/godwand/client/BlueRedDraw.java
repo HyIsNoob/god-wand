@@ -122,8 +122,8 @@ final class BlueRedDraw {
                 fxSprite(c, at.add(dir.scale(rr * (.75 + .5 * u))), r * (.3 + .25 * u), SMOKE, (int) (cs % 991), i % 2 == 0 ? DEEP_BLUE : ROYAL,
                         smooth(u / .2) * (1 - u) * .5 * live, age * .04 + i);
             }
-            // Energy always running round it (owner's play-test, 2026-11-19: it looked static).
-            if (rr > .02) wrapped(c, at, rr, age, ready, BLUE_P, .85 * live, 0, () -> orb(c, at, rr * .78, 0, ready ? 1 : 0, BLUE_TINT, appear));
+            // Its own texture rushes into its centre (owner, 2026-11-19: it looked static): level + 4.
+            if (rr > .02) orb(c, at, rr * .78, 0, (ready ? 1 : 0) + 4, BLUE_TINT, appear);
             // Forming: dust gathering in from all round.
             if (age < 12) for (int i = 0; i < 18; i++) {
                 Vec3 d = nvec(7500 + i, 0).normalize();
@@ -240,16 +240,6 @@ final class BlueRedDraw {
         for (int i = 0; i < (charged ? 7 : 5); i++) arms.add(plasmaArm(c, at, r, age, 3900 + seedOff + i * 151L, spin, 1));
         for (int i = 0; i < (charged ? 8 : 6); i++) arms.add(plasmaArm(c, at, r, age, 4700 + seedOff + i * 157L, spin, 2));
         return arms;
-    }
-
-    /** A sphere drawn by {@code core} with currents wrapping it: the ones behind before it, the ones in front after (body pass only). */
-    static void wrapped(Ctx c, Vec3 at, double r, double age, boolean charged, Palette p, double alpha, long seedOff, Runnable core) {
-        if (!c.body()) return;
-        List<Arm> arms = currents(c, at, r, age, charged, seedOff);
-        double coreD = at.distanceTo(c.eye);
-        for (Arm a : arms) drawArm(c, a, alpha, charged, p, at, r, coreD, false);
-        core.run();
-        for (Arm a : arms) drawArm(c, a, alpha, charged, p, at, r, coreD, true);
     }
 
     /** One current: its centreline from the outer tail (index 0) inward, its half-widths, seed, distance from the eye and tier (0 main,
@@ -371,7 +361,7 @@ final class BlueRedDraw {
             // While charging (reach < 1): the scribbled ink vortex of ref 16, winding into the core.
             if (reach < 1) inkVortex(c, at, s, age);
             redMass(c, at, s, age, coreD, false);
-            orb(c, at, s * .6, 1, 0, RED, 1);
+            orb(c, at, s * .6, 1, 4, RED, 1);
             redMass(c, at, s, age, coreD, true);
             inkTorn(c, at, s, age, back, reach);
         }
@@ -625,7 +615,6 @@ final class BlueRedDraw {
             chargeStreaks(c, head, hs, age, 1, dir.scale(-1));
             chargeMotes(c, head, hs, age, 1, dir.scale(-1));
             Vec3 h0 = head;
-            wrapped(c, head, hs * .75, age, true, RED_P, .7 * fade, 78000, () -> {});
             redOrb(c, h0, hs, age, dir.scale(-1));
         }
     }
@@ -763,12 +752,9 @@ final class BlueRedDraw {
         chargeMotes(c, at, s, age, full ? 1.8 : charge, back);
         if (c.body()) {
             double coreD = at.distanceTo(c.eye);
-            // Currents always winding round it, faster when full (owner's play-test, 2026-11-19: it looked static).
-            wrapped(c, at, s * .8, age, full, RED_P, .6 + .3 * charge, 77000, () -> {
-                redMass(c, at, s * .9, age, coreD, false);
-                orb(c, at, s * .62, 1, 0, RED, 1);
-                redMass(c, at, s * .9, age, coreD, true);
-            });
+            redMass(c, at, s * .9, age, coreD, false);
+            // Only the mass behind it: in front it hid the vortex (owner, 2026-11-19).
+            orb(c, at, s * .62, 1, (full ? 1 : 0) + 4, RED, 1);
         }
         for (int b = 0; b < 3 + (int) (5 * charge) + (full ? 3 : 0); b++) {
             Vec3 d = nvec(7800 + b, age * .3).normalize(), d2 = d.add(nvec(7810 + b, age * .35).scale(.9)).normalize();

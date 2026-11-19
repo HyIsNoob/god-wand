@@ -40,16 +40,16 @@ class BlueRedDrawTest {
     @Test void blueIsOneBlueEnergyOrb() {
         var body = ctx(0);
         BlueRedDraw.blue(body, AT, false, 30, -1);
-        assertEquals(java.util.List.of(0), orbs(body), "one blue orb, calm");
+        assertEquals(java.util.List.of(16), orbs(body), "one blue orb, calm, rushing inward (level + 4)");
         var ready = ctx(0);
         BlueRedDraw.blue(ready, AT, true, 30, 20);
-        assertEquals(java.util.List.of(4), orbs(ready), "the ready Blue is the charged orb");
+        assertEquals(java.util.List.of(20), orbs(ready), "the ready Blue is the charged orb");
     }
 
     @Test void redIsOneRedOrb() {
         var body = ctx(0);
         BlueRedDraw.redOrb(body, AT, .4, 20);
-        assertEquals(java.util.List.of(1), orbs(body));
+        assertEquals(java.util.List.of(17), orbs(body));
     }
 
     @Test void purpleSwellsAsOneStormOrbAndBursts() {

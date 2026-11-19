@@ -73,11 +73,34 @@ void main() {
         // seed mod 4: 0 blue energy (bright body, folds, lens flare), 1 red (dark, spiral flakes, rim flames), 2 purple (dark, wound strands,
         // purple and ink shards). floor(seed / 4) = level: 1 ready / charged (busier), 2 bursting (core floods the sphere).
         float variant = mod(seed, 4.0), level = floor(seed / 4.0);
+        // Level + 4: a solo Blue or Red (owner, 2026-11-19): its streaks rush into the core, fast and strong.
+        bool rush = level >= 4.0;
+        if (rush) level -= 4.0;
         bool isBlue = variant == 0.0, isRed = variant == 1.0, isPurple = variant == 2.0, isPlanet = variant == 3.0;
         float R = 1.0 / 1.55;
         float d = length(q) / R;
         float ang = atan(q.y, q.x);
         vec2 dir = vec2(cos(ang), sin(ang));
+        if (rush) {
+            // A solo Blue or Red (owner, 2026-11-19): energy pouring into its centre. Spiral streams in log-radius move inward, so they speed
+            // up as they near the core; a second finer layer runs faster; outside the rim the same streams are wisps being drawn in.
+            float lr = log(max(d, 0.02)), sp = (1.0 + 0.4 * level) * (isRed ? 1.25 : 1.0);
+            float a1 = ang + (isRed ? 1.7 : 1.2) * lr + t * 0.9 * sp;
+            float s1 = fbm(vec3(cos(a1) * 3.0, sin(a1) * 3.0, lr * 2.4 + t * 3.0 * sp));
+            float a2 = ang + (isRed ? 2.4 : 1.8) * lr + t * 1.3 * sp;
+            float s2 = fbm(vec3(cos(a2) * 6.0 + 4.0, sin(a2) * 6.0, lr * 4.0 + t * 5.0 * sp));
+            float streams = pow(ridge(s1), 5.0) * 0.9 + pow(ridge(s2), 9.0) * 0.7;
+            vec3 bright = isRed ? vec3(1.0, 0.3, 0.34) : vec3(0.55, 0.95, 1.0);
+            vec3 coreC = isRed ? vec3(1.0, 0.16, 0.2) : vec3(0.88, 0.97, 1.0);
+            float inner = 1.0 - min(d, 1.0), od = max(d - 1.0, 0.0);
+            float core = exp(-d * d * (isRed ? 6.0 : 7.0)), rim = exp(-pow((d - 1.0) / 0.07, 2.0));
+            vec3 cIn = tint * (0.12 + 0.5 * inner) + mix(tint, bright, 0.6) * streams * (0.5 + inner) + coreC * core * (1.2 + 0.5 * level)
+                     + mix(tint, bright, 0.5) * rim * 0.6;
+            float aOut = clamp(streams * exp(-od * 4.5) * 1.1 + exp(-od * 6.0) * 0.45 + rim * 0.6, 0.0, 1.0) * smoothstep(1.5, 1.15, d);
+            float inside = smoothstep(1.02, 0.97, d);
+            col = mix(mix(tint, bright, 0.4), cIn, inside);
+            a = mix(aOut, 1.0, inside);
+        } else {
         // Blue's rim is never a clean circle: a slow lumpy swell plus fast crackle.
         // (Owner, 2026-11-18: soft and glossy, so only the slow swell and a little crackle: thicker and thinner in places, never noisy.)
         float wob = isBlue ? (fbm(vec3(dir * 1.3, t * 0.35)) - 0.5) * 0.22 + (fbm(vec3(dir * 4.0, t * 1.1)) - 0.5) * 0.04
@@ -185,6 +208,7 @@ void main() {
             float fl = exp(-abs(q.y) * 70.0) * exp(-abs(q.x) * 2.0) * (0.55 + 0.35 * level);
             col += vec3(fl);
             a = max(a, clamp(fl, 0.0, 1.0));
+        }
         }
     } else if (effect == 1) {
         // FLOW: an energy ribbon, x along (tail 0, head 1), y across; noise streams along it and eats its edges.
