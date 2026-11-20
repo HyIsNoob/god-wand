@@ -90,8 +90,9 @@ void main() {
             float a2 = ang + (isRed ? 2.4 : 1.8) * lr + t * 1.3 * sp;
             float s2 = fbm(vec3(cos(a2) * 6.0 + 4.0, sin(a2) * 6.0, lr * 4.0 + t * 5.0 * sp));
             float streams = pow(ridge(s1), 5.0) * 0.9 + pow(ridge(s2), 9.0) * 0.7;
-            vec3 bright = isRed ? vec3(1.0, 0.3, 0.34) : vec3(0.55, 0.95, 1.0);
-            vec3 coreC = isRed ? vec3(1.0, 0.16, 0.2) : vec3(0.88, 0.97, 1.0);
+            // Violet for the small Purple (owner, 2026-11-20), white at its heart.
+            vec3 bright = isRed ? vec3(1.0, 0.3, 0.34) : isPurple ? vec3(0.86, 0.6, 1.0) : vec3(0.55, 0.95, 1.0);
+            vec3 coreC = isRed ? vec3(1.0, 0.16, 0.2) : isPurple ? vec3(1.0, 0.96, 1.0) : vec3(0.88, 0.97, 1.0);
             float inner = 1.0 - min(d, 1.0), od = max(d - 1.0, 0.0);
             float core = exp(-d * d * (isRed ? 6.0 : 7.0)), rim = exp(-pow((d - 1.0) / 0.07, 2.0));
             vec3 cIn = tint * (0.12 + 0.5 * inner) + mix(tint, bright, 0.6) * streams * (0.5 + inner) + coreC * core * (1.2 + 0.5 * level)

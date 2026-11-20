@@ -73,7 +73,7 @@ class BlueRedRulesTest {
     }
 
     @Test void meetRules() {
-        assertEquals(RedMeetsBlue.SHATTER, meet(BlueState.CHARGING));
+        assertEquals(RedMeetsBlue.SMALL_PURPLE, meet(BlueState.CHARGING));
         assertEquals(RedMeetsBlue.PURPLE, meet(BlueState.READY));
         assertEquals(RedMeetsBlue.PURPLE, meet(BlueState.ANCHORED));
     }

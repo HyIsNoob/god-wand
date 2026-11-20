@@ -5,7 +5,7 @@ import net.minecraft.world.phys.Vec3;
 /** Pure Blue/Red/Purple rules (mode 8), kept free of world state so they can be tested on their own. */
 public final class BlueRedRules {
     public enum BlueState { CHARGING, READY, ANCHORED }
-    public enum RedMeetsBlue { PURPLE, SHATTER }
+    public enum RedMeetsBlue { PURPLE, SMALL_PURPLE }
 
     /** Blue sits this far along the caster's look; its sphere and damaging core radii. */
     public static final double BLUE_DISTANCE = 8.0, BLUE_RADIUS = 2.0, CORE_RADIUS = 3.0;
@@ -22,6 +22,14 @@ public final class BlueRedRules {
     public static final double BLUE_THROW = .5, BLUE_DRIFT = .86;
     /** Ticks a mob struck by Red hangs before its knockback (the hit-stop). */
     public static final int HIT_STOP_TICKS = 3;
+    /** The small Purple (an unready Blue): it forms and bursts this many ticks after Red meets the Blue, and is gone by SMALL_END. */
+    // Owner, 2026-11-20: not too mini: it charges, crackling, for 2.5 s before it bursts.
+    public static final int SMALL_DETONATE = 50, SMALL_END = 100;
+    /** How strong a small Purple is (0.4..0.8) from how far its Blue had charged towards ready. */
+    public static double smallPower(double credited, double readyDamage, int kills, int readyKills) {
+        double charged = Math.max(credited / Math.max(1e-6, readyDamage), kills / (double) Math.max(1, readyKills));
+        return .4 + .4 * Math.max(0, Math.min(1, charged));
+    }
 
     /** One tick of a held Blue chasing the aim point like a heavy weight on a spring: it lags behind turns, carries its momentum a little past
      *  the point and settles in about half a second. Returns {position, velocity}. */
@@ -123,6 +131,6 @@ public final class BlueRedRules {
     }
 
     public static RedMeetsBlue meet(BlueState state) {
-        return state == BlueState.CHARGING ? RedMeetsBlue.SHATTER : RedMeetsBlue.PURPLE;
+        return state == BlueState.CHARGING ? RedMeetsBlue.SMALL_PURPLE : RedMeetsBlue.PURPLE;
     }
 }

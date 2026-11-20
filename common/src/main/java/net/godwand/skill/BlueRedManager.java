@@ -176,8 +176,10 @@ public final class BlueRedManager {
             if (t >= 0 && t < first) { first = t; hit = b; }
         }
         if (hit != null) {
-            if (BlueRedRules.meet(hit.state) == BlueRedRules.RedMeetsBlue.PURPLE) { REDS.remove(red); startPurple(red.level, hit, red.shooter); return 0; }
-            shatter(hit);
+            REDS.remove(red);
+            if (BlueRedRules.meet(hit.state) == BlueRedRules.RedMeetsBlue.PURPLE) startPurple(red.level, hit, red.shooter);
+            else smallPurple(red.level, hit, red.shooter);
+            return 0;
         }
         float damage = (float) (cfg.redDamage * cfg.damageMultiplier * red.power);
         for (Entity e : finder.find(red.level, new AABB(from, to).inflate(BlueRedRules.RED_HIT_RADIUS + 1))) {
@@ -223,16 +225,47 @@ public final class BlueRedManager {
     }
 
     /** Red through an unready Blue: Blue bursts outward and is gone; Red flies on. */
-    private static void shatter(Blue blue) {
-        send(blue.level, blue.pos, new BlueRedPayload(BlueRedPayload.BLUE_SHATTER, blue.owner.getId(), -1, 0, blue.pos.x, blue.pos.y, blue.pos.z, 0, 0, 0, 0));
-        for (Entity e : finder.find(blue.level, new AABB(blue.pos, blue.pos).inflate(GodWandConfig.SERVER.bluePullRadius))) {
-            if (e.isSpectator() || e instanceof Display) continue;
-            Vec3 out = e.position().subtract(blue.pos);
-            if (out.lengthSqr() < 1e-6) continue;
-            e.setDeltaMovement(e.getDeltaMovement().add(out.normalize().scale(1.2)).add(0, 0.3, 0));
-            e.hurtMarked = true;
+    /** A small Purple (Red met an unready Blue, owner 2026-11-20): it bursts where the Blue was, no cutscene. */
+    private static final class SmallPurple {
+        final ServerLevel level; final Vec3 at; final ServerPlayer owner, shooter; final double power; int age;
+        SmallPurple(ServerLevel level, Vec3 at, ServerPlayer owner, ServerPlayer shooter, double power) {
+            this.level = level; this.at = at; this.owner = owner; this.shooter = shooter; this.power = power;
         }
-        remove(blue);
+    }
+    private static final List<SmallPurple> SMALLS = new ArrayList<>();
+
+    /** Red met an unready Blue: a small Purple, scaled by how far the Blue had charged; a short cooldown for both. */
+    static void smallPurple(ServerLevel level, Blue blue, ServerPlayer shooter) {
+        var cfg = GodWandConfig.SERVER;
+        double power = BlueRedRules.smallPower(blue.credited, cfg.blueReadyDamage, blue.kills, cfg.blueReadyKills);
+        BLUES.remove(blue);
+        BlueEater.retireAll(blue.eaten);
+        SMALLS.add(new SmallPurple(level, blue.pos, blue.owner, shooter, power));
+        send(level, blue.pos, new BlueRedPayload(BlueRedPayload.PURPLE_SMALL, blue.owner.getId(), shooter.getId(), 0, blue.pos.x, blue.pos.y, blue.pos.z, 0, 0, 0, (int) Math.round(power * 100)));
+        int lock = GodWandConfig.cooldownTicks(cfg.purpleCooldownTicks) / 4;
+        for (ServerPlayer p : SpellDamage.isCaster(blue.owner, shooter) ? List.of(shooter) : List.of(blue.owner, shooter)) {
+            SkillCooldowns.start(p, GodWandItem.MODE_BLUE_RED, lock);
+            SkillCooldowns.start(p, SkillCooldownState.RED_SLOT, lock);
+        }
+    }
+
+    /** Crater radius of a small Purple. */
+    static int smallRadius(double power) { return Math.max(4, (int) Math.round(GodWandConfig.SERVER.purpleRadius * .34 * power)); }
+
+    private static int tickSmall(SmallPurple s, int budget, long deadline) {
+        if (++s.age >= BlueRedRules.SMALL_END) { SMALLS.remove(s); return 0; }
+        if (s.age != BlueRedRules.SMALL_DETONATE) return 0;
+        var cfg = GodWandConfig.SERVER;
+        int crater = smallRadius(s.power);
+        double reach = crater * 1.5;
+        for (Entity e : finder.find(s.level, new AABB(s.at, s.at).inflate(reach))) {
+            if (SpellDamage.isCaster(e, s.owner) || SpellDamage.isCaster(e, s.shooter) || e.isSpectator() || e instanceof Display) continue;
+            Vec3 out = e.position().subtract(s.at);
+            if (out.length() > reach) continue;
+            if (e instanceof LivingEntity) hurter.hurt(e, s.shooter, (float) (cfg.purpleDamage * cfg.damageMultiplier * s.power * .25));
+            if (out.lengthSqr() > 1e-6) { e.setDeltaMovement(e.getDeltaMovement().add(out.normalize().scale(2 * s.power + .5)).add(0, .6, 0)); e.hurtMarked = true; }
+        }
+        return BlueEater.carve(s.level, s.at, crater, Math.max(budget, 20_000), Math.max(deadline, System.nanoTime() + 10_000_000L), Integer.MAX_VALUE, null, cfg.purpleTerrainDamage);
     }
 
     /** Red met a ready Blue: Purple at the Blue. Both players watch it and both lose the whole skill for purpleCooldownTicks. */
@@ -408,6 +441,7 @@ public final class BlueRedManager {
         for (Red red : new ArrayList<>(REDS))
             if (red.fired && red.level == level && REDS.contains(red)) budget -= fly(red, budget, deadline);
         for (Purple p : purples(level)) budget -= tickPurple(p, budget, deadline);
+        for (SmallPurple s : new ArrayList<>(SMALLS)) if (s.level == level) budget -= tickSmall(s, budget, deadline);
     }
 
     private static void pullAndHurt(Blue blue, boolean strike) {
@@ -457,6 +491,7 @@ public final class BlueRedManager {
         BLUES.clear();
         REDS.clear();
         HIT_STOPS.clear();
+        SMALLS.clear();
         PURPLES.clear();
     }
 }

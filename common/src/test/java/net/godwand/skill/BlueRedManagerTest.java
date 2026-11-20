@@ -331,16 +331,23 @@ class BlueRedManagerTest {
         assertEquals(101.5, end.z(), 1e-6, "ends exactly at its 100-block range");
     }
 
-    @Test void shatterUnreadyBlueAndContinue() {
+    @Test void unreadyBlueMakesASmallPurple() {
         blueOwner(false);
         fire(player());
         ticks(8);
-        assertEquals(1, count(BlueRedPayload.BLUE_SHATTER));
+        assertEquals(1, count(BlueRedPayload.PURPLE_SMALL), "owner, 2026-11-20: a small Purple, no cutscene");
+        assertEquals(0, count(BlueRedPayload.PURPLE), "never the full Purple");
         assertTrue(BlueRedManager.blues(world).isEmpty());
-        assertEquals(0, count(BlueRedPayload.PURPLE));
-        assertEquals(0, count(BlueRedPayload.RED_END), "Red flies on after shattering");
+        var small = sent.stream().filter(x -> x.kind() == BlueRedPayload.PURPLE_SMALL).findFirst().orElseThrow();
+        assertEquals(40, small.state(), "an untouched Blue makes the weakest one");
         ticks(40);
-        assertEquals(1, count(BlueRedPayload.RED_END));
+        assertEquals(0, count(BlueRedPayload.RED_END), "Red ends in it");
+    }
+
+    @Test void smallPurpleGrowsWithTheBluesCharge() {
+        assertEquals(.4, BlueRedRules.smallPower(0, 50, 0, 3), 1e-9);
+        assertEquals(.6, BlueRedRules.smallPower(25, 50, 0, 3), 1e-9);
+        assertEquals(.8, BlueRedRules.smallPower(0, 50, 5, 3), 1e-9, "capped below a ready Blue's full Purple");
     }
 
     @Test void readyBlueStartsPurple() {

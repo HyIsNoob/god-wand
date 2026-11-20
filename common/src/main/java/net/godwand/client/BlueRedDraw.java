@@ -1312,6 +1312,80 @@ final class BlueRedDraw {
         }
     }
 
+    /** The small Purple (Red met an unready Blue, owner 2026-11-20): no cutscene, no tear, no storm bands. A flick of blue and red snapping
+     *  together; then for 2.5 s a violet sphere swirling into its white core swells to 4-5 blocks, throbbing, lightning crackling thicker
+     *  round it and crawling over the ground; it squeezes for a beat and bursts: a flash, a wide shock ring, rays, spikes of light, a
+     *  shower of sparks, violet smoke. {@code power} 0.4..0.8 sizes it. */
+    static void smallPurple(Ctx c, Vec3 at, double age, double power, Vec3 look) {
+        int det = BlueRedRules.SMALL_DETONATE;
+        double s0 = 2.4 + 3 * power;
+        if (age < det) {
+            double form = smooth(age / 12.0), charge = clamp01(age / det), squeeze = smooth((age - (det - 8)) / 8.0);
+            double s = s0 * (.3 + .7 * form) * (1 + .06 * Math.sin(age * .9) * charge) * (1 - .22 * squeeze);
+            if (c.glow() && age < 6) {
+                Vec3 side = look.cross(new Vec3(0, 1, 0));
+                side = side.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : side.normalize();
+                double k = age / 6;
+                glow(c, at.add(side.scale(2 * (1 - k))), 1, 1 - k, CYAN);
+                glow(c, at.subtract(side.scale(2 * (1 - k))), 1, 1 - k, RED);
+            }
+            if (c.body()) {
+                orb(c, at, s, 2, charge > .6 ? 5 : 4, VIOLET, form);
+                for (int i = 0; i < 6; i++) {
+                    Vec3 d = nvec(9690 + i, age * .02 + i).normalize();
+                    fxSprite(c, at.add(d.scale(s * (1.15 + .3 * hash(9695 + i)))), s * .5, SMOKE, 9698 + i, i % 2 == 0 ? 0x4A1A80 : 0x2A0650, .3 * form, age * .02 + i);
+                }
+            }
+            inflow(c, at, s, age, 30 + (int) (50 * charge), ORCHID, PALE, 9600, form);
+            if (groundAt != null) groundCrawl(c, at, age, .3 + .7 * charge);
+            if (!c.glow()) return;
+            glow(c, at, s * .5, .9 * form, 0xFFFFFF);
+            glow(c, at, s * 1.7, (.35 + .25 * charge) * form, VIOLET);
+            for (int b = 0; b < 4 + (int) (10 * charge) + (int) (6 * squeeze); b++) {
+                Vec3 d = nvec(9650 + b, age * .3).normalize(), d2 = d.add(nvec(9660 + b, age * .35).scale(.8)).normalize();
+                liveBolt(c, at.add(d.scale(s * .92)), at.add(d2.scale(s * (1.3 + 1.1 * vnoise(9670 + b, age * .4) + squeeze))), 7, .45, .04 + .05 * charge,
+                        b % 3 == 0 ? 0xFFFFFF : b % 3 == 1 ? PALE : ORCHID, form, 9680 + b * 13, age, 1);
+            }
+            sparks(c, at, s * 1.6, age, (int) (20 + 30 * charge), PALE, 9690);
+            return;
+        }
+        double t = age - det, k = clamp01(t / 18), fade = 1 - clamp01((t - 18) / 30);
+        if (c.body()) for (int i = 0; i < 16; i++) {
+            Vec3 d = nvec(9700 + i, 0).normalize();
+            fxSprite(c, at.add(d.scale(s0 * (.6 + 3.5 * k))), s0 * (.8 + 1.6 * k), SMOKE, 9710 + i, i % 3 == 0 ? 0x4A1A80 : i % 3 == 1 ? 0x7A3AC0 : NIGHT, .5 * fade, k + i);
+        }
+        if (!c.glow()) return;
+        if (t < 4) {
+            glow(c, at, s0 * (2 + 4 * t), (1 - t / 4) * flashScale(), 0xFFFFFF);
+            glow(c, at, s0 * (3 + 5 * t), (1 - t / 4) * flashScale(), PALE);
+        }
+        fxSprite(c, at, s0 * (1.5 + 10 * k), SHOCK, 9720, ORCHID, .9 * (1 - k), 0);
+        fxSprite(c, at, s0 * (1 + 6 * k), SHOCK, 9722, PALE, .6 * (1 - k), 0);
+        fxSprite(c, at, s0 * (1.5 + 5 * k), RAYS, 9721, PALE, .8 * (1 - k), k);
+        glow(c, at, s0 * (2.5 - k), .7 * (1 - k), VIOLET);
+        double spike = 1 - clamp01(t / 12);
+        if (spike > 0) for (int i = 0; i < 16; i++) {
+            long sd = 9760 + i * 37L;
+            Vec3 d = new Vec3(hash(sd) * 2 - 1, (hash(sd + 1) * 2 - 1) * .6, hash(sd + 2) * 2 - 1).normalize();
+            double len = (12 + 30 * hash(sd + 3)) * (1 - Math.pow(1 - clamp01(t / 6), 3)), w = (.3 + .6 * hash(sd + 4)) * spike;
+            Vec3 from = at.add(d.scale(s0 * .6));
+            fxBeam(c, from, from.add(d.scale(len)), w, w * .05, BOLT, 9770 + i, i % 2 == 0 ? 0xFFFFFF : PALE, Math.pow(spike, 1.5) * fade);
+        }
+        for (int i = 0; i < 120; i++) {
+            long sd = 9800 + i * 29L;
+            double life = 18 + 22 * hash(sd), u = t / life;
+            if (u >= 1) continue;
+            Vec3 d = new Vec3(hash(sd + 2) * 2 - 1, hash(sd + 3) * 1.4 - .2, hash(sd + 4) * 2 - 1).normalize();
+            Vec3 q = at.add(d.scale(s0 * .8 + (.8 + 1.6 * hash(sd + 5)) * (1 - Math.exp(-t / 8)) * 8)).add(0, -.01 * t * t, 0);
+            if (q.distanceTo(c.eye) < 2) continue;
+            glow(c, q, .15 + .12 * hash(sd + 6), 1 - u, i % 3 == 0 ? ORCHID : PALE);
+        }
+        for (int b = 0; b < 8; b++) {
+            Vec3 d = nvec(9740 + b, 0).normalize();
+            liveBolt(c, at.add(d.scale(s0 * .5)), at.add(d.scale(s0 * (2 + 5 * k))), 8, .45, .06 * (1 - k), b % 2 == 0 ? PALE : ORCHID, 1 - k, 9750 + b * 11, age, 1);
+        }
+    }
+
     /** Charged chunks floating round Purple this frame (their centres), set by the renderer. */
     static final List<Vec3> CHARGED = new ArrayList<>();
 

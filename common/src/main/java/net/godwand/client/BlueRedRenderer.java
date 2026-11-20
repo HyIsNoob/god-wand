@@ -37,6 +37,8 @@ public final class BlueRedRenderer {
         Burst(Vec3 pos, double at, boolean blue) { this(pos, at, blue, Vec3.ZERO); }
     }
     record Purple(Vec3 pos, double at) {}
+    /** A small Purple (owner, 2026-11-20): where, when, how strong (0.4..0.8). */
+    record Small(Vec3 pos, double at, double power) {}
     static final class Flight { final int owner; final Vec3 origin, dir; final double at; double power = 1; Vec3 end; double endAt = -1;
         Flight(int owner, Vec3 origin, Vec3 dir, double at) { this.owner = owner; this.origin = origin; this.dir = dir; this.at = at; } }
 
@@ -47,6 +49,7 @@ public final class BlueRedRenderer {
     static boolean anyFlight() { return !FLIGHTS.isEmpty(); }
     private static final List<Burst> BURSTS = new ArrayList<>();
     private static final List<Burst> FIZZLES = new ArrayList<>();
+    private static final List<Small> SMALLS = new ArrayList<>();
     /** Purples whose aftermath (falling rocks, crater sparks) is still playing: it outlives the cutscene (owner, 2026-11-20). */
     private static final List<Purple> AFTERMATHS = new ArrayList<>();
     private static double barsTan = Math.tan(Math.toRadians(35));
@@ -144,6 +147,11 @@ public final class BlueRedRenderer {
                 // The shooter feels the hit-stop (owner, 2026-11-20): a sharp jolt and the view snapping in a touch while the target hangs.
                 if (me != null && me.getId() == p.ownerId()) { GodWandCinematicEngine.addTrauma(.5f, 6); GodWandCinematicEngine.setFovPunch(.95f, 3); }
                 sound(at, SoundEvents.GENERIC_EXPLODE.value(), 1.6f, 1.1f);
+            }
+            case BlueRedPayload.PURPLE_SMALL -> {
+                endFlight(p.otherId(), at); BLUES.remove(p.ownerId());
+                SMALLS.add(new Small(at, clock, p.state() / 100.0));
+                sound(at, SoundEvents.BEACON_ACTIVATE, 1.6f, 1.4f);
             }
             case BlueRedPayload.PURPLE -> {
                 endFlight(p.otherId(), at); BLUES.remove(p.ownerId());
@@ -304,9 +312,27 @@ public final class BlueRedRenderer {
         }
         PURPLES.removeIf(p -> clock - p.at() > BlueRedRules.PURPLE_CINEMATIC + 10);
         AFTERMATHS.removeIf(p -> clock - p.at() > BlueRedRules.PURPLE_DETONATE + BlueRedDraw.AFTERMATH_TICKS);
+        SMALLS.removeIf(s -> clock - s.at() > BlueRedRules.SMALL_END);
+        for (Small s : SMALLS) {
+            double age = clock - s.at();
+            // Charging: a rumble growing for whoever is near, and a rising whine half way.
+            if (age < BlueRedRules.SMALL_DETONATE && client.player != null) {
+                double near = Math.max(0, 1 - client.player.position().distanceTo(s.pos()) / 40);
+                if (near > 0) GodWandCinematicEngine.holdTrauma((float) (near * (.1 + .35 * age / BlueRedRules.SMALL_DETONATE)));
+            }
+            if (age == BlueRedRules.SMALL_DETONATE / 2) sound(s.pos(), SoundEvents.RESPAWN_ANCHOR_CHARGE, 2f, .7f);
+        }
+        for (Small s : SMALLS) if (clock - s.at() == BlueRedRules.SMALL_DETONATE) {
+            // Its burst: sound, a violet ground wave, sparks and a jolt for whoever is near.
+            sound(s.pos(), SoundEvents.GENERIC_EXPLODE.value(), 5f, .8f);
+            sound(s.pos(), SoundEvents.WARDEN_SONIC_BOOM, 3f, .9f);
+            ImpactDebrisRenderer.groundWave(groundUnder(s.pos()), 20 + 30 * s.power(), 0xB050FF);
+            for (int i = 0; i < 120; i++) { Vec3 d = randomDir(); spray(i % 3 == 0 ? ParticleTypes.ELECTRIC_SPARK : ParticleTypes.REVERSE_PORTAL, s.pos(), d.scale(.6 + RANDOM.nextDouble())); }
+            if (client.player != null) GodWandCinematicEngine.addTrauma((float) Math.max(0, .9 * (1 - client.player.position().distanceTo(s.pos()) / 60)), 24);
+        }
     }
 
-    public static void reset() { BlueRedSounds.reset(); PULLED.clear(); AFTERMATHS.clear(); BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); FIZZLES.clear(); PURPLES.clear(); IMPACTS.clear(); clock = 0; }
+    public static void reset() { BlueRedSounds.reset(); SMALLS.clear(); PULLED.clear(); AFTERMATHS.clear(); BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); FIZZLES.clear(); PURPLES.clear(); IMPACTS.clear(); clock = 0; }
 
     private static void detonated(Vec3 at) {
         var me = Minecraft.getInstance().player;
@@ -493,7 +519,7 @@ public final class BlueRedRenderer {
         if (m11 > 1e-3f) barsTan = 1 / m11;
         overlay = new Overlay(new Matrix4f(pose.last().pose()), camera, partial);
         planBloom(pose, camera, partial);
-        if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && FIZZLES.isEmpty() && PURPLES.isEmpty() && AFTERMATHS.isEmpty() && IMPACTS.isEmpty()) return;
+        if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && FIZZLES.isEmpty() && PURPLES.isEmpty() && AFTERMATHS.isEmpty() && SMALLS.isEmpty() && IMPACTS.isEmpty()) return;
         RenderSystem.enableBlend(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
         BlueRedAtlas.bind(); BlueRedShader.bind((float) (((clock + partial) / 20.0) % 3600));
         try {
@@ -611,6 +637,12 @@ public final class BlueRedRenderer {
             BlueRedDraw.groundY = Double.NaN;
             BlueRedDraw.groundAt = null;
             c.fade = 1;
+        }
+        for (Small s : SMALLS) {
+            var lvl = Minecraft.getInstance().level;
+            BlueRedDraw.groundAt = lvl == null ? null : (x, z) -> lvl.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, (int) Math.floor(x), (int) Math.floor(z));
+            BlueRedDraw.smallPurple(c, s.pos(), now - s.at(), s.power(), look);
+            BlueRedDraw.groundAt = null;
         }
         for (Purple p : AFTERMATHS) {
             double after = now - p.at() - BlueRedRules.PURPLE_DETONATE;
