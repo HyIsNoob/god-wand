@@ -1,0 +1,23 @@
+{
+  "parent": "godwand:red",
+  "display": {
+    "icon": {
+      "id": "minecraft:amethyst_cluster"
+    },
+    "title": {
+      "translate": "advancements.godwand.purple.title"
+    },
+    "description": {
+      "translate": "advancements.godwand.purple.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

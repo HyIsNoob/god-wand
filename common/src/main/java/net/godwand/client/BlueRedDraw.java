@@ -49,6 +49,9 @@ final class BlueRedDraw {
 
     // ---- deterministic noise ----
 
+    /** With impact frames turned off (the player's flash setting), the big white flashes are dimmed too (owner, 2026-11-20). */
+    static double flashScale() { return net.godwand.config.GodWandConfig.CLIENT.impactFrames ? 1 : .3; }
+
     static double hash(long n) {
         n = (n ^ (n >>> 33)) * 0xff51afd7ed558ccdL;
         n = (n ^ (n >>> 33)) * 0xc4ceb9fe1a85ec53L;
@@ -165,7 +168,7 @@ final class BlueRedDraw {
         glow(c, at, rr * .5, .9 * live, 0xFFFFFF);
         glow(c, at, rr * 1.0, (.5 + .2 * beat) * live, CYAN);
         glow(c, at, rr * 2.1, (.2 + .1 * beat) * live, ROYAL);
-        if (flash > 0) { glow(c, at, r * 6, flash, 0xFFFFFF); glow(c, at, r * 2.5, flash, 0xFFFFFF); }
+        if (flash > 0) { double f = flash * flashScale(); glow(c, at, r * 6, f, 0xFFFFFF); glow(c, at, r * 2.5, f, 0xFFFFFF); }
         if (age < 12) {
             double k = age / 12;
             fxSprite(c, at, r * (1 + 3 * k), SHOCK, 7520, CYAN, .8 * (1 - k), 0);
@@ -1059,7 +1062,7 @@ final class BlueRedDraw {
         double rush = smooth((age - (detonate - 30)) / 30.0) * (1 - clamp01((age - detonate - 10) / 30.0)) * clamp01(1 - eye.distanceTo(at) / 90);
         speedLines(c, eye, look, .85 * rush, PALE);
         double blink = 1 - clamp01(age / BlueRedRules.PURPLE_BLINK);
-        if (blink > 0 && c.body() && eye.distanceTo(at) < 60) sprite(c, eye.add(look.scale(.8)), 6, blink, 0xFFFFFF, BlueRedAtlas.SOLID);
+        if (blink > 0 && c.body() && eye.distanceTo(at) < 60) sprite(c, eye.add(look.scale(.8)), 6, blink * flashScale(), 0xFFFFFF, BlueRedAtlas.SOLID);
         if (age < merge) {
             converge(c, base, age, eye, look);
             return;
@@ -1195,7 +1198,7 @@ final class BlueRedDraw {
             }
         }
         double white = age < detonate ? 0 : 1 - clamp01((age - detonate) / 4.0);
-        if (white > 0) sprite(c, eye.add(look.scale(.8)), 6, .85 * white * white, PALE, BlueRedAtlas.SOLID);
+        if (white > 0) sprite(c, eye.add(look.scale(.8)), 6, .85 * white * white * flashScale(), PALE, BlueRedAtlas.SOLID);
     }
 
     /** The burst itself (owner, 2026-11-20: polish the blast), {@code after} ticks past the detonation: a flash at the heart; spikes of light
@@ -1204,8 +1207,8 @@ final class BlueRedDraw {
     static void purpleBurst(Ctx c, Vec3 at, double after, double fade) {
         if (after < 4) {
             double k = after / 4;
-            glow(c, at, 18 + 50 * k, (1 - k) * fade, PALE);
-            glow(c, at, 8 + 20 * k, (1 - k) * fade, 0xFFFFFF);
+            glow(c, at, 18 + 50 * k, (1 - k) * fade * flashScale(), PALE);
+            glow(c, at, 8 + 20 * k, (1 - k) * fade * flashScale(), 0xFFFFFF);
         }
         double spike = 1 - clamp01(after / 14);
         if (spike > 0) for (int i = 0; i < 30; i++) {

@@ -1,0 +1,23 @@
+{
+  "parent": "godwand:blue",
+  "display": {
+    "icon": {
+      "id": "minecraft:redstone_block"
+    },
+    "title": {
+      "translate": "advancements.godwand.red.title"
+    },
+    "description": {
+      "translate": "advancements.godwand.red.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

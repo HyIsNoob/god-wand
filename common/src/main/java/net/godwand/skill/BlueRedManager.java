@@ -138,6 +138,7 @@ public final class BlueRedManager {
         if (red.charged < BlueRedRules.RED_MIN_CHARGE) { cancelRed(player); return; }
         red.power = BlueRedRules.redPower(red.charged, GodWandConfig.SERVER.redChargeTicks);
         red.fired = true;
+        GodWandAdvancements.award(red.shooter, "red");
         red.dir = player.getLookAngle().normalize();
         red.origin = player.getEyePosition().add(red.dir.scale(1.5));
         send(red.level, red.origin, new BlueRedPayload(BlueRedPayload.RED_FIRE, player.getId(), -1, 0, red.origin.x, red.origin.y, red.origin.z,
@@ -236,6 +237,8 @@ public final class BlueRedManager {
 
     /** Red met a ready Blue: Purple at the Blue. Both players watch it and both lose the whole skill for purpleCooldownTicks. */
     static void startPurple(ServerLevel level, Blue blue, ServerPlayer shooter) {
+        GodWandAdvancements.award(blue.owner, "purple");
+        GodWandAdvancements.award(shooter, "purple");
         BLUES.remove(blue);
         BlueEater.retireAll(blue.eaten);
         Vec3 sky = blue.pos.add(0, BlueRedRules.PURPLE_LIFT, 0);
@@ -320,7 +323,10 @@ public final class BlueRedManager {
             if (p.participant(e) || e.isSpectator() || e instanceof Display) continue;
             Vec3 out = e.position().subtract(p.center);
             if (out.length() > radius) continue;
-            if (e instanceof LivingEntity) hurter.hurt(e, p.shooter, cfg.purpleDamage * cfg.damageMultiplier);
+            if (e instanceof LivingEntity living) {
+                hurter.hurt(e, p.shooter, cfg.purpleDamage * cfg.damageMultiplier);
+                if (!living.isAlive() || living.isDeadOrDying()) { GodWandAdvancements.award(p.owner, "purple_kill"); GodWandAdvancements.award(p.shooter, "purple_kill"); }
+            }
             if (out.lengthSqr() > 1e-6) { e.setDeltaMovement(e.getDeltaMovement().add(out.normalize().scale(2.5)).add(0, 0.8, 0)); e.hurtMarked = true; }
         }
     }
@@ -339,6 +345,7 @@ public final class BlueRedManager {
         if (!SkillCooldowns.ready(player, GodWandItem.MODE_BLUE_RED)) return;
         Blue blue = new Blue(player, level, aim(player));
         BLUES.add(blue);
+        GodWandAdvancements.award(player, "blue");
         broadcast(blue);
     }
 

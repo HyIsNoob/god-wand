@@ -1,0 +1,23 @@
+{
+  "parent": "godwand:use_1",
+  "display": {
+    "icon": {
+      "id": "minecraft:crying_obsidian"
+    },
+    "title": {
+      "translate": "advancements.godwand.kill_1.title"
+    },
+    "description": {
+      "translate": "advancements.godwand.kill_1.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

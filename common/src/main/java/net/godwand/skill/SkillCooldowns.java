@@ -37,6 +37,7 @@ public final class SkillCooldowns {
     }
     public static void start(Player user,int mode,int ticks) {
         if(!(user instanceof ServerPlayer player))return;
+        GodWandAdvancements.used(player,mode);
         state(player).set(mode,ticks,ticks,player.tickCount);sync(player,mode);
     }
     public static void sync(ServerPlayer player,int mode) {

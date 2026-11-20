@@ -1,0 +1,23 @@
+{
+  "parent": "godwand:root",
+  "display": {
+    "icon": {
+      "id": "minecraft:spectral_arrow"
+    },
+    "title": {
+      "translate": "advancements.godwand.use_6.title"
+    },
+    "description": {
+      "translate": "advancements.godwand.use_6.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

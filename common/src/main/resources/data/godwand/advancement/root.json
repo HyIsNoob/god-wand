@@ -1,0 +1,32 @@
+{
+  "display": {
+    "icon": {
+      "id": "godwand:god_wand"
+    },
+    "title": {
+      "translate": "advancements.godwand.root.title"
+    },
+    "description": {
+      "translate": "advancements.godwand.root.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false,
+    "hidden": false,
+    "background": "minecraft:textures/gui/advancements/backgrounds/end.png"
+  },
+  "criteria": {
+    "has_wand": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "godwand:god_wand"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

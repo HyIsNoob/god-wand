@@ -35,7 +35,7 @@ public final class SpellDamage {
             var type=world.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(TYPE);
             var source=new DamageSource(type,original.getDirectEntity(),original.getEntity());
             boolean hit=living instanceof EnderDragon dragon?dragon.hurt(dragon.head,source,amount):living.hurt(source,amount);
-            if(hit&&living.isDeadOrDying())noteKill(world,living);
+            if(hit&&living.isDeadOrDying()){noteKill(world,living);GodWandAdvancements.spellKill(original.getEntity(),living);}
             return hit;
         }
         Entity owner=wormOwner(target);
