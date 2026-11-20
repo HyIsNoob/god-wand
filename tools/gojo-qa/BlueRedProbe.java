@@ -214,6 +214,10 @@ public final class BlueRedProbe implements ClientModInitializer {
         int release = 24 + net.godwand.skill.BlueRedRules.SHOT_FORM + 12;
         if (t == release) { c.options.keyUse.setDown(false); c.options.keyAttack.setDown(false); System.out.println("GOJO_QA SHOT release"); }
         if (t >= 18 && t < release + 80) grab(c);
+        // QA config leaves the client timers at 0 here: feed one so the split cooldown line can be checked on screen.
+        if (t == release + 10) net.godwand.client.SkillCooldownClient.receive(new net.godwand.network.SkillCooldownPayload(8, 300, 60, false));
+        if (t == release + 20) System.out.println("GOJO_QA SHOT cooldown blue=" + net.godwand.client.SkillCooldownClient.remaining(8) + " red=" + net.godwand.client.SkillCooldownClient.remaining(net.godwand.skill.SkillCooldownState.RED_SLOT)
+                + " hand=" + c.player.getMainHandItem() + " mode=" + net.godwand.item.GodWandItem.getSkillMode(c.player.getMainHandItem()) + " hideGui=" + c.options.hideGui);
         if (t >= release + 80) { stage = 4; since = ticks; System.out.println("GOJO_QA SHOT done"); }
     }
 

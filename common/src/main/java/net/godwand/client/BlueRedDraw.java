@@ -1466,7 +1466,8 @@ final class BlueRedDraw {
             sparks(c, center, R * (1 + 2 * b), age, (int) (60 * (1 - b)), PALE, 9943);
         }
         double grow = smooth(t / (form - merge)), ready = age >= form ? 1 : 0;
-        double s = R * (.35 + .65 * grow) * (1 + (.03 + .05 * ready) * Math.sin(age * (2.4 + 1.2 * ready) + 1.5 * Math.sin(age * .7)));
+        // A slow, light breath (owner, 2026-11-20: the fast pulse looked jittery this close).
+        double s = R * (.35 + .65 * grow) * (1 + .015 * Math.sin(age * .35));
         if (c.body()) orb(c, center, s, 2, 12 + (int) Math.min(3, 3 * grow + ready), VIOLET, smooth(t / 4));
         inflow(c, center, s, age, 40 + (int) (40 * grow), ORCHID, PALE, 9950, 1);
         if (!c.glow()) return;
@@ -1507,7 +1508,7 @@ final class BlueRedDraw {
             else fxRibbon(c, pts, w, al, FLOW, 10021, ORCHID, .45 * fade);
         }
         if (ended < 0) {
-            double s = R * (1 + .05 * Math.sin(t * 3.1 + 1.5 * Math.sin(t * .8)));
+            double s = R * (1 + .015 * Math.sin(t * .35));
             if (c.body()) orb(c, head, s, 2, 15, VIOLET, 1);
             inflow(c, head, s, t, 40, ORCHID, PALE, 10030, 1);
             if (!c.glow()) return;

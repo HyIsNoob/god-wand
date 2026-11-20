@@ -27,7 +27,7 @@ public final class BlueRedRules {
     public static final int SMALL_DETONATE = 50, SMALL_END = 100;
     /** The Purple shot (both buttons): Blue and Red meet at SHOT_MERGE, it is formed (and may be fired) at SHOT_FORM; it gathers SHOT_AHEAD
      *  blocks in front of the eye, is SHOT_RADIUS blocks round, flies SHOT_SPEED blocks a tick for SHOT_RANGE, carving SHOT_CARVE round. */
-    public static final int SHOT_MERGE = 28, SHOT_FORM = 60;
+    public static final int SHOT_MERGE = 18, SHOT_FORM = 50;
     public static final double SHOT_AHEAD = 2.4, SHOT_RADIUS = 2, SHOT_SPEED = 1.6, SHOT_RANGE = 90;
     public static final int SHOT_CARVE = 3;
     /** Blue and Red alone show only after this many ticks (owner, 2026-11-20): pressing both buttons goes straight into the Purple shot
