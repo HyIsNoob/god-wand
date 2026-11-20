@@ -355,6 +355,16 @@ class BlueRedManagerTest {
         assertEquals(1, count(BlueRedPayload.PURPLE_SMALL));
     }
 
+    /** Owner, 2026-11-20 (keep it): fire Red and call Blue at once; Red runs into the fresh Blue and makes the small Purple straight away. */
+    @Test void redThenBlueAtOnceMakesTheSmallPurple() {
+        var p = player();
+        fire(p);
+        BlueRedManager.input(p, true);
+        ticks(8);
+        assertEquals(1, count(BlueRedPayload.PURPLE_SMALL));
+        assertEquals(0, count(BlueRedPayload.PURPLE));
+    }
+
     @Test void smallPurpleGrowsWithTheBluesCharge() {
         assertEquals(.4, BlueRedRules.smallPower(0, 50, 0, 3), 1e-9);
         assertEquals(.6, BlueRedRules.smallPower(25, 50, 0, 3), 1e-9);

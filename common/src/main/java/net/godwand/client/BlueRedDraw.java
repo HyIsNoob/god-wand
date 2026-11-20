@@ -1314,6 +1314,15 @@ final class BlueRedDraw {
         int det = BlueRedRules.SMALL_DETONATE;
         double s0 = 2.4 + 3 * power;
         if (age < det) {
+            // Its birth (owner, 2026-11-20): a flash, a shock ring and rays thrown out, sparks, as the two snap together.
+            if (c.glow() && age < 7) {
+                double b = age / 7;
+                glow(c, at, s0 * (3 - 2 * b), (1 - b) * flashScale(), 0xFFFFFF);
+                fxSprite(c, at, s0 * (1 + 5 * b), SHOCK, 9590, PALE, .9 * (1 - b), 0);
+                fxSprite(c, at, s0 * (1 + 4 * b), SHOCK, 9593, ORCHID, .6 * (1 - b), 0);
+                fxSprite(c, at, s0 * (1.5 + 3 * b), RAYS, 9591, ORCHID, .7 * (1 - b), b);
+                sparks(c, at, s0 * (1 + 3 * b), age, (int) (50 * (1 - b)), PALE, 9592);
+            }
             double form = smooth(age / 12.0), charge = clamp01(age / det), squeeze = smooth((age - (det - 8)) / 8.0);
             double s = s0 * (.3 + .7 * form) * (1 + .06 * Math.sin(age * .9) * charge) * (1 - .22 * squeeze);
             if (c.glow() && age < 6) {

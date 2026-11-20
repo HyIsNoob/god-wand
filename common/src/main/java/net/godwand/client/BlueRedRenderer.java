@@ -151,7 +151,12 @@ public final class BlueRedRenderer {
             case BlueRedPayload.PURPLE_SMALL -> {
                 endFlight(p.otherId(), at); BLUES.remove(p.ownerId());
                 SMALLS.add(new Small(at, clock, p.state() / 100.0));
+                // Red's own impact frames give way to the violet ones of the small Purple forming.
+                IMPACTS.clear();
                 sound(at, SoundEvents.BEACON_ACTIVATE, 1.6f, 1.4f);
+                sound(at, SoundEvents.WARDEN_SONIC_BOOM, 1.2f, 1.6f);
+                var near = Minecraft.getInstance().player;
+                if (near != null) GodWandCinematicEngine.addTrauma((float) Math.max(0, .6 * (1 - near.position().distanceTo(at) / 48)), 10);
             }
             case BlueRedPayload.PURPLE -> {
                 endFlight(p.otherId(), at); BLUES.remove(p.ownerId());
@@ -482,7 +487,7 @@ public final class BlueRedRenderer {
             double best = Double.MAX_VALUE;
             for (BlueView b : BLUES.values()) { double d = b.pos.distanceToSqr(camera.getPosition()); if (d < best) { best = d; light = b.pos; } }
             for (Flight f : FLIGHTS) if (f.end == null) { light = BlueRedVisual.redHead(f.origin, f.dir, now - f.at, 160, null); break; }
-            if (light != null || !CHARGES.isEmpty() || !BURSTS.isEmpty()) strength = .45;
+            if (light != null || !CHARGES.isEmpty() || !BURSTS.isEmpty() || !SMALLS.isEmpty()) strength = .45;
         }
         if (strength <= 0) return;
         float sx = .5f, sy = .5f;
@@ -509,6 +514,13 @@ public final class BlueRedRenderer {
             // The blast: heavy violet ink (owner, 2026-11-19), four frames flipping.
             int t = age - BlueRedRules.PURPLE_DETONATE;
             if (t >= 0 && t < 4) ink = t % 2 == 0 ? 3 : 4;
+        }
+        // The small Purple forming (owner, 2026-11-20): two violet ink frames for whoever is near, like the real one bursting out.
+        var viewer = Minecraft.getInstance().player;
+        if (GodWandConfig.CLIENT.impactFrames && viewer != null) for (Small s : SMALLS) {
+            if (viewer.position().distanceTo(s.pos()) > 64) continue;
+            int age = (int) Math.floor(now - s.at());
+            if (age == 0) ink = 3; else if (age == 1) ink = 4;
         }
         bloom = new float[]{(float) (GodWandConfig.CLIENT.bloomStrength * strength), (float) burst, sx, sy, partial, (float) warp, (float) Math.min(.9, warpSize), ink};
     }
