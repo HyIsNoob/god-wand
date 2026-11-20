@@ -114,6 +114,8 @@ public final class BlueRedManager {
     /** Right click on Blue/Red: Red starts charging in front of the caster. Refused while the caster still holds Blue. */
     public static boolean beginRed(ServerPlayer player) {
         Blue own = blueOf(player);
+        // Right click while holding Blue: both buttons, the Purple shot (owner, 2026-11-20).
+        if (own != null && own.held()) return startShot(player);
         if (own != null && own.held() || chargingRedOf(player) != null || !player.isAlive() || player.isSpectator()) return false;
         ServerLevel level = player.serverLevel();
         if (!GodWandConfig.SERVER.isDimensionAllowed(level.dimension().location().toString())) return false;
@@ -125,6 +127,7 @@ public final class BlueRedManager {
 
     /** Called every use tick (owner, 2026-11-19): Red is held as long as the player likes, gathering power; sneaking calls it off. */
     public static void chargeTick(ServerPlayer player, int usedTicks) {
+        if (shotOf(player) != null) return;
         Red red = chargingRedOf(player);
         if (red == null) return;
         if (player.isShiftKeyDown()) { cancelRed(player); player.stopUsingItem(); return; }
@@ -133,6 +136,7 @@ public final class BlueRedManager {
 
     /** Right click let go: Red fires with the power it has built (BlueRedRules.redPower); a tap is called off with no cooldown. */
     public static void releaseRed(ServerPlayer player) {
+        if (shotOf(player) != null) { releaseShot(player); return; }
         Red red = chargingRedOf(player);
         if (red == null) return;
         if (red.charged < BlueRedRules.RED_MIN_CHARGE) { cancelRed(player); return; }
@@ -276,6 +280,85 @@ public final class BlueRedManager {
         return BlueEater.carve(s.level, s.at, crater, Math.max(budget, 20_000), Math.max(deadline, System.nanoTime() + 10_000_000L), Integer.MAX_VALUE, null, cfg.terrain(cfg.purpleTerrainDamage));
     }
 
+    /** The Purple shot (owner, 2026-11-20): gathering in front of its caster until let go, then flying. */
+    private static final class Shot {
+        final ServerPlayer owner; final ServerLevel level; int age; boolean fired; Vec3 pos, dir; double flown;
+        final java.util.Set<java.util.UUID> struck = new java.util.HashSet<>();
+        Shot(ServerPlayer owner, ServerLevel level) { this.owner = owner; this.level = level; }
+    }
+    private static final List<Shot> SHOTS = new ArrayList<>();
+
+    static Shot shotOf(ServerPlayer player) {
+        for (Shot s : SHOTS) if (!s.fired && s.owner == player) return s;
+        return null;
+    }
+
+    /** Both buttons held: the player's Blue and unfired Red go quietly and the shot starts gathering. */
+    static boolean startShot(ServerPlayer player) {
+        if (shotOf(player) != null || !player.isAlive() || player.isSpectator() || !holdsBlueRed(player)) return false;
+        ServerLevel level = player.serverLevel();
+        if (!GodWandConfig.SERVER.isDimensionAllowed(level.dimension().location().toString())) return false;
+        if (!SkillCooldowns.ready(player, GodWandItem.MODE_BLUE_RED) || !SkillCooldowns.ready(player, SkillCooldownState.RED_SLOT)) return false;
+        Blue own = blueOf(player);
+        if (own != null) { BLUES.remove(own); BlueEater.retireAll(own.eaten); }
+        REDS.removeIf(r -> r.shooter == player && !r.fired);
+        SHOTS.add(new Shot(player, level));
+        send(level, player.getEyePosition(), event(BlueRedPayload.SHOT_START, player, player.getEyePosition(), Vec3.ZERO));
+        return true;
+    }
+
+    /** Let go: fired once formed; before that it is called off with no cooldown. */
+    static void releaseShot(ServerPlayer player) {
+        Shot s = shotOf(player);
+        if (s == null) return;
+        Vec3 eye = player.getEyePosition();
+        if (s.age < BlueRedRules.SHOT_FORM) { endShot(s, eye, true); return; }
+        s.fired = true;
+        s.dir = player.getLookAngle().normalize();
+        s.pos = eye.add(s.dir.scale(BlueRedRules.SHOT_AHEAD));
+        GodWandAdvancements.award(player, "purple");
+        send(s.level, s.pos, new BlueRedPayload(BlueRedPayload.SHOT_FIRE, player.getId(), -1, 0, s.pos.x, s.pos.y, s.pos.z, s.dir.x, s.dir.y, s.dir.z, 0));
+        int lock = GodWandConfig.cooldownTicks(GodWandConfig.SERVER.purpleCooldownTicks) / 4;
+        SkillCooldowns.start(player, GodWandItem.MODE_BLUE_RED, lock);
+        SkillCooldowns.start(player, SkillCooldownState.RED_SLOT, lock);
+    }
+
+    private static void endShot(Shot s, Vec3 at, boolean calledOff) {
+        SHOTS.remove(s);
+        send(s.level, at, new BlueRedPayload(BlueRedPayload.SHOT_END, s.owner.getId(), -1, 0, at.x, at.y, at.z, 0, 0, 0, calledOff ? 1 : 0));
+    }
+
+    /** One tick of the shot: gathering (called off if its caster can no longer hold it), or flying: it erases a tunnel and hurts and throws
+     *  what it passes, each once, until its range or unloaded ground. */
+    private static int tickShot(Shot s, int budget, long deadline) {
+        var cfg = GodWandConfig.SERVER;
+        if (!s.fired) {
+            s.age++;
+            if (!s.owner.isAlive() || s.owner.hasDisconnected() || s.owner.serverLevel() != s.level || !holdsBlueRed(s.owner)) endShot(s, s.owner.getEyePosition(), true);
+            return 0;
+        }
+        Vec3 from = s.pos, to = from.add(s.dir.scale(BlueRedRules.SHOT_SPEED));
+        if (s.level.getChunkSource().getChunkNow(Mth.floor(to.x) >> 4, Mth.floor(to.z) >> 4) == null) { endShot(s, from, false); return 0; }
+        float damage = (float) (cfg.purpleDamage * cfg.damageMultiplier * .2 * Math.max(0, cfg.smallPurpleStrength));
+        double reach = BlueRedRules.SHOT_RADIUS + 1;
+        for (Entity e : finder.find(s.level, new AABB(from, to).inflate(reach + 1))) {
+            if (SpellDamage.isCaster(e, s.owner) || e.isSpectator() || e instanceof Display || !SpellDamage.affects(e, s.owner)) continue;
+            Vec3 middle = e.position().add(0, e.getBbHeight() / 2, 0);
+            if (BlueRedRules.distanceToSegment(middle, from, to) > reach + e.getBbWidth() / 2 || !s.struck.add(e.getUUID())) continue;
+            if (e instanceof LivingEntity) hurter.hurt(e, s.owner, damage);
+            e.setDeltaMovement(e.getDeltaMovement().add(s.dir.scale(2.2)).add(0, .5, 0));
+            e.hurtMarked = true;
+        }
+        int used = 0;
+        for (double step = 0; step <= BlueRedRules.SHOT_SPEED; step += .8)
+            used += BlueEater.carve(s.level, from.add(s.dir.scale(step)), BlueRedRules.SHOT_CARVE, Math.max(budget - used, 6000), Math.max(deadline, System.nanoTime() + 6_000_000L),
+                    Integer.MAX_VALUE, null, cfg.terrain(cfg.purpleTerrainDamage));
+        s.pos = to;
+        s.flown += BlueRedRules.SHOT_SPEED;
+        if (s.flown >= BlueRedRules.SHOT_RANGE) endShot(s, to, false);
+        return used;
+    }
+
     /** Red met a ready Blue: Purple at the Blue. Both players watch it and both lose the whole skill for purpleCooldownTicks. */
     static void startPurple(ServerLevel level, Blue blue, ServerPlayer shooter) {
         // No toast here (owner, 2026-11-20: not in the middle of the cutscene); the full Purple's own is "purple_kill", after the blast.
@@ -375,9 +458,13 @@ public final class BlueRedManager {
     public static void input(ServerPlayer player, boolean held) {
         Blue existing = blueOf(player);
         if (!held) {
+            if (shotOf(player) != null) { releaseShot(player); return; }
             if (existing != null && existing.held()) release(existing);
             return;
         }
+        // Left click while Red gathers: both buttons, the Purple shot (owner, 2026-11-20). A Red already fired is no longer held, so firing
+        // Red and calling Blue at once still makes the small Purple (owner's combo).
+        if (chargingRedOf(player) != null) { startShot(player); return; }
         // One Blue each; an anchored one waiting for Red is never replaced by a stray click.
         if (existing != null || !player.isAlive() || player.isSpectator() || !holdsBlueRed(player)) return;
         ServerLevel level = player.serverLevel();
@@ -449,6 +536,7 @@ public final class BlueRedManager {
             if (red.fired && red.level == level && REDS.contains(red)) budget -= fly(red, budget, deadline);
         for (Purple p : purples(level)) budget -= tickPurple(p, budget, deadline);
         for (SmallPurple s : new ArrayList<>(SMALLS)) if (s.level == level) budget -= tickSmall(s, budget, deadline);
+        for (Shot s : new ArrayList<>(SHOTS)) if (s.level == level) budget -= tickShot(s, budget, deadline);
     }
 
     private static void pullAndHurt(Blue blue, boolean strike) {
@@ -486,6 +574,7 @@ public final class BlueRedManager {
     /** Owner disconnected, died or changed dimension: their Blue goes with them. */
     public static void onLeave(ServerPlayer player) {
         REDS.removeIf(r -> SpellDamage.isCaster(r.shooter, player));
+        SHOTS.removeIf(s -> !s.fired && SpellDamage.isCaster(s.owner, player));
         Blue blue = blueOf(player);
         if (blue == null) return;
         BLUES.remove(blue);
@@ -499,6 +588,7 @@ public final class BlueRedManager {
         REDS.clear();
         HIT_STOPS.clear();
         SMALLS.clear();
+        SHOTS.clear();
         PURPLES.clear();
     }
 }

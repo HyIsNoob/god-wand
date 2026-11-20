@@ -39,6 +39,8 @@ public final class BlueRedRenderer {
     record Purple(Vec3 pos, double at) {}
     /** A small Purple (owner, 2026-11-20): where, when, how strong (0.4..0.8). */
     record Small(Vec3 pos, double at, double power) {}
+    /** A Purple shot (owner, 2026-11-20): when it began gathering, when and where it was fired, when and where it ended (-1 until then). */
+    static final class ShotView { final double start; double fired = -1, ended = -1; Vec3 origin, dir, end; ShotView(double start) { this.start = start; } }
     static final class Flight { final int owner; final Vec3 origin, dir; final double at; double power = 1; Vec3 end; double endAt = -1;
         Flight(int owner, Vec3 origin, Vec3 dir, double at) { this.owner = owner; this.origin = origin; this.dir = dir; this.at = at; } }
 
@@ -50,6 +52,7 @@ public final class BlueRedRenderer {
     private static final List<Burst> BURSTS = new ArrayList<>();
     private static final List<Burst> FIZZLES = new ArrayList<>();
     private static final List<Small> SMALLS = new ArrayList<>();
+    private static final Map<Integer, ShotView> SHOTS = new HashMap<>();
     /** Purples whose aftermath (falling rocks, crater sparks) is still playing: it outlives the cutscene (owner, 2026-11-20). */
     private static final List<Purple> AFTERMATHS = new ArrayList<>();
     private static double barsTan = Math.tan(Math.toRadians(35));
@@ -147,6 +150,28 @@ public final class BlueRedRenderer {
                 // The shooter feels the hit-stop (owner, 2026-11-20): a sharp jolt and the view snapping in a touch while the target hangs.
                 if (me != null && me.getId() == p.ownerId()) { GodWandCinematicEngine.addTrauma(.5f, 6); GodWandCinematicEngine.setFovPunch(.95f, 3); }
                 sound(at, SoundEvents.GENERIC_EXPLODE.value(), 1.6f, 1.1f);
+            }
+            case BlueRedPayload.SHOT_START -> {
+                // Its Blue and Red are taken into it.
+                BLUES.remove(p.ownerId()); CHARGES.remove(p.ownerId()); BlueRedSounds.redEnd(p.ownerId());
+                SHOTS.put(p.ownerId(), new ShotView(clock));
+                sound(at, SoundEvents.BEACON_ACTIVATE, 1.4f, 1.2f);
+            }
+            case BlueRedPayload.SHOT_FIRE -> {
+                ShotView v = SHOTS.computeIfAbsent(p.ownerId(), k -> new ShotView(clock - BlueRedRules.SHOT_FORM));
+                v.fired = clock; v.origin = at; v.dir = new Vec3(p.dx(), p.dy(), p.dz());
+                sound(at, SoundEvents.GENERIC_EXPLODE.value(), 3f, .9f);
+                sound(at, SoundEvents.WARDEN_SONIC_BOOM, 2.5f, 1.1f);
+                var me = Minecraft.getInstance().player;
+                if (me != null && me.getId() == p.ownerId()) { GodWandCinematicEngine.addTrauma(.8f, 16); GodWandCinematicEngine.setFovPunch(1.1f, 4); }
+                else if (me != null) GodWandCinematicEngine.addTrauma((float) Math.max(0, .5 * (1 - me.position().distanceTo(at) / 48)), 10);
+            }
+            case BlueRedPayload.SHOT_END -> {
+                ShotView v = SHOTS.get(p.ownerId());
+                if (v != null) {
+                    if (p.state() == 1 || v.fired < 0) SHOTS.remove(p.ownerId());
+                    else { v.ended = clock; v.end = at; sound(at, SoundEvents.GENERIC_EXPLODE.value(), 2.5f, 1.1f); }
+                }
             }
             case BlueRedPayload.PURPLE_SMALL -> {
                 endFlight(p.otherId(), at); BLUES.remove(p.ownerId());
@@ -318,6 +343,15 @@ public final class BlueRedRenderer {
         PURPLES.removeIf(p -> clock - p.at() > BlueRedRules.PURPLE_CINEMATIC + 10);
         AFTERMATHS.removeIf(p -> clock - p.at() > BlueRedRules.PURPLE_DETONATE + BlueRedDraw.AFTERMATH_TICKS);
         SMALLS.removeIf(s -> clock - s.at() > BlueRedRules.SMALL_END);
+        SHOTS.values().removeIf(v -> v.ended >= 0 && clock - v.ended > 14 || v.fired < 0 && clock - v.start > 1200);
+        for (var e : SHOTS.entrySet()) {
+            ShotView v = e.getValue();
+            if (v.fired >= 0) continue;
+            double age = clock - v.start;
+            if (age == BlueRedRules.SHOT_MERGE) { var o = client.level.getEntity(e.getKey()); if (o != null) sound(o.getEyePosition(), SoundEvents.WARDEN_SONIC_BOOM, 1.4f, 1.5f); }
+            var me = client.player;
+            if (me != null && me.getId() == e.getKey()) GodWandCinematicEngine.holdTrauma((float) (.08 + .25 * Math.min(1, age / BlueRedRules.SHOT_FORM)));
+        }
         for (Small s : SMALLS) {
             double age = clock - s.at();
             // Charging: a rumble growing for whoever is near, and a rising whine half way.
@@ -337,7 +371,7 @@ public final class BlueRedRenderer {
         }
     }
 
-    public static void reset() { BlueRedSounds.reset(); SMALLS.clear(); PULLED.clear(); AFTERMATHS.clear(); BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); FIZZLES.clear(); PURPLES.clear(); IMPACTS.clear(); clock = 0; }
+    public static void reset() { BlueRedSounds.reset(); SHOTS.clear(); SMALLS.clear(); PULLED.clear(); AFTERMATHS.clear(); BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); FIZZLES.clear(); PURPLES.clear(); IMPACTS.clear(); clock = 0; }
 
     private static void detonated(Vec3 at) {
         var me = Minecraft.getInstance().player;
@@ -487,7 +521,7 @@ public final class BlueRedRenderer {
             double best = Double.MAX_VALUE;
             for (BlueView b : BLUES.values()) { double d = b.pos.distanceToSqr(camera.getPosition()); if (d < best) { best = d; light = b.pos; } }
             for (Flight f : FLIGHTS) if (f.end == null) { light = BlueRedVisual.redHead(f.origin, f.dir, now - f.at, 160, null); break; }
-            if (light != null || !CHARGES.isEmpty() || !BURSTS.isEmpty() || !SMALLS.isEmpty()) strength = .45;
+            if (light != null || !CHARGES.isEmpty() || !BURSTS.isEmpty() || !SMALLS.isEmpty() || !SHOTS.isEmpty()) strength = .45;
         }
         if (strength <= 0) return;
         float sx = .5f, sy = .5f;
@@ -522,6 +556,14 @@ public final class BlueRedRenderer {
             int age = (int) Math.floor(now - s.at());
             if (age == 0) ink = 3; else if (age == 1) ink = 4;
         }
+        // The Purple shot: violet ink as Blue and Red meet, and again as it is fired.
+        if (GodWandConfig.CLIENT.impactFrames && viewer != null) for (var e : SHOTS.entrySet()) {
+            ShotView v = e.getValue();
+            var owner = Minecraft.getInstance().level == null ? null : Minecraft.getInstance().level.getEntity(e.getKey());
+            if (owner == null || viewer.position().distanceTo(owner.position()) > 64) continue;
+            int merge = (int) Math.floor(now - v.start - BlueRedRules.SHOT_MERGE), fire = v.fired < 0 ? -9 : (int) Math.floor(now - v.fired);
+            if (merge == 0 || fire == 0) ink = 3; else if (merge == 1 || fire == 1) ink = 4;
+        }
         bloom = new float[]{(float) (GodWandConfig.CLIENT.bloomStrength * strength), (float) burst, sx, sy, partial, (float) warp, (float) Math.min(.9, warpSize), ink};
     }
 
@@ -531,7 +573,7 @@ public final class BlueRedRenderer {
         if (m11 > 1e-3f) barsTan = 1 / m11;
         overlay = new Overlay(new Matrix4f(pose.last().pose()), camera, partial);
         planBloom(pose, camera, partial);
-        if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && FIZZLES.isEmpty() && PURPLES.isEmpty() && AFTERMATHS.isEmpty() && SMALLS.isEmpty() && IMPACTS.isEmpty()) return;
+        if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && FIZZLES.isEmpty() && PURPLES.isEmpty() && AFTERMATHS.isEmpty() && SMALLS.isEmpty() && SHOTS.isEmpty() && IMPACTS.isEmpty()) return;
         RenderSystem.enableBlend(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
         BlueRedAtlas.bind(); BlueRedShader.bind((float) (((clock + partial) / 20.0) % 3600));
         try {
@@ -642,6 +684,19 @@ public final class BlueRedRenderer {
             BlueRedDraw.groundY = Double.NaN;
             BlueRedDraw.groundAt = null;
             c.fade = 1;
+        }
+        for (var e : SHOTS.entrySet()) {
+            ShotView sv = e.getValue();
+            if (sv.fired < 0) {
+                var owner = Minecraft.getInstance().level == null ? null : Minecraft.getInstance().level.getEntity(e.getKey());
+                if (owner == null) continue;
+                Vec3 view = owner.getViewVector(partial);
+                BlueRedDraw.purpleShotCharge(c, owner.getEyePosition(partial).add(view.scale(BlueRedRules.SHOT_AHEAD)), view, now - sv.start);
+            } else {
+                double t = now - sv.fired;
+                Vec3 head = sv.ended >= 0 && sv.end != null ? sv.end : sv.origin.add(sv.dir.scale(Math.min(t * BlueRedRules.SHOT_SPEED, BlueRedRules.SHOT_RANGE)));
+                BlueRedDraw.purpleShotFlight(c, sv.origin, sv.dir, head, t, sv.ended < 0 ? -1 : now - sv.ended);
+            }
         }
         for (Small s : SMALLS) {
             var lvl = Minecraft.getInstance().level;

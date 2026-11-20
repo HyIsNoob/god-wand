@@ -24,7 +24,7 @@ class BlueRedPayloadTest {
     }
 
     @Test void rejectsBadKind() {
-        assertThrows(IllegalArgumentException.class, () -> new BlueRedPayload(BlueRedPayload.PURPLE_SMALL + 1, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new BlueRedPayload(BlueRedPayload.SHOT_END + 1, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0));
         assertThrows(IllegalArgumentException.class, () -> new BlueRedPayload(-1, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0));
     }
 

@@ -25,6 +25,11 @@ public final class BlueRedRules {
     /** The small Purple (an unready Blue): it forms and bursts this many ticks after Red meets the Blue, and is gone by SMALL_END. */
     // Owner, 2026-11-20: not too mini: it charges, crackling, for 2.5 s before it bursts.
     public static final int SMALL_DETONATE = 50, SMALL_END = 100;
+    /** The Purple shot (both buttons): Blue and Red meet at SHOT_MERGE, it is formed (and may be fired) at SHOT_FORM; it gathers SHOT_AHEAD
+     *  blocks in front of the eye, is SHOT_RADIUS blocks round, flies SHOT_SPEED blocks a tick for SHOT_RANGE, carving SHOT_CARVE round. */
+    public static final int SHOT_MERGE = 40, SHOT_FORM = 70;
+    public static final double SHOT_AHEAD = 4.5, SHOT_RADIUS = 2, SHOT_SPEED = 1.6, SHOT_RANGE = 90;
+    public static final int SHOT_CARVE = 3;
     /** How strong a small Purple is (0.4..0.8) from how far its Blue had charged towards ready. */
     public static double smallPower(double credited, double readyDamage, int kills, int readyKills) {
         double charged = Math.max(credited / Math.max(1e-6, readyDamage), kills / (double) Math.max(1, readyKills));

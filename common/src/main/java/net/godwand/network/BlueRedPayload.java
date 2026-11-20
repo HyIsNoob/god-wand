@@ -11,10 +11,10 @@ import net.minecraft.resources.ResourceLocation;
  */
 public record BlueRedPayload(int kind, int ownerId, int otherId, long tick, double x, double y, double z,
                              double dx, double dy, double dz, int state) implements CustomPacketPayload {
-    public static final int BLUE = 0, BLUE_GONE = 1, BLUE_SHATTER = 2, RED_CHARGE = 3, RED_CANCEL = 4, RED_FIRE = 5, RED_END = 6, PURPLE = 7, RED_HIT = 8, PURPLE_SMALL = 9;
+    public static final int BLUE = 0, BLUE_GONE = 1, BLUE_SHATTER = 2, RED_CHARGE = 3, RED_CANCEL = 4, RED_FIRE = 5, RED_END = 6, PURPLE = 7, RED_HIT = 8, PURPLE_SMALL = 9, SHOT_START = 10, SHOT_FIRE = 11, SHOT_END = 12;
 
     public BlueRedPayload {
-        if (kind < BLUE || kind > PURPLE_SMALL || state < 0 || state > (kind == RED_FIRE || kind == PURPLE_SMALL ? 100 : 2)) throw new IllegalArgumentException("Invalid Blue/Red event");
+        if (kind < BLUE || kind > SHOT_END || state < 0 || state > (kind == RED_FIRE || kind == PURPLE_SMALL ? 100 : 2)) throw new IllegalArgumentException("Invalid Blue/Red event");
         for (double c : new double[]{x, y, z})
             if (!Double.isFinite(c) || Math.abs(c) > 30_000_000) throw new IllegalArgumentException("Invalid Blue/Red coordinate");
         for (double c : new double[]{dx, dy, dz})

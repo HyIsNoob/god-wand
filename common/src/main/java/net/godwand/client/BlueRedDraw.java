@@ -1401,6 +1401,100 @@ final class BlueRedDraw {
         }
     }
 
+    /** The Purple shot gathering (owner, 2026-11-20: both buttons) at {@code center} in front of its caster, {@code age} ticks in. */
+    static void purpleShotCharge(Ctx c, Vec3 center, Vec3 look, double age) {
+        int merge = BlueRedRules.SHOT_MERGE, form = BlueRedRules.SHOT_FORM;
+        double R = BlueRedRules.SHOT_RADIUS;
+        Vec3 side = look.cross(new Vec3(0, 1, 0));
+        side = side.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : side.normalize();
+        Vec3 up = side.cross(look).normalize();
+        if (age < merge + 3) {
+            // Blue and Red either side, swinging round each other as they close in.
+            double appear = smooth(age / 10), k = smooth((age - 6) / (merge - 6.0)), d = 2.6 * (1 - k), ang = k * k * 5;
+            Vec3 off = side.scale(Math.cos(ang) * d).add(up.scale(Math.sin(ang) * d * .6));
+            Vec3 blue = center.add(off), red = center.subtract(off);
+            double r = .6 * appear * (1 - .4 * smooth((age - merge + 3) / 3.0));
+            if (c.body() && r > .02) { orb(c, blue, r, 0, 1 + 8, BLUE_TINT, appear); orb(c, red, r, 1, 1 + 8, RED, appear); }
+            inflow(c, blue, Math.max(.2, r), age, 30, CYAN, ROYAL, 9900, appear);
+            inflow(c, red, Math.max(.2, r), age, 30, RED_LIGHT, RED, 9910, appear);
+            if (c.glow()) {
+                glow(c, blue, r * 2.4, .5 * appear, ROYAL);
+                glow(c, red, r * 2.4, .5 * appear, RED);
+                for (int b = 0; b < 2 + (int) (6 * k); b++)
+                    liveBolt(c, red, blue, 8, .4, .02 + .03 * k, b % 2 == 0 ? PALE : ORCHID, appear * (.3 + .7 * k), 9930 + b * 13, age, 1);
+            }
+        }
+        double t = age - merge;
+        if (t < 0) return;
+        if (c.glow() && t < 7) {
+            double b = t / 7;
+            glow(c, center, R * (3 - 2 * b), (1 - b) * flashScale(), 0xFFFFFF);
+            fxSprite(c, center, R * (1 + 4 * b), SHOCK, 9940, PALE, .9 * (1 - b), 0);
+            fxSprite(c, center, R * (1 + 3 * b), SHOCK, 9941, ORCHID, .6 * (1 - b), 0);
+            fxSprite(c, center, R * (1.5 + 2.5 * b), RAYS, 9942, ORCHID, .7 * (1 - b), b);
+            sparks(c, center, R * (1 + 2 * b), age, (int) (60 * (1 - b)), PALE, 9943);
+        }
+        double grow = smooth(t / (form - merge)), ready = age >= form ? 1 : 0;
+        double s = R * (.35 + .65 * grow) * (1 + (.03 + .05 * ready) * Math.sin(age * (2.4 + 1.2 * ready) + 1.5 * Math.sin(age * .7)));
+        if (c.body()) orb(c, center, s, 2, 12 + (int) Math.min(3, 3 * grow + ready), VIOLET, smooth(t / 4));
+        inflow(c, center, s, age, 40 + (int) (40 * grow), ORCHID, PALE, 9950, 1);
+        if (!c.glow()) return;
+        glow(c, center, s * .5, .9, 0xFFFFFF);
+        glow(c, center, s * 1.6, .4 + .2 * ready, VIOLET);
+        for (int b = 0; b < 4 + (int) (8 * grow) + (int) (4 * ready); b++) {
+            Vec3 d0 = nvec(9960 + b, age * .3).normalize(), d1 = d0.add(nvec(9970 + b, age * .35).scale(.8)).normalize();
+            liveBolt(c, center.add(d0.scale(s * .92)), center.add(d1.scale(s * (1.3 + .9 * vnoise(9980 + b, age * .4)))), 7, .45, .04 + .04 * grow,
+                    b % 3 == 0 ? 0xFFFFFF : b % 3 == 1 ? PALE : ORCHID, smooth(t / 4), 9990 + b * 13, age, 1);
+        }
+        sparks(c, center, s * 1.5, age, 20 + (int) (30 * grow), PALE, 9995);
+    }
+
+    /** The Purple shot flying: {@code t} ticks since it was fired from {@code origin} along {@code dir}, its sphere at {@code head};
+     *  {@code ended} ticks since it ran out (-1 while it flies). */
+    static void purpleShotFlight(Ctx c, Vec3 origin, Vec3 dir, Vec3 head, double t, double ended) {
+        double R = BlueRedRules.SHOT_RADIUS, fade = ended < 0 ? 1 : 1 - clamp01(ended / 12);
+        if (fade <= 0) return;
+        if (c.glow() && t < 10) {
+            double k = t / 10;
+            glow(c, origin, R * (3 - 2 * k), (1 - k) * flashScale(), 0xFFFFFF);
+            fxSprite(c, origin, R * (1 + 6 * k), SHOCK, 10000, PALE, .9 * (1 - k), 0);
+            fxSprite(c, origin, R * (1.5 + 4 * k), RAYS, 10001, ORCHID, .7 * (1 - k), k);
+        }
+        // Its wake: a violet trail tapering back from the sphere.
+        double len = Math.min(12, head.distanceTo(origin));
+        if (len > .5) {
+            int n = 12;
+            Vec3[] pts = new Vec3[n + 1];
+            double[] w = new double[n + 1], al = new double[n + 1];
+            for (int i = 0; i <= n; i++) {
+                double u = (double) i / n;
+                pts[i] = head.subtract(dir.scale(len * (1 - u))).add(nvec(10010 + i, t * .2).scale(.15 * (1 - u)));
+                w[i] = R * (.15 + .7 * u);
+                al[i] = u * nearFade(c, pts[i]);
+            }
+            if (c.body()) fxRibbon(c, pts, w, al, SMOKE, 10020, 0x5A2096, .5 * fade);
+            else fxRibbon(c, pts, w, al, FLOW, 10021, ORCHID, .45 * fade);
+        }
+        if (ended < 0) {
+            double s = R * (1 + .05 * Math.sin(t * 3.1 + 1.5 * Math.sin(t * .8)));
+            if (c.body()) orb(c, head, s, 2, 15, VIOLET, 1);
+            inflow(c, head, s, t, 40, ORCHID, PALE, 10030, 1);
+            if (!c.glow()) return;
+            glow(c, head, s * .5, .9, 0xFFFFFF);
+            glow(c, head, s * 1.8, .5, VIOLET);
+            for (int b = 0; b < 10; b++) {
+                Vec3 d0 = nvec(10040 + b, t * .3).normalize(), d1 = d0.add(nvec(10050 + b, t * .35).scale(.8)).normalize().subtract(dir.scale(.6)).normalize();
+                liveBolt(c, head.add(d0.scale(s * .92)), head.add(d1.scale(s * (1.6 + vnoise(10060 + b, t * .4)))), 7, .45, .07, b % 2 == 0 ? PALE : ORCHID, 1, 10070 + b * 13, t, 1);
+            }
+            sparks(c, head, s * 1.6, t, 40, PALE, 10080);
+        } else if (c.glow()) {
+            double k = clamp01(ended / 12);
+            glow(c, head, R * (2 + 3 * k), (1 - k) * flashScale(), PALE);
+            fxSprite(c, head, R * (1 + 5 * k), SHOCK, 10090, ORCHID, 1 - k, 0);
+            sparks(c, head, R * (1 + 3 * k), ended, (int) (60 * (1 - k)), PALE, 10091);
+        }
+    }
+
     /** Charged chunks floating round Purple this frame (their centres), set by the renderer. */
     static final List<Vec3> CHARGED = new ArrayList<>();
 

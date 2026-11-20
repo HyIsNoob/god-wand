@@ -302,10 +302,42 @@ class BlueRedManagerTest {
         cooldowns.verify(() -> SkillCooldowns.start(eq(p), eq(net.godwand.skill.SkillCooldownState.RED_SLOT), anyInt()), never());
     }
 
-    @Test void noRedWhileHoldingBlue() {
+    @Test void holdingBothButtonsGathersThePurpleShot() {
         var p = player();
         BlueRedManager.input(p, true);
-        assertFalse(BlueRedManager.beginRed(p));
+        assertTrue(BlueRedManager.beginRed(p), "owner, 2026-11-20: right click while holding Blue starts the Purple shot");
+        assertEquals(1, count(BlueRedPayload.SHOT_START));
+        assertTrue(BlueRedManager.blues(world).isEmpty(), "its Blue is taken into it");
+        assertEquals(0, count(BlueRedPayload.RED_CHARGE));
+    }
+
+    @Test void thePurpleShotFiresWhenLetGoOnceFormedAndFliesToItsRange() {
+        var p = player();
+        BlueRedManager.input(p, true);
+        BlueRedManager.beginRed(p);
+        ticks(BlueRedRules.SHOT_FORM);
+        BlueRedManager.releaseRed(p);
+        assertEquals(1, count(BlueRedPayload.SHOT_FIRE));
+        ticks((int) Math.ceil(BlueRedRules.SHOT_RANGE / BlueRedRules.SHOT_SPEED) + 2);
+        assertEquals(1, count(BlueRedPayload.SHOT_END));
+        assertEquals(0, sent.stream().filter(x -> x.kind() == BlueRedPayload.SHOT_END).findFirst().orElseThrow().state(), "it ran out its range");
+    }
+
+    @Test void thePurpleShotLetGoTooSoonIsCalledOff() {
+        var p = player();
+        BlueRedManager.input(p, true);
+        BlueRedManager.beginRed(p);
+        ticks(10);
+        BlueRedManager.input(p, false);
+        assertEquals(0, count(BlueRedPayload.SHOT_FIRE));
+        assertEquals(1, sent.stream().filter(x -> x.kind() == BlueRedPayload.SHOT_END).findFirst().orElseThrow().state(), "called off");
+    }
+
+    @Test void redFirstThenBlueAlsoGathersTheShot() {
+        var p = player();
+        assertTrue(BlueRedManager.beginRed(p));
+        BlueRedManager.input(p, true);
+        assertEquals(1, count(BlueRedPayload.SHOT_START));
     }
 
     @Test void hitsEachEntityOnce() {

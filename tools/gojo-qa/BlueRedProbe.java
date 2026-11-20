@@ -78,6 +78,7 @@ public final class BlueRedProbe implements ClientModInitializer {
             case 3 -> red(c, server);
             case 4 -> aftermath(c, server);
             case 5 -> look(c);
+            case 6 -> shot(c);
             default -> {}
         }
     }
@@ -129,7 +130,7 @@ public final class BlueRedProbe implements ClientModInitializer {
         c.player.getInventory().selected = 0; c.player.connection.send(new ServerboundSetCarriedItemPacket(0));
         try { Files.createDirectories(c.gameDirectory.toPath().resolve("screenshots/gojo-" + scene + "-" + run)); }
         catch (java.io.IOException e) { throw new RuntimeException(e); }
-        stage = scene.equals("shatter") || scene.startsWith("hit") ? 3 : scene.equals("look") ? 5 : 2; since = ticks;
+        stage = scene.equals("shot") ? 6 : scene.equals("shatter") || scene.startsWith("hit") ? 3 : scene.equals("look") ? 5 : 2; since = ticks;
         System.out.println("GOJO_QA SETUP scene=" + scene + " run=" + run + " ground=" + ground);
     }
 
@@ -199,6 +200,17 @@ public final class BlueRedProbe implements ClientModInitializer {
         if (fired == 30 || fired == 100) System.out.println("GOJO_QA PURPLE fired+" + fired + " cutscene=" + net.godwand.client.PurpleCinematic.active()
                 + " purples=" + server.submit(() -> BlueRedManager.purples(me(server, c).serverLevel()).size()).join());
         if (fired > 450) { stage = 4; since = ticks; System.out.println("GOJO_QA RED done blues=" + server.submit(() -> BlueRedManager.blues(me(server, c).serverLevel()).size()).join()); }
+    }
+
+    /** The Purple shot (owner, 2026-11-20): left held, then right too; held until formed and a little past, let go, the flight filmed. */
+    private void shot(Minecraft c) {
+        int t = ticks - since;
+        if (t == 20) { c.options.keyAttack.setDown(true); System.out.println("GOJO_QA SHOT left"); }
+        if (t == 24) { c.options.keyUse.setDown(true); System.out.println("GOJO_QA SHOT right"); }
+        int release = 24 + net.godwand.skill.BlueRedRules.SHOT_FORM + 12;
+        if (t == release) { c.options.keyUse.setDown(false); c.options.keyAttack.setDown(false); System.out.println("GOJO_QA SHOT release"); }
+        if (t >= 18 && t < release + 80) grab(c);
+        if (t >= release + 80) { stage = 4; since = ticks; System.out.println("GOJO_QA SHOT done"); }
     }
 
     /** Each subject for 60 ticks, a frame every 10 (and two back to back, to check nothing pops between frames). */
