@@ -321,6 +321,21 @@ void main() {
         // SOLID: plain colour, fully opaque (cinematic bars).
         col = tint;
         a = 1.0;
+    } else if (effect == 17) {
+        // CURSE (owner, 2026-11-20): cursed energy wrapping the caster's arm and burning back along it (p.y 0 at the hand, 1 towards the
+        // shoulder). Tongues of pale fire lick up the arm, each with a bold dark rim and a pale bright core; thinner towards the sides.
+        float across = abs(q.x);
+        float stretch = fbm(vec3(p.x * 6.0, p.y * 1.4 - t * 2.4, seed));
+        float lick = fbm(vec3(p.x * 12.0 + 3.0, p.y * 2.6 - t * 3.8, seed + 2.0));
+        float base = 1.0 - p.y;
+        float h = stretch * 0.85 + lick * 0.4 - p.y * 0.95 + base * base * base * 0.25 - across * across * across * across * 0.35 + 0.1;
+        float fire = smoothstep(0.50, 0.53, h);
+        float rim = smoothstep(0.43, 0.47, h) - fire;
+        float core = smoothstep(0.60, 0.85, h);
+        vec3 dark = mix(tint * 0.18, vec3(0.0, 0.12, 0.1), 0.5);
+        col = mix(mix(dark, tint, fire), mix(tint, vec3(1.0), 0.6), core);
+        // The shell runs on past the fist: there it fades in, so the hand is wrapped with no hard edge.
+        a = max(fire * 0.78, rim) * smoothstep(0.0, 0.16, p.y) * smoothstep(1.0, 0.8, p.y);
     } else if (effect == 14) {
         // CHALK (Red's charge, owner refs 2026-11-19): a dry, grainy streak like chalk dragged fast. Many fine hairlines run along it, speckled
         // with grain; it breaks up towards its ragged edges and its tail; a pale hot line runs down its middle.

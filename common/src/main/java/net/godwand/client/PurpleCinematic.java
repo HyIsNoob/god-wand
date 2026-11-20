@@ -66,6 +66,8 @@ public final class PurpleCinematic {
         return own + (vanilla - own) * GateDraw.smooth((a - (BlueRedRules.PURPLE_CINEMATIC - 20)) / 20.0);
     }
     public static void reset() { age = -1; center = null; eye = null; }
+    /** ESC (owner, 2026-11-20): back to the player's own view at once; the blast goes on in the world. */
+    public static void skip() { if (active()) reset(); }
 
     public static AtomicCinematic.Pose camera(float delta, Vec3 vanillaPosition, float vanillaYaw, float vanillaPitch) {
         if (!active()) return null;

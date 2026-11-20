@@ -41,6 +41,7 @@
   "skill.godwand.8": "Blue / Red",
   "skill.godwand.9": "Red",
   "gui.godwand.config.gate_cutscene": "Silent Gate Cutscene",
+  "gui.godwand.config.bluered_third_person": "Blue/Red: Third Person",
   "message.godwand.gate_command": "Right-click to command the gate",
   "message.godwand.gate_cancel": "Sneak to stop the spell",
   "message.godwand.skill_cooldown": "%s: %ss",

@@ -14,7 +14,8 @@ public final class BlueRedRules {
     /** Red flies RED_SPEED blocks per tick and hurts anything within RED_HIT_RADIUS of its path. */
     public static final double RED_SPEED = 3.0, RED_HIT_RADIUS = 2.0;
     /** Blue's inertia (owner, 2026-11-18): how hard it is pulled towards the aim point each tick, and how much of its speed it keeps. */
-    public static final double BLUE_PULL = .22, BLUE_DAMP = .62;
+    // Heavier to drag (owner, 2026-11-20): pulled more softly, keeps more of its momentum.
+    public static final double BLUE_PULL = .12, BLUE_DAMP = .74;
 
     /** One tick of a held Blue chasing the aim point like a heavy weight on a spring: it lags behind turns, carries its momentum a little past
      *  the point and settles in about half a second. Returns {position, velocity}. */

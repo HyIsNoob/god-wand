@@ -24,7 +24,7 @@ final class BlueRedDraw {
     static final int SHOCK_WHITE = 0xFFF4F4;
     static final int VIOLET = 0x9A2CFF, ORCHID = 0xF064FF, PALE = 0xF6D8FF, NIGHT = 0x2A0650, VOID = 0x07020F, INK = 0x050002;
     /** Shader effects (godwand_bluered.fsh). ORB seeds: variant (0 blue, 1 red, 2 purple) + 4 * level. */
-    static final int ORB = 0, FLOW = 1, FLAME = 2, SMOKE = 3, SHOCK = 4, BOLT = 5, SPARK = 6, RAYS = 7, NEBULA = 8, SPEEDLINES = 9, DEBRIS = 10, RING = 11, BRUSH = 12, PLASMA = 13, CHALK = 14, GALAXY = 15, SOLID_FX = 16;
+    static final int ORB = 0, FLOW = 1, FLAME = 2, SMOKE = 3, SHOCK = 4, BOLT = 5, SPARK = 6, RAYS = 7, NEBULA = 8, SPEEDLINES = 9, DEBRIS = 10, RING = 11, BRUSH = 12, PLASMA = 13, CHALK = 14, GALAXY = 15, SOLID_FX = 16, CURSE = 17;
     static final int BLUE_TINT = 0x1A6CFF;
 
     private BlueRedDraw() {}
@@ -623,6 +623,8 @@ final class BlueRedDraw {
      *  back past the user in a widening fan, each one lashing out, holding and fading while the next comes; more and longer with charge. */
     private static void chargeStreaks(Ctx c, Vec3 at, double s, double age, double charge, Vec3 back) {
         Vec3[] uw = basis(back);
+        // Watched from behind (third person, or anyone else), they would sweep through the camera: kept short of it.
+        double far = at.distanceTo(c.eye), reachCap = far > 3 ? far * .45 : Double.MAX_VALUE;
         int count = 6 + (int) (8 * charge);
         for (int i = 0; i < count; i++) {
             long sd = 7900 + i * 53L;
@@ -630,7 +632,7 @@ final class BlueRedDraw {
             long cyc = (long) Math.floor(ph);
             double u = ph - cyc;
             long cs = sd + cyc * 7919L;
-            double ang = hash(cs) * Math.PI * 2, spread = .35 + .45 * hash(cs + 1), L = (3 + 5 * hash(cs + 2)) * (.6 + .6 * charge);
+            double ang = hash(cs) * Math.PI * 2, spread = .35 + .45 * hash(cs + 1), L = Math.min(reachCap, (3 + 5 * hash(cs + 2)) * (.6 + .6 * charge));
             double head = smooth(u / .3), tail = smooth((u - .55) / .45), al = smooth(u / .08) * (1 - tail);
             if (al <= .01 || head - tail < .03) continue;
             Vec3 side = uw[0].scale(Math.cos(ang)).add(uw[1].scale(Math.sin(ang)));
@@ -715,6 +717,50 @@ final class BlueRedDraw {
             Vec3 q = at.add(forward.scale(2.5 - 5 * u)).add(uw[0].scale(Math.cos(an) * rr)).add(uw[1].scale(Math.sin(an) * rr));
             glow(c, q, .07 + .05 * hash(cs + 3), Math.sin(Math.PI * u) * .8 * smooth((q.distanceTo(c.eye) - .6) / 1.2), i % 2 == 0 ? RED : RED_LIGHT);
         }
+    }
+
+    /** Cursed energy burning on the caster's hand (owner, 2026-11-20, refs: a hand wreathed in blue fire): blue tongues of flame licking off
+     *  it and streaming back and up, embers, a soft glow; {@code power} 0..1+ (low at rest, full while Blue is held). */
+    /** Pale green cursed energy (owner, 2026-11-20). */
+    static final int CURSE_GREEN = 0x9CFFC4;
+
+    /** The cursed-energy shell round an arm, in the arm's own model space (blocks; +y runs down the arm to the hand at {@code handY}): its four
+     *  faces pushed out a little, and two crossed fins through its axis so tongues lick out past its outline. {@code x0..x1}, {@code z0..z1}:
+     *  the arm's box; {@code power} 0..1+. */
+    static void curseShell(Ctx c, double x0, double x1, double z0, double z1, double top, double handY, double power) {
+        double e = .07, a = Math.min(1, .55 + .45 * power), tip = handY + .18;
+        double X0 = x0 - e, X1 = x1 + e, Z0 = z0 - e, Z1 = z1 + e, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+        double fin = (x1 - x0) * (.75 + .25 * Math.min(1, power));
+        // a, b at the hand end; d, e towards the shoulder (the fire burns that way).
+        Vec3[][] faces = {
+                {new Vec3(X0, tip, Z0), new Vec3(X1, tip, Z0), new Vec3(X1, top, Z0), new Vec3(X0, top, Z0)},
+                {new Vec3(X1, tip, Z0), new Vec3(X1, tip, Z1), new Vec3(X1, top, Z1), new Vec3(X1, top, Z0)},
+                {new Vec3(X1, tip, Z1), new Vec3(X0, tip, Z1), new Vec3(X0, top, Z1), new Vec3(X1, top, Z1)},
+                {new Vec3(X0, tip, Z1), new Vec3(X0, tip, Z0), new Vec3(X0, top, Z0), new Vec3(X0, top, Z1)},
+                {new Vec3(cx - fin, tip, cz), new Vec3(cx + fin, tip, cz), new Vec3(cx + fin, top, cz), new Vec3(cx - fin, top, cz)},
+                {new Vec3(cx, tip, cz - fin), new Vec3(cx, tip, cz + fin), new Vec3(cx, top, cz + fin), new Vec3(cx, top, cz - fin)}};
+        for (int i = 0; i < faces.length; i++) {
+            Vec3[] f = faces[i];
+            fxQuad(c, f[0], f[1], f[2], f[3], CURSE, 17 + i * 5, CURSE_GREEN, a, a, a, a, 0, 1);
+        }
+    }
+
+    static void handFlame(Ctx c, Vec3 at, Vec3 look, double age, double power) {
+        // Soft wisps (owner's refs): they lick up off the fist and drift back, shrinking as they burn out.
+        Vec3 rise = new Vec3(0, 1, 0).add(look.scale(-.45)).normalize();
+        int n = 14 + (int) (14 * power);
+        for (int i = 0; i < n; i++) {
+            long sd = 9100 + i * 41L;
+            double life = 8 + 6 * hash(sd), ph = age / life + hash(sd + 1);
+            long cyc = (long) Math.floor(ph);
+            double u = ph - cyc;
+            long cs = sd + cyc * 7919L;
+            Vec3 q = at.add(nvec(cs, 0).scale(.07)).add(rise.scale((.2 + .2 * hash(cs + 1)) * u * (.7 + .4 * power))).add(nvec(cs + 3, u * 1.5).scale(.05 * u));
+            double size = (.06 + .05 * hash(cs + 2)) * (1 - .6 * u) * (.8 + .3 * power), a = smooth(u / .15) * (1 - u);
+            if (c.body()) fxSprite(c, q, size * 1.3, SMOKE, (int) (cs % 977), i % 2 == 0 ? 0x1E8C64 : 0x3CC890, a * .55, u * 2 + i);
+            else glow(c, q, size * .9, a * .8, i % 3 == 0 ? 0xE6FFF0 : CURSE_GREEN);
+        }
+        if (c.glow()) glow(c, at, .22 + .1 * power, .3 + .2 * Math.min(1, power), 0x3CC890);
     }
 
     /** Red called off (owner, 2026-11-19: sneak or a tap): the gathered red collapses, its motes scatter and a puff of dark red smoke

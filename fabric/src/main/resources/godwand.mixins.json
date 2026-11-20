@@ -24,7 +24,10 @@
     "AtomicInputMixin",
     "AtomicLocalMovementMixin",
     "SkillCooldownUseMixin",
-    "BlueRedAttackMixin"
+    "BlueRedAttackMixin",
+    "BlueRedHandMixin",
+    "BlueRedPoseMixin",
+    "PurpleSkipMixin"
   ],
   "injectors": {
     "defaultRequire": 1

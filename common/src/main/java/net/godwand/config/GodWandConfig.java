@@ -26,6 +26,8 @@ public final class GodWandConfig {
         public boolean atomicCutscene = true;
         public boolean fugaCutscene = true;
         public boolean gateCutscene = true;
+        /** Switch to third person while casting Blue/Red, and back after (owner, 2026-11-20). */
+        public boolean blueRedThirdPerson = false;
         public float cameraShake = 1;
         public float bloomStrength = .85f;
         public int bloomDownsample = 4;

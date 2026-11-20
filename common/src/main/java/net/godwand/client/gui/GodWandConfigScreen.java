@@ -77,6 +77,10 @@ public class GodWandConfigScreen extends Screen {
                 .create(right,y,columnWidth,20,Component.translatable("gui.godwand.config.gate_cutscene"),
                         (button,value)->GodWandConfig.CLIENT.gateCutscene=value));
         y += 20 + gap;
+        addRenderableWidget(CycleButton.onOffBuilder(GodWandConfig.CLIENT.blueRedThirdPerson)
+                .create(left,y,columnWidth,20,Component.translatable("gui.godwand.config.bluered_third_person"),
+                        (button,value)->GodWandConfig.CLIENT.blueRedThirdPerson=value));
+        y += 20 + gap;
 
         addRenderableWidget(new AbstractSliderButton(left, y, columnWidth, 20,
                 Component.translatable("gui.godwand.config.bloom", (int) (GodWandConfig.CLIENT.bloomStrength * 100)),

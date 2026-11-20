@@ -108,19 +108,25 @@ def icon(mode):
         d.polygon([(22,1),(16,3),(18,5),(20,7)],fill=(255,150,40))
         d.polygon([(21,2),(18,3),(20,5)],fill=(255,246,214))
         for x,y in [(3,11),(8,21),(13,18),(22,11)]: d.point((x,y),fill=(255,223,108))
-    elif mode == 8:  # Blue / Red: a big blue orb pulling, a small red orb with a black core, a purple spark between.
+    elif mode == 8:  # Blue / Red (owner, 2026-11-20): one violet sphere in the middle, glowing from within.
         def put(x, y, c):
             if 0 <= x < 24 and 0 <= y < 24: im.putpixel((x, y), c + (255,))
+        ramp = [(34, 8, 70), (70, 18, 140), (120, 40, 215), (170, 90, 255), (220, 170, 255), (255, 240, 255)]
+        R = 9.5
         for y in range(24):
             for x in range(24):
-                db = math.hypot(x - 8.5, y - 13.5)
-                if db <= 7.2:
-                    put(x, y, (232, 246, 255) if db < 2.2 else (120, 186, 255) if db < 4.6 else (40, 92, 220) if db < 6.4 else (20, 44, 140))
-                dr = math.hypot(x - 18.5, y - 5.5)
-                if dr <= 4.2:
-                    put(x, y, (8, 4, 6) if dr < 1.8 else (255, 72, 54) if dr < 3.2 else (150, 18, 22))
-        for x, y in [(14, 9), (15, 8), (13, 10)]: put(x, y, (200, 120, 255))
-        for x, y in [(1, 6), (3, 3), (16, 21), (21, 15)]: put(x, y, (150, 205, 255))
+                dx, dy = (x + .5 - 12) / R, (y + .5 - 12) / R
+                rr = dx * dx + dy * dy
+                if rr > 1:
+                    # A thin violet haze just outside the rim.
+                    if rr < 1.25: put(x, y, (52, 14, 96))
+                    continue
+                nz = math.sqrt(1 - rr)
+                # Glowing from the core outward, a little light from the upper left, darker at the rim.
+                v = .55 * (1 - math.sqrt(rr)) + .35 * nz + .2 * max(0, -dx * .6 - dy * .7)
+                put(x, y, ramp[max(0, min(5, int(v * 6.4)))])
+        for x, y in [(8, 7), (9, 7), (8, 8)]: put(x, y, (255, 240, 255))
+        for x, y in [(2, 4), (21, 3), (3, 20), (20, 21), (22, 12)]: put(x, y, (190, 120, 255))
     else:  # Silent Gate: the winged gate of heaven, its doorway white (owner, 2026-11-15: "just the gate with wings").
         def put(x, y, c):
             if 0 <= x < 24 and 0 <= y < 24: im.putpixel((x, y), c + (255,))
@@ -177,6 +183,11 @@ def build():
             d.line([(4, 4), (35, 4), (35, 5)], fill=highlight)
             d.line([(4, 35), (35, 35), (35, 6)], fill=(50, 44, 55))
             d.rectangle((5, 5, 34, 34), fill=(22 + state * 3, 19 + state * 2, 28 + state * 4))
+            if mode == 8:  # Blue fading into red behind the violet sphere (owner, 2026-11-20).
+                for x in range(5, 35):
+                    k = (x - 5) / 29
+                    lift = state * 6
+                    d.line([(x, 5), (x, 34)], fill=(round(22 + 70 * k) + lift, round(26 + 4 * (1 - k)) + lift // 2, round(96 - 66 * k) + lift))
             for x, y in [(7, 2), (28, 3), (36, 11), (2, 25), (12, 36), (30, 36)]:
                 d.point((x, y), fill=(61, 56, 65))
             color = COLORS[mode]

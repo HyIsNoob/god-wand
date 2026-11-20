@@ -153,6 +153,24 @@ public final class BlueRedRenderer {
         if (GodWandConfig.CLIENT.impactFrames && player != null && player.position().distanceTo(at) < 48) { IMPACTS.clear(); IMPACTS.add(new Burst(at, clock, false)); }
     }
 
+    /** For the caster's hand: ticks since this player's Blue appeared (-1 if none), since their Red began charging (-1), since their last shot (-1). */
+    static double blueAge(int id, float partial) { BlueView b = BLUES.get(id); return b == null || b.goneAt >= 0 ? -1 : clock + partial - b.born; }
+    static double redChargeAge(int id, float partial) { Double s = CHARGES.get(id); return s == null ? -1 : clock + partial - s; }
+    static double sinceShot(int id, float partial) {
+        double best = -1;
+        for (Flight f : FLIGHTS) if (f.owner == id) { double s = clock + partial - f.at; if (best < 0 || s < best) best = s; }
+        return best;
+    }
+    static double now(float partial) { return clock + partial; }
+
+    /** Whoever holds the wand on Blue/Red has cursed energy burning on their hand (owner, 2026-11-20), in first person and third. */
+    private static boolean handFlame() {
+        var mc = Minecraft.getInstance();
+        if (mc.level == null || PurpleCinematic.active()) return false;
+        for (var pl : mc.level.players()) if (BlueRedHand.holds(pl) && !pl.isInvisible()) return true;
+        return false;
+    }
+
     private static void endFlight(int owner, Vec3 at) {
         for (Flight f : FLIGHTS) if (f.owner == owner && f.end == null) { f.end = at; f.endAt = clock; return; }
     }
@@ -166,6 +184,7 @@ public final class BlueRedRenderer {
         if (client.level == null) { reset(); return; }
         if (client.isPaused()) return;
         clock++;
+        BlueRedHand.tickCamera();
         BURSTS.removeIf(b -> clock - b.at() > 20);
         FIZZLES.removeIf(b -> clock - b.at() > 14);
         IMPACTS.removeIf(b -> clock - b.at() > 6);
@@ -439,7 +458,7 @@ public final class BlueRedRenderer {
         if (m11 > 1e-3f) barsTan = 1 / m11;
         overlay = new Overlay(new Matrix4f(pose.last().pose()), camera, partial);
         planBloom(pose, camera, partial);
-        if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && FIZZLES.isEmpty() && PURPLES.isEmpty() && IMPACTS.isEmpty()) return;
+        if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && FIZZLES.isEmpty() && PURPLES.isEmpty() && IMPACTS.isEmpty() && !handFlame()) return;
         RenderSystem.enableBlend(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
         BlueRedAtlas.bind(); BlueRedShader.bind((float) (((clock + partial) / 20.0) % 3600));
         try {
@@ -496,6 +515,16 @@ public final class BlueRedRenderer {
         }
         // Black bars (owner, 2026-11-19): drawn first and writing no depth, so every effect after them can spill over them.
         if (layer == 0 && PurpleCinematic.active()) BlueRedDraw.blackBars(c, eye, look, PurpleCinematic.bars(partial), barsTan);
+        if (layer >= 0 && handFlame()) {
+            var mc = Minecraft.getInstance();
+            for (var pl : mc.level.players()) {
+                if (!BlueRedHand.holds(pl) || pl.isInvisible() || pl.distanceToSqr(eye) > 64 * 64) continue;
+                boolean fp = pl == mc.player && mc.options.getCameraType().isFirstPerson();
+                if (fp) continue; // first person: the shell on the arm itself (BlueRedHand.curse)
+                Vec3 hand = fp ? BlueRedHand.handPoint(eye, look, pl, partial, barsTan / Math.tan(Math.toRadians(35))) : BlueRedHand.handPoint3rd(pl, partial);
+                BlueRedDraw.handFlame(c, hand, fp ? look : pl.getViewVector(partial), now, BlueRedHand.power(pl.getId(), partial));
+            }
+        }
         for (var e : BLUES.entrySet())
         {
             BlueView b = e.getValue();
