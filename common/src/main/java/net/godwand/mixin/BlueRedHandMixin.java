@@ -25,9 +25,6 @@ public abstract class BlueRedHandMixin {
         pose.pushPose();
         net.godwand.client.BlueRedHand.firstPerson(pose, player, partial);
         renderPlayerArm(pose, buffer, light, equipped, swing, player.getMainArm());
-        // The arm first (so the fire sits on it), then the cursed energy burning on it.
-        if (buffer instanceof MultiBufferSource.BufferSource batch) batch.endBatch();
-        net.godwand.client.BlueRedHand.curse(pose, player, partial);
         pose.popPose();
         ci.cancel();
     }
