@@ -49,7 +49,20 @@ public final class SkillCooldownClient {
         var stack=observer.getMainHandItem();if(!(stack.getItem() instanceof GodWandItem))stack=observer.getOffhandItem();
         if(!(stack.getItem() instanceof GodWandItem))return;
         int mode=GodWandItem.getSkillMode(stack),left=shown(mode);if(left==0)return;
-        var text=Component.translatable("message.godwand.skill_cooldown",Component.translatable("skill.godwand."+mode),(left+19)/20);
-        graphics.drawCenteredString(client.font,text,graphics.guiWidth()/2,graphics.guiHeight()-84,0xFFE0C998);
+        int x=graphics.guiWidth()/2,y=graphics.guiHeight()-84;
+        if(mode==GodWandItem.MODE_BLUE_RED) {
+            // Blue and Red each have their own timer; a Purple sets both at once (owner, 2026-11-20: say which one is cooling down).
+            int blue=remaining(mode),red=remaining(SkillCooldownState.RED_SLOT);
+            if(blue==red){graphics.drawCenteredString(client.font,text("skill.godwand.8",blue),x,y,0xFFC89BFF);return;}
+            var b=text("skill.godwand.blue",blue);var r=text("skill.godwand.9",red);
+            if(red==0){graphics.drawCenteredString(client.font,b,x,y,0xFF7FC8FF);return;}
+            if(blue==0){graphics.drawCenteredString(client.font,r,x,y,0xFFFF8080);return;}
+            int wb=client.font.width(b),wr=client.font.width(r),start=x-(wb+12+wr)/2;
+            graphics.drawCenteredString(client.font,b,start+wb/2,y,0xFF7FC8FF);
+            graphics.drawCenteredString(client.font,r,start+wb+12+wr/2,y,0xFFFF8080);
+            return;
+        }
+        graphics.drawCenteredString(client.font,text("skill.godwand."+mode,left),x,y,0xFFE0C998);
     }
+    private static Component text(String name,int ticks) {return Component.translatable("message.godwand.skill_cooldown",Component.translatable(name),(ticks+19)/20);}
 }

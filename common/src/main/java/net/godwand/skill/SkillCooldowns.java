@@ -32,7 +32,9 @@ public final class SkillCooldowns {
         int left=state(player).remaining(mode,player.tickCount);
         if(left==0)return true;
         sync(player,mode);
-        player.displayClientMessage(Component.translatable("message.godwand.skill_cooldown",Component.translatable("skill.godwand."+mode),(left+19)/20),true);
+        // Blue and Red: the HUD line already names which one is cooling down (owner, 2026-11-20: a second, white line also said "Purple").
+        if(mode!=net.godwand.item.GodWandItem.MODE_BLUE_RED&&mode!=SkillCooldownState.RED_SLOT)
+            player.displayClientMessage(Component.translatable("message.godwand.skill_cooldown",Component.translatable("skill.godwand."+mode),(left+19)/20),true);
         return false;
     }
     public static void start(Player user,int mode,int ticks) {
