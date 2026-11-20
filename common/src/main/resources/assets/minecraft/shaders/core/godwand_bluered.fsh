@@ -75,6 +75,9 @@ void main() {
         float variant = mod(seed, 4.0), level = floor(seed / 4.0);
         // Level + 4: a solo Blue or Red (owner, 2026-11-19): its streaks rush into the core, fast and strong.
         // Level + 8: the 3D act's twin orbs (owner, 2026-11-20: calm, not swirling): smooth glassy energy.
+        // Level + 12 (+0..3 nearer the burst): the small Purple, unstable (owner, 2026-11-20).
+        bool unstable = level >= 12.0;
+        if (unstable) level -= 12.0;
         bool calm = level >= 8.0;
         if (calm) level -= 8.0;
         bool rush = level >= 4.0;
@@ -84,7 +87,30 @@ void main() {
         float d = length(q) / R;
         float ang = atan(q.y, q.x);
         vec2 dir = vec2(cos(ang), sin(ang));
-        if (calm) {
+        if (unstable) {
+            // About to burst: the outline boils and bulges, blue and red tear at each other inside the violet with dark gaps between, the
+            // heart flickers erratically, flares lick off the rim. All of it worse as it nears bursting (k).
+            float k = clamp(level / 3.0, 0.0, 1.0);
+            float flick = hash(vec3(floor(t * 14.0), seed, 1.0));
+            float wob = (fbm(vec3(dir * 2.5, t * (1.5 + 2.0 * k))) - 0.5) * (0.35 + 0.25 * k);
+            float uu = d - wob;
+            float dz = clamp(d, 0.0, 0.999);
+            vec3 n3 = vec3(q / R, sqrt(1.0 - dz * dz));
+            vec3 w = vec3(fbm(n3 * 2.0 + t * 1.3), fbm(n3 * 2.0 - t * 1.1 + 4.0), 0.0);
+            float f1 = fbm(n3 * 2.5 + w * 2.0 + vec3(0.0, 0.0, t * 2.0));
+            float f2 = fbm(n3 * 3.5 - w * 1.5 - vec3(0.0, 0.0, t * 2.6) + 9.0);
+            vec3 body = mix(tint * 0.5, vec3(0.2, 0.45, 1.0), smoothstep(0.55, 0.8, f1));
+            body = mix(body, vec3(1.0, 0.15, 0.3), smoothstep(0.6, 0.85, f2) * 0.8);
+            body *= 0.55 + 0.65 * smoothstep(0.25, 0.65, f1 * f2 * 2.0);
+            body += vec3(1.0, 0.92, 1.0) * exp(-d * d * (5.0 - 2.0 * k)) * (0.7 + 0.9 * flick);
+            float rimU = exp(-pow((uu - 1.0) / 0.06, 2.0));
+            body += mix(tint, vec3(1.0), 0.5) * rimU * (0.8 + 0.6 * flick);
+            float od = max(uu - 1.0, 0.0);
+            float flare = smoothstep(0.55, 0.85, fbm(vec3(dir * 4.0, od * 6.0 - t * 4.0))) * exp(-od * 5.0);
+            float inside = smoothstep(1.02, 0.96, uu);
+            col = mix(mix(tint, vec3(1.0), 0.3), body, inside);
+            a = max(inside, clamp(flare * 1.2 + exp(-od * 8.0) * 0.4, 0.0, 1.0) * smoothstep(1.6, 1.2, d));
+        } else if (calm) {
             // A clear sphere of energy: deep at the rim, brightening smoothly to a hot heart (white for Blue, red for Red), a few soft veins
             // of light drifting slowly over it, a crisp thin fresnel rim, a soft halo outside. No spiral.
             float dz = clamp(d, 0.0, 0.999), z = sqrt(1.0 - dz * dz);
@@ -93,15 +119,13 @@ void main() {
             n3.yz *= rot(t * 0.13);
             float veins = pow(ridge(fbm(n3 * 1.8 + vec3(0.0, 0.0, t * 0.25))), 7.0);
             float haze = fbm(n3 * 1.1 - vec3(t * 0.1));
-            // Blue like Red (owner, 2026-11-20): saturated colour all through, only the heart bright.
-            vec3 heart = isRed ? vec3(1.0, 0.28, 0.3) : vec3(0.85, 0.95, 1.0);
+            // Blue exactly as Red, in blue (owner, 2026-11-20): its heart a bright blue, not white.
+            vec3 heart = isRed ? vec3(1.0, 0.28, 0.3) : vec3(0.35, 0.65, 1.0);
             vec3 body = mix(tint * 0.3, tint * 0.95, smoothstep(0.0, 1.0, z)) * (0.85 + 0.3 * haze);
-            // Blue: no thin crack-like veins (owner, 2026-11-20), soft drifting clouds of brighter blue instead.
-            float cloud = smoothstep(0.45, 0.8, fbm(n3 * 1.4 + vec3(t * 0.12, 0.0, -t * 0.08)));
-            body += isRed ? mix(tint, heart, 0.5) * veins * 0.7 : tint * 0.55 * cloud;
-            body += heart * exp(-d * d * (isRed ? 4.5 : 9.0)) * (0.9 + 0.3 * level);
+            body += mix(tint, heart, 0.5) * veins * 0.7;
+            body += heart * exp(-d * d * 4.5) * (0.9 + 0.3 * level);
             float fres = pow(1.0 - z, 2.4);
-            body += (isRed ? mix(tint, vec3(1.0), 0.25) : tint * 1.4) * fres * 1.1;
+            body += mix(tint, vec3(1.0), 0.25) * fres * 1.1;
             float od = max(d - 1.0, 0.0);
             float inside = smoothstep(1.015, 0.985, d);
             col = mix(mix(tint, heart, 0.3), body, inside);

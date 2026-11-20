@@ -217,8 +217,7 @@ final class BlueRedDraw {
         }
         if (!c.glow()) return;
         // Kept low at the stop, where the two nearly touch and their light would pile up white (owner, round 42).
-        // Blue's halo stays blue (owner, 2026-11-20: only its heart bright, like Red).
-        glow(c, at, r * .9, .5 - .15 * surge, p.variant() == 0 ? p.light() : p.hot());
+        glow(c, at, r * .9, .5 - .15 * surge, p.hot());
         glow(c, at, r * (2 + .4 * surge), .2, p.halo());
         if (surge <= 0) return;
         // Pulses of pressure going out, one after another.
@@ -1324,8 +1323,19 @@ final class BlueRedDraw {
                 glow(c, at.add(side.scale(2 * (1 - k))), 1, 1 - k, CYAN);
                 glow(c, at.subtract(side.scale(2 * (1 - k))), 1, 1 - k, RED);
             }
+            // Unstable (owner, 2026-11-20): it trembles harder as it nears bursting, spikes in size now and then, blue and red ghosts split
+            // to either side.
+            Vec3 shook = at.add(jitter(age, .06 + .22 * charge, 9601));
+            double spike = hash(9602 + (long) Math.floor(age * 1.5)) > .7 ? .14 * charge : 0;
+            if (c.glow() && charge > .1) {
+                Vec3 side = look.cross(new Vec3(0, 1, 0));
+                side = side.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : side.normalize();
+                double split = s * (.15 + .2 * charge) * (.6 + .4 * Math.sin(age * 2.7));
+                glow(c, shook.add(side.scale(split)), s * 1.1, .22 * charge, CYAN);
+                glow(c, shook.subtract(side.scale(split)), s * 1.1, .22 * charge, RED);
+            }
             if (c.body()) {
-                orb(c, at, s, 2, charge > .6 ? 5 : 4, VIOLET, form);
+                orb(c, shook, s * (1 + spike), 2, 12 + (int) Math.min(3, 4 * charge), VIOLET, form);
                 for (int i = 0; i < 6; i++) {
                     Vec3 d = nvec(9690 + i, age * .02 + i).normalize();
                     fxSprite(c, at.add(d.scale(s * (1.15 + .3 * hash(9695 + i)))), s * .5, SMOKE, 9698 + i, i % 2 == 0 ? 0x4A1A80 : 0x2A0650, .3 * form, age * .02 + i);
