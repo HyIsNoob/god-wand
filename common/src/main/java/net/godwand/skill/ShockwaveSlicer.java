@@ -128,6 +128,8 @@ public class ShockwaveSlicer {
         List<BlockPos> candidatePositions = new ArrayList<>(surfaceCandidates.size() + deepCandidates.size());
         candidatePositions.addAll(surfaceCandidates);
         candidatePositions.addAll(deepCandidates);
+        // Terrain damage off (owner, 2026-11-20): no block is lifted out of the ground at all.
+        if (!net.godwand.config.GodWandConfig.SERVER.terrainDamage) candidatePositions.clear();
 
         int maxDisplays = Math.min(600, candidatePositions.size());
 
@@ -348,7 +350,7 @@ public class ShockwaveSlicer {
         for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, snapBox, ent -> !SpellDamage.isCaster(ent, task.caster) && ent.isAlive())) {
             Vec3 diff = task.center.getCenter().subtract(e.position());
             double dist = diff.length();
-            if (dist <= task.maxRadius * 1.15) {
+            if (dist <= task.maxRadius * 1.15 && SpellDamage.affects(e, task.caster)) {
                 float dmg = (float) Math.max(45.0, (1.0 - (dist / (task.maxRadius * 1.15))) * 80.0 + 45.0) * (float) net.godwand.config.GodWandConfig.skillDamageMultiplier(1,task.chargeLevel);
                 SpellDamage.hurt(e,world.damageSources().fallingBlock(task.caster), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (dmg));
 

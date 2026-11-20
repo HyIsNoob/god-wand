@@ -28,6 +28,18 @@ public final class GodWandConfig {
         public boolean gateCutscene = true;
         /** Switch to third person while casting Blue/Red, and back after (owner, 2026-11-20). */
         public boolean blueRedThirdPerson = false;
+        /** Purple's own cutscene switch (the screen's Cutscenes switch sets this and the others). */
+        public boolean purpleCutscene = true;
+        /** The mod's own sounds (godwand:*), 0..1, on top of the game's own volume sliders. */
+        public float soundVolume = 1;
+        /** The Blue/Red rings round the crosshair. */
+        public boolean skillHud = true;
+        /** The bare hand in first person for Purple and Fuga (off: the wand, as for the other skills). */
+        public boolean bareHand = true;
+        /** A fully charged Red throws its shooter back. */
+        public boolean redRecoil = true;
+        public boolean cutscenes() { return atomicCutscene && fugaCutscene && gateCutscene && purpleCutscene; }
+        public void cutscenes(boolean on) { atomicCutscene = fugaCutscene = gateCutscene = purpleCutscene = on; }
         public float cameraShake = 1;
         public float bloomStrength = .85f;
         public int bloomDownsample = 4;
@@ -47,6 +59,7 @@ public final class GodWandConfig {
             cameraShake = finiteClamp(cameraShake, 0, 1, 1);
             bloomStrength = finiteClamp(bloomStrength, 0, 1.5f, .85f);
             bloomDownsample = Mth.clamp(bloomDownsample, 2, 8);
+            soundVolume = finiteClamp(soundVolume, 0, 1, 1);
         }
     }
 
@@ -111,6 +124,21 @@ public final class GodWandConfig {
         public boolean redTerrainDamage = true;
         public boolean purpleTerrainDamage = true;
         public List<String> dimensionBlacklist = new ArrayList<>();
+        /** Master switch over every skill's own terrain damage (owner, 2026-11-20: one switch for servers). */
+        public boolean terrainDamage = true;
+        public boolean terrain(boolean skill) { return terrainDamage && skill; }
+        /** Spells hurting other players. */
+        public boolean pvp = true;
+        /** Who spells hurt and push: "all"; "no_pets" (spares tamed, named and leashed mobs, villagers and traders, iron and snow
+         *  golems, armor stands, allays); "hostile" (monsters only). Other players follow pvp. */
+        public String spellTargets = "no_pets";
+        /** Red into an unready Blue (or an early Red) makes the small Purple; off, Red passes the Blue by. */
+        public boolean smallPurple = true;
+        public float smallPurpleStrength = 1;
+        /** How far a ready Blue reaches out to catch a passing Red, in blocks. */
+        public float purpleAssist = 2;
+        /** The cutscene Purple needs a fully charged Red (otherwise any Red into a ready Blue). */
+        public boolean purpleNeedsFullRed = true;
 
         public boolean isDimensionBlacklisted(String dimensionId) { return !isDimensionAllowed(dimensionId); }
         public boolean isDimensionAllowed(String dimensionId) { return dimensionBlacklist==null||!dimensionBlacklist.contains(dimensionId); }

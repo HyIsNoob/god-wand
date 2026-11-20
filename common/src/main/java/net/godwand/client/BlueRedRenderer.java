@@ -122,7 +122,7 @@ public final class BlueRedRenderer {
                     GodWandCinematicEngine.addTrauma((float) (.55 + .35 * power), 14); GodWandCinematicEngine.setFovPunch((float) (1.06 + .06 * power), 3);
                     // The recoil (owner, 2026-11-20): the shooter is thrown back against the shot, about a block on a full charge.
                     Vec3 dir = new Vec3(p.dx(), 0, p.dz());
-                    if (dir.lengthSqr() > 1e-6) { Vec3 kick = dir.normalize().scale(-.75 * power * power); me.push(kick.x, .12 * power * power, kick.z); }
+                    if (GodWandConfig.CLIENT.redRecoil && dir.lengthSqr() > 1e-6) { Vec3 kick = dir.normalize().scale(-.75 * power * power); me.push(kick.x, .12 * power * power, kick.z); }
                     // Black and red impact frames on the shot (owner, 2026-11-19).
                     if (GodWandConfig.CLIENT.impactFrames) { IMPACTS.clear(); IMPACTS.add(new Burst(at, clock, false, new Vec3(p.dx(), p.dy(), p.dz()))); }
                 }

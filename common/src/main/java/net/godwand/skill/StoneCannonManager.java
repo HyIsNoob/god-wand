@@ -82,7 +82,7 @@ public class StoneCannonManager {
     }
 
     private static Vec3 excavateImpact(StoneCannonProjectileEntity projectile, Vec3 start, Vec3 end) {
-        if (!net.godwand.config.GodWandConfig.SERVER.stoneCannonTerrainDamage) return start;
+        if (!net.godwand.config.GodWandConfig.SERVER.terrain(net.godwand.config.GodWandConfig.SERVER.stoneCannonTerrainDamage)) return start;
         ServerLevel world = (ServerLevel) projectile.level();
         Vec3 travel = end.subtract(start);
         int steps = Math.max(1, (int) Math.ceil(travel.length() * 4));
@@ -277,7 +277,7 @@ public class StoneCannonManager {
 
         for (LivingEntity e : sw.getEntitiesOfClass(LivingEntity.class, aoeBox, ent -> ent != projectile.getOwner() && ent.isAlive())) {
             double dist = e.position().distanceTo(hitPos);
-            if (dist <= blastRadius && projectile.markHit(e)) {
+            if (dist <= blastRadius && SpellDamage.affects(e, projectile.getOwner()) && projectile.markHit(e)) {
                 float splashDmg = (float) Math.max(30.0, (1.0 - (dist / blastRadius)) * (calculateDirectDamage(level) * 0.75) + 30.0);
                 SpellDamage.hurt(e,sw.damageSources().fallingBlock(projectile.getOwner()), (e instanceof net.minecraft.world.entity.Mob ? 2.0f : 1.0f) * (splashDmg * (float) net.godwand.config.GodWandConfig.skillDamageMultiplier(4,level)));
                 Vec3 blastDir = e.position().subtract(hitPos);

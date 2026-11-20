@@ -18,7 +18,7 @@ public final class PurpleCinematic {
     }
 
     static void start(int ownerId, int shooterId, int localId, Vec3 at, Vec3 localEye) {
-        if (localId != ownerId && localId != shooterId) return;
+        if (localId != ownerId && localId != shooterId || !net.godwand.config.GodWandConfig.CLIENT.purpleCutscene) return;
         center = at; eye = localEye; age = 0;
         // Owner, round 39: the camera stays on the player's side; the orbit is turned so Red opens between it and Blue (a little off the line,
         // so Blue still shows behind).

@@ -37,8 +37,8 @@ public class RatioCollapseManager {
 
     public static class RatioCollapseTask {
         public final ServerLevel world;
-        public final boolean terrainDamage=net.godwand.config.GodWandConfig.SERVER.earthDrillTerrainDamage;
-        public final boolean blockLift=net.godwand.config.GodWandConfig.SERVER.earthDrillBlockLift;
+        public final boolean terrainDamage=net.godwand.config.GodWandConfig.SERVER.terrain(net.godwand.config.GodWandConfig.SERVER.earthDrillTerrainDamage);
+        public final boolean blockLift=net.godwand.config.GodWandConfig.SERVER.terrain(net.godwand.config.GodWandConfig.SERVER.earthDrillBlockLift);
         public final ServerPlayer caster;
         public final BlockPos center;
         public final Vec3 meteorCore;

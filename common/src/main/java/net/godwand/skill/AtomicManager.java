@@ -66,7 +66,7 @@ public final class AtomicManager {
         if (task == null || task.armed || task.world != player.serverLevel()) return false;
         task.center = player.position(); task.armed = true;
         task.started = task.world.getGameTime() - AtomicSequence.CHARGE_TICKS;
-        task.crater = new AtomicCrater(BlockPos.containing(task.center).below(), GodWandConfig.SERVER.atomicTerrainDamage ? AtomicCrater.terrainRadius(GodWandConfig.SERVER.atomicTerrainRadius) : 0);
+        task.crater = new AtomicCrater(BlockPos.containing(task.center).below(), GodWandConfig.SERVER.terrain(GodWandConfig.SERVER.atomicTerrainDamage) ? AtomicCrater.terrainRadius(GodWandConfig.SERVER.atomicTerrainRadius) : 0);
         broadcast(task, AtomicFxPayload.ARMED);
         return true;
     }

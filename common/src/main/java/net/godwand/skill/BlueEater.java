@@ -71,7 +71,7 @@ public final class BlueEater {
 
     /** Eats up to EAT_PER_TICK blocks around center; returns the inspections used from the shared budget. */
     static int eat(ServerLevel level, Vec3 center, int radius, int budget, long deadline, List<Eaten> live) {
-        return carve(level, center, radius, budget, deadline, EAT_PER_TICK, live, GodWandConfig.SERVER.blueTerrainDamage);
+        return carve(level, center, radius, budget, deadline, EAT_PER_TICK, live, GodWandConfig.SERVER.terrain(GodWandConfig.SERVER.blueTerrainDamage));
     }
 
     /** Clears up to cap blocks of a sphere, nearest first; live (or null for none) collects flying displays. */

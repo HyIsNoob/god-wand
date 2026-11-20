@@ -171,20 +171,24 @@ public final class BlueRedManager {
         double first = 2;
         for (Blue b : blues(red.level)) {
             // A ready Blue pulls in a Red that misses it by up to two blocks (owner, 2026-11-20: Blue is a pull, so it reads right).
-            double reach = BlueRedRules.BLUE_RADIUS + 1 + (BlueRedRules.meet(b.state) == BlueRedRules.RedMeetsBlue.PURPLE ? BlueRedRules.PURPLE_ASSIST : 0);
+            double reach = BlueRedRules.BLUE_RADIUS + 1 + (BlueRedRules.meet(b.state) == BlueRedRules.RedMeetsBlue.PURPLE ? Math.max(0, cfg.purpleAssist) : 0);
             double t = BlueRedRules.segmentSphere(from, to, b.pos, reach);
             if (t >= 0 && t < first) { first = t; hit = b; }
         }
         if (hit != null) {
-            REDS.remove(red);
             // The full Purple (cutscene) needs a ready Blue and a fully charged Red (owner, 2026-11-20); anything less makes the small one.
-            if (BlueRedRules.meet(hit.state) == BlueRedRules.RedMeetsBlue.PURPLE && red.power >= 1 - 1e-6) startPurple(red.level, hit, red.shooter);
-            else smallPurple(red.level, hit, red.shooter);
-            return 0;
+            // Both are server settings; with the small one off, Red passes the Blue by.
+            boolean full = BlueRedRules.meet(hit.state) == BlueRedRules.RedMeetsBlue.PURPLE && (red.power >= 1 - 1e-6 || !cfg.purpleNeedsFullRed);
+            if (full || cfg.smallPurple) {
+                REDS.remove(red);
+                if (full) startPurple(red.level, hit, red.shooter);
+                else smallPurple(red.level, hit, red.shooter);
+                return 0;
+            }
         }
         float damage = (float) (cfg.redDamage * cfg.damageMultiplier * red.power);
         for (Entity e : finder.find(red.level, new AABB(from, to).inflate(BlueRedRules.RED_HIT_RADIUS + 1))) {
-            if (!(e instanceof LivingEntity) || SpellDamage.isCaster(e, red.shooter) || e.isSpectator()) continue;
+            if (!(e instanceof LivingEntity) || SpellDamage.isCaster(e, red.shooter) || e.isSpectator() || !SpellDamage.affects(e, red.shooter)) continue;
             Vec3 middle = e.position().add(0, e.getBbHeight() / 2, 0);
             if (BlueRedRules.distanceToSegment(middle, from, to) <= BlueRedRules.RED_HIT_RADIUS + e.getBbWidth() / 2 && red.struck.add(e.getUUID())) {
                 hurter.hurt(e, red.shooter, damage);
@@ -200,7 +204,7 @@ public final class BlueRedManager {
         int used = 0;
         double length = from.distanceTo(to);
         for (double step = 0; step <= length && used < budget; step += 1)
-            used += BlueEater.carve(red.level, from.add(red.dir.scale(step)), cfg.redTunnelRadius, budget - used, deadline, Integer.MAX_VALUE, null, cfg.redTerrainDamage);
+            used += BlueEater.carve(red.level, from.add(red.dir.scale(step)), cfg.redTunnelRadius, budget - used, deadline, Integer.MAX_VALUE, null, cfg.terrain(cfg.redTerrainDamage));
         if (last) { used += explode(red, to, budget - used, deadline); endRed(red, to); }
         return used;
     }
@@ -209,7 +213,7 @@ public final class BlueRedManager {
         var cfg = GodWandConfig.SERVER;
         double radius = Math.max(cfg.redCraterRadius, 2);
         for (Entity e : finder.find(red.level, new AABB(at, at).inflate(radius))) {
-            if (SpellDamage.isCaster(e, red.shooter) || e.isSpectator() || e instanceof Display) continue;
+            if (SpellDamage.isCaster(e, red.shooter) || e.isSpectator() || e instanceof Display || !SpellDamage.affects(e, red.shooter)) continue;
             Vec3 out = e.position().subtract(at);
             if (out.length() > radius) continue;
             if (e instanceof LivingEntity) hurter.hurt(e, red.shooter, (float) (cfg.redDamage * cfg.damageMultiplier * red.power));
@@ -217,7 +221,7 @@ public final class BlueRedManager {
             e.hurtMarked = true;
         }
         int crater = cfg.redCraterRadius <= 0 ? 0 : Math.max(2, (int) Math.round(cfg.redCraterRadius * (.5 + .5 * red.power)));
-        return BlueEater.carve(red.level, at, crater, budget, deadline, Integer.MAX_VALUE, null, cfg.redTerrainDamage);
+        return BlueEater.carve(red.level, at, crater, budget, deadline, Integer.MAX_VALUE, null, cfg.terrain(cfg.redTerrainDamage));
     }
 
     private static void endRed(Red red, Vec3 at) {
@@ -251,7 +255,7 @@ public final class BlueRedManager {
     }
 
     /** Crater radius of a small Purple. */
-    static int smallRadius(double power) { return Math.max(4, (int) Math.round(GodWandConfig.SERVER.purpleRadius * .34 * power)); }
+    static int smallRadius(double power) { return Math.max(4, (int) Math.round(GodWandConfig.SERVER.purpleRadius * .34 * power * Math.max(0, GodWandConfig.SERVER.smallPurpleStrength))); }
 
     private static int tickSmall(SmallPurple s, int budget, long deadline) {
         if (++s.age >= BlueRedRules.SMALL_END) { SMALLS.remove(s); return 0; }
@@ -260,13 +264,13 @@ public final class BlueRedManager {
         int crater = smallRadius(s.power);
         double reach = crater * 1.5;
         for (Entity e : finder.find(s.level, new AABB(s.at, s.at).inflate(reach))) {
-            if (SpellDamage.isCaster(e, s.owner) || SpellDamage.isCaster(e, s.shooter) || e.isSpectator() || e instanceof Display) continue;
+            if (SpellDamage.isCaster(e, s.owner) || SpellDamage.isCaster(e, s.shooter) || e.isSpectator() || e instanceof Display || !SpellDamage.affects(e, s.shooter)) continue;
             Vec3 out = e.position().subtract(s.at);
             if (out.length() > reach) continue;
-            if (e instanceof LivingEntity) hurter.hurt(e, s.shooter, (float) (cfg.purpleDamage * cfg.damageMultiplier * s.power * .25));
+            if (e instanceof LivingEntity) hurter.hurt(e, s.shooter, (float) (cfg.purpleDamage * cfg.damageMultiplier * s.power * .25 * Math.max(0, cfg.smallPurpleStrength)));
             if (out.lengthSqr() > 1e-6) { e.setDeltaMovement(e.getDeltaMovement().add(out.normalize().scale(2 * s.power + .5)).add(0, .6, 0)); e.hurtMarked = true; }
         }
-        return BlueEater.carve(s.level, s.at, crater, Math.max(budget, 20_000), Math.max(deadline, System.nanoTime() + 10_000_000L), Integer.MAX_VALUE, null, cfg.purpleTerrainDamage);
+        return BlueEater.carve(s.level, s.at, crater, Math.max(budget, 20_000), Math.max(deadline, System.nanoTime() + 10_000_000L), Integer.MAX_VALUE, null, cfg.terrain(cfg.purpleTerrainDamage));
     }
 
     /** Red met a ready Blue: Purple at the Blue. Both players watch it and both lose the whole skill for purpleCooldownTicks. */
@@ -309,11 +313,11 @@ public final class BlueRedManager {
             double[] o = BlueRedRules.strikeOffset(k);
             int x = (int) Math.floor(p.center.x + o[0]), z = (int) Math.floor(p.center.z + o[1]);
             int y = p.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
-            used += BlueEater.carve(p.level, new Vec3(x + .5, y - 1, z + .5), 4, budget, deadline, Integer.MAX_VALUE, null, cfg.purpleTerrainDamage);
+            used += BlueEater.carve(p.level, new Vec3(x + .5, y - 1, z + .5), 4, budget, deadline, Integer.MAX_VALUE, null, cfg.terrain(cfg.purpleTerrainDamage));
         }
         // The ground round it charges and chunks of it tear loose and float, crackling, until the burst takes them (owner, 2026-11-19).
-        if (p.age > BlueRedRules.PURPLE_MERGE && p.age < BlueRedRules.PURPLE_DETONATE && p.age % 2 == 0 && cfg.purpleTerrainDamage && p.level.getChunkSource() != null)
-            for (int i = 0; i < 3 && p.lifted.size() < BlueRedRules.LIFT_MAX; i++) {
+        if (p.age > BlueRedRules.PURPLE_MERGE && p.age < BlueRedRules.PURPLE_DETONATE && p.age % 2 == 0 && cfg.terrain(cfg.purpleTerrainDamage) && p.level.getChunkSource() != null)
+            for (int i = 0; i < 3 && p.lifted.size() < BlueRedRules.LIFT_MAX && cfg.terrain(cfg.purpleTerrainDamage); i++) {
                 double[] o = BlueRedRules.strikeOffset(100 + p.age * 3 + i);
                 int x = (int) Math.floor(p.center.x + o[0]), z = (int) Math.floor(p.center.z + o[1]);
                 int y = p.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z) - 1;
@@ -336,15 +340,15 @@ public final class BlueRedManager {
         int[][] cells = BlueEater.sphere(cfg.purpleRadius);
         if (p.cursor < cells.length) {
             int before = p.cursor;
-            p.cursor = BlueEater.carveFrom(p.level, p.center, cells, p.cursor, allowance, until, cfg.purpleTerrainDamage, frames ? 40000 : rush ? 9000 : BlueEater.PURPLE_CLEAR_PER_TICK);
-            if (!cfg.purpleTerrainDamage) p.cursor = cells.length;
+            p.cursor = BlueEater.carveFrom(p.level, p.center, cells, p.cursor, allowance, until, cfg.terrain(cfg.purpleTerrainDamage), frames ? 40000 : rush ? 9000 : BlueEater.PURPLE_CLEAR_PER_TICK);
+            if (!cfg.terrain(cfg.purpleTerrainDamage)) p.cursor = cells.length;
             if (p.cursor >= cells.length) p.dugAt = p.age;
             return Math.min(budget, p.cursor - before) + used;
         }
         // Once the crater is dug, the land round it is left stained violet.
         if (p.stain == Integer.MAX_VALUE || p.level.getChunkSource() == null) return used;
         int before = p.stain;
-        p.stain = BlueEater.stainFrom(p.level, p.center, cfg.purpleRadius, p.stain, allowance, until, cfg.purpleTerrainDamage, rush ? 4000 : BlueEater.STAIN_PER_TICK);
+        p.stain = BlueEater.stainFrom(p.level, p.center, cfg.purpleRadius, p.stain, allowance, until, cfg.terrain(cfg.purpleTerrainDamage), rush ? 4000 : BlueEater.STAIN_PER_TICK);
         if (p.stain == Integer.MAX_VALUE) p.stainedAt = p.age;
         return Math.min(budget, p.stain == Integer.MAX_VALUE ? 0 : p.stain - before) + used;
     }
@@ -354,7 +358,7 @@ public final class BlueRedManager {
         // Owner, 2026-11-18: the blast reaches half again further than the crater it digs.
         double radius = Math.max(cfg.purpleRadius, 2) * 1.5;
         for (Entity e : finder.find(p.level, new AABB(p.center, p.center).inflate(radius))) {
-            if (p.participant(e) || e.isSpectator() || e instanceof Display) continue;
+            if (p.participant(e) || e.isSpectator() || e instanceof Display || !SpellDamage.affects(e, p.shooter)) continue;
             Vec3 out = e.position().subtract(p.center);
             if (out.length() > radius) continue;
             if (e instanceof LivingEntity living) {
@@ -449,7 +453,7 @@ public final class BlueRedManager {
         double radius = GodWandConfig.SERVER.bluePullRadius;
         float damage = GodWandConfig.SERVER.blueCoreDamage * GodWandConfig.SERVER.damageMultiplier;
         for (Entity e : finder.find(blue.level, new AABB(blue.pos, blue.pos).inflate(radius))) {
-            if (SpellDamage.isCaster(e, blue.owner) || e.isSpectator() || e instanceof Display) continue;
+            if (SpellDamage.isCaster(e, blue.owner) || e.isSpectator() || e instanceof Display || !SpellDamage.affects(e, blue.owner)) continue;
             Vec3 middle = e.position().add(0, e.getBbHeight() / 2, 0), toward = blue.pos.subtract(middle);
             double distance = toward.length();
             if (distance > radius) continue;

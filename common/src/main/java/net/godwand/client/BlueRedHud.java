@@ -14,7 +14,7 @@ public final class BlueRedHud {
     public static void render(GuiGraphics g, float partial) {
         var mc = Minecraft.getInstance();
         var me = mc.player;
-        if (me == null || mc.options.hideGui || mc.screen != null || PurpleCinematic.active() || !BlueRedHand.holds(me)) return;
+        if (me == null || !net.godwand.config.GodWandConfig.CLIENT.skillHud || mc.options.hideGui || mc.screen != null || PurpleCinematic.active() || !BlueRedHand.holds(me)) return;
         int cx = g.guiWidth() / 2, cy = g.guiHeight() / 2;
         double now = BlueRedRenderer.now(partial);
         double red = BlueRedRenderer.redChargeAge(me.getId(), partial);

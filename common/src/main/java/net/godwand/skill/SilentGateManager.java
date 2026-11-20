@@ -326,7 +326,7 @@ public final class SilentGateManager {
 
     private static void crater(Task task, Vec3 at) {
         int r = GodWandConfig.SERVER.gateCraterRadius;
-        if (!GodWandConfig.SERVER.gateTerrainDamage || r <= 0) return;
+        if (!GodWandConfig.SERVER.terrain(GodWandConfig.SERVER.gateTerrainDamage) || r <= 0) return;
         queueCrater(task.world, task.caster, at, r);
     }
 

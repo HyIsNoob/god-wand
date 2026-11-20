@@ -62,8 +62,8 @@ public class SupernovaManager {
 
     public static class SupernovaTask {
         public final ServerLevel world;
-        public final boolean terrainDamage=net.godwand.config.GodWandConfig.SERVER.supernovaTerrainDamage;
-        public final boolean blockLift=net.godwand.config.GodWandConfig.SERVER.supernovaBlockLift;
+        public final boolean terrainDamage=net.godwand.config.GodWandConfig.SERVER.terrain(net.godwand.config.GodWandConfig.SERVER.supernovaTerrainDamage);
+        public final boolean blockLift=net.godwand.config.GodWandConfig.SERVER.terrain(net.godwand.config.GodWandConfig.SERVER.supernovaBlockLift);
         public final ServerPlayer caster;
         public final BlockPos groundCenter;
         public final Vec3 corePos;
@@ -376,6 +376,8 @@ public class SupernovaManager {
                 AABB suctionBox = new AABB(task.groundCenter).inflate(currentPeelRadius * 1.4);
                 if(task.ageTicks%4==0)SpellDamage.hurtExtras(world,suctionBox,world.damageSources().explosion(null,task.caster),e -> e.position().distanceToSqr(task.corePos)<=12.25?15*net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1):0);
                 for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, suctionBox, ent -> !SpellDamage.isCaster(ent, task.caster))) {
+                    // Its heart kills outright: only what spells may touch (owner, 2026-11-20: never a pet or a player with PvP off).
+                    if (!SpellDamage.affects(e, task.caster)) continue;
                     double distToCoreSq = e.distanceToSqr(task.corePos);
                     if (distToCoreSq <= 12.25 && net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1) > 0) { // Bán kính 3.5m quanh tâm hố đen
                         var source = world.damageSources().fellOutOfWorld();
@@ -439,6 +441,7 @@ public class SupernovaManager {
                 AABB blastBox = new AABB(task.groundCenter).inflate(task.blastRadius + 10.0);
                 SpellDamage.hurtExtras(world,blastBox,world.damageSources().explosion(null,task.caster),e -> e.position().distanceTo(task.corePos)<=task.blastRadius+8 ? Math.max(80.0,(1-e.position().distanceTo(task.corePos)/task.blastRadius)*380+80)*net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1):0);
                 for (LivingEntity e : world.getEntitiesOfClass(LivingEntity.class, blastBox, ent -> !SpellDamage.isCaster(ent, task.caster))) {
+                    if (!SpellDamage.affects(e, task.caster)) continue;
                     double dist = e.position().distanceTo(task.corePos);
                     if (dist <= task.blastRadius + 8.0) {
                         float dmg = (float) Math.max(80.0, (1.0 - (dist / task.blastRadius)) * 380.0 + 80.0) * (float) net.godwand.config.GodWandConfig.skillDamageMultiplier(3,1);

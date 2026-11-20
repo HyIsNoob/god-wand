@@ -27,7 +27,8 @@
     "BlueRedAttackMixin",
     "BlueRedHandMixin",
     "BlueRedPoseMixin",
-    "PurpleSkipMixin"
+    "PurpleSkipMixin",
+    "GodWandVolumeMixin"
   ],
   "injectors": {
     "defaultRequire": 1

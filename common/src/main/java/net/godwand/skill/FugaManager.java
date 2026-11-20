@@ -102,7 +102,7 @@ public final class FugaManager {
             if(age<FugaSequence.ORB_TICKS && world.getGameTime()%10==0)slow(task);
             if(age>=FugaSequence.END_TICK) {
                 broadcast(task,FugaFxPayload.END);iterator.remove();
-                if(task.crater!=null && !task.crater.finished() && GodWandConfig.SERVER.fugaTerrainDamage)SETTLING.add(new Settling(world,task.crater,task.phaseAt,task.forced));
+                if(task.crater!=null && !task.crater.finished() && GodWandConfig.SERVER.terrain(GodWandConfig.SERVER.fugaTerrainDamage))SETTLING.add(new Settling(world,task.crater,task.phaseAt,task.forced));
                 else release(world,task.forced);
                 continue;
             }
@@ -111,12 +111,12 @@ public final class FugaManager {
                 outflow(task,age);
             }
             // The ground heaves up into rock spires under the descending mass, before the crater tears them out.
-            if(age>=8 && age<FugaSequence.ORB_TICKS-8 && budget>0 && task.crater!=null && GodWandConfig.SERVER.fugaTerrainDamage)
+            if(age>=8 && age<FugaSequence.ORB_TICKS-8 && budget>0 && task.crater!=null && GodWandConfig.SERVER.terrain(GodWandConfig.SERVER.fugaTerrainDamage))
                 budget-=task.crater.upheave(world,budget,age);
             // The ground sinks and buckles under the sphere as it presses down, just before the blast tears it out.
-            if(age>=FugaSequence.ORB_TICKS-36 && age<FugaSequence.ORB_TICKS+4 && budget>0 && task.crater!=null && GodWandConfig.SERVER.fugaTerrainDamage)
+            if(age>=FugaSequence.ORB_TICKS-36 && age<FugaSequence.ORB_TICKS+4 && budget>0 && task.crater!=null && GodWandConfig.SERVER.terrain(GodWandConfig.SERVER.fugaTerrainDamage))
                 budget-=task.crater.press(world,budget,age);
-            if(FugaSequence.terrainActive(age) && budget>0 && GodWandConfig.SERVER.fugaTerrainDamage)
+            if(FugaSequence.terrainActive(age) && budget>0 && GodWandConfig.SERVER.terrain(GodWandConfig.SERVER.fugaTerrainDamage))
                 budget-=task.crater.carve(world,budget,deadline,age);
         }
         settle(world,budget,deadline);
@@ -125,7 +125,7 @@ public final class FugaManager {
         for(var iterator=SETTLING.iterator();iterator.hasNext();) {
             var s=iterator.next();if(s.world()!=world)continue;
             double age=world.getGameTime()-s.impactAt();
-            if(s.crater().finished() || !FugaSequence.terrainActive(age) || !GodWandConfig.SERVER.fugaTerrainDamage) {release(s.world(),s.forced());iterator.remove();continue;}
+            if(s.crater().finished() || !FugaSequence.terrainActive(age) || !GodWandConfig.SERVER.terrain(GodWandConfig.SERVER.fugaTerrainDamage)) {release(s.world(),s.forced());iterator.remove();continue;}
             if(budget>0)budget-=s.crater().carve(world,budget,deadline,age);
         }
     }
@@ -156,7 +156,7 @@ public final class FugaManager {
             task.crater=new FugaCrater(BlockPos.containing(end),GodWandConfig.SERVER.fugaTerrainRadius);
             // The shot lands far from the caster, often past their loaded area: keep the whole crater and blast ring
             // loaded while it is carved, or it is left full of missing chunks.
-            if(GodWandConfig.SERVER.fugaTerrainDamage)task.toForce.addAll(forceOrder(BlockPos.containing(end),FugaCrater.reach(GodWandConfig.SERVER.fugaTerrainRadius)));
+            if(GodWandConfig.SERVER.terrain(GodWandConfig.SERVER.fugaTerrainDamage))task.toForce.addAll(forceOrder(BlockPos.containing(end),FugaCrater.reach(GodWandConfig.SERVER.fugaTerrainRadius)));
             broadcast(task,FugaFxPayload.IMPACT);
         }
     }
@@ -256,14 +256,14 @@ public final class FugaManager {
             for(var entity:task.world.getEntitiesOfClass(LivingEntity.class,area,e->e!=task.caster && e.isAlive()
                     && !(e instanceof Player player && (player.isCreative() || player.isSpectator())))) {
                 double dx=entity.getX()-p.x,dz=entity.getZ()-p.z,d=Math.hypot(dx,dz);
-                if(d<inner || d>reach)continue;
+                if(d<inner || d>reach || !SpellDamage.affects(entity,task.caster))continue;
                 SpellDamage.hurt(entity,task.world.damageSources().indirectMagic(task.caster,task.caster),amount);
                 entity.setRemainingFireTicks(Math.max(entity.getRemainingFireTicks(),100));
                 entity.setDeltaMovement(entity.getDeltaMovement().add(dx/Math.max(1,d)*.6,.15,dz/Math.max(1,d)*.6));
                 entity.hurtMarked=true;
             }
         }
-        if(!GodWandConfig.SERVER.fugaTerrainDamage)return;
+        if(!GodWandConfig.SERVER.terrain(GodWandConfig.SERVER.fugaTerrainDamage))return;
         // Only flammable things it touches catch: plants, wood, leaves. Loaded chunks only, protected blocks kept.
         var random=task.world.getRandom();
         for(int i=0;i<6;i++) {

@@ -30,7 +30,7 @@ public final class BlueRedHand {
     /** First person shows the bare hand instead of the wand: Purple's mode, and Fuga's (owner, 2026-11-20), whose wand is put away too. */
     public static boolean bareHand(Player p) {
         var s = p.getMainHandItem();
-        if (!(s.getItem() instanceof GodWandItem)) return false;
+        if (!GodWandConfig.CLIENT.bareHand || !(s.getItem() instanceof GodWandItem)) return false;
         int mode = GodWandItem.getSkillMode(s);
         return mode == GodWandItem.MODE_BLUE_RED || mode == GodWandItem.MODE_FUGA;
     }

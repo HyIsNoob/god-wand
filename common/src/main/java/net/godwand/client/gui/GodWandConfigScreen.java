@@ -66,20 +66,24 @@ public class GodWandConfigScreen extends Screen {
                         Component.translatable("gui.godwand.config.target_marker"),
                         (btn, val) -> GodWandConfig.CLIENT.targetMarker = val));
 
-        addRenderableWidget(CycleButton.onOffBuilder(GodWandConfig.CLIENT.atomicCutscene)
-                .create(right,y,columnWidth,20,Component.translatable("gui.godwand.config.atomic_cutscene"),
-                        (button,value)->GodWandConfig.CLIENT.atomicCutscene=value));
+        // One switch for every cutscene (owner, 2026-11-20); each skill's own stays in the JSON.
+        addRenderableWidget(CycleButton.onOffBuilder(GodWandConfig.CLIENT.cutscenes())
+                .create(right,y,columnWidth,20,Component.translatable("gui.godwand.config.cutscenes"),
+                        (button,value)->GodWandConfig.CLIENT.cutscenes(value)));
         y += 20 + gap;
-        addRenderableWidget(CycleButton.onOffBuilder(GodWandConfig.CLIENT.fugaCutscene)
-                .create(left,y,columnWidth,20,Component.translatable("gui.godwand.config.fuga_cutscene"),
-                        (button,value)->GodWandConfig.CLIENT.fugaCutscene=value));
-        addRenderableWidget(CycleButton.onOffBuilder(GodWandConfig.CLIENT.gateCutscene)
-                .create(right,y,columnWidth,20,Component.translatable("gui.godwand.config.gate_cutscene"),
-                        (button,value)->GodWandConfig.CLIENT.gateCutscene=value));
+        addRenderableWidget(CycleButton.onOffBuilder(GodWandConfig.CLIENT.skillHud)
+                .create(left,y,columnWidth,20,Component.translatable("gui.godwand.config.skill_hud"),
+                        (button,value)->GodWandConfig.CLIENT.skillHud=value));
+        addRenderableWidget(CycleButton.onOffBuilder(GodWandConfig.CLIENT.bareHand)
+                .create(right,y,columnWidth,20,Component.translatable("gui.godwand.config.bare_hand"),
+                        (button,value)->GodWandConfig.CLIENT.bareHand=value));
         y += 20 + gap;
         addRenderableWidget(CycleButton.onOffBuilder(GodWandConfig.CLIENT.blueRedThirdPerson)
                 .create(left,y,columnWidth,20,Component.translatable("gui.godwand.config.bluered_third_person"),
                         (button,value)->GodWandConfig.CLIENT.blueRedThirdPerson=value));
+        addRenderableWidget(CycleButton.onOffBuilder(GodWandConfig.CLIENT.redRecoil)
+                .create(right,y,columnWidth,20,Component.translatable("gui.godwand.config.red_recoil"),
+                        (button,value)->GodWandConfig.CLIENT.redRecoil=value));
         y += 20 + gap;
 
         addRenderableWidget(new AbstractSliderButton(left, y, columnWidth, 20,
@@ -108,6 +112,14 @@ public class GodWandConfigScreen extends Screen {
             protected void applyValue() {
                 GodWandConfig.CLIENT.cameraShake = (float) this.value;
             }
+        });
+
+        y += 20 + gap;
+        addRenderableWidget(new AbstractSliderButton(left, y, columnWidth, 20,
+                Component.translatable("gui.godwand.config.sound_volume", (int) (GodWandConfig.CLIENT.soundVolume * 100)),
+                GodWandConfig.CLIENT.soundVolume) {
+            @Override protected void updateMessage() { setMessage(Component.translatable("gui.godwand.config.sound_volume", (int) (this.value * 100))); }
+            @Override protected void applyValue() { GodWandConfig.CLIENT.soundVolume = (float) this.value; }
         });
 
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> {

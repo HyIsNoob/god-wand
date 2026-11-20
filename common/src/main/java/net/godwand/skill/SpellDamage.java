@@ -29,7 +29,8 @@ public final class SpellDamage {
     public static boolean hurt(Entity target,DamageSource original,float amount) {
         if(!Float.isFinite(amount)||amount<=0)return false;
         // Keep PvP, creative immunity and player-protection hooks on the original damage path.
-        if(target instanceof Player player)return player.hurt(original,amount);
+        // PvP off (owner, 2026-11-20): one player's spells leave the others unharmed.
+        if(target instanceof Player player)return net.godwand.config.GodWandConfig.SERVER.pvp||!(original.getEntity() instanceof Player)||isCaster(target,original.getEntity())?player.hurt(original,amount):false;
         if(target instanceof LivingEntity living) {
             if(!(living.level() instanceof ServerLevel world))return false;
             var type=world.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(TYPE);
