@@ -64,7 +64,7 @@ public final class GodWandConfig {
     }
 
     public static final class Server {
-        public int cooldownDefaultsVersion = 2;
+        public int cooldownDefaultsVersion = 3;
         public float cooldownMultiplier = 1;
         public float damageMultiplier = 1;
         public int spatialPathCooldownTicks = 20;
@@ -112,8 +112,8 @@ public final class GodWandConfig {
         public int bluePullRadius = 8;
         public int blueEatRadius = 5;
         public int blueChargeTicks = 160;
-        /** How long a ready Blue hangs after it is let go (owner, 2026-11-20: 15 s was far too long). */
-        public int blueAnchorTicks = 100;
+        /** How long a ready Blue hangs after it is let go (owner, 2026-11-20: 15 s was far too long; 8 s). */
+        public int blueAnchorTicks = 160;
         public int redChargeTicks = 50;
         public float redDamage = 500;
         public int redRange = 100;
@@ -223,10 +223,10 @@ public final class GodWandConfig {
 
     static boolean upgradeCooldownDefaults(com.google.gson.JsonObject object) {
         int version=object.has("cooldownDefaultsVersion")?object.get("cooldownDefaultsVersion").getAsInt():0;
-        if(version>=2)return false;
-        // 1.6.0 test builds wrote a ready Blue's old 15 s hang; a value someone chose is kept.
-        if(object.has("blueAnchorTicks")&&object.get("blueAnchorTicks").getAsInt()==300)object.addProperty("blueAnchorTicks",100);
-        object.addProperty("cooldownDefaultsVersion",2);
+        if(version>=3)return false;
+        // 1.6.0 test builds wrote a ready Blue's earlier hangs (15 s, then 5 s); a value someone chose is kept.
+        if(object.has("blueAnchorTicks")){int t=object.get("blueAnchorTicks").getAsInt();if(t==300||t==100)object.addProperty("blueAnchorTicks",160);}
+        object.addProperty("cooldownDefaultsVersion",3);
         if(version>=1)return true;
         var defaults=new Server();
         String[] names={"singularityCooldownTicks","earthDrillCooldownTicks","stoneCannonCooldownTicks","supernovaCooldownTicks","atomicCooldownTicks"};

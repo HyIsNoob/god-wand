@@ -15,7 +15,9 @@ class CooldownMigrationTest {
  @Test void readyBlueHangUpgradesFromTheTestBuildsButAChosenValueStays() throws Exception {
   Path file=dir.resolve("blue.json");Files.writeString(file,"{\"cooldownDefaultsVersion\":1,\"blueAnchorTicks\":300,\"atomicCooldownTicks\":600}");
   var s=GodWandConfig.read(file,GodWandConfig.Server.class,new GodWandConfig.Server());
-  assertEquals(100,s.blueAnchorTicks);assertEquals(600,s.atomicCooldownTicks,"version 1 files keep their cooldowns");
+  assertEquals(160,s.blueAnchorTicks);assertEquals(600,s.atomicCooldownTicks,"version 1 files keep their cooldowns");
+  Files.writeString(file,"{\"cooldownDefaultsVersion\":2,\"blueAnchorTicks\":100}");
+  assertEquals(160,GodWandConfig.read(file,GodWandConfig.Server.class,new GodWandConfig.Server()).blueAnchorTicks,"the 5 s test build too");
   Files.writeString(file,"{\"cooldownDefaultsVersion\":1,\"blueAnchorTicks\":240}");
   assertEquals(240,GodWandConfig.read(file,GodWandConfig.Server.class,new GodWandConfig.Server()).blueAnchorTicks);
  }
