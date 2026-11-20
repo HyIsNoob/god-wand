@@ -70,13 +70,31 @@
   "blue_vanish": {
     "sounds": [{"name":"godwand:blue_vanish","stream":false}]
   },
-  "red_charge": {
-    "sounds": [{"name":"minecraft:block.respawn_anchor.charge","type":"event","pitch":1.4}]
+  "red_formation": {
+    "sounds": [{"name":"godwand:red_formation","stream":true}]
   },
   "red_hold": {
-    "sounds": [{"name":"minecraft:block.beacon.ambient","type":"event","pitch":1.4}]
+    "sounds": [{"name":"godwand:red_holding","stream":false}]
   },
   "red_fire": {
-    "sounds": [{"name":"minecraft:entity.warden.sonic_boom","type":"event","pitch":1.5}]
+    "sounds": [{"name":"godwand:red_fire","stream":false}]
+  },
+  "red_fire_stereo": {
+    "sounds": [{"name":"godwand:red_fire_stereo","stream":false}]
+  },
+  "purple_formation": {
+    "sounds": [{"name":"godwand:purple_formation","stream":true}]
+  },
+  "purple_loop": {
+    "sounds": [{"name":"godwand:purple_loop","stream":false}]
+  },
+  "purple_fire": {
+    "sounds": [{"name":"godwand:purple_fire","stream":false}]
+  },
+  "purple_fire_stereo": {
+    "sounds": [{"name":"godwand:purple_fire_stereo","stream":false}]
+  },
+  "purple_max": {
+    "sounds": [{"name":"godwand:purple_max","stream":true}]
   }
 }

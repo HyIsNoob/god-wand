@@ -101,7 +101,7 @@ public final class BlueRedRenderer {
             case BlueRedPayload.RED_CANCEL -> {
                 // It fizzles out where it was gathering (owner, 2026-11-19), with a hiss.
                 CHARGES.remove(p.ownerId());
-                BlueRedSounds.redEnd(p.ownerId());
+                BlueRedSounds.end(p.ownerId());
                 var lvl = Minecraft.getInstance().level;
                 var owner = lvl == null ? null : lvl.getEntity(p.ownerId());
                 if (owner != null) {
@@ -129,8 +129,7 @@ public final class BlueRedRenderer {
                     // Black and red impact frames on the shot (owner, 2026-11-19).
                     if (GodWandConfig.CLIENT.impactFrames) { IMPACTS.clear(); IMPACTS.add(new Burst(at, clock, false, new Vec3(p.dx(), p.dy(), p.dz()))); }
                 }
-                BlueRedSounds.redEnd(p.ownerId());
-                BlueRedSounds.play(at, BlueRedSounds.RED_FIRE, 1.5f, 1f);
+                BlueRedSounds.fire(p.ownerId(), at, BlueRedSounds.RED_FIRE, BlueRedSounds.RED_FIRE_STEREO, 2f);
             }
             case BlueRedPayload.RED_END -> {
                 endFlight(p.ownerId(), at);
@@ -153,15 +152,14 @@ public final class BlueRedRenderer {
             }
             case BlueRedPayload.SHOT_START -> {
                 // Its Blue and Red are taken into it.
-                BLUES.remove(p.ownerId()); CHARGES.remove(p.ownerId()); BlueRedSounds.redEnd(p.ownerId());
+                BLUES.remove(p.ownerId()); CHARGES.remove(p.ownerId());
                 SHOTS.put(p.ownerId(), new ShotView(clock));
-                sound(at, SoundEvents.BEACON_ACTIVATE, 1.4f, 1.2f);
+                BlueRedSounds.cast(p.ownerId(), BlueRedSounds.SHOT_FORMATION, BlueRedSounds.SHOT_LOOP);
             }
             case BlueRedPayload.SHOT_FIRE -> {
                 ShotView v = SHOTS.computeIfAbsent(p.ownerId(), k -> new ShotView(clock - BlueRedRules.SHOT_FORM));
                 v.fired = clock; v.origin = at; v.dir = new Vec3(p.dx(), p.dy(), p.dz());
-                sound(at, SoundEvents.GENERIC_EXPLODE.value(), 3f, .9f);
-                sound(at, SoundEvents.WARDEN_SONIC_BOOM, 2.5f, 1.1f);
+                BlueRedSounds.fire(p.ownerId(), at, BlueRedSounds.SHOT_FIRE, BlueRedSounds.SHOT_FIRE_STEREO, 3f);
                 var me = Minecraft.getInstance().player;
                 if (me != null && me.getId() == p.ownerId()) { GodWandCinematicEngine.addTrauma(.8f, 16); GodWandCinematicEngine.setFovPunch(1.1f, 4); }
                 else if (me != null) GodWandCinematicEngine.addTrauma((float) Math.max(0, .5 * (1 - me.position().distanceTo(at) / 48)), 10);
@@ -169,7 +167,7 @@ public final class BlueRedRenderer {
             case BlueRedPayload.SHOT_END -> {
                 ShotView v = SHOTS.get(p.ownerId());
                 if (v != null) {
-                    if (p.state() == 1 || v.fired < 0) SHOTS.remove(p.ownerId());
+                    if (p.state() == 1 || v.fired < 0) { SHOTS.remove(p.ownerId()); BlueRedSounds.end(p.ownerId()); }
                     else { v.ended = clock; v.end = at; sound(at, SoundEvents.GENERIC_EXPLODE.value(), 2.5f, 1.1f); }
                 }
             }
@@ -188,7 +186,6 @@ public final class BlueRedRenderer {
                 PURPLES.add(new Purple(at, clock));
                 AFTERMATHS.add(new Purple(at, clock));
                 PurpleCinematic.receive(p);
-                sound(at, SoundEvents.BEACON_ACTIVATE, 3f, .5f);
             }
             default -> {}
         }
@@ -286,19 +283,14 @@ public final class BlueRedRenderer {
         if (lvl != null) for (var charge : CHARGES.entrySet()) {
             if (clock - charge.getValue() == BlueRedRules.INPUT_GRACE) {
                 var who = lvl.getEntity(charge.getKey());
-                if (who != null) BlueRedSounds.redCharge(charge.getKey(), who.getEyePosition());
+                if (who != null) BlueRedSounds.cast(charge.getKey(), BlueRedSounds.RED_FORMATION, BlueRedSounds.RED_HOLD);
             }
         }
         if (lvl != null) for (var charge : CHARGES.entrySet()) {
             var owner = lvl.getEntity(charge.getKey());
             if (owner != null && clock - charge.getValue() == GodWandConfig.SERVER.redChargeTicks) {
                 // Full: a pulse, a sound, sparks (owner, 2026-11-19).
-                Vec3 at = owner.getEyePosition().add(owner.getViewVector(1).scale(1.9));
-                sound(at, SoundEvents.RESPAWN_ANCHOR_SET_SPAWN, 1.2f, 1.6f);
-                sound(at, SoundEvents.WARDEN_SONIC_BOOM, .6f, 2f);
-                int shooter = charge.getKey();
-                BlueRedSounds.redFull(shooter, () -> { var l = Minecraft.getInstance().level; var e = l == null ? null : l.getEntity(shooter); return e == null ? null : e.getEyePosition(); },
-                        () -> CHARGES.containsKey(shooter));
+                // Its sound is the owner's formation and hold tracks, already playing.
                 var me = Minecraft.getInstance().player;
                 if (me != null && me.getId() == charge.getKey()) { GodWandCinematicEngine.addTrauma(.5f, 10); GodWandCinematicEngine.setFovPunch(1.05f, 3); }
             }
@@ -318,6 +310,8 @@ public final class BlueRedRenderer {
         for (Purple p : PURPLES) {
             double age = clock - p.at();
             if (age == BlueRedRules.PURPLE_DETONATE) detonated(p.pos());
+            // The owner's Purple track, from the contact's impact frame to the end of the cutscene (owner, 2026-11-20).
+            if (age == BlueRedRules.PURPLE_BLINK) BlueRedSounds.purple(p.pos(), PurpleCinematic.active());
             var me = Minecraft.getInstance().player;
             if (me != null && me.position().distanceTo(p.pos()) < 60) {
                 // The contact hits (owner, 2026-11-18), and an orb sweeping past the camera shakes it a little.
@@ -359,7 +353,6 @@ public final class BlueRedRenderer {
             ShotView v = e.getValue();
             if (v.fired >= 0) continue;
             double age = clock - v.start;
-            if (age == BlueRedRules.SHOT_MERGE) { var o = client.level.getEntity(e.getKey()); if (o != null) sound(o.getEyePosition(), SoundEvents.WARDEN_SONIC_BOOM, 1.4f, 1.5f); }
             var me = client.player;
             if (me != null && me.getId() == e.getKey()) GodWandCinematicEngine.holdTrauma((float) (.08 + .25 * Math.min(1, age / BlueRedRules.SHOT_FORM)));
         }
@@ -387,8 +380,6 @@ public final class BlueRedRenderer {
     private static void detonated(Vec3 at) {
         var me = Minecraft.getInstance().player;
         if (GodWandConfig.CLIENT.impactFrames && me != null && me.position().distanceTo(at) < 120) { IMPACTS.clear(); IMPACTS.add(new Burst(at, clock, true)); }
-        sound(at, SoundEvents.GENERIC_EXPLODE.value(), 6f, .5f);
-        sound(at, SoundEvents.WARDEN_SONIC_BOOM, 6f, .6f);
         var player = Minecraft.getInstance().player;
         if (player != null && player.position().distanceTo(at) < 120) {
             GodWandCinematicEngine.addTrauma((float) Math.max(.15, 1 - player.position().distanceTo(at) / 120), 24);
