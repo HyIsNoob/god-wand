@@ -26,8 +26,26 @@ public final class SpellDamage {
         return target != null && caster != null && target.getUUID().equals(caster.getUUID());
     }
 
+    /** Whether a spell cast by {@code caster} may hurt or push {@code target} (owner, 2026-11-20: never a pet, a villager or a house). */
+    public static boolean affects(Entity target,Entity caster) {
+        if(target==null||target==caster||caster!=null&&target.getUUID()!=null&&isCaster(target,caster))return false;
+        var cfg=net.godwand.config.GodWandConfig.SERVER;
+        if(target instanceof Player)return cfg.pvp||!(caster instanceof Player);
+        if(!(target instanceof LivingEntity living))return true;
+        String mode=cfg.spellTargets==null?"no_pets":cfg.spellTargets;
+        if("all".equals(mode))return true;
+        if("hostile".equals(mode))return living instanceof net.minecraft.world.entity.monster.Enemy;
+        if(living instanceof net.minecraft.world.entity.OwnableEntity owned&&owned.getOwnerUUID()!=null)return false;
+        if(living.hasCustomName())return false;
+        if(living instanceof net.minecraft.world.entity.Mob mob&&mob.isLeashed())return false;
+        return !(living instanceof net.minecraft.world.entity.npc.AbstractVillager||living instanceof net.minecraft.world.entity.animal.IronGolem
+                ||living instanceof net.minecraft.world.entity.animal.SnowGolem||living instanceof net.minecraft.world.entity.decoration.ArmorStand
+                ||living instanceof net.minecraft.world.entity.animal.allay.Allay);
+    }
+
     public static boolean hurt(Entity target,DamageSource original,float amount) {
         if(!Float.isFinite(amount)||amount<=0)return false;
+        if(!affects(target,original.getEntity()))return false;
         // Keep PvP, creative immunity and player-protection hooks on the original damage path.
         // PvP off (owner, 2026-11-20): one player's spells leave the others unharmed.
         if(target instanceof Player player)return net.godwand.config.GodWandConfig.SERVER.pvp||!(original.getEntity() instanceof Player)||isCaster(target,original.getEntity())?player.hurt(original,amount):false;

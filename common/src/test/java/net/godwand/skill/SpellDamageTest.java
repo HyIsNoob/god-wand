@@ -9,6 +9,41 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class SpellDamageTest {
+    /** Owner, 2026-11-20: spells must never hurt what the server spared (pets, villagers, named mobs, other players with PvP off). */
+    @Test void targetFilterSparesWhatTheServerProtects() {
+        var cfg = net.godwand.config.GodWandConfig.SERVER;
+        String mode = cfg.spellTargets; boolean pvp = cfg.pvp;
+        try {
+            var caster = mock(Player.class);
+            var pet = mock(net.minecraft.world.entity.animal.Wolf.class);
+            when(pet.getOwnerUUID()).thenReturn(java.util.UUID.randomUUID());
+            var named = mock(net.minecraft.world.entity.animal.Cow.class);
+            when(named.hasCustomName()).thenReturn(true);
+            var cow = mock(net.minecraft.world.entity.animal.Cow.class);
+            var villager = mock(net.minecraft.world.entity.npc.Villager.class);
+            var zombie = mock(net.minecraft.world.entity.monster.Zombie.class);
+            var friend = mock(Player.class);
+
+            cfg.spellTargets = "no_pets";
+            assertFalse(SpellDamage.affects(pet, caster), "a tamed pet");
+            assertFalse(SpellDamage.affects(named, caster), "a named mob");
+            assertFalse(SpellDamage.affects(villager, caster), "a villager");
+            assertTrue(SpellDamage.affects(cow, caster), "a wild animal");
+            assertTrue(SpellDamage.affects(zombie, caster), "a monster");
+
+            cfg.spellTargets = "hostile";
+            assertFalse(SpellDamage.affects(cow, caster), "hostile only: no animals");
+            assertTrue(SpellDamage.affects(zombie, caster));
+
+            cfg.spellTargets = "all";
+            assertTrue(SpellDamage.affects(pet, caster));
+
+            cfg.pvp = false;
+            assertFalse(SpellDamage.affects(friend, caster), "PvP off");
+            assertFalse(SpellDamage.affects(caster, caster), "never the caster");
+        } finally { cfg.spellTargets = mode; cfg.pvp = pvp; }
+    }
+
     @org.junit.jupiter.api.BeforeAll static void bootstrap() {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
     }
