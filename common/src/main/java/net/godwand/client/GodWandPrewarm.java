@@ -77,7 +77,6 @@ public final class GodWandPrewarm {
                 }
                 default -> {
                     for (double age : new double[]{200, 290, 302, 330, 400}) BlueRedDraw.purple(c, at, age, eye, look);
-                    BlueRedDraw.purpleTear(c, at, 320, look);
                 }
             }
         }

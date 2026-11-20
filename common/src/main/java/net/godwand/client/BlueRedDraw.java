@@ -212,7 +212,8 @@ final class BlueRedDraw {
                 int col = i % 3 == 0 ? p.light() : i % 3 == 1 ? p.mid() : p.deep();
                 fxSprite(c, at.add(dir.scale(dist)), size, SMOKE, (int) (cs % 991), col, a, age * .05 + i);
             }
-            orb(c, at, r * .78, p.variant(), 1, p.tint(), 1);
+            // The solo Blue/Red swirl, rushing into the core (owner, 2026-11-20: try it in the 3D act).
+            orb(c, at, r * .78, p.variant(), 1 + 4, p.tint(), 1);
         }
         if (!c.glow()) return;
         // Kept low at the stop, where the two nearly touch and their light would pile up white (owner, round 42).
@@ -1100,13 +1101,6 @@ final class BlueRedDraw {
         }
         stormBands(c, at, s, age, 16, fade * blast * (1 - clear) * outside);
         // A thin horizontal line straight through it, far out either side (owner's refs: the 'cosmic' line).
-        Vec3 side = look.cross(new Vec3(0, 1, 0));
-        if (side.lengthSqr() > 1e-6) {
-            side = side.normalize();
-            // A faint glow along the tear (its bright rim is in its own shader).
-            double s0 = Math.min(s, purpleSize(detonate)), reach = s0 * 4.56 + 600 * smooth(blast);
-            fxBeam(c, at.subtract(side.scale(reach * .9)), at.add(side.scale(reach * .9)), s0 * .25, s0 * .25, BOLT, 2410, 0x9A50FF, .25 * fade);
-        }
         streaks(c, at, s * .95, s * 4, age, (int) (40 * pre), ORCHID, 860, 1.1, .5 * pre * fade, true);
         streaks(c, at, s * .4, s * 2.2, age, (int) (140 * blast), ORCHID, 1100, 2.6, blast * fade * (1 - clamp01((age - detonate - 10) / 30.0)), false);
         // After the burst the haze thins fast and the white core stays bounded, so the column and the shockwaves read instead of a white-out.
@@ -1432,37 +1426,6 @@ final class BlueRedDraw {
             Vec3 inner = o.add(up.scale(e * h * (1 - 2 * amount))), outer = o.add(up.scale(e * h * 3));
             fxQuad(c, inner.subtract(right.scale(w)), inner.add(right.scale(w)), outer.add(right.scale(w)), outer.subtract(right.scale(w)), SOLID_FX, 0, 0x000000, 1, 1, 1, 1, 0, 1);
         }
-    }
-
-    /** Purple's tear in space (owner, 2026-11-19: like Vergil's portal), straight across behind it, thick in the middle and pointed at both
-     *  ends; inside it a galaxy (dark violet, stars, a drifting nebula), its rim bright. Drawn in the body pass before the sphere, so the
-     *  sphere sits in front of it. */
-    /** The tear for a Purple at {@code base}, {@code age} ticks in (its own pass, before everything, depth test off). */
-    static void purpleTear(Ctx c, Vec3 base, double age, Vec3 look) {
-        int detonate = BlueRedRules.PURPLE_DETONATE, end = BlueRedRules.PURPLE_CINEMATIC;
-        if (age < BlueRedRules.PURPLE_MERGE) return;
-        double blast = clamp01((age - detonate) / 18.0), fade = 1 - clamp01((age - detonate - 18) / (end - detonate - 18.0));
-        purpleTear(c, base.add(0, BlueRedRules.purpleRise(age), 0), purpleSize(age), age, blast, fade, look);
-    }
-
-    static void purpleTear(Ctx c, Vec3 at, double s, double age, double blast, double fade, Vec3 look) {
-        Vec3 band = look.cross(new Vec3(0, 1, 0));
-        if (band.lengthSqr() < 1e-6 || fade <= 0) return;
-        band = band.normalize();
-        // Just behind the sphere's centre, away from the camera.
-        Vec3 mid = at.add(look.scale(s * .3));
-        // After the blast it runs right across the view, edge to edge (owner, 2026-11-19), not stopping half way.
-        // Its thickness stays what it was before the blast (owner, 2026-11-20: scaled with the swelling sphere it became huge dark slabs).
-        double s0 = Math.min(s, purpleSize(BlueRedRules.PURPLE_DETONATE)), reach = s0 * 4.56 + 600 * smooth(blast), lw = s0 * .23;
-        int n = 24;
-        Vec3[] tp = new Vec3[n + 1];
-        double[] tw = new double[n + 1];
-        for (int j = 0; j <= n; j++) {
-            double t = (double) j / n;
-            tp[j] = mid.add(band.scale(reach * (2 * t - 1)));
-            tw[j] = lw * Math.pow(Math.sin(Math.PI * t), 1.4);
-        }
-        fxRibbon(c, tp, tw, GALAXY, 2413, 0x2A0858, fade);
     }
 
     /** Purple's vortex bands: each on its own slowly tumbling plane and turning at its own speed, its radius breathing and its outline warped along
@@ -2162,17 +2125,23 @@ final class BlueRedDraw {
         double len = d.length();
         if (len < 1e-3 || alpha <= 0) return;
         Vec3[] uw = basis(d.normalize());
-        Vec3 prev = a;
+        // One unbroken ribbon through every joint (owner, 2026-11-20: drawn as separate pieces, the joints showed square corners).
+        Vec3[] pts = new Vec3[segments + 1];
+        double[] w = new double[segments + 1], al = new double[segments + 1];
+        pts[0] = a;
         for (int s = 1; s <= segments; s++) {
             double t = (double) s / segments, env = s == segments ? 0 : Math.sin(Math.PI * t);
             double x = age * crackle;
             Vec3 off = uw[0].scale(snoise(seed + s * 3L, x) + .4 * snoise(seed + s * 3L + 1, x * 3.1))
                     .add(uw[1].scale(snoise(seed + s * 3L + 2, x) + .4 * snoise(seed + s * 3L + 50, x * 2.7)));
-            Vec3 q = a.add(d.scale(t)).add(off.scale(jitter * len * env / Math.sqrt(segments)));
-            double k = alpha * (1 - .4 * t) * clamp01((Math.min(prev.distanceTo(c.eye), q.distanceTo(c.eye)) - 2) / 3);
-            fxBeam(c, prev, q, width * 4, width * 4, BOLT, (int) ((seed + s) % 997), color, k);
-            prev = q;
+            pts[s] = a.add(d.scale(t)).add(off.scale(jitter * len * env / Math.sqrt(segments)));
         }
+        for (int s = 0; s <= segments; s++) {
+            double t = (double) s / segments;
+            w[s] = width * 4 * (.55 + .45 * Math.sin(Math.PI * Math.min(1, .15 + .85 * t)));
+            al[s] = (1 - .4 * t) * clamp01((pts[s].distanceTo(c.eye) - 2) / 3);
+        }
+        fxRibbon(c, pts, w, al, BOLT, (int) (seed % 997), color, alpha);
     }
 
     /** Soft, continuous lightning (owner's 2D refs, 2026-11-19): one unbroken stroke with fine kinks on a few large bends, a wide violet halo,

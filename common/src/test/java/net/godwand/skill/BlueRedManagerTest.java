@@ -344,6 +344,17 @@ class BlueRedManagerTest {
         assertEquals(0, count(BlueRedPayload.RED_END), "Red ends in it");
     }
 
+    @Test void anEarlyRedIntoAReadyBlueMakesTheSmallPurple() {
+        blueOwner(true);
+        var a = player();
+        assertTrue(BlueRedManager.beginRed(a));
+        BlueRedManager.chargeTick(a, net.godwand.config.GodWandConfig.SERVER.redChargeTicks / 2);
+        BlueRedManager.releaseRed(a);
+        ticks(8);
+        assertEquals(0, count(BlueRedPayload.PURPLE), "owner, 2026-11-20: the cutscene Purple needs a fully charged Red");
+        assertEquals(1, count(BlueRedPayload.PURPLE_SMALL));
+    }
+
     @Test void smallPurpleGrowsWithTheBluesCharge() {
         assertEquals(.4, BlueRedRules.smallPower(0, 50, 0, 3), 1e-9);
         assertEquals(.6, BlueRedRules.smallPower(25, 50, 0, 3), 1e-9);

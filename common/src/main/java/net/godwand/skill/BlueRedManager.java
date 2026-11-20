@@ -177,7 +177,8 @@ public final class BlueRedManager {
         }
         if (hit != null) {
             REDS.remove(red);
-            if (BlueRedRules.meet(hit.state) == BlueRedRules.RedMeetsBlue.PURPLE) startPurple(red.level, hit, red.shooter);
+            // The full Purple (cutscene) needs a ready Blue and a fully charged Red (owner, 2026-11-20); anything less makes the small one.
+            if (BlueRedRules.meet(hit.state) == BlueRedRules.RedMeetsBlue.PURPLE && red.power >= 1 - 1e-6) startPurple(red.level, hit, red.shooter);
             else smallPurple(red.level, hit, red.shooter);
             return 0;
         }

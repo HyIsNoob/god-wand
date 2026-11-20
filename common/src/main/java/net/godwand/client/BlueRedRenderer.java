@@ -523,8 +523,7 @@ public final class BlueRedRenderer {
         RenderSystem.enableBlend(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
         BlueRedAtlas.bind(); BlueRedShader.bind((float) (((clock + partial) / 20.0) % 3600));
         try {
-            for (int layer : new int[]{-2, 0, 1}) {
-                if (layer == -2) RenderSystem.disableDepthTest(); else RenderSystem.enableDepthTest();
+            for (int layer : new int[]{0, 1}) {
                 if (layer != 1) RenderSystem.defaultBlendFunc();
                 else RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
                 BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
@@ -568,12 +567,6 @@ public final class BlueRedRenderer {
     static int emit(VertexConsumer v, Matrix4f m, Vec3 eye, Vec3 look, int layer, float partial) {
         Ctx c = new Ctx(); c.v = v; c.m = m; c.eye = eye; c.layer = layer; c.nearMin = .05; c.nearMax = .4;
         double now = clock + partial;
-        // Layer -2: Purple's tear, drawn before everything with no depth test, so terrain in front never cuts a piece out of it and the
-        // sphere still sits in front of it (owner, 2026-11-19).
-        if (layer == -2) {
-            if (!PurpleCinematic.blackout()) for (Purple p : PURPLES) BlueRedDraw.purpleTear(c, p.pos(), now - p.at(), look);
-            return c.quads;
-        }
         // Black bars (owner, 2026-11-19): drawn first and writing no depth, so every effect after them can spill over them.
         if (layer == 0 && PurpleCinematic.active()) BlueRedDraw.blackBars(c, eye, look, PurpleCinematic.bars(partial), barsTan);
         // Blur behind every mob being drawn into a Blue (owner, 2026-11-20), curving with its spiral.
