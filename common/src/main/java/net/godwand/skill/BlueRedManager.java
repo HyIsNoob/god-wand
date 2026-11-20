@@ -281,15 +281,16 @@ public final class BlueRedManager {
         if (p.age < BlueRedRules.PURPLE_DETONATE || cfg.purpleRadius <= 0) return used;
         // Owner, 2026-11-19: the crater must be dug while the blast is still going, not long after it. For the blast's first 40 ticks Purple
         // gets a much larger share of the tick (its own 30 ms and a bigger cap); the shared 8 ms after that.
-        // Owner, 2026-11-19: the ground breaks in the impact frames themselves. The first four ticks of the blast dig almost the whole crater
-        // (a hitch the owner accepts there), the next forty finish it at 30 ms a tick, then the shared allowance.
-        boolean frames = p.age < BlueRedRules.PURPLE_DETONATE + 4, rush = p.age < BlueRedRules.PURPLE_DETONATE + 40;
-        long until = frames ? System.nanoTime() + 300_000_000L : rush ? Math.max(deadline, System.nanoTime() + 30_000_000L) : deadline;
+        // Owner, 2026-11-19: the ground breaks from the impact frames on. Owner, 2026-11-20: without the 300 ms hitch: the blast's first twenty
+        // ticks get 35 ms each (under a tick's 50), the cells go from the centre outward so the crater spreads out in about a second, the
+        // next twenty finish it at 30 ms, then the shared allowance.
+        boolean frames = p.age < BlueRedRules.PURPLE_DETONATE + 20, rush = p.age < BlueRedRules.PURPLE_DETONATE + 40;
+        long until = frames ? System.nanoTime() + 35_000_000L : rush ? Math.max(deadline, System.nanoTime() + 30_000_000L) : deadline;
         int allowance = frames ? 1_000_000 : rush ? Math.max(budget, 120_000) : budget;
         int[][] cells = BlueEater.sphere(cfg.purpleRadius);
         if (p.cursor < cells.length) {
             int before = p.cursor;
-            p.cursor = BlueEater.carveFrom(p.level, p.center, cells, p.cursor, allowance, until, cfg.purpleTerrainDamage, frames ? 150000 : rush ? 9000 : BlueEater.PURPLE_CLEAR_PER_TICK);
+            p.cursor = BlueEater.carveFrom(p.level, p.center, cells, p.cursor, allowance, until, cfg.purpleTerrainDamage, frames ? 40000 : rush ? 9000 : BlueEater.PURPLE_CLEAR_PER_TICK);
             if (!cfg.purpleTerrainDamage) p.cursor = cells.length;
             if (p.cursor >= cells.length) p.dugAt = p.age;
             return Math.min(budget, p.cursor - before) + used;
@@ -386,7 +387,9 @@ public final class BlueRedManager {
             if (distance > radius) continue;
             if (distance > 0.3) {
                 double strength = 0.12 + 0.38 * (1 - distance / radius);
-                e.setDeltaMovement(e.getDeltaMovement().scale(0.75).add(toward.scale(strength / distance)));
+                // Drawn in on a spiral (owner, 2026-11-20): a sideways swirl round Blue's vertical axis on top of the pull.
+                Vec3 flat = new Vec3(toward.x, 0, toward.z), swirl = flat.lengthSqr() < 1e-6 ? Vec3.ZERO : new Vec3(-flat.z, 0, flat.x).normalize().scale(strength * .85);
+                e.setDeltaMovement(e.getDeltaMovement().scale(0.75).add(toward.scale(strength / distance)).add(swirl));
                 e.hurtMarked = true;
             }
             if (strike && damage > 0 && e instanceof LivingEntity living && distance <= BlueRedRules.CORE_RADIUS + e.getBbWidth() / 2) {

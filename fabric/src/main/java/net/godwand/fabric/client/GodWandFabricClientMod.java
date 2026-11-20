@@ -170,6 +170,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         HudRenderCallback.EVENT.register(net.godwand.client.FugaCinematic::render);
         HudRenderCallback.EVENT.register(net.godwand.client.SilentGateCinematic::render);
         HudRenderCallback.EVENT.register((graphics,timer)->net.godwand.client.SkillCooldownClient.render(graphics));
+        HudRenderCallback.EVENT.register((graphics,timer)->net.godwand.client.BlueRedHud.render(graphics,timer.getGameTimeDeltaPartialTick(false)));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             SkillWheelScreen.handleKeyInput(client);

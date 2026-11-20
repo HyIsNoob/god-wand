@@ -91,6 +91,28 @@ final class BlueRedDraw {
         }
     }
 
+    /** The blur a mob leaves while Blue draws it in (owner, 2026-11-20): a smear along its last few ticks, thin and faint at the old end,
+     *  as wide as the mob at the new one; only when it is really moving. */
+    static void pullBlur(Ctx c, Vec3[] pts, double width, int seed) {
+        double travelled = 0;
+        for (int i = 1; i < pts.length; i++) travelled += pts[i].distanceTo(pts[i - 1]);
+        double a = clamp01((travelled - .6) / 2.5);
+        if (a <= 0) return;
+        int n = pts.length;
+        double[] w = new double[n], al = new double[n];
+        for (int i = 0; i < n; i++) {
+            double t = (double) i / (n - 1);
+            w[i] = width * .55 * t;
+            al[i] = t * t * nearFade(c, pts[i]);
+        }
+        if (c.body()) fxRibbon(c, pts, w, al, SMOKE, seed % 977, 0x5A8CFF, .55 * a);
+        else {
+            double[] core = new double[n];
+            for (int i = 0; i < n; i++) core[i] = w[i] * .35;
+            fxRibbon(c, pts, core, al, FLOW, seed % 977 + 1, CYAN, .65 * a);
+        }
+    }
+
     /** A puff of dust Blue shed: it stays where it was shed (drifting a little), so a moving Blue leaves a trail of them. */
     record Puff(Vec3 pos, Vec3 drift, double born, int seed) {}
     static final double PUFF_LIFE = 18, VANISH_TICKS = 12;
@@ -1123,6 +1145,9 @@ final class BlueRedDraw {
             Vec3 from = at.add(d.scale(s * .95));
             liveBolt(c, from, from.add(d.scale(reach)), 10, .35, .1 + .12 * blast, b % 2 == 0 ? ORCHID : VIOLET, fade * (blast > 0 ? 1 - clamp01((age - detonate - 8) / 40.0) : still), 1800 + b * 23, age, .6);
         }
+        // Purple lightning crawling out over the ground from under it (owner, 2026-11-20), hugging the terrain, from MERGE to just after the blast.
+        double creep = smooth((age - merge) / 30.0) * (1 - clamp01((age - detonate - 6) / 14.0)) * fade;
+        if (creep > 0 && groundAt != null) groundCrawl(c, at, age, creep);
         // Charged chunks of ground floating round it (owner, 2026-11-19): each crackles down to the ground it tore from, and to a neighbour.
         for (int i = 0; i < CHARGED.size() && i < 40; i++) {
             Vec3 q = CHARGED.get(i);
@@ -1201,6 +1226,86 @@ final class BlueRedDraw {
             double a = (1 - t / life) * fade, size = .22 + .22 * hash(sd + 6);
             glow(c, q, size, a, i % 3 == 0 ? ORCHID : PALE);
             glow(c, q, size * .4, a, 0xFFFFFF);
+        }
+    }
+
+    /** Lightning crawling over the ground from the point under {@code at}: each arc strikes out along the terrain, holds a few ticks, fades
+     *  and strikes again somewhere else. */
+    static void groundCrawl(Ctx c, Vec3 at, double age, double alpha) {
+        for (int i = 0; i < 9; i++) {
+            long sd = 4900 + i * 53L;
+            double life = 6 + 5 * hash(sd), ph = age / life + hash(sd + 1);
+            long cyc = (long) Math.floor(ph);
+            double u = ph - cyc;
+            long cs = sd + cyc * 7919L;
+            double flash = u < .15 ? 1 : 1 - smooth((u - .15) / .85), ang = hash(cs) * Math.PI * 2, len = 10 + 28 * hash(cs + 1);
+            int hops = 6;
+            Vec3 prev = null;
+            for (int k = 0; k <= hops; k++) {
+                double d = 2 + len * k / hops, a = ang + .35 * snoise(cs + 2, k * .7);
+                double x = at.x + Math.cos(a) * d, z = at.z + Math.sin(a) * d, y = groundAt.applyAsDouble(x, z);
+                if (Double.isNaN(y)) break;
+                Vec3 q = new Vec3(x, y + .25, z);
+                if (prev != null) {
+                    double w = (k < 2 ? .12 : .07) * (1 - .5 * k / hops);
+                    liveBolt(c, prev, q, 5, .5, w, PALE, alpha * flash, cs * 7 + k * 13, age, 1);
+                    liveBolt(c, prev, q, 5, .5, w * 3, VIOLET, .35 * alpha * flash, cs * 7 + k * 13, age, 1);
+                }
+                prev = q;
+            }
+        }
+    }
+
+    /** After the blast (owner, 2026-11-20): violet rocks rain down round the crater for a few seconds, each rolling as it falls and puffing
+     *  sparks where it lands, and small lightning keeps flickering over the crater floor. {@code base}: Purple's base point. */
+    /** How long the aftermath plays after the blast (owner, 2026-11-20: "longer, it's pretty"): about twenty seconds. */
+    static final int AFTERMATH_TICKS = 420;
+
+    static void purpleAftermath(Ctx c, Vec3 base, double after) {
+        if (groundAt == null || after > AFTERMATH_TICKS) return;
+        double ground0 = groundAt.applyAsDouble(base.x, base.z);
+        if (Double.isNaN(ground0)) return;
+        double r = net.godwand.config.GodWandConfig.SERVER.purpleRadius;
+        // Most fall in the first seconds, then fewer and fewer, the last ones well after the dust has settled.
+        for (int i = 0; i < 200; i++) {
+            long sd = 5600 + i * 31L;
+            double t = after - (20 + (AFTERMATH_TICKS - 80) * Math.pow(hash(sd), 1.6));
+            if (t < 0) continue;
+            double a = hash(sd + 1) * Math.PI * 2, d = r * (.2 + 1.1 * Math.sqrt(hash(sd + 2)));
+            double x = base.x + Math.cos(a) * d, z = base.z + Math.sin(a) * d, gy = groundAt.applyAsDouble(x, z);
+            if (Double.isNaN(gy)) continue;
+            double y0 = gy + 25 + 35 * hash(sd + 3), y = y0 - .5 * .05 * t * t, size = .35 + .55 * hash(sd + 4);
+            Vec3 q = new Vec3(x + .02 * t * snoise(sd + 5, 0), Math.max(gy + size * .5, y), z);
+            if (y > gy) {
+                if (c.body()) fxSprite(c, q, size, DEBRIS, (int) (sd % 977), i % 3 == 0 ? 0x2A0E50 : i % 3 == 1 ? 0x5A2A9A : 0x8A4AD0, .95, t * (.15 + .2 * hash(sd + 6)));
+                else glow(c, q.add(0, size * 1.5, 0), size * .9, .25, ORCHID);
+            } else if (c.glow()) {
+                double land = Math.sqrt(2 * (y0 - gy) / .05), since = t - land;
+                if (since < 8) {
+                    glow(c, q, .6 + .15 * since, 1 - since / 8, PALE);
+                    sparks(c, q, .3 + .15 * since, after, 6, ORCHID, (int) (5700 + i));
+                }
+            }
+        }
+        if (!c.glow()) return;
+        double fade = 1 - clamp01((after - (AFTERMATH_TICKS - 80)) / 80.0);
+        for (int i = 0; i < 12; i++) {
+            long sd = 5900 + i * 43L;
+            double life = 8 + 14 * hash(sd), ph = after / life + hash(sd + 1);
+            long cyc = (long) Math.floor(ph);
+            double u = ph - cyc;
+            if (u > .3) continue;
+            long cs = sd + cyc * 7919L;
+            double a = hash(cs) * Math.PI * 2, d = r * .85 * Math.sqrt(hash(cs + 1));
+            double x = base.x + Math.cos(a) * d, z = base.z + Math.sin(a) * d, gy = groundAt.applyAsDouble(x, z);
+            if (Double.isNaN(gy)) continue;
+            Vec3 p0 = new Vec3(x, gy + .2, z), p1 = p0.add(new Vec3(snoise(cs + 2, 0), 0, snoise(cs + 3, 0)).normalize().scale(2 + 4 * hash(cs + 4)));
+            double y1 = groundAt.applyAsDouble(p1.x, p1.z);
+            if (!Double.isNaN(y1)) p1 = new Vec3(p1.x, y1 + .2, p1.z);
+            double fl = (1 - u / .3) * fade;
+            liveBolt(c, p0, p1, 6, .5, .05, PALE, fl, cs * 3, after, 1);
+            liveBolt(c, p0, p1, 6, .5, .16, VIOLET, .4 * fl, cs * 3, after, 1);
+            glow(c, p0, .8, .5 * fl, ORCHID);
         }
     }
 
@@ -1327,6 +1432,16 @@ final class BlueRedDraw {
     // Closer at the stop (owner, round 41): the surfaces nearly touch before the cut to 2D.
     static final double FACE_GAP = 3.0;
 
+    /** Slow motion before they meet (owner, 2026-11-20): the clock the things round the orbs run on. Real time until tick 94, then easing
+     *  down to a fifth of real speed by 104 and held there through the face-off to the end of the 3D act, as if time stood still round them. */
+    static double slowAge(double age) {
+        double a = 94, b = 104, end = BlueRedRules.PURPLE_SWIRL_END, slow = .2;
+        if (age <= a) return age;
+        if (age <= b) return a + (age - a) - (1 - slow) * (age - a) * (age - a) / (2 * (b - a));
+        double atB = a + (b - a) * (1 + slow) / 2;
+        return atB + slow * (Math.min(age, end) - b) + Math.max(0, age - end);
+    }
+
     /** Orbit speed in radians per tick: a moderate start, climbing hard through the build-up (about 3.5 turns a second at the peak), braked to
      *  a stop for the face-off. */
     static double spin(double age) {
@@ -1434,15 +1549,17 @@ final class BlueRedDraw {
         // Each pulls in motes of its own colour (owner, 2026-11-19): red into Red, blue into Blue.
         if (age > ct) {
             double pull = smooth((age - ct) / 8.0);
-            inflow(c, blue, 1.1, age, 45, CYAN, ROYAL, 7700, pull);
-            inflow(c, red, redR, age, 45, RED_LIGHT, RED, 7800, pull);
+            inflow(c, blue, 1.1, slowAge(age), 45, CYAN, ROYAL, 7700, pull);
+            inflow(c, red, redR, slowAge(age), 45, RED_LIGHT, RED, 7800, pull);
         }
+        // Their smoke and crackle run on the slowed clock too; only the orbs themselves keep moving at speed.
+        double amb = slowAge(age);
         if (red.distanceTo(c.eye) > blue.distanceTo(c.eye)) {
-            twinOrb(c, red, redR, age, RED_P, vr, 77777, surge);
-            twinOrb(c, blue, 1.1, age, BLUE_P, vb, 0, surge);
+            twinOrb(c, red, redR, amb, RED_P, vr, 77777, surge);
+            twinOrb(c, blue, 1.1, amb, BLUE_P, vb, 0, surge);
         } else {
-            twinOrb(c, blue, 1.1, age, BLUE_P, vb, 0, surge);
-            twinOrb(c, red, redR, age, RED_P, vr, 77777, surge);
+            twinOrb(c, blue, 1.1, amb, BLUE_P, vb, 0, surge);
+            twinOrb(c, red, redR, amb, RED_P, vr, 77777, surge);
         }
         // Small, bright purple lightning in the middle while they face off.
         if (c.glow() && surge > 0) {

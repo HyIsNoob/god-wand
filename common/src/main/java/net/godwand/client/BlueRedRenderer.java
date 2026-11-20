@@ -47,6 +47,8 @@ public final class BlueRedRenderer {
     static boolean anyFlight() { return !FLIGHTS.isEmpty(); }
     private static final List<Burst> BURSTS = new ArrayList<>();
     private static final List<Burst> FIZZLES = new ArrayList<>();
+    /** Purples whose aftermath (falling rocks, crater sparks) is still playing: it outlives the cutscene (owner, 2026-11-20). */
+    private static final List<Purple> AFTERMATHS = new ArrayList<>();
     private static double barsTan = Math.tan(Math.toRadians(35));
     private static final List<Purple> PURPLES = new ArrayList<>();
     private static final List<Burst> IMPACTS = new ArrayList<>();
@@ -115,6 +117,9 @@ public final class BlueRedRenderer {
                     // A hard kick on the shot (owner, 2026-11-19: it barely showed), harder the more it was charged.
                     double power = p.state() > 0 ? p.state() / 100.0 : 1;
                     GodWandCinematicEngine.addTrauma((float) (.55 + .35 * power), 14); GodWandCinematicEngine.setFovPunch((float) (1.06 + .06 * power), 3);
+                    // The recoil (owner, 2026-11-20): the shooter is thrown back against the shot, about a block on a full charge.
+                    Vec3 dir = new Vec3(p.dx(), 0, p.dz());
+                    if (dir.lengthSqr() > 1e-6) { Vec3 kick = dir.normalize().scale(-.75 * power * power); me.push(kick.x, .12 * power * power, kick.z); }
                     // Black and red impact frames on the shot (owner, 2026-11-19).
                     if (GodWandConfig.CLIENT.impactFrames) { IMPACTS.clear(); IMPACTS.add(new Burst(at, clock, false, new Vec3(p.dx(), p.dy(), p.dz()))); }
                 }
@@ -140,6 +145,7 @@ public final class BlueRedRenderer {
             case BlueRedPayload.PURPLE -> {
                 endFlight(p.otherId(), at); BLUES.remove(p.ownerId());
                 PURPLES.add(new Purple(at, clock));
+                AFTERMATHS.add(new Purple(at, clock));
                 PurpleCinematic.receive(p);
                 sound(at, SoundEvents.BEACON_ACTIVATE, 3f, .5f);
             }
@@ -162,6 +168,27 @@ public final class BlueRedRenderer {
         return best;
     }
     static double now(float partial) { return clock + partial; }
+    /** This player's Blue: -1 none, 0 charging, 1 ready. */
+    static int blueState(int id) { BlueView b = BLUES.get(id); return b == null || b.goneAt >= 0 ? -1 : b.state == BlueState.READY ? 1 : 0; }
+
+    /** Where each mob near a Blue has been over the last ticks (oldest first), for the blur it leaves while it is drawn in. */
+    private static final Map<Integer, java.util.ArrayDeque<Vec3>> PULLED = new HashMap<>();
+
+    private static void trackPulled(Minecraft client) {
+        java.util.Set<Integer> seen = new java.util.HashSet<>();
+        if (client.level != null) for (BlueView b : BLUES.values()) {
+            if (b.goneAt >= 0) continue;
+            double r = GodWandConfig.SERVER.bluePullRadius;
+            for (var e : client.level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class, new net.minecraft.world.phys.AABB(b.pos, b.pos).inflate(r))) {
+                if (e == client.player || !seen.add(e.getId())) continue;
+                var trail = PULLED.computeIfAbsent(e.getId(), k -> new java.util.ArrayDeque<>());
+                trail.addLast(e.position().add(0, e.getBbHeight() * .5, 0));
+                while (trail.size() > 7) trail.removeFirst();
+            }
+        }
+        // Out of reach: the trail shrinks away a point a tick.
+        PULLED.entrySet().removeIf(t -> { if (!seen.contains(t.getKey())) t.getValue().pollFirst(); return t.getValue().size() < 2 && !seen.contains(t.getKey()); });
+    }
 
     private static void endFlight(int owner, Vec3 at) {
         for (Flight f : FLIGHTS) if (f.owner == owner && f.end == null) { f.end = at; f.endAt = clock; return; }
@@ -173,10 +200,12 @@ public final class BlueRedRenderer {
     }
 
     public static void tick(Minecraft client) {
+        GodWandPrewarm.tick(client);
         if (client.level == null) { reset(); return; }
         if (client.isPaused()) return;
         clock++;
         BlueRedHand.tickCamera();
+        trackPulled(client);
         BURSTS.removeIf(b -> clock - b.at() > 20);
         FIZZLES.removeIf(b -> clock - b.at() > 14);
         IMPACTS.removeIf(b -> clock - b.at() > 6);
@@ -261,9 +290,10 @@ public final class BlueRedRenderer {
             }
         }
         PURPLES.removeIf(p -> clock - p.at() > BlueRedRules.PURPLE_CINEMATIC + 10);
+        AFTERMATHS.removeIf(p -> clock - p.at() > BlueRedRules.PURPLE_DETONATE + BlueRedDraw.AFTERMATH_TICKS);
     }
 
-    public static void reset() { BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); FIZZLES.clear(); PURPLES.clear(); IMPACTS.clear(); clock = 0; }
+    public static void reset() { PULLED.clear(); AFTERMATHS.clear(); BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); FIZZLES.clear(); PURPLES.clear(); IMPACTS.clear(); clock = 0; }
 
     private static void detonated(Vec3 at) {
         var me = Minecraft.getInstance().player;
@@ -450,7 +480,7 @@ public final class BlueRedRenderer {
         if (m11 > 1e-3f) barsTan = 1 / m11;
         overlay = new Overlay(new Matrix4f(pose.last().pose()), camera, partial);
         planBloom(pose, camera, partial);
-        if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && FIZZLES.isEmpty() && PURPLES.isEmpty() && IMPACTS.isEmpty()) return;
+        if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && FIZZLES.isEmpty() && PURPLES.isEmpty() && AFTERMATHS.isEmpty() && IMPACTS.isEmpty()) return;
         RenderSystem.enableBlend(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
         BlueRedAtlas.bind(); BlueRedShader.bind((float) (((clock + partial) / 20.0) % 3600));
         try {
@@ -507,6 +537,17 @@ public final class BlueRedRenderer {
         }
         // Black bars (owner, 2026-11-19): drawn first and writing no depth, so every effect after them can spill over them.
         if (layer == 0 && PurpleCinematic.active()) BlueRedDraw.blackBars(c, eye, look, PurpleCinematic.bars(partial), barsTan);
+        // Blur behind every mob being drawn into a Blue (owner, 2026-11-20), curving with its spiral.
+        if (!PULLED.isEmpty()) {
+            var level = Minecraft.getInstance().level;
+            for (var t : PULLED.entrySet()) {
+                var e = level == null ? null : level.getEntity(t.getKey());
+                if (e == null || t.getValue().size() < 2) continue;
+                java.util.List<Vec3> pts = new ArrayList<>(t.getValue());
+                pts.add(e.getPosition(partial).add(0, e.getBbHeight() * .5, 0));
+                BlueRedDraw.pullBlur(c, pts.toArray(new Vec3[0]), e.getBbWidth(), e.getId());
+            }
+        }
         for (var e : BLUES.entrySet())
         {
             BlueView b = e.getValue();
@@ -557,6 +598,14 @@ public final class BlueRedRenderer {
             BlueRedDraw.groundY = Double.NaN;
             BlueRedDraw.groundAt = null;
             c.fade = 1;
+        }
+        for (Purple p : AFTERMATHS) {
+            double after = now - p.at() - BlueRedRules.PURPLE_DETONATE;
+            if (after < 0) continue;
+            var lvl = Minecraft.getInstance().level;
+            BlueRedDraw.groundAt = lvl == null ? null : (x, z) -> lvl.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, (int) Math.floor(x), (int) Math.floor(z));
+            BlueRedDraw.purpleAftermath(c, p.pos(), after);
+            BlueRedDraw.groundAt = null;
         }
         return c.quads;
     }
