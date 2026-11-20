@@ -58,12 +58,18 @@ class BlueRedDrawTest {
         assertTrue(orbs(swell).size() == 1);
         assertEquals(java.util.List.of(2), orbs(swell));
         // Owner, 2026-11-19: the texture blends into the bursting one over a few ticks instead of switching at once.
+        // Watched from well outside the swelling sphere.
+        Vec3 far = AT.add(0, 0, -400);
         var mid = ctx(0);
-        BlueRedDraw.purple(mid, AT, BlueRedRules.PURPLE_DETONATE + 3, EYE, LOOK);
+        BlueRedDraw.purple(mid, AT, BlueRedRules.PURPLE_DETONATE + 3, far, LOOK);
         assertTrue(orbs(mid).contains(2 + 4 * 2) && orbs(mid).contains(2 + 4), "blending: " + orbs(mid));
         var blast = ctx(0);
-        BlueRedDraw.purple(blast, AT, BlueRedRules.PURPLE_DETONATE + 8, EYE, LOOK);
+        BlueRedDraw.purple(blast, AT, BlueRedRules.PURPLE_DETONATE + 8, far, LOOK);
         assertEquals(java.util.List.of(2 + 4 * 2), orbs(blast), "the bursting orb");
+        // Owner, 2026-11-20: from inside it, its skin is not drawn (it whited the screen out).
+        var inside = ctx(0);
+        BlueRedDraw.purple(inside, AT, BlueRedRules.PURPLE_DETONATE + 30, AT.add(0, 0, -5), LOOK);
+        assertEquals(java.util.List.of(), orbs(inside), "no skin seen from inside");
     }
 
     @Test void purpleGrowsAndDetonatesWithinBudget() {

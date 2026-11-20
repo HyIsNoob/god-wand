@@ -75,7 +75,8 @@ final class BlueRedDraw {
     /** Motes drawn in from farther out (3 to 6 radii), spiralling into the sphere, quicker as they near; glow pass. */
     static void inflow(Ctx c, Vec3 at, double r, double age, int count, int colA, int colB, long seed, double alpha) {
         if (!c.glow() || alpha <= 0) return;
-        for (int i = 0; i < count; i++) {
+        // Smaller, brighter and a few more (owner, 2026-11-20): every other one has a white-hot centre.
+        for (int i = 0; i < count * 7 / 5; i++) {
             long sd = seed + i * 41L;
             double life = 14 + 10 * hash(sd), ph = age / life + hash(sd + 1);
             long cyc = (long) Math.floor(ph);
@@ -84,7 +85,9 @@ final class BlueRedDraw {
             Vec3 dir = new Vec3(hash(cs) * 2 - 1, hash(cs + 1) * 2 - 1, hash(cs + 2) * 2 - 1).normalize();
             double r0 = r * (3 + 3 * hash(cs + 3)), rad = r0 - (r0 - r * .8) * u * u, turn = 2.5 * u * u * (hash(cs + 4) < .5 ? 1 : -1);
             Vec3 q = at.add(new Vec3(dir.x * Math.cos(turn) - dir.z * Math.sin(turn), dir.y, dir.x * Math.sin(turn) + dir.z * Math.cos(turn)).scale(rad));
-            glow(c, q, (.07 + .07 * hash(cs + 5)) * Math.max(.6, r), smooth(u / .15) * (1 - smooth((u - .85) / .15)) * .8 * alpha, i % 2 == 0 ? colA : colB);
+            double size = (.035 + .04 * hash(cs + 5)) * Math.max(.6, r), a = smooth(u / .15) * (1 - smooth((u - .85) / .15)) * alpha;
+            glow(c, q, size, a, i % 2 == 0 ? colA : colB);
+            if (i % 2 == 0) glow(c, q, size * .45, a, 0xFFFFFF);
         }
     }
 
@@ -664,7 +667,7 @@ final class BlueRedDraw {
      *  faster the farther they go, fading out behind. */
     private static void chargeMotes(Ctx c, Vec3 at, double s, double age, double charge, Vec3 back) {
         if (!c.glow()) return;
-        for (int i = 0; i < 70 + (int) (90 * charge); i++) {
+        for (int i = 0; i < 95 + (int) (120 * charge); i++) {
             long sd = 8100 + i * 37L;
             double life = 8 + 8 * hash(sd), ph = age / life + hash(sd + 1);
             long cyc = (long) Math.floor(ph);
@@ -674,7 +677,9 @@ final class BlueRedDraw {
             double reach = (2 + 4 * hash(cs + 3)) * (.6 + .6 * charge);
             Vec3 q = at.add(d.scale(s * (.66 + .8 * u))).add(back.scale(reach * u * u)).add(nvec(cs + 4, u * 2).scale(.15 * u));
             double near = smooth((q.distanceTo(c.eye) - .6) / 1.2);
-            glow(c, q, .06 + .08 * hash(cs + 5) * (1 - u), smooth(u / .1) * (1 - u) * .9 * near, i % 2 == 0 ? RED_LIGHT : RED);
+            double size = .035 + .045 * hash(cs + 5) * (1 - u), a = smooth(u / .1) * (1 - u) * near;
+            glow(c, q, size, a, i % 2 == 0 ? RED_LIGHT : RED);
+            if (i % 3 == 0) glow(c, q, size * .45, a, 0xFFE0E4);
         }
     }
 
@@ -707,7 +712,7 @@ final class BlueRedDraw {
             fxRibbon(c, pts, w, a, SMOKE, (int) (cs % 977), INK, (.18 + .2 * charge) * Math.sin(Math.PI * u));
         }
         if (!c.glow()) return;
-        for (int i = 0; i < 24; i++) {
+        for (int i = 0; i < 34; i++) {
             long sd = 8400 + i * 31L;
             double life = 12 + 8 * hash(sd), ph = age / life + hash(sd + 1);
             long cyc = (long) Math.floor(ph);
@@ -715,7 +720,7 @@ final class BlueRedDraw {
             long cs = sd + cyc * 7919L;
             double an = hash(cs) * Math.PI * 2, rr = .9 + 1.8 * hash(cs + 1);
             Vec3 q = at.add(forward.scale(2.5 - 5 * u)).add(uw[0].scale(Math.cos(an) * rr)).add(uw[1].scale(Math.sin(an) * rr));
-            glow(c, q, .07 + .05 * hash(cs + 3), Math.sin(Math.PI * u) * .8 * smooth((q.distanceTo(c.eye) - .6) / 1.2), i % 2 == 0 ? RED : RED_LIGHT);
+            glow(c, q, .04 + .03 * hash(cs + 3), Math.sin(Math.PI * u) * smooth((q.distanceTo(c.eye) - .6) / 1.2), i % 2 == 0 ? RED : RED_LIGHT);
         }
     }
 
@@ -1042,7 +1047,9 @@ final class BlueRedDraw {
         double tremble = (.05 + .35 * grow * grow) * pre;
         at = at.add(jitter(age, tremble, 37));
         // The dome stays in view after the burst, translucent (owner, round 42).
-        double clear = smooth((age - detonate - 12) / 20.0), bodyAlpha = (1 - blast * .6) * fade * (1 - clear), still = 1 - .8 * crush;
+        // Once the camera is inside the swelling sphere its skin, rings and bands fade out (owner, 2026-11-20: they whited the screen out).
+        double outside = smooth((eye.distanceTo(at) - s * .85) / (s * .35));
+        double clear = smooth((age - detonate - 12) / 20.0), bodyAlpha = (1 - blast * .6) * fade * (1 - clear) * outside, still = 1 - .8 * crush;
         if (c.body()) {
             // A softer skin before the blast so the lilac heart shows through (owner's refs).
             // Bright and solid (owner, 2026-11-19).
@@ -1066,14 +1073,14 @@ final class BlueRedDraw {
             double ring = ((age + k * 3) / 9.0) % 1;
             fxFlat(c, at, s * (1.1 + 1.6 * ring), SHOCK, 840 + k, ORCHID, .2 * (1 - ring) * pre * fade);
         }
-        stormBands(c, at, s, age, 16, fade * blast * (1 - clear));
+        stormBands(c, at, s, age, 16, fade * blast * (1 - clear) * outside);
         // A thin horizontal line straight through it, far out either side (owner's refs: the 'cosmic' line).
         Vec3 side = look.cross(new Vec3(0, 1, 0));
         if (side.lengthSqr() > 1e-6) {
             side = side.normalize();
             // A faint glow along the tear (its bright rim is in its own shader).
-            double reach = s * 4.56 + 600 * smooth(blast);
-            fxBeam(c, at.subtract(side.scale(reach * .9)), at.add(side.scale(reach * .9)), s * .25, s * .25, BOLT, 2410, 0x9A50FF, .25 * fade);
+            double s0 = Math.min(s, purpleSize(detonate)), reach = s0 * 4.56 + 600 * smooth(blast);
+            fxBeam(c, at.subtract(side.scale(reach * .9)), at.add(side.scale(reach * .9)), s0 * .25, s0 * .25, BOLT, 2410, 0x9A50FF, .25 * fade);
         }
         streaks(c, at, s * .95, s * 4, age, (int) (40 * pre), ORCHID, 860, 1.1, .5 * pre * fade, true);
         streaks(c, at, s * .4, s * 2.2, age, (int) (140 * blast), ORCHID, 1100, 2.6, blast * fade * (1 - clamp01((age - detonate - 10) / 30.0)), false);
@@ -1143,13 +1150,15 @@ final class BlueRedDraw {
             sparks(c, g, 1 + since * .5, age, 24, PALE, 2000 + k * 5);
         }
         if (blast > 0) {
-            fxFlat(c, at.add(0, -1, 0), s * 1.8, SHOCK, 210, ORCHID, (1 - blast) * fade);
-            fxSprite(c, at, s * 2.4, RAYS, 211, ORCHID, (1 - blast) * fade, age * .01);
+            double ring = (1 - blast) * fade * outside;
+            fxFlat(c, at.add(0, -1, 0), s * 1.8, SHOCK, 210, ORCHID, ring);
+            fxSprite(c, at, s * 2.4, RAYS, 211, ORCHID, ring, age * .01);
             // A second, wider shock and a ground ring for a bigger, prettier blast.
-            fxFlat(c, at.add(0, -1, 0), s * 2.6 * blast, SHOCK, 213, ORCHID, (1 - blast) * .8 * fade);
-            fxSprite(c, at, s * 3 * blast, SHOCK, 214, ORCHID, (1 - blast) * .6 * fade, 0);
-            fxSprite(c, at, s * 1.3, SHOCK, 212, ORCHID, (1 - blast) * fade, 0);
+            fxFlat(c, at.add(0, -1, 0), s * 2.6 * blast, SHOCK, 213, ORCHID, ring * .8);
+            fxSprite(c, at, s * 3 * blast, SHOCK, 214, ORCHID, ring * .6, 0);
+            fxSprite(c, at, s * 1.3, SHOCK, 212, ORCHID, ring, 0);
         }
+        if (age >= detonate) purpleBurst(c, at, age - detonate, fade);
         if (age >= detonate) {
             // Shockwaves rolling out over the map one after another (the column was dropped, owner round 37).
             double after = age - detonate, ground = Double.isNaN(groundY) ? at.y - BlueRedRules.PURPLE_LIFT - 2 : groundY;
@@ -1162,6 +1171,37 @@ final class BlueRedDraw {
         }
         double white = age < detonate ? 0 : 1 - clamp01((age - detonate) / 4.0);
         if (white > 0) sprite(c, eye.add(look.scale(.8)), 6, .85 * white * white, PALE, BlueRedAtlas.SOLID);
+    }
+
+    /** The burst itself (owner, 2026-11-20: polish the blast), {@code after} ticks past the detonation: a flash at the heart; spikes of light
+     *  shot out every way, fast, thinning and gone in about half a second; and a shower of small bright sparks flung out that arc down and
+     *  wink out over a few seconds. */
+    static void purpleBurst(Ctx c, Vec3 at, double after, double fade) {
+        if (after < 4) {
+            double k = after / 4;
+            glow(c, at, 18 + 50 * k, (1 - k) * fade, PALE);
+            glow(c, at, 8 + 20 * k, (1 - k) * fade, 0xFFFFFF);
+        }
+        double spike = 1 - clamp01(after / 14);
+        if (spike > 0) for (int i = 0; i < 30; i++) {
+            long sd = 3100 + i * 37L;
+            Vec3 d = new Vec3(hash(sd) * 2 - 1, (hash(sd + 1) * 2 - 1) * .55, hash(sd + 2) * 2 - 1).normalize();
+            double len = (50 + 130 * hash(sd + 3)) * (1 - Math.pow(1 - clamp01(after / 8), 3)), w = (.6 + 1.4 * hash(sd + 4)) * spike;
+            Vec3 from = at.add(d.scale(6 + after * 2));
+            fxBeam(c, from, from.add(d.scale(len)), w, w * .05, BOLT, (int) (3150 + i), i % 3 == 0 ? 0xFFFFFF : i % 3 == 1 ? PALE : ORCHID, Math.pow(spike, 1.5) * fade);
+        }
+        for (int i = 0; i < 320; i++) {
+            long sd = 3400 + i * 29L;
+            double life = 30 + 45 * hash(sd), t = after - 2 * hash(sd + 1);
+            if (t < 0 || t > life) continue;
+            Vec3 d = new Vec3(hash(sd + 2) * 2 - 1, hash(sd + 3) * 1.4 - .2, hash(sd + 4) * 2 - 1).normalize();
+            double v = 1.2 + 3.2 * hash(sd + 5), drag = (1 - Math.exp(-t / 12)) * 12;
+            Vec3 q = at.add(d.scale(10 + v * drag)).add(0, -.012 * t * t, 0);
+            if (q.distanceTo(c.eye) < 2) continue;
+            double a = (1 - t / life) * fade, size = .22 + .22 * hash(sd + 6);
+            glow(c, q, size, a, i % 3 == 0 ? ORCHID : PALE);
+            glow(c, q, size * .4, a, 0xFFFFFF);
+        }
     }
 
     /** Charged chunks floating round Purple this frame (their centres), set by the renderer. */
@@ -1230,7 +1270,8 @@ final class BlueRedDraw {
         // Just behind the sphere's centre, away from the camera.
         Vec3 mid = at.add(look.scale(s * .3));
         // After the blast it runs right across the view, edge to edge (owner, 2026-11-19), not stopping half way.
-        double reach = s * 4.56 + 600 * smooth(blast), lw = s * .23;
+        // Its thickness stays what it was before the blast (owner, 2026-11-20: scaled with the swelling sphere it became huge dark slabs).
+        double s0 = Math.min(s, purpleSize(BlueRedRules.PURPLE_DETONATE)), reach = s0 * 4.56 + 600 * smooth(blast), lw = s0 * .23;
         int n = 24;
         Vec3[] tp = new Vec3[n + 1];
         double[] tw = new double[n + 1];
@@ -2049,7 +2090,7 @@ final class BlueRedDraw {
             double rr = radius * Math.cbrt(rand.nextDouble()), spin = age * (.02 + .03 * rand.nextDouble());
             Vec3 p = at.add(new Vec3(d.x * Math.cos(spin) - d.z * Math.sin(spin), d.y + Math.sin(age * .05 + i) * .1, d.x * Math.sin(spin) + d.z * Math.cos(spin)).scale(rr));
             if (p.distanceTo(c.eye) < 1.2) continue;
-            fxSprite(c, p, .05 + .08 * rand.nextDouble(), SPARK, seed + i, i % 3 == 0 ? 0xFFFFFF : color, .95, i);
+            fxSprite(c, p, .03 + .05 * rand.nextDouble(), SPARK, seed + i, i % 3 == 0 ? 0xFFFFFF : color, 1, i);
         }
     }
 
