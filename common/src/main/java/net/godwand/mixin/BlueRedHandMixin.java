@@ -21,7 +21,7 @@ public abstract class BlueRedHandMixin {
     @Inject(method = "renderArmWithItem", at = @At("HEAD"), cancellable = true)
     private void godwand$bareHand(AbstractClientPlayer player, float partial, float pitch, InteractionHand hand, float swing, ItemStack stack,
                                   float equipped, PoseStack pose, MultiBufferSource buffer, int light, CallbackInfo ci) {
-        if (hand != InteractionHand.MAIN_HAND || player.isInvisible() || !net.godwand.client.BlueRedHand.holds(player)) return;
+        if (hand != InteractionHand.MAIN_HAND || player.isInvisible() || !net.godwand.client.BlueRedHand.bareHand(player)) return;
         pose.pushPose();
         net.godwand.client.BlueRedHand.firstPerson(pose, player, partial);
         renderPlayerArm(pose, buffer, light, equipped, swing, player.getMainArm());

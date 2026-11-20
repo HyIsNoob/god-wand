@@ -27,6 +27,14 @@ public final class BlueRedHand {
         return s.getItem() instanceof GodWandItem && GodWandItem.getSkillMode(s) == GodWandItem.MODE_BLUE_RED;
     }
 
+    /** First person shows the bare hand instead of the wand: Purple's mode, and Fuga's (owner, 2026-11-20), whose wand is put away too. */
+    public static boolean bareHand(Player p) {
+        var s = p.getMainHandItem();
+        if (!(s.getItem() instanceof GodWandItem)) return false;
+        int mode = GodWandItem.getSkillMode(s);
+        return mode == GodWandItem.MODE_BLUE_RED || mode == GodWandItem.MODE_FUGA;
+    }
+
     /** How far into each motion the hand is: Blue held, Red charging (more as it fills), the shot's punch; and the clock. */
     record Motion(double blue, double red, double punch, double now) {}
 

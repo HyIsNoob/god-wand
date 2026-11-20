@@ -217,7 +217,8 @@ final class BlueRedDraw {
         }
         if (!c.glow()) return;
         // Kept low at the stop, where the two nearly touch and their light would pile up white (owner, round 42).
-        glow(c, at, r * .9, .5 - .15 * surge, p.hot());
+        // Blue's halo stays blue (owner, 2026-11-20: only its heart bright, like Red).
+        glow(c, at, r * .9, .5 - .15 * surge, p.variant() == 0 ? p.light() : p.hot());
         glow(c, at, r * (2 + .4 * surge), .2, p.halo());
         if (surge <= 0) return;
         // Pulses of pressure going out, one after another.

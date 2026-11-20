@@ -93,12 +93,15 @@ void main() {
             n3.yz *= rot(t * 0.13);
             float veins = pow(ridge(fbm(n3 * 1.8 + vec3(0.0, 0.0, t * 0.25))), 7.0);
             float haze = fbm(n3 * 1.1 - vec3(t * 0.1));
-            vec3 heart = isRed ? vec3(1.0, 0.28, 0.3) : vec3(1.0);
+            // Blue like Red (owner, 2026-11-20): saturated colour all through, only the heart bright.
+            vec3 heart = isRed ? vec3(1.0, 0.28, 0.3) : vec3(0.85, 0.95, 1.0);
             vec3 body = mix(tint * 0.3, tint * 0.95, smoothstep(0.0, 1.0, z)) * (0.85 + 0.3 * haze);
-            body += mix(tint, heart, 0.5) * veins * 0.7;
-            body += heart * exp(-d * d * 4.5) * (0.9 + 0.3 * level);
+            // Blue: no thin crack-like veins (owner, 2026-11-20), soft drifting clouds of brighter blue instead.
+            float cloud = smoothstep(0.45, 0.8, fbm(n3 * 1.4 + vec3(t * 0.12, 0.0, -t * 0.08)));
+            body += isRed ? mix(tint, heart, 0.5) * veins * 0.7 : tint * 0.55 * cloud;
+            body += heart * exp(-d * d * (isRed ? 4.5 : 9.0)) * (0.9 + 0.3 * level);
             float fres = pow(1.0 - z, 2.4);
-            body += mix(tint, vec3(1.0), isRed ? 0.25 : 0.45) * fres * 1.1;
+            body += (isRed ? mix(tint, vec3(1.0), 0.25) : tint * 1.4) * fres * 1.1;
             float od = max(d - 1.0, 0.0);
             float inside = smoothstep(1.015, 0.985, d);
             col = mix(mix(tint, heart, 0.3), body, inside);

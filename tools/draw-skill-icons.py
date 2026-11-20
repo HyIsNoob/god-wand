@@ -183,17 +183,29 @@ def build():
             d.line([(4, 4), (35, 4), (35, 5)], fill=highlight)
             d.line([(4, 35), (35, 35), (35, 6)], fill=(50, 44, 55))
             d.rectangle((5, 5, 34, 34), fill=(22 + state * 3, 19 + state * 2, 28 + state * 4))
-            if mode == 8:  # Blue fading into red behind the violet sphere (owner, 2026-11-20).
-                for x in range(5, 35):
-                    k = (x - 5) / 29
-                    lift = state * 6
-                    d.line([(x, 5), (x, 34)], fill=(round(22 + 70 * k) + lift, round(26 + 4 * (1 - k)) + lift // 2, round(96 - 66 * k) + lift))
             for x, y in [(7, 2), (28, 3), (36, 11), (2, 25), (12, 36), (30, 36)]:
                 d.point((x, y), fill=(61, 56, 65))
             color = COLORS[mode]
             for x, y in [(4, 4), (33, 4), (4, 33), (33, 33)]:
                 d.rectangle((x, y, x + 2, y + 2), fill=color)
                 d.point((x, y), fill=tuple(min(255, c + 45) for c in color))
+            if mode == 8:  # Its frame half blue, half red (owner, 2026-11-20); the dark ground like the others.
+                blue_trim = [(46, 102, 181), (71, 149, 237), (147, 211, 255)][state]
+                red_trim = [(150, 40, 46), (225, 60, 64), (255, 150, 150)][state]
+                for y in range(40):
+                    for x in range(40):
+                        inner = 4 <= x <= 35 and 4 <= y <= 35
+                        if inner or tile.getpixel((x, y))[3] == 0:
+                            continue
+                        r, g, b_, a_ = tile.getpixel((x, y))
+                        if (r, g, b_) in ((27, 25, 30), (12, 11, 15)):
+                            continue
+                        c = blue_trim if x < 20 else red_trim
+                        tile.putpixel((x, y), c + (255,))
+                for x0, y0 in [(4, 4), (33, 4), (4, 33), (33, 33)]:
+                    c = (90, 140, 255) if x0 < 20 else (255, 80, 80)
+                    d.rectangle((x0, y0, x0 + 2, y0 + 2), fill=c)
+                    d.point((x0, y0), fill=tuple(min(255, v + 45) for v in c))
             tile.alpha_composite(icon(mode), (8, 8))
             atlas.alpha_composite(tile, (mode * 40, state * 40))
     assert atlas.size == (N * 40, 120)
