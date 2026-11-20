@@ -9,7 +9,7 @@
 
 ### New skill: Purple
 
-- **Blue (hold left-click):** a gravity orb that follows your aim and crushes what it pulls in. Let go to throw it.
+- **Blue (hold left-click):** a gravity orb that follows your aim and crushes what it pulls in. Once it is ready, let go to throw it.
 - **Red (hold right-click):** charge and release a red blast that blows enemies away and tunnels through terrain.
 - **A fully charged Red into a ready Blue:** they merge into Purple, with its own cutscene, and a huge sphere erases everything in its path. Works across players.
 - **Any other Red into a Blue:** a smaller Purple explodes on the spot.

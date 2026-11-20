@@ -58,7 +58,7 @@ Raise the wand: a magic circle covers the sky and a winged gate comes down throu
 
 Two orbs, one in each hand.
 
-*   **Blue (hold left-click):** a gravity orb that follows your aim, pulling in and crushing enemies. Let go to throw it; it hangs where it stops.
+*   **Blue (hold left-click):** a gravity orb that follows your aim, pulling in and crushing enemies. Once it is ready, let go to throw it; it hangs where it stops.
 *   **Red (hold right-click):** charge a red blast and release it to blow enemies away and tunnel through terrain.
 *   **Fire a fully charged Red into a ready Blue:** the two merge into Purple, with its own cutscene, and a huge sphere erases everything in its path. It works across players: your Blue, a friend's Red.
 *   **Fire any other Red into a Blue:** a smaller Purple explodes on the spot.
