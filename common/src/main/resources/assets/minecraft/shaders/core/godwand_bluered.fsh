@@ -92,8 +92,8 @@ void main() {
             // heart flickers erratically, flares lick off the rim. All of it worse as it nears bursting (k).
             float k = clamp(level / 3.0, 0.0, 1.0);
             float flick = hash(vec3(floor(t * 14.0), seed, 1.0));
-            float wob = (fbm(vec3(dir * 2.5, t * (1.5 + 2.0 * k))) - 0.5) * (0.35 + 0.25 * k);
-            float uu = d - wob;
+            // A true sphere (owner, 2026-11-20: no bulges); the instability is in its heart and its pulsing size (drawn in BlueRedDraw).
+            float uu = d;
             float dz = clamp(d, 0.0, 0.999);
             vec3 n3 = vec3(q / R, sqrt(1.0 - dz * dz));
             vec3 w = vec3(fbm(n3 * 2.0 + t * 1.3), fbm(n3 * 2.0 - t * 1.1 + 4.0), 0.0);
@@ -106,10 +106,9 @@ void main() {
             float rimU = exp(-pow((uu - 1.0) / 0.06, 2.0));
             body += mix(tint, vec3(1.0), 0.5) * rimU * (0.8 + 0.6 * flick);
             float od = max(uu - 1.0, 0.0);
-            float flare = smoothstep(0.55, 0.85, fbm(vec3(dir * 4.0, od * 6.0 - t * 4.0))) * exp(-od * 5.0);
             float inside = smoothstep(1.02, 0.96, uu);
             col = mix(mix(tint, vec3(1.0), 0.3), body, inside);
-            a = max(inside, clamp(flare * 1.2 + exp(-od * 8.0) * 0.4, 0.0, 1.0) * smoothstep(1.6, 1.2, d));
+            a = max(inside, clamp(exp(-od * 8.0) * 0.45, 0.0, 1.0) * smoothstep(1.6, 1.2, d));
         } else if (calm) {
             // A clear sphere of energy: deep at the rim, brightening smoothly to a hot heart (white for Blue, red for Red), a few soft veins
             // of light drifting slowly over it, a crisp thin fresnel rim, a soft halo outside. No spiral.
@@ -120,12 +119,15 @@ void main() {
             float veins = pow(ridge(fbm(n3 * 1.8 + vec3(0.0, 0.0, t * 0.25))), 7.0);
             float haze = fbm(n3 * 1.1 - vec3(t * 0.1));
             // Blue exactly as Red, in blue (owner, 2026-11-20): its heart a bright blue, not white.
-            vec3 heart = isRed ? vec3(1.0, 0.28, 0.3) : vec3(0.35, 0.65, 1.0);
-            vec3 body = mix(tint * 0.3, tint * 0.95, smoothstep(0.0, 1.0, z)) * (0.85 + 0.3 * haze);
-            body += mix(tint, heart, 0.5) * veins * 0.7;
-            body += heart * exp(-d * d * 4.5) * (0.9 + 0.3 * level);
+            // Blue deeper and thicker (owner, 2026-11-20: it read pale, its veins showed and its heart outshone Red's).
+            vec3 heart = isRed ? vec3(1.0, 0.28, 0.3) : vec3(0.25, 0.5, 1.0);
+            vec3 deep = isRed ? tint * 0.3 : vec3(0.02, 0.08, 0.45);
+            vec3 full = isRed ? tint * 0.95 : vec3(0.08, 0.32, 1.0);
+            vec3 body = mix(deep, full, smoothstep(0.0, 1.0, z)) * (0.85 + 0.3 * haze);
+            body += mix(tint, heart, 0.5) * veins * (isRed ? 0.7 : 0.3);
+            body += heart * exp(-d * d * 4.5) * (0.9 + 0.3 * level) * (isRed ? 1.0 : 0.75);
             float fres = pow(1.0 - z, 2.4);
-            body += mix(tint, vec3(1.0), 0.25) * fres * 1.1;
+            body += (isRed ? mix(tint, vec3(1.0), 0.25) : vec3(0.15, 0.45, 1.0)) * fres * 1.1;
             float od = max(d - 1.0, 0.0);
             float inside = smoothstep(1.015, 0.985, d);
             col = mix(mix(tint, heart, 0.3), body, inside);

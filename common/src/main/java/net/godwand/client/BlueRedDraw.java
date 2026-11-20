@@ -1325,8 +1325,9 @@ final class BlueRedDraw {
             }
             // Unstable (owner, 2026-11-20): it trembles harder as it nears bursting, spikes in size now and then, blue and red ghosts split
             // to either side.
-            Vec3 shook = at.add(jitter(age, .06 + .22 * charge, 9601));
-            double spike = hash(9602 + (long) Math.floor(age * 1.5)) > .7 ? .14 * charge : 0;
+            // Owner, 2026-11-20: it stays a sphere and stays put; it pulses in size, slightly but fast and unevenly, quicker near bursting.
+            Vec3 shook = at;
+            double spike = (.035 + .06 * charge) * Math.sin(age * (2.2 + 1.6 * charge) + 1.5 * Math.sin(age * .7));
             if (c.glow() && charge > .1) {
                 Vec3 side = look.cross(new Vec3(0, 1, 0));
                 side = side.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : side.normalize();
