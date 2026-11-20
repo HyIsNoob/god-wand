@@ -27,7 +27,7 @@ class SpellDamageTest {
             cfg.spellTargets = "no_pets";
             assertFalse(SpellDamage.affects(pet, caster), "a tamed pet");
             assertFalse(SpellDamage.affects(named, caster), "a named mob");
-            assertFalse(SpellDamage.affects(villager, caster), "a villager");
+            assertTrue(SpellDamage.affects(villager, caster), "owner, 2026-11-20: villagers are fair game");
             assertTrue(SpellDamage.affects(cow, caster), "a wild animal");
             assertTrue(SpellDamage.affects(zombie, caster), "a monster");
 

@@ -129,8 +129,8 @@ public final class GodWandConfig {
         public boolean terrain(boolean skill) { return terrainDamage && skill; }
         /** Spells hurting other players. */
         public boolean pvp = true;
-        /** Who spells hurt and push: "all"; "no_pets" (spares tamed, named and leashed mobs, villagers and traders, iron and snow
-         *  golems, armor stands, allays); "hostile" (monsters only). Other players follow pvp. */
+        /** Who spells hurt and push: "all"; "no_pets" (spares tamed, named and leashed mobs); "hostile" (monsters only). Other
+         *  players follow pvp. */
         public String spellTargets = "no_pets";
         /** Red into an unready Blue (or an early Red) makes the small Purple; off, Red passes the Blue by. */
         public boolean smallPurple = true;

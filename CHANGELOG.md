@@ -1,5 +1,84 @@
 # Changelog
 
+## [1.6.0]
+
+### Important: pets are now safe from spells
+
+- By default, spells no longer hurt or push tamed animals, mobs with a name tag or mobs on a lead. Everything else is hit as before.
+- Server owners can choose: protect pets (default), hit everything, or hit monsters only.
+
+### New skill: Purple
+
+- **Blue (hold left-click):** a gravity orb that follows your aim and crushes what it pulls in. Let go to throw it.
+- **Red (hold right-click):** charge and release a red blast that blows enemies away and tunnels through terrain.
+- **A fully charged Red into a ready Blue:** they merge into Purple, with its own cutscene, and a huge sphere erases everything in its path. Works across players.
+- **Any other Red into a Blue:** a smaller Purple explodes on the spot.
+- **Hold both buttons:** form a purple sphere in front of you and let go to fire it.
+- Blue and Red each have their own cooldown, and the cooldown line names which one is cooling down. Purple puts both on cooldown.
+
+### Improvements
+
+- Advancements: one for each skill, plus a few for Blue, Red and Purple.
+- One switch in the settings menu (K) turns all cutscenes off or on. Each cutscene still has its own switch.
+- New in the settings menu (K): a volume slider for the mod's sounds, the Blue/Red rings around the crosshair, casting Purple and Fuga bare-handed, and an optional third-person view while casting Blue and Red.
+- New server settings: one switch to turn off terrain damage for every skill, PvP on or off, and which creatures spells hit.
+
+## [1.5.0]
+
+### New skill: Silent Gate
+
+- Raise the wand and a giant magic circle draws itself across the sky. A winged gate comes down through a crack in it, and when its doors open, hundreds of small magic circles fill the sky.
+- Right-click to give the command (or wait a few seconds and the gate fires by itself): the circles rain beams of light on every monster around you, and a final golden beam finishes off the strongest one.
+- Comes with its own cutscene. You can turn the cutscene off in the settings menu (K).
+
+### Improvements
+
+- Cutscene animations now keep working with other animation mods installed, such as Emotecraft, Better Combat and Not Enough Animations. Yes Steve Model players keep their model's own animations, and the cutscene still plays.
+- The server settings file is shorter and easier to read: each skill's settings are grouped together and the level lists sit on one line. Your existing settings are kept and tidied automatically.
+- New server settings for Silent Gate: cooldown, damage, which creatures it attacks, range, how long the attack lasts, how long the gate waits for your command, how many magic circles appear, and crater size (or no terrain damage at all).
+- The "preserve terrain" presets now also stop Silent Gate from making craters.
+
+### Fixed
+
+- Includes all fixes from 1.4.1 to 1.4.4.
+
+## [1.4.4]
+
+### Fixed
+
+- Fuga's configured radius now limits damage, shockwave, slowness and terrain changes around the impact. Its shockwave previously reached up to 230 blocks regardless of the radius setting.
+- Fuga no longer places spreading fire blocks.
+
+### Added
+
+- Server options for Fuga shockwave damage, entity ignition, knockback and slowness. Visual effects remain fully available.
+
+## [1.4.3]
+
+### Fixed
+
+- Fuga block damage is disabled by both terrain preservation presets. Reopening a single-player world now picks up changes to the server config.
+
+## [1.4.2]
+
+### Fixed
+
+- Fixed a crash when opening the configuration menu on Minecraft 26.3 and 1.21.11 (Fabric and NeoForge).
+
+## [1.4.1]
+
+### Added
+
+- New admin command `/godwand reset_cooldowns [players]` (operator level 4) clears every skill cooldown instantly.
+
+### Fixed
+
+- `/godwand lock fuga` now works: a wand can be locked to Fuga like the other skills.
+- Fuga's cutscene, phoenix and meteor no longer vanish for players on servers with higher ping or a lagging server; the blast still happened, but the visuals were dropped.
+- Mobs burning and dying in Fuga's blast are quieter, and stay quieter even when the cutscene is turned off or skipped.
+- Fixed Fuga's arrow, phoenix, meteor and other mesh effects being invisible on Fabric for Minecraft 1.21.11.
+- The God Wand recipe now unlocks in the recipe book on Minecraft 1.21.11 and 26.1.2 (its advancement failed to load and logged an error).
+
 ## [1.4.0]
 
 ### Added

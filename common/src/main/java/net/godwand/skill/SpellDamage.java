@@ -37,10 +37,8 @@ public final class SpellDamage {
         if("hostile".equals(mode))return living instanceof net.minecraft.world.entity.monster.Enemy;
         if(living instanceof net.minecraft.world.entity.OwnableEntity owned&&owned.getOwnerUUID()!=null)return false;
         if(living.hasCustomName())return false;
-        if(living instanceof net.minecraft.world.entity.Mob mob&&mob.isLeashed())return false;
-        return !(living instanceof net.minecraft.world.entity.npc.AbstractVillager||living instanceof net.minecraft.world.entity.animal.IronGolem
-                ||living instanceof net.minecraft.world.entity.animal.SnowGolem||living instanceof net.minecraft.world.entity.decoration.ArmorStand
-                ||living instanceof net.minecraft.world.entity.animal.allay.Allay);
+        // Only what a player has claimed (owner, 2026-11-20): villagers, golems and the rest are fair game.
+        return !(living instanceof net.minecraft.world.entity.Mob mob&&mob.isLeashed());
     }
 
     public static boolean hurt(Entity target,DamageSource original,float amount) {
