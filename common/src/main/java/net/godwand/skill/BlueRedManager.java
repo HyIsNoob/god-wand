@@ -243,6 +243,9 @@ public final class BlueRedManager {
     static void smallPurple(ServerLevel level, Blue blue, ServerPlayer shooter) {
         var cfg = GodWandConfig.SERVER;
         double power = BlueRedRules.smallPower(blue.credited, cfg.blueReadyDamage, blue.kills, cfg.blueReadyKills);
+        // "Imaginary Mass" (owner, 2026-11-20): the first small Purple, which has no cutscene to interrupt.
+        GodWandAdvancements.award(blue.owner, "purple");
+        GodWandAdvancements.award(shooter, "purple");
         BLUES.remove(blue);
         BlueEater.retireAll(blue.eaten);
         SMALLS.add(new SmallPurple(level, blue.pos, blue.owner, shooter, power));
@@ -275,8 +278,7 @@ public final class BlueRedManager {
 
     /** Red met a ready Blue: Purple at the Blue. Both players watch it and both lose the whole skill for purpleCooldownTicks. */
     static void startPurple(ServerLevel level, Blue blue, ServerPlayer shooter) {
-        GodWandAdvancements.award(blue.owner, "purple");
-        GodWandAdvancements.award(shooter, "purple");
+        // No toast here (owner, 2026-11-20: not in the middle of the cutscene); the full Purple's own is "purple_kill", after the blast.
         BLUES.remove(blue);
         BlueEater.retireAll(blue.eaten);
         Vec3 sky = blue.pos.add(0, BlueRedRules.PURPLE_LIFT, 0);
