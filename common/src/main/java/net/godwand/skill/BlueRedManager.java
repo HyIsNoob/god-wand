@@ -370,6 +370,7 @@ public final class BlueRedManager {
     }
 
     public static void tick(ServerLevel level) {
+        GodWandAdvancements.tick(level.getServer());
         var cfg = GodWandConfig.SERVER;
         // Shared terrain allowance for every Blue in this level this tick, like Fuga and Atomic.
         int budget = 32768;
