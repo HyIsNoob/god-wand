@@ -62,7 +62,7 @@ final class BlueRedSounds {
     /** Fired or called off: every sound of the cast stops at once. */
     static void end(int owner) {
         List<Follow> sounds = CASTING.remove(owner);
-        if (sounds != null) sounds.forEach(Minecraft.getInstance().getSoundManager()::stop);
+        if (sounds != null) sounds.forEach(Follow::cut);
     }
 
     /** Fired: the cast is cut and the shot plays, in stereo for the caster and placed at {@code at} (mono) for everyone else. */
@@ -82,7 +82,7 @@ final class BlueRedSounds {
     static void reset() {
         var sounds = Minecraft.getInstance().getSoundManager();
         HUMS.values().forEach(sounds::stop);
-        CASTING.values().forEach(l -> l.forEach(sounds::stop));
+        CASTING.values().forEach(l -> l.forEach(Follow::cut));
         HUMS.clear(); CASTING.clear();
     }
 
@@ -108,6 +108,10 @@ final class BlueRedSounds {
             Vec3 at = where.get();
             if (at != null) { x = at.x; y = at.y; z = at.z; }
         }
+
+        /** Stopped for good. A stop sent straight to the sound engine is lost when the file is still loading (the 20 s loops): it then
+         *  starts playing after the stop and loops forever (owner, 2026-11-20). The engine checks this flag every tick instead. */
+        void cut() { volume = 0; stop(); Minecraft.getInstance().getSoundManager().stop(this); }
 
         @Override public void tick() {
             Vec3 at = where.get();
