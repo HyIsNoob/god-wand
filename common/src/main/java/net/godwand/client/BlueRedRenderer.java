@@ -676,7 +676,9 @@ public final class BlueRedRenderer {
             // Its pressure is thrown back behind it and a little up and out to the side, never into the lens (owner, 2026-11-19).
             // Front to back (owner, 2026-11-19): straight back along the view, fanning out evenly all round, not swept across the screen.
             Vec3 back = view.scale(-1);
-            BlueRedDraw.redCharge(c, at, BlueRedVisual.redChargeSize(Math.min(age, full), (int) full), age, Math.min(1, age / full), age >= full, back, full);
+            // Its appearance starts when it shows, after the input grace (owner, 2026-11-20: it popped in already grown).
+            double shown = age - BlueRedRules.INPUT_GRACE;
+            BlueRedDraw.redCharge(c, at, BlueRedVisual.redChargeSize(shown, (int) full), shown, Math.min(1, age / full), age >= full, back, full - BlueRedRules.INPUT_GRACE);
             BlueRedDraw.darkSwirl(c, owner.getPosition(partial).add(0, 1.1, 0), age, Math.min(1, age / full), view);
         }
         for (Flight f : FLIGHTS) {

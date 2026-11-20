@@ -3,12 +3,47 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>God Wand Wiki — Technical Documentation</title>
+  <title>God Wand Wiki — Technical Documentation v1.5.0</title>
+  <meta name="description" content="Official technical handbook for Minecraft mod God Wand v1.5.0: 8 catastrophic spells (including Silent Gate & Fuga), wand skins, boss compatibility, and server/client configuration.">
+  <meta name="keywords" content="Minecraft, God Wand, Minecraft mod, Silent Gate, Fuga, I am Atomic, Supernova, Fabric, NeoForge, Forge, Minecraft 1.21.1, 1.20.1, 1.21.11, 26.1.2, 26.3">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <link rel="canonical" href="https://god-wand-wiki.vercel.app/">
+  
+  <!-- LLM & AI Agents Standard Specification -->
+  <link rel="alternate" type="text/plain" href="llms.txt" title="LLM Context (Summary)">
+  <link rel="alternate" type="text/plain" href="llms-full.txt" title="Full LLM Context (Complete Knowledge Base)">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="God Wand Wiki — Technical Documentation v1.5.0">
+  <meta property="og:description" content="Official technical handbook for God Wand v1.5.0: 8 ultimate spells, boss damage routing, animation mod support, and exhaustive 43-key server configuration.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://god-wand-wiki.vercel.app/">
+  <meta property="og:image" content="assets/god-wand-avatar.png">
+
   <link rel="icon" type="image/png" href="assets/god-wand-avatar.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  
+  <!-- JSON-LD Structured Data for AI & Search Crawlers -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "God Wand",
+    "applicationCategory": "GameMod",
+    "operatingSystem": "Java",
+    "softwareVersion": "1.5.0",
+    "description": "Premier Minecraft magic mod featuring 8 catastrophic spells with customizable terrain manipulation, boss damage routing, custom 3D wand models, and extensive server configuration.",
+    "url": "https://god-wand-wiki.vercel.app/",
+    "author": {
+      "@type": "Person",
+      "name": "hyisnoob"
+    }
+  }
+  </script>
+
   <script>
     (function() {
       const savedTheme = localStorage.getItem('godwand_wiki_theme');
@@ -30,7 +65,7 @@
       <a href="#" class="brand">
         <img src="assets/god-wand-avatar.png" alt="God Wand" class="brand-avatar">
         <span class="brand-title">God Wand</span>
-        <span class="brand-badge">v1.4.0</span>
+        <span class="brand-badge">v1.5.0</span>
       </a>
     </div>
 
@@ -40,6 +75,14 @@
     </div>
 
     <div class="header-actions">
+      <!-- 1-Click Copy AI Context Button -->
+      <button class="ai-btn ai-copy-context-trigger" aria-label="Copy AI Context" title="Copy complete documentation context for AI (ChatGPT, Claude, Gemini...)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        <span class="lang-en">Copy for AI</span>
+        <span class="lang-vi">Hỏi AI</span>
+        <span class="lang-zh">复制给 AI</span>
+      </button>
+
       <button id="theme-toggle" class="theme-btn" aria-label="Toggle light or dark theme" title="Toggle theme">
         <svg class="theme-icon-sun" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
         <svg class="theme-icon-moon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
@@ -51,7 +94,7 @@
         <span class="lang-label">EN / VI / 中文</span>
       </button>
 
-      <a href="https://github.com/HyIsNoob/god-wand" target="_blank" rel="noopener noreferrer" class="nav-link-btn">
+      <a href="https://github.com/HyIsNoob/god-wand" target="_blank" rel="noopener noreferrer" class="nav-link-btn" title="View Source on GitHub">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
         <span>GitHub</span>
       </a>
@@ -73,6 +116,11 @@
             <span class="lang-vi">Tổng quan & Phím tắt</span>
             <span class="lang-zh">概览与控制按键</span>
           </a></li>
+          <li><a href="#crafting">
+            <span class="lang-en">Survival Crafting</span>
+            <span class="lang-vi">Chế tạo sinh tồn</span>
+            <span class="lang-zh">生存模式合成</span>
+          </a></li>
         </ul>
       </div>
 
@@ -84,9 +132,9 @@
         </div>
         <ul class="sidebar-nav">
           <li><a href="#skills">
-            <span class="lang-en">7 Ultimate Spells</span>
-            <span class="lang-vi">7 Chiêu thức ma pháp</span>
-            <span class="lang-zh">7 种终极神级魔法</span>
+            <span class="lang-en">8 Ultimate Spells</span>
+            <span class="lang-vi">8 Chiêu thức ma pháp</span>
+            <span class="lang-zh">8 种终极神级魔法</span>
           </a></li>
           <li><a href="#skins">
             <span class="lang-en">Skins & Melee Stats</span>
@@ -113,6 +161,11 @@
             <span class="lang-vi">Tương thích Iris & Oculus</span>
             <span class="lang-zh">Iris 与 Oculus 光影兼容</span>
           </a></li>
+          <li><a href="#anim-compat">
+            <span class="lang-en">Animation Mods (1.5.0)</span>
+            <span class="lang-vi">Tương thích Mod Animation</span>
+            <span class="lang-zh">动画动作模组兼容</span>
+          </a></li>
         </ul>
       </div>
 
@@ -124,15 +177,30 @@
         </div>
         <ul class="sidebar-nav">
           <li><a href="#server-config">
-            <span>godwand-server.json (29 keys)</span>
+            <span>godwand-server.json (43 keys)</span>
           </a></li>
           <li><a href="#client-config">
-            <span>godwand-client.json (10 keys)</span>
+            <span>godwand-client.json (12 keys)</span>
           </a></li>
           <li><a href="#presets">
             <span class="lang-en">Config Presets</span>
             <span class="lang-vi">Preset cấu hình mẫu</span>
             <span class="lang-zh">预设配置模板</span>
+          </a></li>
+        </ul>
+      </div>
+
+      <div class="sidebar-group">
+        <div class="sidebar-title">
+          <span class="lang-en">5. AI & LLM Integration</span>
+          <span class="lang-vi">5. Tích Hợp AI & LLM</span>
+          <span class="lang-zh">5. AI 与大模型集成</span>
+        </div>
+        <ul class="sidebar-nav">
+          <li><a href="#ai-tools">
+            <span class="lang-en">Copy AI Context / llms.txt</span>
+            <span class="lang-vi">Ngữ cảnh AI & llms.txt</span>
+            <span class="lang-zh">AI 上下文与 llms.txt</span>
           </a></li>
         </ul>
       </div>
@@ -150,30 +218,46 @@
 
       <!-- Hero Banner -->
       <div class="hero-banner">
-        <span class="hero-tag">Handbook v1.4.0</span>
+        <span class="hero-tag">Handbook v1.5.0</span>
         <h1 class="hero-title">God Wand Documentation</h1>
         <p class="hero-desc lang-en">
-          Official technical handbook for God Wand v1.4.0: 7 ultimate spells (including the new Fuga celestial fire phoenix), boss damage routing, and exhaustive reference for all Server & Client configuration parameters.
+          Official technical handbook for God Wand v1.5.0: 8 ultimate spells (including the brand-new <strong>Silent Gate</strong> celestial barrage and Fuga fire phoenix), animation mod support, boss damage routing, and exhaustive reference for all Server (43 keys) &amp; Client (12 keys) configuration parameters.
         </p>
         <p class="hero-desc lang-vi">
-          Tài liệu kỹ thuật chính thức cho mod God Wand v1.4.0: 7 chiêu thức ma pháp tối thượng (bao gồm chiêu thứ 7 Fuga - Phần Hỏa Hàng Thế), tương thích Boss mod và bảng tra cứu toàn diện 100% tham số cấu hình Server & Client.
+          Tài liệu kỹ thuật chính thức cho mod God Wand v1.5.0: 8 chiêu thức ma pháp tối thượng (bao gồm chiêu thứ 8 <strong>Silent Gate - Cổng Thiên Đường</strong> xả mưa tia sáng thánh và Fuga Phần Hỏa Hàng Thế), tương thích mod animation, định tuyến sát thương Boss và bảng tra cứu toàn diện 100% tham số cấu hình Server (43 keys) &amp; Client (12 keys).
         </p>
         <p class="hero-desc lang-zh">
-          神之杖 (God Wand) v1.4.0 官方技术文档：7 种终极神术（含全新技能 Fuga 火焰神鸟）、Boss 伤害穿透机制以及服务端与客户端配置项全景参考。
+          神之杖 (God Wand) v1.5.0 官方技术文档：8 种终极神术（含全新第八技能 <strong>Silent Gate 静默之门</strong> 天界光束轰炸与 Fuga 火焰神鸟）、动作模组原生兼容、Boss 伤害穿透机制以及服务端（43 项）与客户端（12 项）配置项全景参考。
         </p>
+
+        <!-- AI Integration Action Strip -->
+        <div class="hero-ai-strip">
+          <button class="hero-ai-btn ai-copy-context-trigger" title="Copy structured Markdown context for ChatGPT, Claude, Gemini, DeepSeek...">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            <span class="lang-en">✨ Copy Full Context for AI</span>
+            <span class="lang-vi">✨ Sao Chép Toàn Bộ Ngữ Cảnh Cho AI</span>
+            <span class="lang-zh">✨ 复制完整上下文供 AI 问答</span>
+          </button>
+          <a href="llms.txt" target="_blank" rel="noopener noreferrer" class="hero-ai-link" title="Standard summary format for AI crawlers">
+            📄 <code>llms.txt</code>
+          </a>
+          <a href="llms-full.txt" target="_blank" rel="noopener noreferrer" class="hero-ai-link" title="Full Markdown knowledge base for LLM web-browsing">
+            📚 <code>llms-full.txt</code>
+          </a>
+        </div>
       </div>
 
       <!-- Section 1: Overview & Controls -->
       <section id="overview" class="doc-section">
         <div class="section-header">
           <h2 class="section-title">
-            <span class="lang-en">Overview & Controls</span>
-            <span class="lang-vi">Tổng Quan & Điều Khiển</span>
+            <span class="lang-en">Overview &amp; Controls</span>
+            <span class="lang-vi">Tổng Quan &amp; Điều Khiển</span>
             <span class="lang-zh">概览与控制按键</span>
           </h2>
-          <p class="section-lead lang-en">Version support matrix (10 builds) and keybinding controls in-game.</p>
-          <p class="section-lead lang-vi">Ma trận phiên bản hỗ trợ (10 bản build) và bảng phím tắt thao tác trong game.</p>
-          <p class="section-lead lang-zh">支持版本矩阵（10 大构建包）及游戏内核心快捷键与操作指南。</p>
+          <p class="section-lead lang-en">Version support matrix (10 builds), keybinding controls, admin commands, and survival crafting recipe.</p>
+          <p class="section-lead lang-vi">Ma trận phiên bản hỗ trợ (10 bản build), bảng phím tắt, lệnh quản trị và công thức chế tạo sinh tồn.</p>
+          <p class="section-lead lang-zh">支持版本矩阵（10 大构建包）、游戏内核心快捷键、管理员指令与生存合成配方。</p>
         </div>
 
         <div class="table-wrapper">
@@ -184,9 +268,9 @@
                 <th>Loader</th>
                 <th>Java</th>
                 <th>
-                  <span class="lang-en">Jar File</span>
-                  <span class="lang-vi">Tập tin cài đặt</span>
-                  <span class="lang-zh">安装包文件</span>
+                  <span class="lang-en">Jar File (v1.5.0)</span>
+                  <span class="lang-vi">Tập tin cài đặt (v1.5.0)</span>
+                  <span class="lang-zh">安装包文件 (v1.5.0)</span>
                 </th>
               </tr>
             </thead>
@@ -195,61 +279,61 @@
                 <td><strong>1.21.1</strong></td>
                 <td>Fabric + Fabric API</td>
                 <td>Java 21</td>
-                <td><code>godwand-fabric-1.4.0.jar</code></td>
+                <td><code>godwand-fabric-1.5.0.jar</code></td>
               </tr>
               <tr>
                 <td><strong>1.21.1</strong></td>
                 <td>NeoForge</td>
                 <td>Java 21</td>
-                <td><code>godwand-neoforge-1.4.0.jar</code></td>
+                <td><code>godwand-neoforge-1.5.0.jar</code></td>
               </tr>
               <tr>
                 <td><strong>1.20.1</strong></td>
                 <td>Fabric + Fabric API</td>
                 <td>Java 17</td>
-                <td><code>godwand-fabric-1.20.1-1.4.0.jar</code></td>
+                <td><code>godwand-fabric-1.20.1-1.5.0.jar</code></td>
               </tr>
               <tr>
                 <td><strong>1.20.1</strong></td>
                 <td>Forge</td>
                 <td>Java 17</td>
-                <td><code>godwand-forge-1.20.1-1.4.0.jar</code></td>
+                <td><code>godwand-forge-1.20.1-1.5.0.jar</code></td>
               </tr>
               <tr>
                 <td><strong>1.21.11</strong></td>
                 <td>Fabric + Fabric API</td>
                 <td>Java 21</td>
-                <td><code>godwand-fabric-1.21.11-1.4.0.jar</code></td>
+                <td><code>godwand-fabric-1.21.11-1.5.0.jar</code></td>
               </tr>
               <tr>
                 <td><strong>1.21.11</strong></td>
                 <td>NeoForge</td>
                 <td>Java 21</td>
-                <td><code>godwand-neoforge-1.21.11-1.4.0.jar</code></td>
+                <td><code>godwand-neoforge-1.21.11-1.5.0.jar</code></td>
               </tr>
               <tr>
                 <td><strong>26.1.2</strong></td>
                 <td>Fabric + Fabric API</td>
                 <td>Java 25</td>
-                <td><code>godwand-fabric-26.1.2-1.4.0.jar</code></td>
+                <td><code>godwand-fabric-26.1.2-1.5.0.jar</code></td>
               </tr>
               <tr>
                 <td><strong>26.1.2</strong></td>
                 <td>NeoForge</td>
                 <td>Java 25</td>
-                <td><code>godwand-neoforge-26.1.2-1.4.0.jar</code></td>
+                <td><code>godwand-neoforge-26.1.2-1.5.0.jar</code></td>
               </tr>
               <tr>
                 <td><strong>26.3</strong></td>
                 <td>Fabric + Fabric API</td>
                 <td>Java 25</td>
-                <td><code>godwand-fabric-26.3-1.4.0.jar</code></td>
+                <td><code>godwand-fabric-26.3-1.5.0.jar</code></td>
               </tr>
               <tr>
                 <td><strong>26.3</strong></td>
                 <td>NeoForge</td>
                 <td>Java 25</td>
-                <td><code>godwand-neoforge-26.3-1.4.0.jar</code></td>
+                <td><code>godwand-neoforge-26.3-1.5.0.jar</code></td>
               </tr>
             </tbody>
           </table>
@@ -258,27 +342,27 @@
         <div class="cards-grid">
           <div class="card">
             <div class="card-title"><kbd>V</kbd> <span class="lang-en">(Hold)</span><span class="lang-vi">(Giữ)</span><span class="lang-zh">(按住)</span></div>
-            <p class="lang-en">Open radial skill wheel to choose 1 of 7 active spells seamlessly.</p>
-            <p class="lang-vi">Mở menu tròn (Radial Menu) chọn 1 trong 7 chiêu thức ma pháp đang dùng.</p>
-            <p class="lang-zh">按住打开技能轮盘，在 7 种神术之间快速切换选定。</p>
+            <p class="lang-en">Open radial skill wheel to choose seamlessly between all 8 active spells.</p>
+            <p class="lang-vi">Mở menu tròn (Radial Menu) chọn nhanh giữa 8 chiêu thức ma pháp tối thượng.</p>
+            <p class="lang-zh">按住打开技能轮盘，在全部 8 种终极神术之间快速无缝切换。</p>
           </div>
           <div class="card">
             <div class="card-title"><kbd>K</kbd> <span class="lang-en">(Press)</span><span class="lang-vi">(Bấm)</span><span class="lang-zh">(按下)</span></div>
-            <p class="lang-en">Open client settings menu: camera shake, bloom, cutscene toggles, and wand skins.</p>
-            <p class="lang-vi">Mở menu Client cá nhân: chỉnh độ rung camera, bloom, bật tắt cutscene và ngoại hình trượng.</p>
-            <p class="lang-zh">打开客户端专属设置菜单：调节镜头震动、泛光、过场动画开关及法杖外观。</p>
+            <p class="lang-en">Open client settings menu: camera shake, bloom, cutscene toggles (Atomic, Fuga, Silent Gate), and wand skins.</p>
+            <p class="lang-vi">Mở menu Client cá nhân: chỉnh độ rung camera, bloom, bật/tắt cutscene (Atomic, Fuga, Silent Gate) và ngoại hình trượng.</p>
+            <p class="lang-zh">打开客户端专属设置菜单：调节镜头震动、泛光、过场动画开关（原子、Fuga、静默之门）及法杖外观。</p>
           </div>
           <div class="card">
             <div class="card-title"><span class="lang-en">Right Click</span><span class="lang-vi">Chuột phải</span><span class="lang-zh">鼠标右键</span></div>
-            <p class="lang-en">Cast active skill: click to fire/toggle, or hold to charge power and scale damage.</p>
-            <p class="lang-vi">Thi triển chiêu thức: nhấp để bắn/bật, hoặc giữ để tích lực phóng đại sát thương.</p>
-            <p class="lang-zh">释放当前技能：点击开闭或发射，按住持续蓄力以发挥最高威力。</p>
+            <p class="lang-en">Cast active skill: click to fire/toggle, hold to charge power, or click to command Silent Gate.</p>
+            <p class="lang-vi">Thi triển chiêu thức: nhấp để bắn/bật, giữ để tích lực, hoặc nhấp để ra lệnh cho Silent Gate khai hỏa.</p>
+            <p class="lang-zh">释放当前技能：点击开闭或发射，按住持续蓄力，或在静默之门待命时点击下达轰炸指令。</p>
           </div>
           <div class="card">
             <div class="card-title"><kbd>Shift</kbd> / <kbd>Esc</kbd> / <kbd>F5</kbd></div>
-            <p class="lang-en">Shift builds bridge in Spatial Path; Esc or F5 skips cinematic cutscenes (Atomic & Fuga).</p>
-            <p class="lang-vi">Shift tạo cầu đá khi bật Spatial Path; Esc hoặc F5 bỏ qua cutscene điện ảnh (Atomic & Fuga).</p>
-            <p class="lang-zh">开启空间之径时按 Shift 铺桥；按 Esc 或 F5 跳过原子与 Fuga 的过场镜头。</p>
+            <p class="lang-en">Shift builds bridge in Spatial Path or cancels Silent Gate during build/wait; Esc or F5 skips cinematic cutscenes.</p>
+            <p class="lang-vi">Shift tạo cầu đá khi bật Spatial Path hoặc hủy Silent Gate khi đang chuẩn bị; Esc hoặc F5 bỏ qua cutscene điện ảnh.</p>
+            <p class="lang-zh">开启空间之径时按 Shift 铺桥，或在静默之门构筑/待命阶段潜行中止；按 Esc 或 F5 跳过运镜特写。</p>
           </div>
           <div class="card">
             <div class="card-title"><span class="lang-en">Left Click (Melee)</span><span class="lang-vi">Chuột trái (Cận chiến)</span><span class="lang-zh">鼠标左键（近战）</span></div>
@@ -287,10 +371,31 @@
             <p class="lang-zh">左键普通近战攻击造成 5 点伤害，所有法杖外观共享该近战数值。</p>
           </div>
           <div class="card">
-            <div class="card-title"><span class="lang-en">/godwand lock & unlock</span><span class="lang-vi">Lệnh khóa chiêu</span><span class="lang-zh">法杖技能锁定指令</span></div>
-            <p class="lang-en">Run /godwand lock &lt;skill&gt; to lock wand to one spell; run /godwand unlock to restore full skill wheel.</p>
-            <p class="lang-vi">Dùng /godwand lock &lt;skill&gt; để khóa gậy vào 1 chiêu; dùng /godwand unlock để mở khóa lại menu V.</p>
-            <p class="lang-zh">输入 /godwand lock &lt;skill&gt; 锁定单一技能；输入 /godwand unlock 解锁完整轮盘。</p>
+            <div class="card-title"><span class="lang-en">/godwand Admin Commands</span><span class="lang-vi">Lệnh Quản Trị /godwand</span><span class="lang-zh">/godwand 管理员指令</span></div>
+            <p class="lang-en"><code>/godwand lock &lt;skill&gt;</code> &amp; <code>/godwand unlock</code> (OP Lv.2) lock/unlock a wand to one skill (incl. <code>silent_gate</code>). <code>/godwand reset_cooldowns [players]</code> (OP Lv.4) clears all cooldowns instantly.</p>
+            <p class="lang-vi"><code>/godwand lock &lt;skill&gt;</code> &amp; <code>/godwand unlock</code> (OP Lv.2) khóa/mở khóa gậy vào 1 chiêu (gồm cả <code>silent_gate</code>). <code>/godwand reset_cooldowns [players]</code> (OP Lv.4) xóa ngay mọi hồi chiêu.</p>
+            <p class="lang-zh"><code>/godwand lock &lt;skill&gt;</code> 与 <code>/godwand unlock</code>（权限 2）锁定或解锁单技能法杖（支持 <code>silent_gate</code>）；<code>/godwand reset_cooldowns [players]</code>（权限 4）立即重置所有技能冷却。</p>
+          </div>
+        </div>
+
+        <div id="crafting" class="card crafting-box">
+          <img src="assets/crafting.png" alt="God Wand Crafting Recipe" class="crafting-img">
+          <div class="crafting-info">
+            <h3>
+              <span class="lang-en">Survival Crafting Recipe</span>
+              <span class="lang-vi">Công Thức Chế Tạo (Survival)</span>
+              <span class="lang-zh">生存模式合成配方</span>
+            </h3>
+            <p class="lang-en">Crafted in a standard 3&times;3 Crafting Table. The recipe unlocks automatically in the recipe book when obtaining a Nether Star across all 10 supported builds.</p>
+            <p class="lang-vi">Chế tạo trên bàn Crafting Table 3&times;3 tiêu chuẩn. Công thức tự động mở khóa trong sổ công thức (Recipe Book) khi sở hữu Sao Địa Ngục (Nether Star) trên cả 10 bản build.</p>
+            <p class="lang-zh">在标准 3&times;3 工作台中合成。获得下界之星后，配方将在全部 10 个支持版本的配方书中自动解锁。</p>
+            <div class="crafting-ingredients">
+              <span class="badge">2&times; Echo Shard</span>
+              <span class="badge">1&times; Nether Star</span>
+              <span class="badge">2&times; Amethyst Shard</span>
+              <span class="badge">1&times; Netherite Ingot</span>
+              <span class="badge">1&times; Blaze Rod</span>
+            </div>
           </div>
         </div>
       </section>
@@ -299,13 +404,13 @@
       <section id="skills" class="doc-section">
         <div class="section-header">
           <h2 class="section-title">
-            <span class="lang-en">Skills & Wand Skins</span>
-            <span class="lang-vi">Kỹ Năng & Ngoại Hình Trượng</span>
+            <span class="lang-en">Skills &amp; Wand Skins</span>
+            <span class="lang-vi">Kỹ Năng &amp; Ngoại Hình Trượng</span>
             <span class="lang-zh">技能与法杖外观</span>
           </h2>
-          <p class="section-lead lang-en">Combat metrics, cooldown ticks, and corresponding wand models across 7 spells.</p>
-          <p class="section-lead lang-vi">Thông số chiến đấu, thời gian hồi chiêu và mô hình trượng tương ứng của 7 chiêu thức.</p>
-          <p class="section-lead lang-zh">全 7 种神术的战斗数据、冷却刻数、伤害类型以及专属外观联动。</p>
+          <p class="section-lead lang-en">Combat metrics, cooldown ticks, and corresponding wand models across 8 spells.</p>
+          <p class="section-lead lang-vi">Thông số chiến đấu, thời gian hồi chiêu và mô hình trượng tương ứng của 8 chiêu thức.</p>
+          <p class="section-lead lang-zh">全 8 种神术的战斗数据、冷却刻数、伤害类型以及专属外观联动。</p>
         </div>
 
         <!-- In-Page Skill Quick Filter Tabs -->
@@ -322,6 +427,7 @@
           <button class="skill-tab-btn" data-filter="stone">5. Stone Cannon</button>
           <button class="skill-tab-btn" data-filter="atomic">6. I am Atomic</button>
           <button class="skill-tab-btn" data-filter="fuga">7. Fuga</button>
+          <button class="skill-tab-btn" data-filter="gate">8. Silent Gate (1.5.0)</button>
         </div>
 
         <!-- Skill 1 -->
@@ -428,11 +534,11 @@
         <div class="skill-card" data-skill="stone">
           <div class="skill-header">
             <div class="skill-name">5. Stone Cannon</div>
-            <span class="badge">4 Tiers &bull; Piercing &bull; Shadow Blade</span>
+            <span class="badge">4 Tiers &bull; Piercing &bull; Aqua Heartia</span>
           </div>
-          <p class="lang-en">Charges and fires a compressed stone projectile at extreme velocity, piercing through enemies and detonating with splash damage on block collision. Automatically swaps wand model to Shadow Blade.</p>
-          <p class="lang-vi">Tụ năng lượng bắn khối đá nén với vận tốc cực cao, xuyên thấu mục tiêu và nổ lan khi va chạm khối đất đá. Tự động đổi skin trượng sang Shadow Blade.</p>
-          <p class="lang-zh">蓄力以极高初速发射高密度压缩石炮，直线贯穿路径上的所有敌人并在撞击方块时产生溅射爆破。外观自动切换为暗影之刃。</p>
+          <p class="lang-en">Charges and fires a compressed stone projectile at extreme velocity, piercing through enemies and detonating with splash damage on block collision. Automatically swaps wand model to Aqua Heartia.</p>
+          <p class="lang-vi">Tụ năng lượng bắn khối đá nén với vận tốc cực cao, xuyên thấu mục tiêu và nổ lan khi va chạm khối đất đá. Tự động đổi skin trượng sang Aqua Heartia.</p>
+          <p class="lang-zh">蓄力以极高初速发射高密度压缩石炮，直线贯穿路径上的所有敌人并在撞击方块时产生溅射爆破。外观自动切换为水之心。</p>
           <div class="skill-specs">
             <div>
               <span class="spec-title"><span class="lang-en">Cooldown</span><span class="lang-vi">Hồi chiêu</span><span class="lang-zh">冷却时间</span></span>
@@ -440,7 +546,7 @@
             </div>
             <div>
               <span class="spec-title"><span class="lang-en">Auto Skin</span><span class="lang-vi">Skin tự động</span><span class="lang-zh">专属外观</span></span>
-              <span class="spec-data">Shadow Blade</span>
+              <span class="spec-data">Aqua Heartia</span>
             </div>
             <div>
               <span class="spec-title"><span class="lang-en">Property</span><span class="lang-vi">Đặc tính</span><span class="lang-zh">法术特性</span></span>
@@ -453,11 +559,11 @@
         <div class="skill-card" data-skill="atomic">
           <div class="skill-header">
             <div class="skill-name">6. I am Atomic</div>
-            <span class="badge">9,999 DMG &bull; 147 Block Crater</span>
+            <span class="badge">9,999 DMG &bull; 98 Block Crater &bull; Shadow Blade</span>
           </div>
-          <p class="lang-en">Hold 19s (380 ticks) into sword stance with complete invulnerability. Release to trigger: 9,999 center DMG, liquid clearing (water/lava), 147-block reach crater down to 30 blocks deep, and 15 DMG ground shockwave radiating 130 blocks.</p>
-          <p class="lang-vi">Giữ 19 giây (380 ticks) vào thế kiếm ATOMIC miễn nhiễm toàn bộ sát thương. Thả chuột kích nổ: 9,999 DMG tâm, xóa sạch nước/dung nham, đào hố sâu 30 block bán kính thực tế 147 block và sóng áp suất 15 DMG lan xa 130 block.</p>
-          <p class="lang-zh">蓄力 19 秒 (380 ticks) 进入霸体拔剑姿态并获得完全无敌。松开按键触发原子爆轰：核心 9,999 巨额伤害、蒸发水与岩浆、形成深度达 30 格/实际波及 147 格的巨坑，并向外辐射 130 格的 15 伤害地面冲击波。</p>
+          <p class="lang-en">Hold through the buildup, ATOMIC sword stance, and compression with complete invulnerability until the dark pause waits for your release. Let go to detonate: 9,999 center DMG, full fluid clearing (water/lava), a circular 98-block radius crater leveling high terrain first down to 16 blocks deep (30-block visible light column), and 15 DMG outer shockwaves radiating 130 blocks. Automatically swaps wand model to Shadow Blade.</p>
+          <p class="lang-vi">Giữ chuột qua giai đoạn tụ lực, vào thế kiếm ATOMIC miễn nhiễm hoàn toàn sát thương cho đến khoảng lặng tối chờ bạn thả nút kích nổ: 9,999 DMG tâm, xóa sạch nước/dung nham, san phẳng gò cao trước và đào hố tròn bán kính 98 block (sâu 16 block dưới tâm, cột sáng vươn sâu 30 block), kèm sóng áp suất 15 DMG lan xa 130 block. Tự động đổi skin sang Shadow Blade.</p>
+          <p class="lang-zh">按住经历能量构筑、拔剑霸体姿态与压缩，期间获得完全无敌直至暗黑静止等待松开按键引爆：核心 9,999 巨额伤害、蒸发水与岩浆、优先削平高地并形成半径 98 格的圆形巨坑（实际掘深 16 格，光柱深入地下 30 格），并向外辐射 130 格的 15 伤害地面冲击波。外观自动切换为暗影之刃。</p>
           <div class="skill-specs">
             <div>
               <span class="spec-title"><span class="lang-en">Core Damage</span><span class="lang-vi">Sát thương tâm</span><span class="lang-zh">核心伤害</span></span>
@@ -472,13 +578,13 @@
               <span class="spec-data">1200 ticks (60.0s)</span>
             </div>
             <div>
-              <span class="spec-title"><span class="lang-en">Excavation Reach</span><span class="lang-vi">Phạm vi đào hố</span><span class="lang-zh">实际挖坑范围</span></span>
-              <span class="spec-data">147 blocks (x1.5 Radius)</span>
+              <span class="spec-title"><span class="lang-en">Crater &amp; Skin</span><span class="lang-vi">Phạm vi &amp; Skin</span><span class="lang-zh">破坏范围与外观</span></span>
+              <span class="spec-data">98b Radius &bull; Shadow Blade</span>
             </div>
           </div>
         </div>
 
-        <!-- Skill 7 (NEW in 1.4.0) -->
+        <!-- Skill 7 -->
         <div class="skill-card" data-skill="fuga">
           <div class="skill-header">
             <div class="skill-name">7. Fuga</div>
@@ -507,11 +613,40 @@
           </div>
         </div>
 
+        <!-- Skill 8 (NEW in 1.5.0) -->
+        <div class="skill-card" data-skill="gate">
+          <div class="skill-header">
+            <div class="skill-name">8. Silent Gate</div>
+            <span class="badge">NEW in 1.5.0 &bull; Light Barrage &bull; Silent Witch Staff</span>
+          </div>
+          <p class="lang-en">Raise the wand to summon an immense magic circle across the sky. A winged celestial gate descends through a dimensional crack, pushes open its heavy double doors, and blooms 220 small magic circles overhead. Right-click during the standby window to command the gate: unleashing a 20-second (400 ticks) bombardment of tracking light beams (80 DMG each) on nearby monsters, concluded by a colossal 6x Golden Kill Beam (480 DMG) on the toughest enemy. Sneak to safely cancel while the gate forms. Automatically equips Silent Witch Staff.</p>
+          <p class="lang-vi">Giơ trượng lên trời triệu hồi đại ma pháp trận khổng lồ vắt ngang không gian. Cổng thiên giới có cánh hạ xuống từ khe nứt thứ nguyên, đẩy bung hai cánh cửa thánh và khai mở 220 ma pháp trận nhỏ rực rỡ khắp bầu trời. Nhấp chuột phải trong thời gian chờ để ra lệnh khai hỏa: xả đợt mưa oanh tạc tia sáng thánh kéo dài 20 giây (400 ticks, 80 DMG/phát) truy đuổi toàn bộ quái vật, kết thúc bằng một phát bắn Hoàng Kim (Kill Beam 480 DMG) giáng xuống mục tiêu mạnh nhất. Nhấn Sneak (Shift) để hủy chiêu an toàn khi cổng đang dựng. Tự động đổi skin trượng sang Silent Witch Staff.</p>
+          <p class="lang-zh">高举法杖在天穹铭刻遮天蔽日的巨型魔法阵。带翼的天界之门自次元裂缝轰然降临，推开沉重门扉并在空中绽放 220 座密集小型法阵。在待命期间再次右键下达开火指令：法阵群将对周围所有敌怪倾泻长达 20 秒（400 刻）的高速光束轰炸（每发 80 伤害），并在终局降下 6 倍威力的黄金终结光束（480 伤害）轰杀最强目标。构筑与待命期间潜行可无损取消施法。外观自动切换为沉默魔女之杖。</p>
+          <div class="skill-specs">
+            <div>
+              <span class="spec-title"><span class="lang-en">Beam Damage</span><span class="lang-vi">Sát thương tia sáng</span><span class="lang-zh">光束伤害</span></span>
+              <span class="spec-data">80 DMG (Kill: 480 DMG)</span>
+            </div>
+            <div>
+              <span class="spec-title"><span class="lang-en">Cooldown</span><span class="lang-vi">Hồi chiêu</span><span class="lang-zh">冷却时间</span></span>
+              <span class="spec-data">1200 ticks (60.0s)</span>
+            </div>
+            <div>
+              <span class="spec-title"><span class="lang-en">Target Mode</span><span class="lang-vi">Chế độ mục tiêu</span><span class="lang-zh">目标模式</span></span>
+              <span class="spec-data">"hostile" (Monsters) / "all"</span>
+            </div>
+            <div>
+              <span class="spec-title"><span class="lang-en">Auto Skin</span><span class="lang-vi">Skin tự động</span><span class="lang-zh">专属外观</span></span>
+              <span class="spec-data">Silent Witch Staff</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Skins Summary Table -->
         <div id="skins" style="margin-top: 2rem;">
           <h3 class="subsection-title">
-            <span class="lang-en">Wand Skins & Melee Attack Profile</span>
-            <span class="lang-vi">Hệ Thống Skin & Sát Thương Cận Chiến</span>
+            <span class="lang-en">Wand Skins &amp; Melee Attack Profile</span>
+            <span class="lang-vi">Hệ Thống Skin &amp; Sát Thương Cận Chiến</span>
             <span class="lang-zh">法杖外观系统与近战攻击属性</span>
           </h3>
           <p class="section-lead lang-en" style="margin-bottom: 1rem;">
@@ -556,9 +691,23 @@
                   <span class="lang-zh">按技能主题自动切换</span>
                 </td>
                 <td>
-                  <span class="lang-en">Skill 2, 4: Aqua Heartia; Skill 5: Shadow Blade; Others: Default Magitech</span>
-                  <span class="lang-vi">Chiêu 2, 4: Aqua Heartia; Chiêu 5: Shadow Blade; Còn lại: Magitech Wand</span>
-                  <span class="lang-zh">技能 2, 4：水之心；技能 5：暗影之刃；其余技能：魔导科技法杖</span>
+                  <span class="lang-en">Skill 3 (Earth Drill), Skill 5 (Stone Cannon): Aqua Heartia; Skill 6 (I am Atomic): Shadow Blade; Skill 8 (Silent Gate): Silent Witch Staff; Others (1, 2, 4, 7): Magitech Wand (Eclipse)</span>
+                  <span class="lang-vi">Chiêu 3 (Earth Drill), Chiêu 5 (Stone Cannon): Aqua Heartia; Chiêu 6 (I am Atomic): Shadow Blade; Chiêu 8 (Silent Gate): Silent Witch Staff; Còn lại (1, 2, 4, 7): Magitech Wand (Eclipse)</span>
+                  <span class="lang-zh">技能 3 (大地钻击)、技能 5 (石炮)：水之心；技能 6 (吾即原子)：暗影之刃；技能 8 (静默之门)：沉默魔女之杖；其余技能 (1, 2, 4, 7)：魔导科技法杖 (Eclipse)</span>
+                </td>
+                <td>5 DMG</td>
+              </tr>
+              <tr>
+                <td><code>SILENT_WITCH</code></td>
+                <td>
+                  <span class="lang-en">Silent Witch Staff (1.5.0)</span>
+                  <span class="lang-vi">Trượng Ma Nữ Tĩnh Lặng (1.5.0)</span>
+                  <span class="lang-zh">沉默魔女之杖 (1.5.0)</span>
+                </td>
+                <td>
+                  <span class="lang-en">Manual selection via K menu</span>
+                  <span class="lang-vi">Chọn thủ công qua menu K</span>
+                  <span class="lang-zh">在 K 键设置菜单中手动选择</span>
                 </td>
                 <td>5 DMG</td>
               </tr>
@@ -593,9 +742,9 @@
               <tr>
                 <td><code>DEFAULT</code></td>
                 <td>
-                  <span class="lang-en">Magitech Wand (Default)</span>
-                  <span class="lang-vi">Trượng Ma Đạo Cổ (Mặc định)</span>
-                  <span class="lang-zh">魔导科技法杖（默认）</span>
+                  <span class="lang-en">Magitech Wand (Default / Eclipse)</span>
+                  <span class="lang-vi">Trượng Ma Đạo Cổ (Mặc định / Eclipse)</span>
+                  <span class="lang-zh">魔导科技法杖（默认 / Eclipse）</span>
                 </td>
                 <td>
                   <span class="lang-en">Manual selection via K menu</span>
@@ -609,17 +758,17 @@
         </div>
       </section>
 
-      <!-- Section 3: Boss & Shader Compatibility -->
+      <!-- Section 3: Boss & Shader & Animation Compatibility -->
       <section id="boss-compat" class="doc-section">
         <div class="section-header">
           <h2 class="section-title">
-            <span class="lang-en">Boss & Shader Compatibility</span>
-            <span class="lang-vi">Tương Thích Boss & Shader</span>
-            <span class="lang-zh">模组 Boss 与光影着色器兼容性</span>
+            <span class="lang-en">Compatibility Architecture</span>
+            <span class="lang-vi">Kiến Trúc Tương Thích</span>
+            <span class="lang-zh">兼容性架构体系</span>
           </h2>
-          <p class="section-lead lang-en">Invulnerability bypass routing for modded bosses and Iris/Oculus shader pipeline integration.</p>
-          <p class="section-lead lang-vi">Cơ chế vượt cổng miễn thương cho Boss và tích hợp đồ họa cùng Iris & Oculus Shaders.</p>
-          <p class="section-lead lang-zh">模组 Boss 无敌判定绕过机制与 Iris/Oculus 光影管线原生集成说明。</p>
+          <p class="section-lead lang-en">Invulnerability bypass routing for modded bosses, Iris/Oculus shaders, and third-party animation mods.</p>
+          <p class="section-lead lang-vi">Cơ chế vượt cổng miễn thương cho Boss, tích hợp Iris &amp; Oculus Shaders và tương thích mod animation.</p>
+          <p class="section-lead lang-zh">模组 Boss 无敌判定穿透机制、Iris/Oculus 光影管线与第三方动作模组原生集成。</p>
         </div>
 
         <div class="cards-grid">
@@ -637,16 +786,22 @@
           </div>
           <div class="card">
             <div class="card-title">Desert Behemoths (Sandworm)</div>
-            <p class="lang-en">Precise multi-segment hitbox tracking ensures spell damage hits sandworm bodies accurately.</p>
-            <p class="lang-vi">Theo dõi hitbox đa phân đoạn chính xác đảm bảo sát thương đánh trúng cơ thể sâu cát khổng lồ.</p>
-            <p class="lang-zh">精准追踪多段式碰撞箱，确保神术伤害能够稳定命中巨型沙虫的身体各个节段。</p>
+            <p class="lang-en">Precise multi-segment hitbox tracking ensures spell damage hits sandworm bodies accurately without double counting.</p>
+            <p class="lang-vi">Theo dõi hitbox đa phân đoạn chính xác đảm bảo sát thương đánh trúng sâu cát khổng lồ mà không bị tính trùng đòn.</p>
+            <p class="lang-zh">精准追踪多段式碰撞箱，确保神术伤害能够稳定命中巨型沙虫的身体各个节段且不会重复判定。</p>
+          </div>
+          <div id="anim-compat" class="card">
+            <div class="card-title">Animation Mods (1.5.0)</div>
+            <p class="lang-en">Integrated with Emotecraft, Better Combat, Not Enough Animations (NEA), and Yes Steve Model (YSM). High-priority pose locking ensures spell cast stances and cutscene cameras remain uncorrupted.</p>
+            <p class="lang-vi">Tương thích hoàn toàn với Emotecraft, Better Combat, Not Enough Animations (NEA) và Yes Steve Model (YSM). Khóa pose ưu tiên cao bảo vệ tư thế niệm chiêu và góc máy cutscene không bị đè lỗi.</p>
+            <p class="lang-zh">完美兼容 Emotecraft、Better Combat、Not Enough Animations (NEA) 及 Yes Steve Model (YSM)。高优先级姿态保护机制确保施法动作与电影特写不受其他模组动作冲突干扰。</p>
           </div>
         </div>
 
         <div id="shader-compat" style="margin-top: 2rem;">
           <h3 class="subsection-title">
-            <span class="lang-en">Iris & Oculus Shader Pipeline</span>
-            <span class="lang-vi">Tương Thích Iris & Oculus Shader</span>
+            <span class="lang-en">Iris &amp; Oculus Shader Pipeline</span>
+            <span class="lang-vi">Tương Thích Iris &amp; Oculus Shader</span>
             <span class="lang-zh">Iris 与 Oculus 光影管线兼容</span>
           </h3>
           <p class="section-lead lang-en">
@@ -669,25 +824,25 @@
             <span class="lang-vi">Hướng Dẫn Cấu Hình Toàn Diện</span>
             <span class="lang-zh">完整配置全景指南</span>
           </h2>
-          <p class="section-lead lang-en">Exhaustive reference for every parameter inside godwand-server.json (29 keys) and godwand-client.json (10 keys).</p>
-          <p class="section-lead lang-vi">Giải thích chi tiết 100% tham số cấu hình trong godwand-server.json (29 keys) và godwand-client.json (10 keys).</p>
-          <p class="section-lead lang-zh">详尽解析 godwand-server.json（29 个配置项）与 godwand-client.json（10 个配置项）全部参数。</p>
+          <p class="section-lead lang-en">Exhaustive reference for every parameter inside godwand-server.json (43 keys grouped by skill in 1.5.0) and godwand-client.json (12 keys).</p>
+          <p class="section-lead lang-vi">Giải thích chi tiết 100% tham số cấu hình trong godwand-server.json (43 keys chia nhóm theo chiêu trong 1.5.0) và godwand-client.json (12 keys).</p>
+          <p class="section-lead lang-zh">详尽解析 godwand-server.json（1.5.0 按技能分组共 43 项）与 godwand-client.json（12 项）全部参数。</p>
         </div>
 
         <!-- Server Config Title -->
         <h3 class="subsection-title" style="margin: 1.5rem 0 0.5rem 0;">
-          <span class="lang-en">1. godwand-server.json (Server Gameplay Configuration — 29 Keys)</span>
-          <span class="lang-vi">1. godwand-server.json (Cấu hình Gameplay máy chủ — 29 Keys)</span>
-          <span class="lang-zh">1. godwand-server.json（服务端核心玩法配置 — 29 项）</span>
+          <span class="lang-en">1. godwand-server.json (Server Gameplay Configuration — 43 Keys)</span>
+          <span class="lang-vi">1. godwand-server.json (Cấu hình Gameplay máy chủ — 43 Keys)</span>
+          <span class="lang-zh">1. godwand-server.json（服务端核心玩法配置 — 43 项）</span>
         </h3>
         <p class="section-lead lang-en" style="margin-bottom: 1rem;">
-          Located in <code>config/godwand-server.json</code>. Authoritative on servers. Older valid files automatically gain newly introduced keys without losing existing choices.
+          Located in <code>config/godwand-server.json</code>. Authoritative on servers. In v1.5.0, settings are grouped cleanly by skill. Older valid files automatically gain newly introduced keys without losing existing choices.
         </p>
         <p class="section-lead lang-vi" style="margin-bottom: 1rem;">
-          Nằm trong <code>config/godwand-server.json</code>. Máy chủ quyết định toàn bộ logic chiến đấu và phá hủy địa hình. Các phiên bản cũ khi cập nhật sẽ tự động bổ sung key mới mà không làm mất cấu hình cũ.
+          Nằm trong <code>config/godwand-server.json</code>. Máy chủ quyết định toàn bộ logic chiến đấu và phá hủy địa hình. Từ bản 1.5.0, cấu hình được nhóm gọn gàng theo từng chiêu thức. Phiên bản cũ tự động bổ sung key mới không làm mất tùy chỉnh cũ.
         </p>
         <p class="section-lead lang-zh" style="margin-bottom: 1rem;">
-          位于 <code>config/godwand-server.json</code>。由服务端权威控制破坏与战斗判定。旧版本升级将自动追加新配置项且绝不覆盖已有改动。
+          位于 <code>config/godwand-server.json</code>。由服务端权威控制破坏与战斗判定。1.5.0 现已按技能清晰分块排布。旧版本升级将自动追加新配置项且绝不覆盖已有改动。
         </p>
 
         <div class="table-wrapper">
@@ -712,48 +867,9 @@
               <!-- Group A: Global -->
               <tr>
                 <td colspan="4" style="background: var(--bg-tertiary); font-weight: 700; color: var(--accent-gold);">
-                  <span class="lang-en">A. GLOBAL MULTIPLIERS & DIMENSION BANS</span>
-                  <span class="lang-vi">A. HỆ SỐ TOÀN CỤC & GIỚI HẠN CHIỀU KHÔNG GIAN</span>
+                  <span class="lang-en">A. GLOBAL MULTIPLIERS &amp; DIMENSION BANS</span>
+                  <span class="lang-vi">A. HỆ SỐ TOÀN CỤC &amp; GIỚI HẠN CHIỀU KHÔNG GIAN</span>
                   <span class="lang-zh">A. 全局倍率与维度黑名单</span>
-                </td>
-              </tr>
-              <tr>
-                <td><code>damageMultiplier</code></td>
-                <td><code>1.0</code></td>
-                <td>0.0 &rarr; 100.0</td>
-                <td>
-                  <span class="lang-en">Global damage multiplier applied to all spells (2.0 = double damage; 0.0 = completely disables spell damage).</span>
-                  <span class="lang-vi">Hệ số nhân toàn bộ sát thương tất cả chiêu thức (2.0 = gấp đôi sát thương; 0.0 = tắt toàn bộ sát thương).</span>
-                  <span class="lang-zh">全局魔法伤害倍率（2.0 = 双倍伤害；0.0 = 完全禁用魔法伤害）。</span>
-                </td>
-              </tr>
-              <tr>
-                <td><code>cooldownMultiplier</code></td>
-                <td><code>1.0</code></td>
-                <td>0.1 &rarr; 10.0</td>
-                <td>
-                  <span class="lang-en">Global cooldown multiplier (0.5 = 2x faster; 0.1 = continuous spam; 2.0 = double cooldown duration).</span>
-                  <span class="lang-vi">Hệ số nhân hồi chiêu toàn cục (0.5 = hồi nhanh gấp đôi; 0.1 = spam liên tục; 2.0 = hồi lâu gấp đôi).</span>
-                  <span class="lang-zh">全局技能冷却倍率（0.5 = 冷却缩短一半；0.1 = 几乎无冷却连续释放；2.0 = 冷却翻倍）。</span>
-                </td>
-              </tr>
-              <tr>
-                <td><code>dimensionBlacklist</code></td>
-                <td><code>[]</code></td>
-                <td>Array (String)</td>
-                <td>
-                  <span class="lang-en">List of dimension IDs where wand usage is banned (e.g. <code>["minecraft:the_nether"]</code>).</span>
-                  <span class="lang-vi">Danh sách ID các chiều không gian cấm sử dụng gậy (ví dụ: <code>["minecraft:the_nether"]</code>).</span>
-                  <span class="lang-zh">禁止使用神之杖的维度 ID 列表（例如：<code>["minecraft:the_nether"]</code>）。</span>
-                </td>
-              </tr>
-
-              <!-- Group B: Cooldowns -->
-              <tr>
-                <td colspan="4" style="background: var(--bg-tertiary); font-weight: 700; color: var(--accent-gold);">
-                  <span class="lang-en">B. PER-SPELL COOLDOWNS IN TICKS (20 Ticks = 1 Second)</span>
-                  <span class="lang-vi">B. THỜI GIAN HỒI CHIÊU TỪNG CHIÊU THỨC (20 Ticks = 1 Giây)</span>
-                  <span class="lang-zh">B. 各技能独立冷却时间（20 Ticks = 1 秒）</span>
                 </td>
               </tr>
               <tr>
@@ -767,6 +883,45 @@
                 </td>
               </tr>
               <tr>
+                <td><code>cooldownMultiplier</code></td>
+                <td><code>1.0</code></td>
+                <td>0.1 &rarr; 10.0</td>
+                <td>
+                  <span class="lang-en">Global cooldown multiplier (0.5 = 2x faster; 0.1 = continuous spam; 2.0 = double cooldown duration).</span>
+                  <span class="lang-vi">Hệ số nhân hồi chiêu toàn cục (0.5 = hồi nhanh gấp đôi; 0.1 = spam liên tục; 2.0 = hồi lâu gấp đôi).</span>
+                  <span class="lang-zh">全局技能冷却倍率（0.5 = 冷却缩短一半；0.1 = 几乎无冷却连续释放；2.0 = 冷却翻倍）。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>damageMultiplier</code></td>
+                <td><code>1.0</code></td>
+                <td>0.0 &rarr; 100.0</td>
+                <td>
+                  <span class="lang-en">Global damage multiplier applied to all spells (2.0 = double damage; 0.0 = completely disables spell damage).</span>
+                  <span class="lang-vi">Hệ số nhân toàn bộ sát thương tất cả chiêu thức (2.0 = gấp đôi sát thương; 0.0 = tắt toàn bộ sát thương).</span>
+                  <span class="lang-zh">全局魔法伤害倍率（2.0 = 双倍伤害；0.0 = 完全禁用魔法伤害）。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>dimensionBlacklist</code></td>
+                <td><code>[]</code></td>
+                <td>Array (String)</td>
+                <td>
+                  <span class="lang-en">List of dimension IDs where wand usage is banned (e.g. <code>["minecraft:the_nether"]</code>).</span>
+                  <span class="lang-vi">Danh sách ID các chiều không gian cấm sử dụng gậy (ví dụ: <code>["minecraft:the_nether"]</code>).</span>
+                  <span class="lang-zh">禁止使用神之杖的维度 ID 列表（例如：<code>["minecraft:the_nether"]</code>）。</span>
+                </td>
+              </tr>
+
+              <!-- Group B: Spatial Path -->
+              <tr>
+                <td colspan="4" style="background: var(--bg-tertiary); font-weight: 700; color: var(--accent-gold);">
+                  <span class="lang-en">B. SKILL 1 — SPATIAL PATH</span>
+                  <span class="lang-vi">B. CHIÊU 1 — ĐƯỜNG HẦM KHÔNG GIAN (SPATIAL PATH)</span>
+                  <span class="lang-zh">B. 技能 1 — 空间之径 (SPATIAL PATH)</span>
+                </td>
+              </tr>
+              <tr>
                 <td><code>spatialPathCooldownTicks</code></td>
                 <td><code>20</code></td>
                 <td>0 &rarr; 72000 (Ticks)</td>
@@ -774,6 +929,15 @@
                   <span class="lang-en">Spatial Path toggle on/off cooldown (20 ticks = 1.0s).</span>
                   <span class="lang-vi">Hồi chiêu bật/tắt Đường Hầm Không Gian (20 ticks = 1.0 giây).</span>
                   <span class="lang-zh">空间之径开启与关闭的冷却时间（20 ticks = 1.0 秒）。</span>
+                </td>
+              </tr>
+
+              <!-- Group C: Singularity -->
+              <tr>
+                <td colspan="4" style="background: var(--bg-tertiary); font-weight: 700; color: var(--accent-gold);">
+                  <span class="lang-en">C. SKILL 2 — SINGULARITY</span>
+                  <span class="lang-vi">C. CHIÊU 2 — HỐ ĐEN TRỌNG LỰC (SINGULARITY)</span>
+                  <span class="lang-zh">C. 技能 2 — 引力奇点 (SINGULARITY)</span>
                 </td>
               </tr>
               <tr>
@@ -787,65 +951,6 @@
                 </td>
               </tr>
               <tr>
-                <td><code>earthDrillCooldownTicks</code></td>
-                <td><code>[80, 140, 220, 320]</code></td>
-                <td><code>int[4]</code> (ticks)</td>
-                <td>
-                  <span class="lang-en">Earth Drill cooldown across 4 charge tiers (80t = 4s, 140t = 7s, 220t = 11s, 320t = 16s).</span>
-                  <span class="lang-vi">Hồi chiêu Earth Drill theo 4 mức tụ lực (80t = 4s, 140t = 7s, 220t = 11s, 320t = 16s).</span>
-                  <span class="lang-zh">大地钻击 4 级蓄力冷却时间（80刻 = 4秒，140刻 = 7秒，220刻 = 11秒，320刻 = 16秒）。</span>
-                </td>
-              </tr>
-              <tr>
-                <td><code>stoneCannonCooldownTicks</code></td>
-                <td><code>[40, 80, 140, 220]</code></td>
-                <td><code>int[4]</code> (ticks)</td>
-                <td>
-                  <span class="lang-en">Stone Cannon cooldown across 4 charge tiers (40t = 2s, 80t = 4s, 140t = 7s, 220t = 11s).</span>
-                  <span class="lang-vi">Hồi chiêu Stone Cannon theo 4 mức tụ lực (40t = 2s, 80t = 4s, 140t = 7s, 220t = 11s).</span>
-                  <span class="lang-zh">石炮技能 4 级蓄力冷却时间（40刻 = 2秒，80刻 = 4秒，140刻 = 7秒，220刻 = 11秒）。</span>
-                </td>
-              </tr>
-              <tr>
-                <td><code>supernovaCooldownTicks</code></td>
-                <td><code>900</code></td>
-                <td>0 &rarr; 72000 (Ticks)</td>
-                <td>
-                  <span class="lang-en">Supernova cooldown in ticks (900 ticks = 45.0 seconds).</span>
-                  <span class="lang-vi">Hồi chiêu Siêu Tân Tinh Supernova (900 ticks = 45.0 giây).</span>
-                  <span class="lang-zh">超新星技能冷却时间（900 ticks = 45.0 秒）。</span>
-                </td>
-              </tr>
-              <tr>
-                <td><code>atomicCooldownTicks</code></td>
-                <td><code>1200</code></td>
-                <td>0 &rarr; 72000 (Ticks)</td>
-                <td>
-                  <span class="lang-en">Atomic cooldown starting at the moment of release detonation (1200 ticks = 60.0 seconds).</span>
-                  <span class="lang-vi">Hồi chiêu Atomic tính từ thời điểm thả nút kích nổ (1200 ticks = 60.0 giây).</span>
-                  <span class="lang-zh">吾即原子释放爆炸后的冷却时间（1200 ticks = 60.0 秒）。</span>
-                </td>
-              </tr>
-              <tr>
-                <td><code>fugaCooldownTicks</code></td>
-                <td><code>1200</code></td>
-                <td>0 &rarr; 72000 (Ticks)</td>
-                <td>
-                  <span class="lang-en">Fuga cooldown starting at arrow release (1200 ticks = 60.0 seconds).</span>
-                  <span class="lang-vi">Hồi chiêu Fuga tính từ thời điểm bắn tên phượng hoàng (1200 ticks = 60.0 giây).</span>
-                  <span class="lang-zh">Fuga（开）烈焰神鸟射出后的技能冷却时间（1200 ticks = 60.0 秒）。</span>
-                </td>
-              </tr>
-
-              <!-- Group C: Damage -->
-              <tr>
-                <td colspan="4" style="background: var(--bg-tertiary); font-weight: 700; color: var(--accent-gold);">
-                  <span class="lang-en">C. SPELL DAMAGE & EXECUTION THRESHOLDS</span>
-                  <span class="lang-vi">C. SÁT THƯƠNG CHIÊU THỨC & NGƯỠNG KẾT LIỄU</span>
-                  <span class="lang-zh">C. 技能伤害倍率与斩杀线</span>
-                </td>
-              </tr>
-              <tr>
                 <td><code>singularityDamageMultipliers</code></td>
                 <td><code>[1.0, 1.0, 1.0]</code></td>
                 <td><code>float[3]</code> (0.0 &rarr; 1000.0)</td>
@@ -853,6 +958,25 @@
                   <span class="lang-en">Damage multiplier for Singularity collapse and burial across 3 tiers.</span>
                   <span class="lang-vi">Hệ số nhân sát thương hút và chôn vùi qua 3 mức tụ lực Singularity.</span>
                   <span class="lang-zh">奇点技能 3 级引力吸收与坍缩粉碎的伤害倍率。</span>
+                </td>
+              </tr>
+
+              <!-- Group D: Earth Drill -->
+              <tr>
+                <td colspan="4" style="background: var(--bg-tertiary); font-weight: 700; color: var(--accent-gold);">
+                  <span class="lang-en">D. SKILL 3 — EARTH DRILL</span>
+                  <span class="lang-vi">D. CHIÊU 3 — MŨI KHOAN ĐẤT ĐÁ (EARTH DRILL)</span>
+                  <span class="lang-zh">D. 技能 3 — 大地钻击 (EARTH DRILL)</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>earthDrillCooldownTicks</code></td>
+                <td><code>[80, 140, 220, 320]</code></td>
+                <td><code>int[4]</code> (ticks)</td>
+                <td>
+                  <span class="lang-en">Earth Drill cooldown across 4 charge tiers (80t = 4s, 140t = 7s, 220t = 11s, 320t = 16s).</span>
+                  <span class="lang-vi">Hồi chiêu Earth Drill theo 4 mức tụ lực (80t = 4s, 140t = 7s, 220t = 11s, 320t = 16s).</span>
+                  <span class="lang-zh">大地钻击 4 级蓄力冷却时间（80刻 = 4秒，140刻 = 7秒，220刻 = 11秒，320刻 = 16秒）。</span>
                 </td>
               </tr>
               <tr>
@@ -866,6 +990,45 @@
                 </td>
               </tr>
               <tr>
+                <td><code>earthDrillTerrainDamage</code></td>
+                <td><code>true</code></td>
+                <td>boolean</td>
+                <td>
+                  <span class="lang-en">Enables permanent drill crater and lava placement; if false, lifted original blocks are restored.</span>
+                  <span class="lang-vi">Cho phép mũi khoan đâm thủng tạo hố dung nham vĩnh viễn hay tự hoàn trả đất đá.</span>
+                  <span class="lang-zh">是否允许钻击砸出永久岩浆巨坑；设为 false 时被抓取的方块将完好复原归位。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>earthDrillBlockLift</code></td>
+                <td><code>true</code></td>
+                <td>boolean</td>
+                <td>
+                  <span class="lang-en">Enables gathering real world blocks to form the Earth Drill.</span>
+                  <span class="lang-vi">Cho phép Earth Drill bốc khối đất đá từ thế giới tạo mũi khoan hay không.</span>
+                  <span class="lang-zh">是否允许大地钻击抓取地面真实方块凝聚成巨型钻头。</span>
+                </td>
+              </tr>
+
+              <!-- Group E: Stone Cannon -->
+              <tr>
+                <td colspan="4" style="background: var(--bg-tertiary); font-weight: 700; color: var(--accent-gold);">
+                  <span class="lang-en">E. SKILL 4 — STONE CANNON</span>
+                  <span class="lang-vi">E. CHIÊU 4 — PHÁO ĐÁ NÉN (STONE CANNON)</span>
+                  <span class="lang-zh">E. 技能 4 — 穿透石炮 (STONE CANNON)</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>stoneCannonCooldownTicks</code></td>
+                <td><code>[40, 80, 140, 220]</code></td>
+                <td><code>int[4]</code> (ticks)</td>
+                <td>
+                  <span class="lang-en">Stone Cannon cooldown across 4 charge tiers (40t = 2s, 80t = 4s, 140t = 7s, 220t = 11s).</span>
+                  <span class="lang-vi">Hồi chiêu Stone Cannon theo 4 mức tụ lực (40t = 2s, 80t = 4s, 140t = 7s, 220t = 11s).</span>
+                  <span class="lang-zh">石炮技能 4 级蓄力冷却时间（40刻 = 2秒，80刻 = 4秒，140刻 = 7秒，220刻 = 11秒）。</span>
+                </td>
+              </tr>
+              <tr>
                 <td><code>stoneCannonDamageMultipliers</code></td>
                 <td><code>[1.0, 1.0, 1.0, 1.0]</code></td>
                 <td><code>float[4]</code> (0.0 &rarr; 1000.0)</td>
@@ -873,6 +1036,35 @@
                   <span class="lang-en">Damage multiplier for Stone Cannon direct hit and splash impact across 4 tiers.</span>
                   <span class="lang-vi">Hệ số nhân sát thương bắn trực tiếp và nổ lan điểm chạm qua 4 mức tụ lực.</span>
                   <span class="lang-zh">石炮技能 4 级直击穿透与触地爆破的伤害倍率。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>stoneCannonTerrainDamage</code></td>
+                <td><code>true</code></td>
+                <td>boolean</td>
+                <td>
+                  <span class="lang-en">Enables stone projectile impact explosion excavation.</span>
+                  <span class="lang-vi">Cho phép đạn đá nổ khoét thủng khối đất đá địa hình hay không.</span>
+                  <span class="lang-zh">是否允许高速石炮弹头触地爆炸时炸碎地面方块。</span>
+                </td>
+              </tr>
+
+              <!-- Group F: Supernova -->
+              <tr>
+                <td colspan="4" style="background: var(--bg-tertiary); font-weight: 700; color: var(--accent-gold);">
+                  <span class="lang-en">F. SKILL 5 — SUPERNOVA</span>
+                  <span class="lang-vi">F. CHIÊU 5 — SIÊU TÂN TINH (SUPERNOVA)</span>
+                  <span class="lang-zh">F. 技能 5 — 超新星 (SUPERNOVA)</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>supernovaCooldownTicks</code></td>
+                <td><code>900</code></td>
+                <td>0 &rarr; 72000 (Ticks)</td>
+                <td>
+                  <span class="lang-en">Supernova cooldown in ticks (900 ticks = 45.0 seconds).</span>
+                  <span class="lang-vi">Hồi chiêu Siêu Tân Tinh Supernova (900 ticks = 45.0 giây).</span>
+                  <span class="lang-zh">超新星技能冷却时间（900 ticks = 45.0 秒）。</span>
                 </td>
               </tr>
               <tr>
@@ -893,45 +1085,6 @@
                   <span class="lang-en">Mobs with max HP &le; this value are executed instantly. Set 0 to disable this rule.</span>
                   <span class="lang-vi">Quái có máu tối đa &le; giá trị này sẽ bị tiêu diệt ngay lập tức bất kể giáp. Đặt 0 để tắt quy tắc kết liễu.</span>
                   <span class="lang-zh">最大生命值 &le; 该数值的生物将被无视护甲直接处决秒杀。设为 0 可完全关闭该秒杀机制。</span>
-                </td>
-              </tr>
-              <tr>
-                <td><code>atomicDamage</code></td>
-                <td><code>9999.0</code></td>
-                <td>0.0 &rarr; 1,000,000.0</td>
-                <td>
-                  <span class="lang-en">Primary damage at the center of the Atomic column (linear falloff to 0 at 98 blocks).</span>
-                  <span class="lang-vi">Sát thương tại tâm cột sáng ATOMIC (giảm dần tuyến tính về 0 ở bán kính 98 block).</span>
-                  <span class="lang-zh">吾即原子光柱核心处的毁灭性伤害（在 98 格半径边缘线性衰减归零）。</span>
-                </td>
-              </tr>
-              <tr>
-                <td><code>atomicShockwaveDamage</code></td>
-                <td><code>15.0</code></td>
-                <td>0.0 &rarr; 1,000,000.0</td>
-                <td>
-                  <span class="lang-en">Damage dealt by each ground pressure front wave outside the primary 98-block column (up to 130 blocks).</span>
-                  <span class="lang-vi">Sát thương mỗi đòn sóng áp suất quét trên mặt đất bên ngoài bán kính 98 block (lan xa tới 130 block).</span>
-                  <span class="lang-zh">核心光柱外围横扫地面的气压冲击波伤害（向外辐射蔓延至 130 格）。</span>
-                </td>
-              </tr>
-              <tr>
-                <td><code>fugaDamage</code></td>
-                <td><code>9999.0</code></td>
-                <td>0.0 &rarr; 1,000,000.0</td>
-                <td>
-                  <span class="lang-en">Core explosion damage dealt by Fuga's meteor impact and central pillar of fire.</span>
-                  <span class="lang-vi">Sát thương tại tâm vụ nổ thiên thạch và cột lửa của chiêu Fuga.</span>
-                  <span class="lang-zh">Fuga 天降陨石撞击与冲天火柱核心处的巨额爆轰真实伤害。</span>
-                </td>
-              </tr>
-
-              <!-- Group D: Terrain -->
-              <tr>
-                <td colspan="4" style="background: var(--bg-tertiary); font-weight: 700; color: var(--accent-gold);">
-                  <span class="lang-en">D. TERRAIN DESTRUCTION & BLOCK DISPLAY LIMITS (ANTI-GRIEF & FPS)</span>
-                  <span class="lang-vi">D. KIỂM SOÁT ĐỊA HÌNH & GIỚI HẠN HIỂN THỊ KHỐI (ANTI-GRIEF & FPS)</span>
-                  <span class="lang-zh">D. 地形破坏控制与实体方块限制（防拆服与优化）</span>
                 </td>
               </tr>
               <tr>
@@ -974,34 +1127,43 @@
                   <span class="lang-zh">环绕黑洞的展示实体方块数量上限。设为 <code>0</code> 可彻底禁用漂浮方块，杜绝客户端掉帧。</span>
                 </td>
               </tr>
+
+              <!-- Group G: Atomic -->
               <tr>
-                <td><code>earthDrillBlockLift</code></td>
-                <td><code>true</code></td>
-                <td>boolean</td>
-                <td>
-                  <span class="lang-en">Enables gathering real world blocks to form the Earth Drill.</span>
-                  <span class="lang-vi">Cho phép Earth Drill bốc khối đất đá từ thế giới tạo mũi khoan hay không.</span>
-                  <span class="lang-zh">是否允许大地钻击抓取地面真实方块凝聚成巨型钻头。</span>
+                <td colspan="4" style="background: var(--bg-tertiary); font-weight: 700; color: var(--accent-gold);">
+                  <span class="lang-en">G. SKILL 6 — I AM ATOMIC</span>
+                  <span class="lang-vi">G. CHIÊU 6 — NGÔ TỨC NGUYÊN TỬ (I AM ATOMIC)</span>
+                  <span class="lang-zh">G. 技能 6 — 吾即原子 (I AM ATOMIC)</span>
                 </td>
               </tr>
               <tr>
-                <td><code>earthDrillTerrainDamage</code></td>
-                <td><code>true</code></td>
-                <td>boolean</td>
+                <td><code>atomicCooldownTicks</code></td>
+                <td><code>1200</code></td>
+                <td>0 &rarr; 72000 (Ticks)</td>
                 <td>
-                  <span class="lang-en">Enables permanent drill crater and lava placement; if false, lifted original blocks are restored.</span>
-                  <span class="lang-vi">Cho phép mũi khoan đâm thủng tạo hố dung nham vĩnh viễn hay tự hoàn trả đất đá.</span>
-                  <span class="lang-zh">是否允许钻击砸出永久岩浆巨坑；设为 false 时被抓取的方块将完好复原归位。</span>
+                  <span class="lang-en">Atomic cooldown starting at the moment of release detonation (1200 ticks = 60.0 seconds).</span>
+                  <span class="lang-vi">Hồi chiêu Atomic tính từ thời điểm thả nút kích nổ (1200 ticks = 60.0 giây).</span>
+                  <span class="lang-zh">吾即原子释放爆炸后的冷却时间（1200 ticks = 60.0 秒）。</span>
                 </td>
               </tr>
               <tr>
-                <td><code>stoneCannonTerrainDamage</code></td>
-                <td><code>true</code></td>
-                <td>boolean</td>
+                <td><code>atomicDamage</code></td>
+                <td><code>9999.0</code></td>
+                <td>0.0 &rarr; 1,000,000.0</td>
                 <td>
-                  <span class="lang-en">Enables stone projectile impact explosion excavation.</span>
-                  <span class="lang-vi">Cho phép đạn đá nổ khoét thủng khối đất đá địa hình hay không.</span>
-                  <span class="lang-zh">是否允许高速石炮弹头触地爆炸时炸碎地面方块。</span>
+                  <span class="lang-en">Primary damage at the center of the Atomic column (linear falloff to 0 at 98 blocks).</span>
+                  <span class="lang-vi">Sát thương tại tâm cột sáng ATOMIC (giảm dần tuyến tính về 0 ở bán kính 98 block).</span>
+                  <span class="lang-zh">吾即原子光柱核心处的毁灭性伤害（在 98 格半径边缘线性衰减归零）。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>atomicShockwaveDamage</code></td>
+                <td><code>15.0</code></td>
+                <td>0.0 &rarr; 1,000,000.0</td>
+                <td>
+                  <span class="lang-en">Damage dealt by each ground pressure front wave outside the primary 98-block column (up to 130 blocks).</span>
+                  <span class="lang-vi">Sát thương mỗi đòn sóng áp suất quét trên mặt đất bên ngoài bán kính 98 block (lan xa tới 130 block).</span>
+                  <span class="lang-zh">核心光柱外围横扫地面的气压冲击波伤害（向外辐射蔓延至 130 格）。</span>
                 </td>
               </tr>
               <tr>
@@ -1019,9 +1181,78 @@
                 <td><code>98</code></td>
                 <td>0 &rarr; 98 (Blocks)</td>
                 <td>
-                  <span class="lang-en">Base crater radius (v1.3.2+ applies 1.5x multiplier = 147 blocks effective reach, excavating down to 30 blocks).</span>
-                  <span class="lang-vi">Bán kính đào xới gốc (hệ số 1.5x cho bán kính thực tế lên tới 147 block, sâu tới 30 block).</span>
-                  <span class="lang-zh">基础爆破半径基数（1.5 倍加成后实际破坏波及 147 格，深度可直达地下 30 格）。</span>
+                  <span class="lang-en">Direct maximum circular crater radius (default 98 blocks, capped by the expanding column; levels higher terrain first down to 16 blocks below the cast origin while the visible beam extends 30 blocks deep).</span>
+                  <span class="lang-vi">Bán kính đào hố hình tròn tối đa (mặc định 98 block theo đà nở của cột sáng; ưu tiên san phẳng địa hình cao trước và đào sâu tới 16 block dưới tâm, cột sáng hiển thị sâu 30 block).</span>
+                  <span class="lang-zh">圆形巨坑的最大破坏半径（默认 98 格，随扩张光柱推进；优先削平高处地形并向下掘进 16 格，视觉光柱延伸至地下 30 格）。</span>
+                </td>
+              </tr>
+
+              <!-- Group H: Fuga -->
+              <tr>
+                <td colspan="4" style="background: var(--bg-tertiary); font-weight: 700; color: var(--accent-gold);">
+                  <span class="lang-en">H. SKILL 7 — FUGA</span>
+                  <span class="lang-vi">H. CHIÊU 7 — PHẦN HỎA HÀNG THẾ (FUGA)</span>
+                  <span class="lang-zh">H. 技能 7 — 炎之神鸟 (FUGA / 开)</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>fugaCooldownTicks</code></td>
+                <td><code>1200</code></td>
+                <td>0 &rarr; 72000 (Ticks)</td>
+                <td>
+                  <span class="lang-en">Fuga cooldown starting at arrow release (1200 ticks = 60.0 seconds).</span>
+                  <span class="lang-vi">Hồi chiêu Fuga tính từ thời điểm bắn tên phượng hoàng (1200 ticks = 60.0 giây).</span>
+                  <span class="lang-zh">Fuga 烈焰神鸟射出后的技能冷却时间（1200 ticks = 60.0 秒）。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>fugaDamage</code></td>
+                <td><code>9999.0</code></td>
+                <td>0.0 &rarr; 1,000,000.0</td>
+                <td>
+                  <span class="lang-en">Core explosion damage dealt by Fuga's meteor impact and central pillar of fire.</span>
+                  <span class="lang-vi">Sát thương tại tâm vụ nổ thiên thạch và cột lửa của chiêu Fuga.</span>
+                  <span class="lang-zh">Fuga 天降陨石撞击与冲天火柱核心处的巨额爆轰真实伤害。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>fugaShockwaveDamageMultiplier</code></td>
+                <td><code>0.08</code></td>
+                <td>0.0 &rarr; 1000.0</td>
+                <td>
+                  <span class="lang-en">Shockwave damage multiplier applied to fugaDamage. Set 0 to disable shockwave damage.</span>
+                  <span class="lang-vi">Hệ số nhân sát thương sóng xung kích lan trên mặt đất. Đặt 0 để tắt sát thương sóng xung kích.</span>
+                  <span class="lang-zh">地面冲击波伤害倍率。设为 0 可完全关闭冲击波对实体的二次伤害。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>fugaIgniteEntities</code></td>
+                <td><code>true</code></td>
+                <td>boolean</td>
+                <td>
+                  <span class="lang-en">Whether Fuga's shockwave and explosion ignite hit entities.</span>
+                  <span class="lang-vi">Cho phép sóng xung kích và vụ nổ của Fuga thiêu đốt mục tiêu trúng đòn hay không.</span>
+                  <span class="lang-zh">是否点燃受到冲击波与爆炸波及的实体目标。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>fugaShockwaveKnockback</code></td>
+                <td><code>true</code></td>
+                <td>boolean</td>
+                <td>
+                  <span class="lang-en">Whether Fuga's shockwave knocks targets backward.</span>
+                  <span class="lang-vi">Cho phép sóng xung kích hất văng mục tiêu lùi ra xa hay không.</span>
+                  <span class="lang-zh">是否允许冲击波强力击退波及的实体。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>fugaSlowness</code></td>
+                <td><code>true</code></td>
+                <td>boolean</td>
+                <td>
+                  <span class="lang-en">Whether targets caught under the falling meteor are heavily slowed until detonation.</span>
+                  <span class="lang-vi">Có làm chậm mục tiêu đứng dưới bóng thiên thạch rơi hay không.</span>
+                  <span class="lang-zh">是否在天降陨石下落期间大幅减速压制范围内的实体。</span>
                 </td>
               </tr>
               <tr>
@@ -1039,9 +1270,108 @@
                 <td><code>48</code></td>
                 <td>0 &rarr; 64 (Blocks)</td>
                 <td>
-                  <span class="lang-en">Horizontal crater excavation radius for Fuga's meteor detonation (default: 48 blocks, clamp 0 to 64).</span>
-                  <span class="lang-vi">Bán kính đào hố theo chiều ngang của chiêu Fuga (mặc định 48 block, giới hạn từ 0 đến 64 block).</span>
-                  <span class="lang-zh">Fuga 陨石爆轰的地形破坏半径（默认 48 格，有效范围 0 至 64 格）。</span>
+                  <span class="lang-en">Horizontal crater excavation radius and maximum reach for Fuga's gameplay effects (default: 48 blocks, clamp 0 to 64).</span>
+                  <span class="lang-vi">Bán kính đào hố và giới hạn tối đa các hiệu ứng gây hại của Fuga (mặc định 48 block, giới hạn từ 0 đến 64 block).</span>
+                  <span class="lang-zh">Fuga 陨石爆轰的地形破坏半径及战斗伤害波及上限（默认 48 格，有效范围 0 至 64 格）。</span>
+                </td>
+              </tr>
+
+              <!-- Group I: Silent Gate (NEW in 1.5.0) -->
+              <tr>
+                <td colspan="4" style="background: var(--bg-tertiary); font-weight: 700; color: var(--accent-gold);">
+                  <span class="lang-en">I. SKILL 8 — SILENT GATE (NEW IN v1.5.0)</span>
+                  <span class="lang-vi">I. CHIÊU 8 — CỔNG THIÊN ĐƯỜNG (SILENT GATE - MỚI TRONG 1.5.0)</span>
+                  <span class="lang-zh">I. 技能 8 — 静默之门 (SILENT GATE - 1.5.0 全新)</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>gateCooldownTicks</code></td>
+                <td><code>1200</code></td>
+                <td>0 &rarr; 72000 (Ticks)</td>
+                <td>
+                  <span class="lang-en">Silent Gate cooldown in ticks after barrage concludes (1200 ticks = 60.0 seconds).</span>
+                  <span class="lang-vi">Hồi chiêu Silent Gate tính từ lúc kết thúc đợt mưa tia sáng (1200 ticks = 60.0 giây).</span>
+                  <span class="lang-zh">静默之门光束轰炸结束后的技能冷却时间（1200 ticks = 60.0 秒）。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>gateBeamDamage</code></td>
+                <td><code>80.0</code></td>
+                <td>0.0 &rarr; 1,000,000.0</td>
+                <td>
+                  <span class="lang-en">Damage dealt by each standard light beam, scaled by damageMultiplier. The final Golden Kill Beam deals 6x this value (480.0 DMG).</span>
+                  <span class="lang-vi">Sát thương mỗi tia sáng thánh, nhân theo damageMultiplier. Tia Hoàng Kim kết liễu gây gấp 6 lần giá trị này (480.0 DMG).</span>
+                  <span class="lang-zh">每道普通天界光束造成的伤害，受全局倍率加成。终结黄金光束造成该数值 6 倍伤害（480.0 点）。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>gateTargetMode</code></td>
+                <td><code>"hostile"</code></td>
+                <td>"hostile" / "all"</td>
+                <td>
+                  <span class="lang-en">Target selection mode: <code>"hostile"</code> attacks monsters only; <code>"all"</code> attacks all non-pet, non-creative entities.</span>
+                  <span class="lang-vi">Chế độ chọn mục tiêu: <code>"hostile"</code> chỉ tấn công quái vật; <code>"all"</code> tấn công cả động vật và người chơi (không đánh thú cưng, không đánh người chế độ Creative).</span>
+                  <span class="lang-zh">目标锁定模式：<code>"hostile"</code> 仅攻击敌对怪物；<code>"all"</code> 攻击范围内除宠物与创造模式玩家以外的全部实体。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>gateTargetRadius</code></td>
+                <td><code>160</code></td>
+                <td>8 &rarr; 256 (Blocks)</td>
+                <td>
+                  <span class="lang-en">Horizontal scanning radius around the caster in which entities are targeted for bombardment.</span>
+                  <span class="lang-vi">Bán kính quét mục tiêu xung quanh người chơi để các ma pháp trận khóa bắn (8 đến 256 block).</span>
+                  <span class="lang-zh">以施法者为中心搜寻锁定轰炸目标的水平半径（8 至 256 格）。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>gateBarrageTicks</code></td>
+                <td><code>400</code></td>
+                <td>60 &rarr; 600 (Ticks)</td>
+                <td>
+                  <span class="lang-en">Duration of the active beam bombardment phase once commanded (400 ticks = 20.0 seconds).</span>
+                  <span class="lang-vi">Thời gian xả mưa tia sáng thánh sau khi ra lệnh (400 ticks = 20.0 giây).</span>
+                  <span class="lang-zh">收到开火指令后天界光束持续轰炸的刻数时长（400 ticks = 20.0 秒）。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>gateWaitTicks</code></td>
+                <td><code>300</code></td>
+                <td>40 &rarr; 1200 (Ticks)</td>
+                <td>
+                  <span class="lang-en">Standby duration the opened gate waits for the player's command before retracting automatically (300 ticks = 15.0s).</span>
+                  <span class="lang-vi">Thời gian cổng mở chờ người chơi click chuột phải ra lệnh trước khi tự động thu hồi (300 ticks = 15.0 giây).</span>
+                  <span class="lang-zh">大门开启后等待施法者右键确认开火指令的最大待命时间（300 ticks = 15.0 秒）。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>gateSkyCircles</code></td>
+                <td><code>220</code></td>
+                <td>8 &rarr; 256 (Circles)</td>
+                <td>
+                  <span class="lang-en">Number of small magic circles blooming across the sky canopy (lower on slow computers for FPS boost).</span>
+                  <span class="lang-vi">Số lượng ma pháp trận nhỏ nở rộ trên bầu trời (giảm xuống trên máy yếu để tăng mượt mà FPS).</span>
+                  <span class="lang-zh">天穹之上绽放的小型开火魔法阵数量（低配设备调小可显著提升帧率）。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>gateTerrainDamage</code></td>
+                <td><code>true</code></td>
+                <td>boolean</td>
+                <td>
+                  <span class="lang-en">Whether beams dig small craters on impact. Set <code>false</code> to keep ground surfaces fully intact.</span>
+                  <span class="lang-vi">Cho phép các tia sáng khoét hố bom nhỏ trên mặt đất hay không. Đặt <code>false</code> để giữ nguyên địa hình.</span>
+                  <span class="lang-zh">光束撞击地面时是否炸出小坑。设为 <code>false</code> 可实现完全地形无损保护。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>gateCraterRadius</code></td>
+                <td><code>3</code></td>
+                <td>0 &rarr; 6 (Blocks)</td>
+                <td>
+                  <span class="lang-en">Crater excavation radius created by individual beam impacts when gateTerrainDamage is enabled.</span>
+                  <span class="lang-vi">Bán kính hố đào của từng tia sáng khi bật gateTerrainDamage (0 đến 6 block).</span>
+                  <span class="lang-zh">开启地形破坏时单道光束造成的弹坑半径（0 至 6 格）。</span>
                 </td>
               </tr>
             </tbody>
@@ -1051,9 +1381,9 @@
         <!-- Client Config Title -->
         <div id="client-config" style="margin-top: 3rem;">
           <h3 class="subsection-title">
-            <span class="lang-en">2. godwand-client.json (Client Visual Preferences — 10 Keys)</span>
-            <span class="lang-vi">2. godwand-client.json (Cấu hình Đồ họa Client — 10 Keys)</span>
-            <span class="lang-zh">2. godwand-client.json（客户端视觉特效配置 — 10 项）</span>
+            <span class="lang-en">2. godwand-client.json (Client Visual Preferences — 12 Keys)</span>
+            <span class="lang-vi">2. godwand-client.json (Cấu hình Đồ họa Client — 12 Keys)</span>
+            <span class="lang-zh">2. godwand-client.json（客户端视觉特效配置 — 12 项）</span>
           </h3>
           <p class="section-lead lang-en" style="margin-bottom: 1rem;">
             Located in <code>config/godwand-client.json</code> (or press <kbd>K</kbd> in-game). Governs personal visual preferences only; never alters server gameplay.
@@ -1078,8 +1408,8 @@
                   <span class="lang-zh">取值范围 / 类型</span>
                 </th>
                 <th>
-                  <span class="lang-en">Function & Optimization</span>
-                  <span class="lang-vi">Tác dụng & Khuyến nghị</span>
+                  <span class="lang-en">Function &amp; Optimization</span>
+                  <span class="lang-vi">Tác dụng &amp; Khuyến nghị</span>
                   <span class="lang-zh">功能与优化建议</span>
                 </th>
               </tr>
@@ -1088,7 +1418,7 @@
               <tr>
                 <td><code>wandSkin</code></td>
                 <td><code>"AUTO"</code></td>
-                <td>AUTO / SHADOW_BLADE / AQUA_HEARTIA / DEFAULT</td>
+                <td>AUTO / SILENT_WITCH / SHADOW_BLADE / AQUA_HEARTIA / DEFAULT</td>
                 <td>
                   <span class="lang-en">Wand 3D rendering model. AUTO automatically adapts to selected skill theme.</span>
                   <span class="lang-vi">Mô hình 3D của trượng. AUTO tự động thích ứng theo màu sắc chiêu thức đang dùng.</span>
@@ -1146,6 +1476,36 @@
                 </td>
               </tr>
               <tr>
+                <td><code>atomicCutscene</code></td>
+                <td><code>true</code></td>
+                <td>boolean</td>
+                <td>
+                  <span class="lang-en">Third-person cinematic camera during Atomic casting (press Esc/F5 to skip). Set <code>false</code> to keep normal first-person view.</span>
+                  <span class="lang-vi">Góc máy điện ảnh góc nhìn thứ 3 khi niệm chiêu Atomic (bấm Esc/F5 để bỏ qua). Đặt <code>false</code> để giữ góc nhìn thứ nhất bình thường.</span>
+                  <span class="lang-zh">吾即原子施法期间的第三人称电影级运镜特写（按 Esc/F5 可跳过）。设为 <code>false</code> 保持正常第一人称视角。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>fugaCutscene</code></td>
+                <td><code>true</code></td>
+                <td>boolean</td>
+                <td>
+                  <span class="lang-en">Cinematic third-person bow drawing and meteor sequence during Fuga casting. Set <code>false</code> for normal first-person view.</span>
+                  <span class="lang-vi">Góc máy điện ảnh góc nhìn thứ 3 khi giương cung lửa và thiên thạch rơi của chiêu Fuga. Đặt <code>false</code> để giữ góc nhìn thứ nhất.</span>
+                  <span class="lang-zh">释放 Fuga 时的第三人称拉弓与陨石坠落电影级镜头过场。设为 <code>false</code> 保持第一人称视角。</span>
+                </td>
+              </tr>
+              <tr>
+                <td><code>gateCutscene</code></td>
+                <td><code>true</code></td>
+                <td>boolean</td>
+                <td>
+                  <span class="lang-en">Cinematic camera shots during Silent Gate descent and bombardment. Set <code>false</code> to keep normal first-person camera.</span>
+                  <span class="lang-vi">Góc máy điện ảnh khi Silent Gate hạ thế và oanh tạc. Đặt <code>false</code> để giữ góc nhìn thứ nhất bình thường.</span>
+                  <span class="lang-zh">释放静默之门降临与轰炸期间的电影级镜头过场。设为 <code>false</code> 保持第一人称操作。</span>
+                </td>
+              </tr>
+              <tr>
                 <td><code>cameraShake</code></td>
                 <td><code>1.0</code></td>
                 <td>0.0 &rarr; 1.0</td>
@@ -1173,26 +1533,6 @@
                   <span class="lang-en">Bloom downsampling step (2 = highest quality, 4 = balanced default, 8 = heavy GPU load reduction for FPS boost).</span>
                   <span class="lang-vi">Độ nén bước lọc sáng (2 = nét nhất nặng GPU, 4 = chuẩn cân bằng, 8 = tối ưu FPS cho GPU yếu).</span>
                   <span class="lang-zh">泛光降采样阶数（2 = 极致细腻，4 = 平衡默认，8 = 低端显卡大幅提升帧率）。</span>
-                </td>
-              </tr>
-              <tr>
-                <td><code>atomicCutscene</code></td>
-                <td><code>true</code></td>
-                <td>boolean</td>
-                <td>
-                  <span class="lang-en">Third-person cinematic camera during Atomic casting. Set <code>false</code> to keep normal first-person view.</span>
-                  <span class="lang-vi">Góc máy điện ảnh góc nhìn thứ 3 suốt 41.7 giây niệm chiêu Atomic. Đặt <code>false</code> để giữ góc nhìn thứ nhất bình thường.</span>
-                  <span class="lang-zh">吾即原子蓄力时的第三人称电影级运镜特写。设为 <code>false</code> 保持正常第一人称操作。</span>
-                </td>
-              </tr>
-              <tr>
-                <td><code>fugaCutscene</code></td>
-                <td><code>true</code></td>
-                <td>boolean</td>
-                <td>
-                  <span class="lang-en">Cinematic third-person bow drawing and meteor sequence during Fuga casting. Set <code>false</code> for normal first-person view.</span>
-                  <span class="lang-vi">Góc máy điện ảnh góc nhìn thứ 3 khi giương cung lửa và thiên thạch rơi của chiêu Fuga. Đặt <code>false</code> để giữ góc nhìn thứ nhất.</span>
-                  <span class="lang-zh">释放 Fuga 时的第三人称拉弓与陨石坠落电影级镜头过场。设为 <code>false</code> 保持第一人称视角。</span>
                 </td>
               </tr>
             </tbody>
@@ -1235,6 +1575,7 @@
   "supernovaBlockLift": false,
   "atomicTerrainDamage": false,
   "fugaTerrainDamage": false,
+  "gateTerrainDamage": false,
   "earthDrillTerrainDamage": false,
   "earthDrillBlockLift": false,
   "stoneCannonTerrainDamage": false
@@ -1265,13 +1606,14 @@
   "supernovaTerrainDamage": false,
   "atomicTerrainDamage": false,
   "fugaTerrainDamage": false,
+  "gateTerrainDamage": false,
   "stoneCannonTerrainDamage": false
 }</code></pre>
         </div>
 
         <h3 class="preset-title">
-          <span class="lang-en">3. Low-End PC & High-TPS Preset &bull; Paste into godwand-client.json</span>
-          <span class="lang-vi">3. Tối Ưu Máy Yếu & Server Đông Người (FPS Boost) &bull; Dán vào godwand-client.json</span>
+          <span class="lang-en">3. Low-End PC &amp; High-TPS Preset &bull; Paste into godwand-client.json</span>
+          <span class="lang-vi">3. Tối Ưu Máy Yếu &amp; Server Đông Người (FPS Boost) &bull; Dán vào godwand-client.json</span>
           <span class="lang-zh">3. 低配电脑与高 TPS 优化预设 &bull; 粘贴至 godwand-client.json</span>
         </h3>
         <p class="section-lead lang-en" style="margin-bottom: 0.5rem;">Disables camera shake, downsamples bloom, and skips cutscenes to maximize frame rate.</p>
@@ -1292,18 +1634,19 @@
   "bloomDownsample": 8,
   "atomicCutscene": false,
   "fugaCutscene": false,
+  "gateCutscene": false,
   "skyBlackout": false
 }</code></pre>
         </div>
 
         <h3 class="preset-title">
-          <span class="lang-en">4. Full Canonical Defaults &bull; godwand-server.json (29 Keys)</span>
-          <span class="lang-vi">4. Toàn Bộ Cấu Hình Gốc Chuẩn Xác (Full Canonical Defaults — 29 Keys) &bull; godwand-server.json</span>
-          <span class="lang-zh">4. 官方完整默认配置（29 个配置项全景）&bull; godwand-server.json</span>
+          <span class="lang-en">4. Full Canonical Defaults &bull; godwand-server.json (43 Keys Grouped by Skill)</span>
+          <span class="lang-vi">4. Toàn Bộ Cấu Hình Gốc Máy Chủ (Full Canonical Defaults — 43 Keys) &bull; godwand-server.json</span>
+          <span class="lang-zh">4. 官方服务端完整默认配置（43 项按技能分组全景）&bull; godwand-server.json</span>
         </h3>
         <div class="code-box">
           <div class="code-header">
-            <span>godwand-server.json (Full 29 Keys)</span>
+            <span>godwand-server.json (Full 43 Keys)</span>
             <button class="copy-btn">
               <span class="lang-en">Copy</span>
               <span class="lang-vi">Sao chép</span>
@@ -1314,40 +1657,127 @@
   "cooldownDefaultsVersion": 1,
   "cooldownMultiplier": 1.0,
   "damageMultiplier": 1.0,
-  "dimensionBlacklist": [],
+
   "spatialPathCooldownTicks": 20,
+
   "singularityCooldownTicks": [60, 120, 200],
-  "earthDrillCooldownTicks": [80, 140, 220, 320],
-  "stoneCannonCooldownTicks": [40, 80, 140, 220],
-  "supernovaCooldownTicks": 900,
-  "atomicCooldownTicks": 1200,
-  "fugaCooldownTicks": 1200,
   "singularityDamageMultipliers": [1.0, 1.0, 1.0],
+
+  "earthDrillCooldownTicks": [80, 140, 220, 320],
   "earthDrillDamageMultipliers": [1.0, 1.0, 1.0, 1.0],
+  "earthDrillTerrainDamage": true,
+  "earthDrillBlockLift": true,
+
+  "stoneCannonCooldownTicks": [40, 80, 140, 220],
   "stoneCannonDamageMultipliers": [1.0, 1.0, 1.0, 1.0],
+  "stoneCannonTerrainDamage": true,
+
+  "supernovaCooldownTicks": 900,
   "supernovaDamageMultiplier": 1.0,
   "supernovaInstantKillHealthThreshold": 50.0,
   "supernovaTerrainDamage": true,
   "supernovaBlockLift": true,
   "supernovaTerrainRadius": 120,
   "supernovaMaxDisplays": 1800,
-  "earthDrillBlockLift": true,
-  "earthDrillTerrainDamage": true,
-  "stoneCannonTerrainDamage": true,
+
+  "atomicCooldownTicks": 1200,
   "atomicDamage": 9999.0,
   "atomicShockwaveDamage": 15.0,
   "atomicTerrainDamage": true,
   "atomicTerrainRadius": 98,
+
+  "fugaCooldownTicks": 1200,
   "fugaDamage": 9999.0,
+  "fugaShockwaveDamageMultiplier": 0.08,
+  "fugaIgniteEntities": true,
+  "fugaShockwaveKnockback": true,
+  "fugaSlowness": true,
   "fugaTerrainDamage": true,
-  "fugaTerrainRadius": 48
+  "fugaTerrainRadius": 48,
+
+  "gateCooldownTicks": 1200,
+  "gateBeamDamage": 80.0,
+  "gateTargetMode": "hostile",
+  "gateTargetRadius": 160,
+  "gateBarrageTicks": 400,
+  "gateWaitTicks": 300,
+  "gateSkyCircles": 220,
+  "gateTerrainDamage": true,
+  "gateCraterRadius": 3,
+
+  "dimensionBlacklist": []
+}</code></pre>
+        </div>
+
+        <h3 class="preset-title">
+          <span class="lang-en">5. Full Canonical Defaults &bull; godwand-client.json (12 Keys)</span>
+          <span class="lang-vi">5. Toàn Bộ Cấu Hình Gốc Client (Full Canonical Defaults — 12 Keys) &bull; godwand-client.json</span>
+          <span class="lang-zh">5. 官方客户端完整默认配置（12 个配置项全景）&bull; godwand-client.json</span>
+        </h3>
+        <div class="code-box">
+          <div class="code-header">
+            <span>godwand-client.json (Full 12 Keys)</span>
+            <button class="copy-btn">
+              <span class="lang-en">Copy</span>
+              <span class="lang-vi">Sao chép</span>
+              <span class="lang-zh">复制</span>
+            </button>
+          </div>
+          <pre><code>{
+  "wandSkin": "AUTO",
+  "postEffects": true,
+  "impactFrames": true,
+  "cameraFov": true,
+  "skyBlackout": true,
+  "targetMarker": true,
+  "atomicCutscene": true,
+  "fugaCutscene": true,
+  "gateCutscene": true,
+  "cameraShake": 1.0,
+  "bloomStrength": 0.85,
+  "bloomDownsample": 4
 }</code></pre>
         </div>
       </section>
 
+      <!-- Section 6: AI & LLM Integration -->
+      <section id="ai-tools" class="doc-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <span class="lang-en">AI &amp; LLM Integration</span>
+            <span class="lang-vi">Tích Hợp AI &amp; Trợ Lý Ảo</span>
+            <span class="lang-zh">AI 与大语言模型集成工具</span>
+          </h2>
+          <p class="section-lead lang-en">Standard specifications and 1-click tools for feeding God Wand knowledge directly into AI assistants (ChatGPT, Claude, Gemini, DeepSeek, Cursor, Copilot).</p>
+          <p class="section-lead lang-vi">Tiêu chuẩn và công cụ 1-click để cung cấp toàn bộ tri thức God Wand vào các trợ lý AI (ChatGPT, Claude, Gemini, DeepSeek, Cursor, Copilot).</p>
+          <p class="section-lead lang-zh">面向大模型（ChatGPT、Claude、Gemini、DeepSeek 等）的标准化知识库规范与一键投喂工具。</p>
+        </div>
+
+        <div class="cards-grid">
+          <div class="card">
+            <div class="card-title">✨ 1-Click Copy AI Context</div>
+            <p class="lang-en">Click the "Copy for AI" button in the header or hero banner. The full markdown knowledge base is copied instantly to your clipboard. Paste it directly into your AI chat prompt.</p>
+            <p class="lang-vi">Bấm nút "Hỏi AI" ở thanh điều hướng hoặc banner đầu trang. Toàn bộ tri thức kỹ thuật dạng Markdown sẽ được sao chép ngay vào bộ nhớ tạm để dán vào khung chat AI.</p>
+            <p class="lang-zh">点击导航栏或横幅上的“复制给 AI”按钮，整篇精炼的 Markdown 格式技术档案将直接拷入剪贴板，随后可直接粘贴至 AI 对话框中进行提问。</p>
+          </div>
+          <div class="card">
+            <div class="card-title">📄 Web AI Standard: llms.txt</div>
+            <p class="lang-en">Standard endpoint for AI web-browsing agents (Perplexity, Cursor, Copilot, ChatGPT Browse) located at <a href="llms.txt" target="_blank"><code>/llms.txt</code></a>, giving crawlers an ultra-fast structural sitemap.</p>
+            <p class="lang-vi">Đường dẫn chuẩn dành cho các trình duyệt AI tự động đọc web tại <a href="llms.txt" target="_blank"><code>/llms.txt</code></a>, giúp AI lập tức hiểu cấu trúc mod và tài liệu liên quan mà không bị nhiễu HTML.</p>
+            <p class="lang-zh">遵循现代大模型网页抓取标准的 <a href="llms.txt" target="_blank"><code>/llms.txt</code></a> 接口，使 AI 搜索代理能够极速读取模块化摘要与索引。</p>
+          </div>
+          <div class="card">
+            <div class="card-title">📚 Full Corpus: llms-full.txt</div>
+            <p class="lang-en">Uncompressed full documentation corpus located at <a href="llms-full.txt" target="_blank"><code>/llms-full.txt</code></a>. AI models can fetch this URL directly to diagnose modpack crashes or author customized JSON configs.</p>
+            <p class="lang-vi">Kho tri thức đầy đủ không nén tại <a href="llms-full.txt" target="_blank"><code>/llms-full.txt</code></a>. Các mô hình AI có thể đọc trực tiếp URL này để tạo preset JSON riêng hoặc hỗ trợ sửa lỗi modpack.</p>
+            <p class="lang-zh">未压缩的完整文档全量文本接口 <a href="llms-full.txt" target="_blank"><code>/llms-full.txt</code></a>，支持大模型直接通过 URL 抓取整份技术规则并为你编写个性化配置。</p>
+          </div>
+        </div>
+      </section>
+
       <footer class="doc-footer">
-        <div>God Wand 1.4.0 Documentation</div>
-        <div>MIT License (Java Code) &bull; All Rights Reserved (Audio & Visual Assets)</div>
+        <div>God Wand 1.5.0 Documentation</div>
+        <div>MIT License (Java Code) &bull; All Rights Reserved (Audio &amp; Visual Assets)</div>
       </footer>
     </main>
   </div>

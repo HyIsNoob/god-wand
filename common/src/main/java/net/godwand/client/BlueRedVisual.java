@@ -44,7 +44,8 @@ final class BlueRedVisual {
 
     /** Red's charging orb snaps into being in a few ticks and then holds its size (owner, 2026-11-16: no scaling animation). */
     static double redChargeSize(double age, double chargeTicks) {
-        double k = Math.max(0, Math.min(1, age / 6));
-        return .12 + .3 * k * k * (3 - 2 * k);
+        // Grows out of nothing over 8 ticks, swelling a little past its size before it settles (owner, 2026-11-20: an appearance).
+        double k = Math.max(0, Math.min(1, age / 8));
+        return .03 + .39 * k * k * (3 - 2 * k) + .08 * Math.sin(Math.PI * k);
     }
 }

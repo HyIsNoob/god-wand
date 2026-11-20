@@ -788,6 +788,12 @@ final class BlueRedDraw {
             redMass(c, at, s * .9, age, coreD, false);
             // Only the mass behind it: in front it hid the vortex (owner, 2026-11-19).
             orb(c, at, s * .62, 1, (full ? 1 : 0) + 4, RED, 1);
+            // Forming, as Blue does: red smoke gathering in from all round (owner, 2026-11-20).
+            if (age < 12) for (int i = 0; i < 18; i++) {
+                Vec3 d = nvec(7880 + i, 0).normalize();
+                double k = smooth(age / 10);
+                fxSprite(c, at.add(d.scale(.42 * (4 - 3.2 * k))), .17, SMOKE, 7890 + i, i % 2 == 0 ? RED : RED_BODY, .6 * (1 - age / 12), i);
+            }
         }
         for (int b = 0; b < 3 + (int) (5 * charge) + (full ? 3 : 0); b++) {
             Vec3 d = nvec(7800 + b, age * .3).normalize(), d2 = d.add(nvec(7810 + b, age * .35).scale(.9)).normalize();
@@ -800,6 +806,12 @@ final class BlueRedDraw {
         glow(c, at, s * .7, .9, RED);
         glow(c, at, s * 1.6, .6, RED);
         glow(c, at, s * 3.5, .3 + .25 * charge, RED_BODY);
+        // Its birth: a red shock ring thrown out and a flash (owner, 2026-11-20).
+        if (age >= 0 && age < 12) {
+            double k = age / 12;
+            fxSprite(c, at, .42 * (1 + 3 * k), SHOCK, 7875, RED_LIGHT, .8 * (1 - k), 0);
+            glow(c, at, .42 * (3 - 2 * k), .7 * (1 - k) * flashScale(), RED_LIGHT);
+        }
         if (full) {
             // The instant it fills (owner, 2026-11-19: make it hit): a big red shock thrown out once, rays and a flash.
             double since = age - fullAt;

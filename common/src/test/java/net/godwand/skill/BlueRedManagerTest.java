@@ -187,7 +187,7 @@ class BlueRedManagerTest {
         assertEquals(BlueState.ANCHORED, only().state);
         Vec3 at = only().pos;
         when(p.getLookAngle()).thenReturn(new Vec3(1, 0, 0));
-        ticks(299);
+        ticks(net.godwand.config.GodWandConfig.SERVER.blueAnchorTicks - 1);
         assertEquals(at, only().pos, "an anchored Blue stays where it was released");
         ticks(1);
         assertTrue(BlueRedManager.blues(world).isEmpty());

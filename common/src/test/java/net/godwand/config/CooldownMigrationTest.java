@@ -12,6 +12,13 @@ class CooldownMigrationTest {
   String saved=Files.readString(file);assertTrue(saved.contains("packOption"));
   GodWandConfig.read(file,GodWandConfig.Server.class,new GodWandConfig.Server());assertEquals(saved,Files.readString(file),"Migration runs once");
  }
+ @Test void readyBlueHangUpgradesFromTheTestBuildsButAChosenValueStays() throws Exception {
+  Path file=dir.resolve("blue.json");Files.writeString(file,"{\"cooldownDefaultsVersion\":1,\"blueAnchorTicks\":300,\"atomicCooldownTicks\":600}");
+  var s=GodWandConfig.read(file,GodWandConfig.Server.class,new GodWandConfig.Server());
+  assertEquals(100,s.blueAnchorTicks);assertEquals(600,s.atomicCooldownTicks,"version 1 files keep their cooldowns");
+  Files.writeString(file,"{\"cooldownDefaultsVersion\":1,\"blueAnchorTicks\":240}");
+  assertEquals(240,GodWandConfig.read(file,GodWandConfig.Server.class,new GodWandConfig.Server()).blueAnchorTicks);
+ }
  @Test void fullChargeDefaultsHaveLongerCooldownsAndDamageStaysUnchanged() {
   var s=new GodWandConfig.Server();for(int[] tiers:new int[][]{s.singularityCooldownTicks,s.earthDrillCooldownTicks,s.stoneCannonCooldownTicks})for(int i=1;i<tiers.length;i++)assertTrue(tiers[i]>tiers[i-1]);
   assertEquals(9999,s.atomicDamage);assertEquals(15,s.atomicShockwaveDamage);assertEquals(900,s.supernovaCooldownTicks);assertEquals(1200,s.atomicCooldownTicks);
