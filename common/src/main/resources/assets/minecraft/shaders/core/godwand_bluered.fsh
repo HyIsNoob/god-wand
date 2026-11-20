@@ -74,6 +74,9 @@ void main() {
         // purple and ink shards). floor(seed / 4) = level: 1 ready / charged (busier), 2 bursting (core floods the sphere).
         float variant = mod(seed, 4.0), level = floor(seed / 4.0);
         // Level + 4: a solo Blue or Red (owner, 2026-11-19): its streaks rush into the core, fast and strong.
+        // Level + 8: the 3D act's twin orbs (owner, 2026-11-20: calm, not swirling): smooth glassy energy.
+        bool calm = level >= 8.0;
+        if (calm) level -= 8.0;
         bool rush = level >= 4.0;
         if (rush) level -= 4.0;
         bool isBlue = variant == 0.0, isRed = variant == 1.0, isPurple = variant == 2.0, isPlanet = variant == 3.0;
@@ -81,7 +84,26 @@ void main() {
         float d = length(q) / R;
         float ang = atan(q.y, q.x);
         vec2 dir = vec2(cos(ang), sin(ang));
-        if (rush) {
+        if (calm) {
+            // A clear sphere of energy: deep at the rim, brightening smoothly to a hot heart (white for Blue, red for Red), a few soft veins
+            // of light drifting slowly over it, a crisp thin fresnel rim, a soft halo outside. No spiral.
+            float dz = clamp(d, 0.0, 0.999), z = sqrt(1.0 - dz * dz);
+            vec3 n3 = vec3(q / R, z);
+            n3.xz *= rot(t * 0.22);
+            n3.yz *= rot(t * 0.13);
+            float veins = pow(ridge(fbm(n3 * 1.8 + vec3(0.0, 0.0, t * 0.25))), 7.0);
+            float haze = fbm(n3 * 1.1 - vec3(t * 0.1));
+            vec3 heart = isRed ? vec3(1.0, 0.28, 0.3) : vec3(1.0);
+            vec3 body = mix(tint * 0.3, tint * 0.95, smoothstep(0.0, 1.0, z)) * (0.85 + 0.3 * haze);
+            body += mix(tint, heart, 0.5) * veins * 0.7;
+            body += heart * exp(-d * d * 4.5) * (0.9 + 0.3 * level);
+            float fres = pow(1.0 - z, 2.4);
+            body += mix(tint, vec3(1.0), isRed ? 0.25 : 0.45) * fres * 1.1;
+            float od = max(d - 1.0, 0.0);
+            float inside = smoothstep(1.015, 0.985, d);
+            col = mix(mix(tint, heart, 0.3), body, inside);
+            a = mix(clamp(exp(-od * 7.0) * 0.55, 0.0, 1.0) * smoothstep(1.5, 1.1, d), 1.0, inside);
+        } else if (rush) {
             // A solo Blue or Red (owner, 2026-11-19): energy pouring into its centre. Spiral streams in log-radius move inward, so they speed
             // up as they near the core; a second finer layer runs faster; outside the rim the same streams are wisps being drawn in.
             float lr = log(max(d, 0.02)), sp = (1.0 + 0.4 * level) * (isRed ? 1.25 : 1.0);

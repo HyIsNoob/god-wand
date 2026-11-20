@@ -212,8 +212,8 @@ final class BlueRedDraw {
                 int col = i % 3 == 0 ? p.light() : i % 3 == 1 ? p.mid() : p.deep();
                 fxSprite(c, at.add(dir.scale(dist)), size, SMOKE, (int) (cs % 991), col, a, age * .05 + i);
             }
-            // The solo Blue/Red swirl, rushing into the core (owner, 2026-11-20: try it in the 3D act).
-            orb(c, at, r * .78, p.variant(), 1 + 4, p.tint(), 1);
+            // Calm, glassy energy (owner, 2026-11-20: the swirl looked busy in the 3D act).
+            orb(c, at, r * .78, p.variant(), 1 + 8, p.tint(), 1);
         }
         if (!c.glow()) return;
         // Kept low at the stop, where the two nearly touch and their light would pile up white (owner, round 42).
