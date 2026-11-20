@@ -205,7 +205,7 @@ public final class BlueRedProbe implements ClientModInitializer {
     /** The Purple shot (owner, 2026-11-20): left held, then right too; held until formed and a little past, let go, the flight filmed. */
     private void shot(Minecraft c, MinecraftServer server) {
         int t = ticks - since;
-        if (t == 20) { c.options.keyAttack.setDown(true); System.out.println("GOJO_QA SHOT left"); }
+        if (t == 20) { c.options.keyAttack.setDown(true); System.out.println("GOJO_QA SHOT left defer=" + Boolean.getBoolean("godwand.fuga.qa.defer")); }
         if (t == 24) { c.options.keyUse.setDown(true); System.out.println("GOJO_QA SHOT right"); }
         if (t >= 20 && t <= 34) System.out.println("GOJO_QA SHOT t=" + t + " blues=" + server.submit(() -> BlueRedManager.blues(me(server, c).serverLevel()).size()).join());
         // Seen from the front while it forms (owner, 2026-11-20: do others see the two orbs?).

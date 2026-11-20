@@ -497,6 +497,18 @@ public final class BlueRedRenderer {
     private static float[] bloom;
     public static boolean bloomPending() { return bloom != null; }
     public static void flushPostFx() {
+        // Under a shaderpack the orbs were held back from the level pass (which repaints immediate geometry): drawn now, on the finished frame.
+        Deferred d = deferred; deferred = null;
+        if (d != null) {
+            Minecraft.getInstance().getMainRenderTarget().bindWrite(false);
+            var stack = RenderSystem.getModelViewStack();
+            stack.pushMatrix(); stack.set(d.modelView()); RenderSystem.applyModelViewMatrix();
+            RenderSystem.backupProjectionMatrix();
+            RenderSystem.setProjectionMatrix(d.projection(), com.mojang.blaze3d.vertex.VertexSorting.DISTANCE_TO_ORIGIN);
+            var pose = new PoseStack(); pose.last().pose().set(d.pose());
+            try { draw(pose, d.camera(), d.partial()); drawOverlay(); }
+            finally { RenderSystem.restoreProjectionMatrix(); stack.popMatrix(); RenderSystem.applyModelViewMatrix(); }
+        }
         float[] b = bloom; bloom = null;
         if (b != null) GatePostFx.process(b[0], b[1], b[2], b[3], b[4], b[7], 0, b[5], b[6], (float) (clock / 20.0));
     }
@@ -575,6 +587,19 @@ public final class BlueRedRenderer {
         if (m11 > 1e-3f) barsTan = 1 / m11;
         overlay = new Overlay(new Matrix4f(pose.last().pose()), camera, partial);
         planBloom(pose, camera, partial);
+        // The QA flag runs the same path without a shaderpack installed.
+        if (AtomicPostFx.shaderPackActive() || Boolean.getBoolean("godwand.fuga.qa.defer")) {
+            deferred = new Deferred(new Matrix4f(pose.last().pose()), new Matrix4f(RenderSystem.getModelViewMatrix()),
+                    new Matrix4f(RenderSystem.getProjectionMatrix()), camera, partial);
+            return;
+        }
+        draw(pose, camera, partial);
+    }
+
+    private record Deferred(Matrix4f pose, Matrix4f modelView, Matrix4f projection, Camera camera, float partial) {}
+    private static Deferred deferred;
+
+    private static void draw(PoseStack pose, Camera camera, float partial) {
         if (BLUES.isEmpty() && CHARGES.isEmpty() && FLIGHTS.isEmpty() && BURSTS.isEmpty() && FIZZLES.isEmpty() && PURPLES.isEmpty() && AFTERMATHS.isEmpty() && SMALLS.isEmpty() && SHOTS.isEmpty() && IMPACTS.isEmpty()) return;
         RenderSystem.enableBlend(); RenderSystem.enableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
         BlueRedAtlas.bind(); BlueRedShader.bind((float) (((clock + partial) / 20.0) % 3600));
@@ -595,6 +620,10 @@ public final class BlueRedRenderer {
 
     /** Drawn last in the frame (after clouds and weather), depth off, with this frame's matrix: Purple's black void, then Red's impact frames. */
     public static void renderOverlay() {
+        if (deferred == null) drawOverlay();
+    }
+
+    private static void drawOverlay() {
         Overlay o = overlay; overlay = null;
         if (o == null || IMPACTS.isEmpty() && !(PurpleCinematic.inVoid() && !PURPLES.isEmpty())) return;
         RenderSystem.enableBlend(); RenderSystem.disableDepthTest(); RenderSystem.depthMask(false); RenderSystem.disableCull();
