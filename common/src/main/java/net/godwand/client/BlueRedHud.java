@@ -18,7 +18,7 @@ public final class BlueRedHud {
         int cx = g.guiWidth() / 2, cy = g.guiHeight() / 2;
         double now = BlueRedRenderer.now(partial);
         double red = BlueRedRenderer.redChargeAge(me.getId(), partial);
-        if (red >= 0) {
+        if (red >= net.godwand.skill.BlueRedRules.INPUT_GRACE) {
             double full = Math.max(1, GodWandConfig.SERVER.redChargeTicks), k = Math.min(1, red / full);
             boolean done = k >= 1;
             int lit = done ? (Math.sin(now * .9) > 0 ? 0xFFFFE6E8 : 0xFFFF2A3A) : 0xFFFF3A4A;
@@ -26,7 +26,7 @@ public final class BlueRedHud {
             if (done) ring(g, cx, cy, 13, 56, 1, 0x80FF2A3A, 0, 0);
         }
         int blue = BlueRedRenderer.blueState(me.getId());
-        if (blue >= 0) {
+        if (blue >= 0 && BlueRedRenderer.blueAge(me.getId(), partial) >= net.godwand.skill.BlueRedRules.INPUT_GRACE) {
             if (blue == 1) ring(g, cx, cy, 6, 32, 1, 0xFF8EEBFF, 0, 0);
             else ring(g, cx, cy, 6, 32, 1, 0x903A8CFF, 0, now * .08);
         }

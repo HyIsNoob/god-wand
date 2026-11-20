@@ -104,6 +104,8 @@ class BlueRedManagerTest {
         return z;
     }
     void ticks(int n) { for (int i = 0; i < n; i++) BlueRedManager.tick(world); }
+    /** Ticks until a fresh Blue's first core hit: the first core period at or past the input grace. */
+    static int firstCore() { int p = BlueRedRules.CORE_PERIOD; return (BlueRedRules.INPUT_GRACE + p - 1) / p * p; }
     BlueRedPayload last() { return sent.get(sent.size() - 1); }
     BlueRedManager.Blue only() { var b = BlueRedManager.blues(world); assertEquals(1, b.size()); return b.get(0); }
 
@@ -180,7 +182,7 @@ class BlueRedManagerTest {
         zombie(); zombie(); zombie();
         var p = player();
         BlueRedManager.input(p, true);
-        ticks(BlueRedRules.CORE_PERIOD);
+        ticks(firstCore());
         BlueRedManager.input(p, false);
         assertEquals(BlueState.ANCHORED, only().state);
         Vec3 at = only().pos;
@@ -195,7 +197,7 @@ class BlueRedManagerTest {
         zombie(); zombie(); zombie();
         var p = player();
         BlueRedManager.input(p, true);
-        ticks(BlueRedRules.CORE_PERIOD);
+        ticks(firstCore());
         BlueRedManager.input(p, false);
         var anchored = only();
         BlueRedManager.input(p, true);
@@ -253,7 +255,7 @@ class BlueRedManagerTest {
         var b = player(9, world, new Vec3(0, 65, 30), new Vec3(0, 0, -1));
         if (ready) { zombie(new Vec3(0, 64.5, 22)); zombie(new Vec3(0, 64.5, 22)); zombie(new Vec3(0, 64.5, 22)); }
         BlueRedManager.input(b, true);
-        if (ready) { ticks(BlueRedRules.CORE_PERIOD); assertEquals(BlueState.READY, only().state); nearby.clear(); }
+        if (ready) { ticks(firstCore()); assertEquals(BlueState.READY, only().state); nearby.clear(); }
         return b;
     }
     void fire(ServerPlayer p) {
@@ -482,7 +484,7 @@ class BlueRedManagerTest {
         zombie(); zombie(); zombie();
         var a = player();
         BlueRedManager.input(a, true);
-        ticks(BlueRedRules.CORE_PERIOD);
+        ticks(firstCore());
         BlueRedManager.input(a, false);
         nearby.clear();
         fire(a);

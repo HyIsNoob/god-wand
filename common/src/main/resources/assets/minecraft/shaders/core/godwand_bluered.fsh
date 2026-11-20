@@ -294,14 +294,14 @@ void main() {
         float v = ring * (0.6 + n * 0.7);
         col = ramp(tint, clamp(v, 0.0, 1.0));
         a = clamp(v, 0.0, 1.0) * step(d, 1.0);
-    } else if (effect == 5) {
-        // BOLT: a flickering electric strip, white-hot core.
+    } else if (effect == 5 || effect == 17) {
+        // BOLT: a flickering electric strip, white-hot core; 17 (Purple's, owner 2026-11-20): violet through to its core, no white.
         float n = noise(vec3(p.x * 20.0 - t * 30.0, seed, 0.0));
         float core = exp(-pow(q.y / 0.12, 2.0));
         float glow = exp(-pow(q.y / 0.55, 2.0)) * 0.6;
         float flick = 0.65 + 0.35 * sin(t * 90.0 + seed);
         float v = (core * 1.4 + glow) * (0.7 + n * 0.5) * flick;
-        col = ramp(tint, clamp(v, 0.0, 1.0)) + vec3(core * 0.6);
+        col = effect == 5 ? ramp(tint, clamp(v, 0.0, 1.0)) + vec3(core * 0.6) : mix(tint * 0.35, tint * 1.6, clamp(v, 0.0, 1.0));
         a = clamp(v, 0.0, 1.0);
     } else if (effect == 6) {
         // SPARK: a twinkling four-point star.

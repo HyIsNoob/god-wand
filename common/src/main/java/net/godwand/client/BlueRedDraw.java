@@ -24,7 +24,7 @@ final class BlueRedDraw {
     static final int SHOCK_WHITE = 0xFFF4F4;
     static final int VIOLET = 0x9A2CFF, ORCHID = 0xF064FF, PALE = 0xF6D8FF, NIGHT = 0x2A0650, VOID = 0x07020F, INK = 0x050002;
     /** Shader effects (godwand_bluered.fsh). ORB seeds: variant (0 blue, 1 red, 2 purple) + 4 * level. */
-    static final int ORB = 0, FLOW = 1, FLAME = 2, SMOKE = 3, SHOCK = 4, BOLT = 5, SPARK = 6, RAYS = 7, NEBULA = 8, SPEEDLINES = 9, DEBRIS = 10, RING = 11, BRUSH = 12, PLASMA = 13, CHALK = 14, GALAXY = 15, SOLID_FX = 16;
+    static final int ORB = 0, FLOW = 1, FLAME = 2, SMOKE = 3, SHOCK = 4, BOLT = 5, SPARK = 6, RAYS = 7, NEBULA = 8, SPEEDLINES = 9, DEBRIS = 10, RING = 11, BRUSH = 12, PLASMA = 13, CHALK = 14, GALAXY = 15, SOLID_FX = 16, VBOLT = 17;
     static final int BLUE_TINT = 0x1A6CFF;
 
     private BlueRedDraw() {}
@@ -1401,27 +1401,58 @@ final class BlueRedDraw {
         }
     }
 
+    /** Wind streaming off a sphere's far side along {@code outward}: thin streaks sweeping out and fanning away, more and longer as
+     *  {@code push} (0..1) grows. Glow pass. */
+    static void wind(Ctx c, Vec3 p, double r, Vec3 outward, Vec3 up, double age, int color, long seed, double alpha, double push) {
+        int n = 8;
+        for (int j = 0; j < 8 + (int) (8 * push); j++) {
+            long sd = seed + j * 7L;
+            double life = 9 + 6 * hash(sd), u = (age / life + hash(sd + 1)) % 1;
+            double y = (hash(sd + 2) * 2 - 1) * .9, bend = (hash(sd + 3) - .5) * .9, L = r * (1.4 + 1.6 * hash(sd + 4)) * (1 + push);
+            Vec3[] pts = new Vec3[n + 1];
+            double[] w = new double[n + 1];
+            for (int i = 0; i <= n; i++) {
+                double x = clamp01(u * 1.35 - .35 + .35 * i / n);
+                pts[i] = p.add(outward.scale(r * Math.sqrt(1 - y * y) * .9 + L * x)).add(up.scale(r * (y * (1 + .7 * x) + bend * x * x)));
+                w[i] = r * (.025 + .03 * hash(sd + 5)) * Math.sin(Math.PI * i / n);
+            }
+            fxRibbon(c, pts, w, FLOW, (int) (sd % 977), j % 3 == 0 ? 0xFFFFFF : color, alpha * .8 * Math.sin(Math.PI * u));
+        }
+    }
+
     /** The Purple shot gathering (owner, 2026-11-20: both buttons) at {@code center} in front of its caster, {@code age} ticks in. */
-    static void purpleShotCharge(Ctx c, Vec3 center, Vec3 look, double age) {
+    static void purpleShotCharge(Ctx c, Vec3 center, Vec3 look, Vec3 camLook, double age) {
         int merge = BlueRedRules.SHOT_MERGE, form = BlueRedRules.SHOT_FORM;
         double R = BlueRedRules.SHOT_RADIUS;
         Vec3 side = look.cross(new Vec3(0, 1, 0));
         side = side.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : side.normalize();
         Vec3 up = side.cross(look).normalize();
-        if (age < merge + 3) {
-            // Blue and Red either side, swinging round each other as they close in.
-            double appear = smooth(age / 10), k = smooth((age - 6) / (merge - 6.0)), d = 2.6 * (1 - k), ang = k * k * 5;
-            Vec3 off = side.scale(Math.cos(ang) * d).add(up.scale(Math.sin(ang) * d * .6));
-            Vec3 blue = center.add(off), red = center.subtract(off);
-            double r = .6 * appear * (1 - .4 * smooth((age - merge + 3) / 3.0));
-            if (c.body() && r > .02) { orb(c, blue, r, 0, 1 + 8, BLUE_TINT, appear); orb(c, red, r, 1, 1 + 8, RED, appear); }
+        if (age < merge) {
+            // Blue and Red appear either side and come straight in, faster and faster, until their rims touch: that instant is Purple
+            // (owner, 2026-11-20: no swirl, bigger, touching rather than overlapping, the 2D act's spheres).
+            double r = 1.15, appear = smooth(age / 6), k = Math.pow(clamp01((age - 4) / (merge - 4.0)), 1.8);
+            double d = r * VOID_RIM + (2.5 - r * VOID_RIM) * (1 - k);
+            Vec3 off = side.scale(d), low = up.scale(-.35);
+            Vec3 blue = center.add(off).add(low), red = center.subtract(off).add(low);
+            r *= appear;
+            if (c.body() && r > .02) {
+                // Their wakes stream out to either side, as in the 2D act (owner, 2026-11-20).
+                voidWake(c, red, r, side.scale(-1), up, look.scale(-1), RED_P, 0, age, k, appear);
+                voidWake(c, blue, r, side, up, look.scale(-1), BLUE_P, 1, age, k, appear);
+                // Screen-aligned for whoever looks (third person, other players): a true circle from any side, even at the edge of the view.
+                orbFacing(c, red, r, 3, 0, 0xB80C24, appear, camLook); orbFacing(c, blue, r, 3, 1, 0x1448C8, appear, camLook);
+            }
             inflow(c, blue, Math.max(.2, r), age, 30, CYAN, ROYAL, 9900, appear);
             inflow(c, red, Math.max(.2, r), age, 30, RED_LIGHT, RED, 9910, appear);
             if (c.glow()) {
-                glow(c, blue, r * 2.4, .5 * appear, ROYAL);
-                glow(c, red, r * 2.4, .5 * appear, RED);
+                // Light (owner, 2026-11-20, ref): a hot rim halo, a wide bloom of its colour and the air behind it lit; wind streaming off to the side.
+                glow(c, red, r * 1.35, .6 * appear, 0xFFA070); glow(c, blue, r * 1.35, .6 * appear, 0xA0F0FF);
+                glow(c, red, r * 3.4, .35 * appear, RED); glow(c, blue, r * 3.4, .35 * appear, ROYAL);
+                glow(c, red.add(look.scale(2)), r * 4.5, .16 * appear, RED); glow(c, blue.add(look.scale(2)), r * 4.5, .16 * appear, 0x2A6CFF);
+                wind(c, red, r, side.scale(-1), up, age, RED_LIGHT, 9800, appear, k);
+                wind(c, blue, r, side, up, age, CYAN, 9850, appear, k);
                 for (int b = 0; b < 2 + (int) (6 * k); b++)
-                    liveBolt(c, red, blue, 8, .4, .02 + .03 * k, b % 2 == 0 ? PALE : ORCHID, appear * (.3 + .7 * k), 9930 + b * 13, age, 1);
+                    liveBolt(c, red, blue, 8, .4, .02 + .03 * k, b % 2 == 0 ? VIOLET : 0xB050FF, appear * (.3 + .7 * k), 9930 + b * 13, age, 1, VBOLT);
             }
         }
         double t = age - merge;
@@ -1444,7 +1475,7 @@ final class BlueRedDraw {
         for (int b = 0; b < 4 + (int) (8 * grow) + (int) (4 * ready); b++) {
             Vec3 d0 = nvec(9960 + b, age * .3).normalize(), d1 = d0.add(nvec(9970 + b, age * .35).scale(.8)).normalize();
             liveBolt(c, center.add(d0.scale(s * .92)), center.add(d1.scale(s * (1.3 + .9 * vnoise(9980 + b, age * .4)))), 7, .45, .04 + .04 * grow,
-                    b % 3 == 0 ? 0xFFFFFF : b % 3 == 1 ? PALE : ORCHID, smooth(t / 4), 9990 + b * 13, age, 1);
+                    b % 2 == 0 ? VIOLET : 0xB050FF, smooth(t / 4), 9990 + b * 13, age, 1, VBOLT);
         }
         sparks(c, center, s * 1.5, age, 20 + (int) (30 * grow), PALE, 9995);
     }
@@ -1484,7 +1515,7 @@ final class BlueRedDraw {
             glow(c, head, s * 1.8, .5, VIOLET);
             for (int b = 0; b < 10; b++) {
                 Vec3 d0 = nvec(10040 + b, t * .3).normalize(), d1 = d0.add(nvec(10050 + b, t * .35).scale(.8)).normalize().subtract(dir.scale(.6)).normalize();
-                liveBolt(c, head.add(d0.scale(s * .92)), head.add(d1.scale(s * (1.6 + vnoise(10060 + b, t * .4)))), 7, .45, .07, b % 2 == 0 ? PALE : ORCHID, 1, 10070 + b * 13, t, 1);
+                liveBolt(c, head.add(d0.scale(s * .92)), head.add(d1.scale(s * (1.6 + vnoise(10060 + b, t * .4)))), 7, .45, .07, b % 2 == 0 ? VIOLET : 0xB050FF, 1, 10070 + b * 13, t, 1, VBOLT);
             }
             sparks(c, head, s * 1.6, t, 40, PALE, 10080);
         } else if (c.glow()) {
@@ -1878,6 +1909,31 @@ final class BlueRedDraw {
     /** The tick the 2D spheres touch and Purple is born. */
     static int voidTouch() { return BlueRedRules.PURPLE_SWIRL_END + (int) Math.round(TOUCH_V); }
 
+    /** A 2D-act sphere's wake: smoke as wide as the sphere streaming out behind it (along {@code outward}) and dust flung off backwards,
+     *  more and faster as {@code push} (0..1) grows. Body pass. */
+    static void voidWake(Ctx c, Vec3 p, double r, Vec3 outward, Vec3 up, Vec3 view, Palette pal, int side, double age, double push, double orbs) {
+        // Owner, 2026-11-18: the trail is as wide as the sphere itself, flat, shapeless and soft (overlapping smoke behind it), and dust
+        // flies off it backwards, away from the other sphere.
+        // Owner, 2026-11-19: little at first, then more and faster as they close, over a wider area.
+        for (int j = 0; j < 5 + (int) (6 * push); j++) {
+            long sd = 4600 + side * 50 + j;
+            double d = r * (.35 + .6 * j) * (1 + 1.2 * push) + r * .3 * snoise(sd, age * .05), size = r * (1.7 - .08 * j) * (1 + .4 * push) * (1 + .12 * snoise(sd + 1, age * .07));
+            Vec3 q = p.add(outward.scale(d)).add(up.scale(r * .35 * snoise(sd + 2, age * .04)));
+            fxSprite(c, q, size, SMOKE, (int) (sd % 977), j % 3 == 0 ? pal.mid() : j % 3 == 1 ? pal.deep() : pal.light(), Math.max(.04, .22 + .1 * push - .02 * j) * orbs, age * .02 * (j % 2 == 0 ? 1 : -1) + j);
+        }
+        for (int j = 0; j < 15 + (int) (85 * push); j++) {
+            long sd = 4700 + side * 100 + j;
+            double life = 14 + 8 * hash(sd), ph = age / life + hash(sd + 1);
+            long cyc = (long) Math.floor(ph);
+            double u = ph - cyc;
+            long cs = sd + cyc * 7919L;
+            double ang = (hash(cs) - .5) * 3.0;
+            Vec3 dir = outward.scale(Math.cos(ang)).add(up.scale(Math.sin(ang))).normalize();
+            Vec3 q = p.add(dir.scale(r * (.85 + (3 + 5 * push) * u))).add(view.scale(.2));
+            fxSprite(c, q, r * (.06 + .09 * hash(cs + 2)) * (1 + 2 * u) * (1 + .5 * push), SMOKE, (int) (cs % 991), j % 2 == 0 ? pal.light() : pal.hot(), smooth(u / .1) * (1 - u) * .8 * orbs, u * 3);
+        }
+    }
+
     /** The 2D act (owner, 2026-11-18, ref 42). The world fades to black, then the act fades in: dark smoke streaked pink and violet; big Red
      *  lower left and big Blue upper right, churning white-hot spheres, each streaming 2D brush strokes of its colours behind it; lightning
      *  crackles on Red's edge facing Blue; they are pushed together along the diagonal, Purple forms over them and takes their place. */
@@ -1926,26 +1982,7 @@ final class BlueRedDraw {
             // A little darker than the world orbs (owner, 2026-11-18).
             int tint = side == 0 ? 0xB80C24 : 0x1448C8;
             if (c.body()) {
-                // Owner, 2026-11-18: the trail is as wide as the sphere itself, flat, shapeless and soft (overlapping smoke behind it), and dust
-                // flies off it backwards, away from the other sphere.
-                // Owner, 2026-11-19: little at first, then more and faster as they close, over a wider area.
-                for (int j = 0; j < 5 + (int) (6 * push); j++) {
-                    long sd = 4600 + side * 50 + j;
-                    double d = r * (.35 + .6 * j) * (1 + 1.2 * push) + r * .3 * snoise(sd, age * .05), size = r * (1.7 - .08 * j) * (1 + .4 * push) * (1 + .12 * snoise(sd + 1, age * .07));
-                    Vec3 q = p.add(outward.scale(d)).add(up.scale(r * .35 * snoise(sd + 2, age * .04)));
-                    fxSprite(c, q, size, SMOKE, (int) (sd % 977), j % 3 == 0 ? pal.mid() : j % 3 == 1 ? pal.deep() : pal.light(), Math.max(.04, .22 + .1 * push - .02 * j) * orbs, age * .02 * (j % 2 == 0 ? 1 : -1) + j);
-                }
-                for (int j = 0; j < 15 + (int) (85 * push); j++) {
-                    long sd = 4700 + side * 100 + j;
-                    double life = 14 + 8 * hash(sd), ph = age / life + hash(sd + 1);
-                    long cyc = (long) Math.floor(ph);
-                    double u = ph - cyc;
-                    long cs = sd + cyc * 7919L;
-                    double ang = (hash(cs) - .5) * 3.0;
-                    Vec3 dir = outward.scale(Math.cos(ang)).add(up.scale(Math.sin(ang))).normalize();
-                    Vec3 q = p.add(dir.scale(r * (.85 + (3 + 5 * push) * u))).add(view.scale(.2));
-                    fxSprite(c, q, r * (.06 + .09 * hash(cs + 2)) * (1 + 2 * u) * (1 + .5 * push), SMOKE, (int) (cs % 991), j % 2 == 0 ? pal.light() : pal.hot(), smooth(u / .1) * (1 - u) * .8 * orbs, u * 3);
-                }
+                voidWake(c, p, r, outward, up, view, pal, side, age, push, orbs);
                 // Screen-aligned, so it stays a true circle even near the edge of the view.
                 orbFacing(c, p, r, 3, side, tint, orbs, look);
                 // Over its face (owner, 2026-11-19): smoke and dust born on the side facing the other sphere, streaming across the surface and
@@ -2236,6 +2273,11 @@ final class BlueRedDraw {
     /** Lightning that crawls instead of popping: a fixed number of segments from a to b, each joint displaced by smooth noise of (seed, time), so the
      *  bolt keeps its identity frame to frame while its shape writhes; crackle sets how fast. Fades right against the eye. */
     static void liveBolt(Ctx c, Vec3 a, Vec3 b, int segments, double jitter, double width, int color, double alpha, long seed, double age, double crackle) {
+        liveBolt(c, a, b, segments, jitter, width, color, alpha, seed, age, crackle, BOLT);
+    }
+
+    /** As above, drawn with {@code fx} (BOLT, or VBOLT for violet lightning with a violet core). */
+    static void liveBolt(Ctx c, Vec3 a, Vec3 b, int segments, double jitter, double width, int color, double alpha, long seed, double age, double crackle, int fx) {
         Vec3 d = b.subtract(a);
         double len = d.length();
         if (len < 1e-3 || alpha <= 0) return;
@@ -2256,7 +2298,7 @@ final class BlueRedDraw {
             w[s] = width * 4 * (.55 + .45 * Math.sin(Math.PI * Math.min(1, .15 + .85 * t)));
             al[s] = (1 - .4 * t) * clamp01((pts[s].distanceTo(c.eye) - 2) / 3);
         }
-        fxRibbon(c, pts, w, al, BOLT, (int) (seed % 997), color, alpha);
+        fxRibbon(c, pts, w, al, fx, (int) (seed % 997), color, alpha);
     }
 
     /** Soft, continuous lightning (owner's 2D refs, 2026-11-19): one unbroken stroke with fine kinks on a few large bends, a wide violet halo,

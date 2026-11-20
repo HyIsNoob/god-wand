@@ -472,7 +472,6 @@ public final class BlueRedManager {
         if (!SkillCooldowns.ready(player, GodWandItem.MODE_BLUE_RED)) return;
         Blue blue = new Blue(player, level, aim(player));
         BLUES.add(blue);
-        GodWandAdvancements.award(player, "blue");
         broadcast(blue);
     }
 
@@ -516,8 +515,12 @@ public final class BlueRedManager {
             BlueState before = blue.state;
             blue.state = BlueRedRules.atChargeLimit(blue.state, blue.age, cfg.blueChargeTicks);
             if (BlueRedRules.expired(blue.state, blue.age, blue.anchoredAge, cfg.blueChargeTicks, cfg.blueAnchorTicks)) { remove(blue); continue; }
-            pullAndHurt(blue, blue.age % BlueRedRules.CORE_PERIOD == 0);
-            budget -= BlueEater.eat(level, blue.pos, cfg.blueEatRadius, budget, deadline, blue.eaten);
+            // Nothing pulled, eaten or awarded inside the input grace: both buttons together go straight into the Purple shot.
+            if (blue.age == BlueRedRules.INPUT_GRACE) GodWandAdvancements.award(blue.owner, "blue");
+            if (blue.age >= BlueRedRules.INPUT_GRACE) {
+                pullAndHurt(blue, blue.age % BlueRedRules.CORE_PERIOD == 0);
+                budget -= BlueEater.eat(level, blue.pos, cfg.blueEatRadius, budget, deadline, blue.eaten);
+            }
             BlueEater.animate(blue.eaten, blue.pos);
             // Owner, 2026-11-19: ready at the damage threshold, or after killing enough mobs, however weak (three chickens count).
             if (blue.state == BlueState.CHARGING && (blue.credited >= cfg.blueReadyDamage || blue.kills >= cfg.blueReadyKills)) blue.state = BlueState.READY;

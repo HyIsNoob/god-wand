@@ -67,7 +67,7 @@ public final class BlueRedRenderer {
         switch (p.kind()) {
             case BlueRedPayload.BLUE -> {
                 BlueView v = BLUES.get(p.ownerId());
-                if (v == null || v.goneAt >= 0) { v = new BlueView(); v.prev = at; v.born = clock; BLUES.put(p.ownerId(), v); BlueRedSounds.play(at, BlueRedSounds.BLUE_APPEAR, 1.3f, 1f); hum(p.ownerId()); }
+                if (v == null || v.goneAt >= 0) { v = new BlueView(); v.prev = at; v.born = clock; BLUES.put(p.ownerId(), v); }
                 else v.prev = drawn(v, 1);
                 v.trail.addLast(v.pos == null ? at : v.pos); v.trailAt.addLast(clock);
                 while (v.trail.size() > 16) { v.trail.removeFirst(); v.trailAt.removeFirst(); }
@@ -97,7 +97,7 @@ public final class BlueRedRenderer {
                 }
             }
             case BlueRedPayload.BLUE_SHATTER -> { BURSTS.add(new Burst(at, clock, true)); sound(at, SoundEvents.GLASS_BREAK, 2f, .6f); }
-            case BlueRedPayload.RED_CHARGE -> { CHARGES.put(p.ownerId(), clock); BlueRedSounds.redCharge(p.ownerId(), at); }
+            case BlueRedPayload.RED_CHARGE -> CHARGES.put(p.ownerId(), clock);
             case BlueRedPayload.RED_CANCEL -> {
                 // It fizzles out where it was gathering (owner, 2026-11-19), with a hiss.
                 CHARGES.remove(p.ownerId());
@@ -277,7 +277,18 @@ public final class BlueRedRenderer {
             BlueView mine = BLUES.get(self.getId());
             if (mine != null && mine.goneAt < 0 && mine.state != BlueState.ANCHORED) GodWandCinematicEngine.holdTrauma(.12f);
         }
+        // Blue and Red alone announce themselves only after the grace (both buttons go straight into the Purple shot).
+        for (var e : BLUES.entrySet()) {
+            BlueView v = e.getValue();
+            if (v.goneAt < 0 && clock - v.born == BlueRedRules.INPUT_GRACE && v.pos != null) { BlueRedSounds.play(v.pos, BlueRedSounds.BLUE_APPEAR, 1.3f, 1f); hum(e.getKey()); }
+        }
         var lvl = Minecraft.getInstance().level;
+        if (lvl != null) for (var charge : CHARGES.entrySet()) {
+            if (clock - charge.getValue() == BlueRedRules.INPUT_GRACE) {
+                var who = lvl.getEntity(charge.getKey());
+                if (who != null) BlueRedSounds.redCharge(charge.getKey(), who.getEyePosition());
+            }
+        }
         if (lvl != null) for (var charge : CHARGES.entrySet()) {
             var owner = lvl.getEntity(charge.getKey());
             if (owner != null && clock - charge.getValue() == GodWandConfig.SERVER.redChargeTicks) {
@@ -638,7 +649,8 @@ public final class BlueRedRenderer {
         {
             BlueView b = e.getValue();
             if (layer == 0) predict(b, e.getKey(), partial);
-            BlueRedDraw.blue(c, drawn(b, partial), b.state != BlueState.CHARGING, now - b.born, b.readyAt < 0 ? -1 : now - b.readyAt, b.puffs, now,
+            if (now - b.born < BlueRedRules.INPUT_GRACE) continue;
+            BlueRedDraw.blue(c, drawn(b, partial), b.state != BlueState.CHARGING, now - b.born - BlueRedRules.INPUT_GRACE, b.readyAt < 0 ? -1 : now - b.readyAt, b.puffs, now,
                     b.goneAt < 0 ? -1 : now - b.goneAt);
             if (b.readyAt >= 0 && now - b.readyAt < 16) BlueRedDraw.readyWave(c, drawn(b, partial), now - b.readyAt);
         }
@@ -652,6 +664,7 @@ public final class BlueRedRenderer {
             right = right.lengthSqr() < 1e-6 ? Vec3.ZERO : right.normalize();
             Vec3 at = owner.getEyePosition(partial).add(view.scale(1.9)).add(right.scale(.45)).add(0, -.3, 0);
             double age = now - charge.getValue(), full = GodWandConfig.SERVER.redChargeTicks;
+            if (age < BlueRedRules.INPUT_GRACE) continue;
             // The shooter's world darkens round the gathering Red so it stands out (owner, 2026-11-19); drawn before it, under it.
             var me = Minecraft.getInstance().player;
             if (me != null && me.getId() == charge.getKey()) {
@@ -691,7 +704,7 @@ public final class BlueRedRenderer {
                 var owner = Minecraft.getInstance().level == null ? null : Minecraft.getInstance().level.getEntity(e.getKey());
                 if (owner == null) continue;
                 Vec3 view = owner.getViewVector(partial);
-                BlueRedDraw.purpleShotCharge(c, owner.getEyePosition(partial).add(view.scale(BlueRedRules.SHOT_AHEAD)), view, now - sv.start);
+                BlueRedDraw.purpleShotCharge(c, owner.getEyePosition(partial).add(view.scale(BlueRedRules.SHOT_AHEAD)), view, look, now - sv.start);
             } else {
                 double t = now - sv.fired;
                 Vec3 head = sv.ended >= 0 && sv.end != null ? sv.end : sv.origin.add(sv.dir.scale(Math.min(t * BlueRedRules.SHOT_SPEED, BlueRedRules.SHOT_RANGE)));

@@ -78,7 +78,7 @@ public final class BlueRedProbe implements ClientModInitializer {
             case 3 -> red(c, server);
             case 4 -> aftermath(c, server);
             case 5 -> look(c);
-            case 6 -> shot(c);
+            case 6 -> shot(c, server);
             default -> {}
         }
     }
@@ -203,10 +203,14 @@ public final class BlueRedProbe implements ClientModInitializer {
     }
 
     /** The Purple shot (owner, 2026-11-20): left held, then right too; held until formed and a little past, let go, the flight filmed. */
-    private void shot(Minecraft c) {
+    private void shot(Minecraft c, MinecraftServer server) {
         int t = ticks - since;
         if (t == 20) { c.options.keyAttack.setDown(true); System.out.println("GOJO_QA SHOT left"); }
         if (t == 24) { c.options.keyUse.setDown(true); System.out.println("GOJO_QA SHOT right"); }
+        if (t >= 20 && t <= 34) System.out.println("GOJO_QA SHOT t=" + t + " blues=" + server.submit(() -> BlueRedManager.blues(me(server, c).serverLevel()).size()).join());
+        // Seen from the front while it forms (owner, 2026-11-20: do others see the two orbs?).
+        if (t == 24 + net.godwand.skill.BlueRedRules.SHOT_MERGE / 2) c.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+        if (t == 24 + net.godwand.skill.BlueRedRules.SHOT_MERGE + 8) c.options.setCameraType(CameraType.FIRST_PERSON);
         int release = 24 + net.godwand.skill.BlueRedRules.SHOT_FORM + 12;
         if (t == release) { c.options.keyUse.setDown(false); c.options.keyAttack.setDown(false); System.out.println("GOJO_QA SHOT release"); }
         if (t >= 18 && t < release + 80) grab(c);
