@@ -74,6 +74,11 @@ public final class BlueRedManager {
     private static final List<Blue> BLUES = new ArrayList<>();
     private static final List<Purple> PURPLES = new ArrayList<>();
     private static final List<Red> REDS = new ArrayList<>();
+    /** Mobs Red has just struck, held still for the hit-stop before their knockback. */
+    private record HitStop(Entity entity, Vec3 at, Vec3 knock, int[] left) {
+        HitStop(Entity entity, Vec3 at, Vec3 knock, int ticks) { this(entity, at, knock, new int[]{ticks}); }
+    }
+    private static final List<HitStop> HIT_STOPS = new ArrayList<>();
 
     private BlueRedManager() {}
 
@@ -164,7 +169,9 @@ public final class BlueRedManager {
         Blue hit = null;
         double first = 2;
         for (Blue b : blues(red.level)) {
-            double t = BlueRedRules.segmentSphere(from, to, b.pos, BlueRedRules.BLUE_RADIUS + 1);
+            // A ready Blue pulls in a Red that misses it by up to two blocks (owner, 2026-11-20: Blue is a pull, so it reads right).
+            double reach = BlueRedRules.BLUE_RADIUS + 1 + (BlueRedRules.meet(b.state) == BlueRedRules.RedMeetsBlue.PURPLE ? BlueRedRules.PURPLE_ASSIST : 0);
+            double t = BlueRedRules.segmentSphere(from, to, b.pos, reach);
             if (t >= 0 && t < first) { first = t; hit = b; }
         }
         if (hit != null) {
@@ -177,9 +184,11 @@ public final class BlueRedManager {
             Vec3 middle = e.position().add(0, e.getBbHeight() / 2, 0);
             if (BlueRedRules.distanceToSegment(middle, from, to) <= BlueRedRules.RED_HIT_RADIUS + e.getBbWidth() / 2 && red.struck.add(e.getUUID())) {
                 hurter.hurt(e, red.shooter, damage);
-                // Owner, 2026-11-18: the target is visibly blown away along the shot, in the same tick the hit shows.
-                e.setDeltaMovement(e.getDeltaMovement().add(red.dir.scale(1.8)).add(0, 0.45, 0));
+                // Owner, 2026-11-18: the target is visibly blown away along the shot. Owner, 2026-11-20: after a hit-stop: it hangs where it was
+                // struck for a few ticks, then flies.
+                e.setDeltaMovement(Vec3.ZERO);
                 e.hurtMarked = true;
+                HIT_STOPS.add(new HitStop(e, e.position(), red.dir.scale(1.8).add(0, 0.45, 0), BlueRedRules.HIT_STOP_TICKS));
                 // The blast shows where it struck, in the same tick as the knockback.
                 send(red.level, middle, event(BlueRedPayload.RED_HIT, red.shooter, middle, red.dir));
             }
@@ -338,6 +347,9 @@ public final class BlueRedManager {
         if (next == null) { remove(blue); return; }
         blue.state = next;
         blue.anchoredAge = 0;
+        // Let go, it is thrown on a little along the look on top of the speed it had.
+        Vec3 look = blue.owner.isAlive() ? blue.owner.getViewVector(1) : null;
+        if (look != null) blue.vel = blue.vel.add(look.scale(BlueRedRules.BLUE_THROW));
         broadcast(blue);
     }
 
@@ -360,7 +372,12 @@ public final class BlueRedManager {
             if (blue.held()) {
                 if (!blue.owner.isAlive() || !holdsBlueRed(blue.owner)) { release(blue); if (!BLUES.contains(blue)) continue; }
                 else { Vec3[] next = BlueRedRules.follow(blue.pos, blue.vel, aim(blue.owner)); blue.pos = next[0]; blue.vel = next[1]; }
-            } else blue.anchoredAge++;
+            } else {
+                blue.anchoredAge++;
+                // Thrown (owner, 2026-11-20): it drifts on with its momentum, slowing, then hangs where it stopped.
+                if (blue.vel.lengthSqr() > 1e-4) { blue.pos = blue.pos.add(blue.vel); blue.vel = blue.vel.scale(BlueRedRules.BLUE_DRIFT); }
+                else blue.vel = Vec3.ZERO;
+            }
             BlueState before = blue.state;
             blue.state = BlueRedRules.atChargeLimit(blue.state, blue.age, cfg.blueChargeTicks);
             if (BlueRedRules.expired(blue.state, blue.age, blue.anchoredAge, cfg.blueChargeTicks, cfg.blueAnchorTicks)) { remove(blue); continue; }
@@ -370,8 +387,16 @@ public final class BlueRedManager {
             // Owner, 2026-11-19: ready at the damage threshold, or after killing enough mobs, however weak (three chickens count).
             if (blue.state == BlueState.CHARGING && (blue.credited >= cfg.blueReadyDamage || blue.kills >= cfg.blueReadyKills)) blue.state = BlueState.READY;
             // Every tick while it moves, so the inertia and the smears behind it read smoothly; every other tick once it is still.
-            if (blue.state != before || blue.age % 2 == 0 || blue.held() && blue.vel.lengthSqr() > 1e-4) broadcast(blue);
+            if (blue.state != before || blue.age % 2 == 0 || blue.vel.lengthSqr() > 1e-4) broadcast(blue);
         }
+        HIT_STOPS.removeIf(h -> {
+            if (h.entity().level() != level) return false;
+            if (!h.entity().isAlive()) return true;
+            if (--h.left()[0] > 0) { h.entity().setDeltaMovement(Vec3.ZERO); h.entity().teleportTo(h.at().x, h.at().y, h.at().z); h.entity().hurtMarked = true; return false; }
+            h.entity().setDeltaMovement(h.entity().getDeltaMovement().add(h.knock()));
+            h.entity().hurtMarked = true;
+            return true;
+        });
         for (Red red : new ArrayList<>(REDS))
             if (red.fired && red.level == level && REDS.contains(red)) budget -= fly(red, budget, deadline);
         for (Purple p : purples(level)) budget -= tickPurple(p, budget, deadline);
@@ -423,6 +448,7 @@ public final class BlueRedManager {
         for (Blue blue : BLUES) BlueEater.retireAll(blue.eaten);
         BLUES.clear();
         REDS.clear();
+        HIT_STOPS.clear();
         PURPLES.clear();
     }
 }

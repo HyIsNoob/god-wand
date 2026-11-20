@@ -61,7 +61,7 @@ public final class BlueRedRenderer {
         switch (p.kind()) {
             case BlueRedPayload.BLUE -> {
                 BlueView v = BLUES.get(p.ownerId());
-                if (v == null || v.goneAt >= 0) { v = new BlueView(); v.prev = at; v.born = clock; BLUES.put(p.ownerId(), v); sound(at, SoundEvents.BEACON_ACTIVATE, 1.2f, 1.6f); }
+                if (v == null || v.goneAt >= 0) { v = new BlueView(); v.prev = at; v.born = clock; BLUES.put(p.ownerId(), v); BlueRedSounds.play(at, BlueRedSounds.BLUE_APPEAR, 1.3f, 1f); hum(p.ownerId()); }
                 else v.prev = drawn(v, 1);
                 v.trail.addLast(v.pos == null ? at : v.pos); v.trailAt.addLast(clock);
                 while (v.trail.size() > 16) { v.trail.removeFirst(); v.trailAt.removeFirst(); }
@@ -70,8 +70,7 @@ public final class BlueRedRenderer {
                 BlueState state = BlueState.values()[p.state()];
                 if (state != BlueState.CHARGING && v.readyAt < 0) {
                     v.readyAt = clock;
-                    sound(at, SoundEvents.BEACON_POWER_SELECT, 2f, .7f);
-                    sound(at, SoundEvents.WARDEN_SONIC_BOOM, 1f, 1.8f);
+                    BlueRedSounds.play(at, BlueRedSounds.BLUE_READY, 2f, 1f);
                     // Real particles thrown out with the wave, and a pressure front hugging the ground (owner, round 44).
                     for (int i = 0; i < 90; i++) {
                         Vec3 d = randomDir();
@@ -87,15 +86,16 @@ public final class BlueRedRenderer {
                 if (v != null && v.goneAt < 0) {
                     v.goneAt = clock;
                     Vec3 c = v.own != null ? v.own : v.pos;
-                    sound(c, SoundEvents.BEACON_DEACTIVATE, 1.4f, 1.5f);
+                    BlueRedSounds.play(c, BlueRedSounds.BLUE_VANISH, 1.4f, 1f);
                     for (int i = 0; i < 40; i++) { Vec3 d = randomDir(); spray(i % 3 == 0 ? ParticleTypes.ELECTRIC_SPARK : ParticleTypes.SOUL_FIRE_FLAME, c.add(d.scale(4)), d.scale(-.28)); }
                 }
             }
             case BlueRedPayload.BLUE_SHATTER -> { BURSTS.add(new Burst(at, clock, true)); sound(at, SoundEvents.GLASS_BREAK, 2f, .6f); }
-            case BlueRedPayload.RED_CHARGE -> { CHARGES.put(p.ownerId(), clock); sound(at, SoundEvents.RESPAWN_ANCHOR_CHARGE, 1f, 1.4f); }
+            case BlueRedPayload.RED_CHARGE -> { CHARGES.put(p.ownerId(), clock); BlueRedSounds.redCharge(p.ownerId(), at); }
             case BlueRedPayload.RED_CANCEL -> {
                 // It fizzles out where it was gathering (owner, 2026-11-19), with a hiss.
                 CHARGES.remove(p.ownerId());
+                BlueRedSounds.redEnd(p.ownerId());
                 var lvl = Minecraft.getInstance().level;
                 var owner = lvl == null ? null : lvl.getEntity(p.ownerId());
                 if (owner != null) {
@@ -123,7 +123,8 @@ public final class BlueRedRenderer {
                     // Black and red impact frames on the shot (owner, 2026-11-19).
                     if (GodWandConfig.CLIENT.impactFrames) { IMPACTS.clear(); IMPACTS.add(new Burst(at, clock, false, new Vec3(p.dx(), p.dy(), p.dz()))); }
                 }
-                sound(at, SoundEvents.WARDEN_SONIC_BOOM, 1.5f, 1.5f);
+                BlueRedSounds.redEnd(p.ownerId());
+                BlueRedSounds.play(at, BlueRedSounds.RED_FIRE, 1.5f, 1f);
             }
             case BlueRedPayload.RED_END -> {
                 endFlight(p.ownerId(), at);
@@ -140,6 +141,8 @@ public final class BlueRedRenderer {
                 impactNear(at);
                 var me = Minecraft.getInstance().player;
                 if (me != null) GodWandCinematicEngine.addTrauma((float) Math.max(0, .35 * (1 - me.position().distanceTo(at) / 40)), 8);
+                // The shooter feels the hit-stop (owner, 2026-11-20): a sharp jolt and the view snapping in a touch while the target hangs.
+                if (me != null && me.getId() == p.ownerId()) { GodWandCinematicEngine.addTrauma(.5f, 6); GodWandCinematicEngine.setFovPunch(.95f, 3); }
                 sound(at, SoundEvents.GENERIC_EXPLODE.value(), 1.6f, 1.1f);
             }
             case BlueRedPayload.PURPLE -> {
@@ -168,6 +171,13 @@ public final class BlueRedRenderer {
         return best;
     }
     static double now(float partial) { return clock + partial; }
+
+    /** Blue's hum for this owner: follows it, louder once ready, fades when it goes. */
+    private static void hum(int owner) {
+        BlueRedSounds.blueHum(owner, () -> { BlueView b = BLUES.get(owner); return b == null ? null : b.own != null ? b.own : b.pos; },
+                () -> { BlueView b = BLUES.get(owner); return b != null && b.goneAt < 0; },
+                () -> { BlueView b = BLUES.get(owner); return b != null && b.state != BlueState.CHARGING ? 1.0 : .65; });
+    }
     /** This player's Blue: -1 none, 0 charging, 1 ready. */
     static int blueState(int id) { BlueView b = BLUES.get(id); return b == null || b.goneAt >= 0 ? -1 : b.state == BlueState.READY ? 1 : 0; }
 
@@ -237,6 +247,9 @@ public final class BlueRedRenderer {
                 Vec3 at = owner.getEyePosition().add(owner.getViewVector(1).scale(1.9));
                 sound(at, SoundEvents.RESPAWN_ANCHOR_SET_SPAWN, 1.2f, 1.6f);
                 sound(at, SoundEvents.WARDEN_SONIC_BOOM, .6f, 2f);
+                int shooter = charge.getKey();
+                BlueRedSounds.redFull(shooter, () -> { var l = Minecraft.getInstance().level; var e = l == null ? null : l.getEntity(shooter); return e == null ? null : e.getEyePosition(); },
+                        () -> CHARGES.containsKey(shooter));
                 var me = Minecraft.getInstance().player;
                 if (me != null && me.getId() == charge.getKey()) { GodWandCinematicEngine.addTrauma(.5f, 10); GodWandCinematicEngine.setFovPunch(1.05f, 3); }
             }
@@ -293,7 +306,7 @@ public final class BlueRedRenderer {
         AFTERMATHS.removeIf(p -> clock - p.at() > BlueRedRules.PURPLE_DETONATE + BlueRedDraw.AFTERMATH_TICKS);
     }
 
-    public static void reset() { PULLED.clear(); AFTERMATHS.clear(); BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); FIZZLES.clear(); PURPLES.clear(); IMPACTS.clear(); clock = 0; }
+    public static void reset() { BlueRedSounds.reset(); PULLED.clear(); AFTERMATHS.clear(); BLUES.clear(); CHARGES.clear(); FLIGHTS.clear(); BURSTS.clear(); FIZZLES.clear(); PURPLES.clear(); IMPACTS.clear(); clock = 0; }
 
     private static void detonated(Vec3 at) {
         var me = Minecraft.getInstance().player;

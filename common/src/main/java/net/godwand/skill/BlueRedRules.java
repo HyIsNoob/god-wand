@@ -16,6 +16,12 @@ public final class BlueRedRules {
     /** Blue's inertia (owner, 2026-11-18): how hard it is pulled towards the aim point each tick, and how much of its speed it keeps. */
     // Heavier to drag (owner, 2026-11-20): pulled more softly, keeps more of its momentum.
     public static final double BLUE_PULL = .12, BLUE_DAMP = .74;
+    /** A ready Blue catches a Red that misses it by this much (owner, 2026-11-20). */
+    public static final double PURPLE_ASSIST = 2;
+    /** A let-go Blue is thrown on this fast along the look and keeps this share of its speed each tick (about 3.5 blocks more). */
+    public static final double BLUE_THROW = .5, BLUE_DRIFT = .86;
+    /** Ticks a mob struck by Red hangs before its knockback (the hit-stop). */
+    public static final int HIT_STOP_TICKS = 3;
 
     /** One tick of a held Blue chasing the aim point like a heavy weight on a spring: it lags behind turns, carries its momentum a little past
      *  the point and settles in about half a second. Returns {position, velocity}. */

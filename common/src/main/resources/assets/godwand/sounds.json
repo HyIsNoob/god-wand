@@ -57,5 +57,26 @@
         "stream": true
       }
     ]
+  },
+  "blue_appear": {
+    "sounds": [{"name":"godwand:blue_appear","stream":false}]
+  },
+  "blue_hold": {
+    "sounds": [{"name":"godwand:blue_hold","stream":false}]
+  },
+  "blue_ready": {
+    "sounds": [{"name":"godwand:blue_ready","stream":false}]
+  },
+  "blue_vanish": {
+    "sounds": [{"name":"godwand:blue_vanish","stream":false}]
+  },
+  "red_charge": {
+    "sounds": [{"name":"minecraft:block.respawn_anchor.charge","type":"event","pitch":1.4}]
+  },
+  "red_hold": {
+    "sounds": [{"name":"minecraft:block.beacon.ambient","type":"event","pitch":1.4}]
+  },
+  "red_fire": {
+    "sounds": [{"name":"minecraft:entity.warden.sonic_boom","type":"event","pitch":1.5}]
   }
 }
