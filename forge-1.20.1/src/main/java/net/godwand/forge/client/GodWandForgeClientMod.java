@@ -112,11 +112,11 @@ public class GodWandForgeClientMod {
                 ArcaneOrbChargeRenderer.render(matrices, camera, tickDelta);
                 SupernovaAccretionRenderer.render(matrices, camera, tickDelta);
                 GodWandPostFxManager.onWorldRender(matrices.last().pose(), event.getProjectionMatrix(), tickDelta);
-            } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
-                // After the clouds and weather, as Fabric's LAST: drawn earlier, the clouds behind painted over the orbs, which write no depth.
+            } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
+                // Last in the level, as Fabric's LAST: after the clouds (drawn earlier they painted over the orbs, which write no depth).
+                // Not AFTER_WEATHER: Forge fires it with the camera already on the model-view stack, so the orbs were turned twice (owner, 2026-11-21).
                 net.godwand.client.BlueRedRenderer.render(event.getPoseStack(), event.getCamera(), event.getPartialTick());
                 net.godwand.client.BlueRedRenderer.renderOverlay();
-            } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
                 GodWandPostFxManager.renderAfterWorld();
                 net.godwand.client.AtomicPostFx.renderAfterWorld();
             }
