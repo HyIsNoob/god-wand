@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "  \"parent\": \"godwand:red\",\n  \"display\": {\n    \"icon\": {\n      \"id\": \"minecraft:wither_skeleton_skull\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.purple_kill.title\"\n",
+      "after": "  \"parent\": \"godwand:red\",\n  \"display\": {\n    \"icon\": {\n      \"item\": \"minecraft:wither_skeleton_skull\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.purple_kill.title\"\n"
+    }
+  ]
+}

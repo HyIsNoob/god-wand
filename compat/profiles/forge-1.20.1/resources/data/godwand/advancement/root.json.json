@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "{\n  \"display\": {\n    \"icon\": {\n      \"id\": \"godwand:god_wand\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.root.title\"\n",
+      "after": "{\n  \"display\": {\n    \"icon\": {\n      \"item\": \"godwand:god_wand\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.root.title\"\n"
+    }
+  ]
+}

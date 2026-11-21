@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": " */\nfinal class BlueRedAtlas {\n    private BlueRedAtlas() {}\n    static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(\"godwand\", \"textures/vfx/blue_red.png\");\n    static final GateAtlas.Region GLOW = new GateAtlas.Region(0, 0, 128, 128), STAR = new GateAtlas.Region(128, 0, 128, 128),\n            BUBBLE = new GateAtlas.Region(256, 0, 64, 64), LIGHT = new GateAtlas.Region(320, 0, 64, 64), SHOCK = new GateAtlas.Region(384, 0, 128, 128),\n            /** Turbulent plasma, two periods side by side: U 0..0.5 is one full turn. */\n",
+      "after": " */\nfinal class BlueRedAtlas {\n    private BlueRedAtlas() {}\n    static final ResourceLocation TEXTURE = new ResourceLocation(\"godwand\", \"textures/vfx/blue_red.png\");\n    static final GateAtlas.Region GLOW = new GateAtlas.Region(0, 0, 128, 128), STAR = new GateAtlas.Region(128, 0, 128, 128),\n            BUBBLE = new GateAtlas.Region(256, 0, 64, 64), LIGHT = new GateAtlas.Region(320, 0, 64, 64), SHOCK = new GateAtlas.Region(384, 0, 128, 128),\n            /** Turbulent plasma, two periods side by side: U 0..0.5 is one full turn. */\n"
+    }
+  ]
+}

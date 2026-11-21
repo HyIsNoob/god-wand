@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "  \"parent\": \"godwand:root\",\n  \"display\": {\n    \"icon\": {\n      \"id\": \"minecraft:fire_charge\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.use_3.title\"\n",
+      "after": "  \"parent\": \"godwand:root\",\n  \"display\": {\n    \"icon\": {\n      \"item\": \"minecraft:fire_charge\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.use_3.title\"\n"
+    }
+  ]
+}

@@ -1,8 +1,23 @@
 {
-  "module": "fabric-1.20.1",
-  "exclude": [],
-  "rename": {
-    "resources/data/godwand/advancement/recipes/combat/god_wand.json": "resources/data/godwand/advancements/recipes/combat/god_wand.json",
-    "resources/data/godwand/recipe/god_wand.json": "resources/data/godwand/recipes/god_wand.json"
-  }
+ "module": "fabric-1.20.1",
+ "exclude": [],
+ "rename": {
+  "resources/data/godwand/advancement/recipes/combat/god_wand.json": "resources/data/godwand/advancements/recipes/combat/god_wand.json",
+  "resources/data/godwand/recipe/god_wand.json": "resources/data/godwand/recipes/god_wand.json",
+  "resources/data/godwand/advancement/blue.json": "resources/data/godwand/advancements/blue.json",
+  "resources/data/godwand/advancement/kill_1.json": "resources/data/godwand/advancements/kill_1.json",
+  "resources/data/godwand/advancement/kill_2.json": "resources/data/godwand/advancements/kill_2.json",
+  "resources/data/godwand/advancement/purple.json": "resources/data/godwand/advancements/purple.json",
+  "resources/data/godwand/advancement/purple_kill.json": "resources/data/godwand/advancements/purple_kill.json",
+  "resources/data/godwand/advancement/red.json": "resources/data/godwand/advancements/red.json",
+  "resources/data/godwand/advancement/root.json": "resources/data/godwand/advancements/root.json",
+  "resources/data/godwand/advancement/use_0.json": "resources/data/godwand/advancements/use_0.json",
+  "resources/data/godwand/advancement/use_1.json": "resources/data/godwand/advancements/use_1.json",
+  "resources/data/godwand/advancement/use_2.json": "resources/data/godwand/advancements/use_2.json",
+  "resources/data/godwand/advancement/use_3.json": "resources/data/godwand/advancements/use_3.json",
+  "resources/data/godwand/advancement/use_4.json": "resources/data/godwand/advancements/use_4.json",
+  "resources/data/godwand/advancement/use_5.json": "resources/data/godwand/advancements/use_5.json",
+  "resources/data/godwand/advancement/use_6.json": "resources/data/godwand/advancements/use_6.json",
+  "resources/data/godwand/advancement/use_7.json": "resources/data/godwand/advancements/use_7.json"
+ }
 }

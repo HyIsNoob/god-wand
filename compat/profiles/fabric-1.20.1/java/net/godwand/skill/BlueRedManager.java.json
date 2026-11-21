@@ -1,0 +1,13 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "import net.godwand.network.BlueRedPayload;\nimport net.godwand.platform.Services;\nimport net.godwand.skill.BlueRedRules.BlueState;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.server.level.ServerLevel;\nimport net.minecraft.server.level.ServerPlayer;\nimport net.minecraft.util.Mth;\n",
+      "after": "import net.godwand.network.BlueRedPayload;\nimport net.godwand.platform.Services;\nimport net.godwand.skill.BlueRedRules.BlueState;\nimport net.godwand.network.GodWandPacket;\nimport net.minecraft.server.level.ServerLevel;\nimport net.minecraft.server.level.ServerPlayer;\nimport net.minecraft.util.Mth;\n"
+    },
+    {
+      "before": "\n/** Server authority for Blue, Red and Purple (mode 8). Nothing here is saved: a server restart clears it. */\npublic final class BlueRedManager {\n    interface Sender { void send(ServerLevel level, Vec3 pos, CustomPacketPayload payload); }\n    interface Finder { List<Entity> find(ServerLevel level, AABB box); }\n    interface Hurter { boolean hurt(Entity target, ServerPlayer caster, float amount); }\n\n",
+      "after": "\n/** Server authority for Blue, Red and Purple (mode 8). Nothing here is saved: a server restart clears it. */\npublic final class BlueRedManager {\n    interface Sender { void send(ServerLevel level, Vec3 pos, GodWandPacket payload); }\n    interface Finder { List<Entity> find(ServerLevel level, AABB box); }\n    interface Hurter { boolean hurt(Entity target, ServerPlayer caster, float amount); }\n\n"
+    }
+  ]
+}

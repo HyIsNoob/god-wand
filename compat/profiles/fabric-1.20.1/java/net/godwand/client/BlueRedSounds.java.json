@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "            SHOT_FORMATION_STEREO = event(\"purple_formation_stereo\"), SHOT_LOOP = event(\"purple_loop\"), SHOT_FIRE = event(\"purple_fire\"),\n            PURPLE_MAX = event(\"purple_max\"), PURPLE_SMALL = event(\"purple_small\");\n\n    private static SoundEvent event(String name) { return SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(\"godwand\", name)); }\n\n    private static final Map<Integer, Follow> HUMS = new HashMap<>();\n    private static final Map<Integer, List<Follow>> CASTING = new HashMap<>();\n",
+      "after": "            SHOT_FORMATION_STEREO = event(\"purple_formation_stereo\"), SHOT_LOOP = event(\"purple_loop\"), SHOT_FIRE = event(\"purple_fire\"),\n            PURPLE_MAX = event(\"purple_max\"), PURPLE_SMALL = event(\"purple_small\");\n\n    private static SoundEvent event(String name) { return SoundEvent.createVariableRangeEvent(new ResourceLocation(\"godwand\", name)); }\n\n    private static final Map<Integer, Follow> HUMS = new HashMap<>();\n    private static final Map<Integer, List<Follow>> CASTING = new HashMap<>();\n"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "    private static void vertex(Ctx c, Vec3 p, int color, double alpha, float u, float v) {\n        Vec3 q = pull(p.subtract(c.eye), farPlane);\n        int k = (int) Math.round(clamp01(alpha * c.fade) * 255);\n        c.v.addVertex(c.m, (float) q.x, (float) q.y, (float) q.z).setColor((color >> 16) & 255, (color >> 8) & 255, color & 255, k).setUv(u, v);\n    }\n\n    /** An ORB quad parallel to the screen (facing along {@code look}), so the sphere projects as a circle anywhere in the view. */\n",
+      "after": "    private static void vertex(Ctx c, Vec3 p, int color, double alpha, float u, float v) {\n        Vec3 q = pull(p.subtract(c.eye), farPlane);\n        int k = (int) Math.round(clamp01(alpha * c.fade) * 255);\n        c.v.vertex(c.m, (float) q.x, (float) q.y, (float) q.z).uv(u, v).color((color >> 16) & 255, (color >> 8) & 255, color & 255, k).endVertex();\n    }\n\n    /** An ORB quad parallel to the screen (facing along {@code look}), so the sphere projects as a circle anywhere in the view. */\n"
+    }
+  ]
+}

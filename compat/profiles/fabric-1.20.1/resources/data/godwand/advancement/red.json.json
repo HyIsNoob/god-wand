@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "  \"parent\": \"godwand:blue\",\n  \"display\": {\n    \"icon\": {\n      \"id\": \"minecraft:redstone_block\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.red.title\"\n",
+      "after": "  \"parent\": \"godwand:blue\",\n  \"display\": {\n    \"icon\": {\n      \"item\": \"minecraft:redstone_block\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.red.title\"\n"
+    }
+  ]
+}

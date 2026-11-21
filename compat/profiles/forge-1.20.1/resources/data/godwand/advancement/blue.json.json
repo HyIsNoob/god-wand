@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "  \"parent\": \"godwand:root\",\n  \"display\": {\n    \"icon\": {\n      \"id\": \"minecraft:heart_of_the_sea\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.blue.title\"\n",
+      "after": "  \"parent\": \"godwand:root\",\n  \"display\": {\n    \"icon\": {\n      \"item\": \"minecraft:heart_of_the_sea\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.blue.title\"\n"
+    }
+  ]
+}

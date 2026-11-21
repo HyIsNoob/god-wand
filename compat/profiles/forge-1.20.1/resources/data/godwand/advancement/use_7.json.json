@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "  \"parent\": \"godwand:root\",\n  \"display\": {\n    \"icon\": {\n      \"id\": \"minecraft:end_portal_frame\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.use_7.title\"\n",
+      "after": "  \"parent\": \"godwand:root\",\n  \"display\": {\n    \"icon\": {\n      \"item\": \"minecraft:end_portal_frame\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.use_7.title\"\n"
+    }
+  ]
+}

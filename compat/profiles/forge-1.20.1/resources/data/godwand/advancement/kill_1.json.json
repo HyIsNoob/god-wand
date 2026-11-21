@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "  \"parent\": \"godwand:use_1\",\n  \"display\": {\n    \"icon\": {\n      \"id\": \"minecraft:crying_obsidian\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.kill_1.title\"\n",
+      "after": "  \"parent\": \"godwand:use_1\",\n  \"display\": {\n    \"icon\": {\n      \"item\": \"minecraft:crying_obsidian\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.kill_1.title\"\n"
+    }
+  ]
+}

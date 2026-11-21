@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "  \"parent\": \"godwand:use_2\",\n  \"display\": {\n    \"icon\": {\n      \"id\": \"minecraft:netherite_pickaxe\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.kill_2.title\"\n",
+      "after": "  \"parent\": \"godwand:use_2\",\n  \"display\": {\n    \"icon\": {\n      \"item\": \"minecraft:netherite_pickaxe\"\n    },\n    \"title\": {\n      \"translate\": \"advancements.godwand.kill_2.title\"\n"
+    }
+  ]
+}

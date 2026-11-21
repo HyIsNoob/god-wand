@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "\n    public static void award(Entity who, String id) {\n        if (!(who instanceof ServerPlayer player) || player.getServer() == null) return;\n        var advancement = player.getServer().getAdvancements().get(ResourceLocation.fromNamespaceAndPath(\"godwand\", id));\n        if (advancement != null) player.getAdvancements().award(advancement, \"done\");\n    }\n\n",
+      "after": "\n    public static void award(Entity who, String id) {\n        if (!(who instanceof ServerPlayer player) || player.getServer() == null) return;\n        var advancement = player.getServer().getAdvancements().getAdvancement(new ResourceLocation(\"godwand\", id));\n        if (advancement != null) player.getAdvancements().award(advancement, \"done\");\n    }\n\n"
+    }
+  ]
+}
