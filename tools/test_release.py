@@ -54,6 +54,10 @@ class ReleaseTest(unittest.TestCase):
         self.assertNotIn("<li><p>", metadata["changelog"])
         self.assertEqual(1, metadata["changelog"].count("<ul>"))
 
+    def test_changelog_inline_markdown_becomes_html(self):
+        out = release.changelog_html("- **Blue:** a `<b>` orb")
+        self.assertEqual("<ul><li><strong>Blue:</strong> a <code>&lt;b&gt;</code> orb</li></ul>", out)
+
     def test_changed_jar_is_rejected(self):
         next(self.directory.glob("*.jar")).write_bytes(b"changed")
         with self.assertRaisesRegex(ValueError, "Checksum mismatch"):

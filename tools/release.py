@@ -65,6 +65,13 @@ def targets(current):
             yield mc, loader, f"godwand-{stem}-{current}.jar"
 
 
+def inline(line):
+    # CurseForge gets HTML, so the changelog's **bold** and `code` become tags instead of showing as raw markdown.
+    line = html.escape(line)
+    line = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", line)
+    return re.sub(r"`(.+?)`", r"<code>\1</code>", line)
+
+
 def changelog_html(text):
     # Keep list text directly inside li; paragraph wrappers split bullets on CurseForge.
     output = []
@@ -77,13 +84,13 @@ def changelog_html(text):
             if not listing:
                 output.append("<ul>")
                 listing = True
-            output.append("<li>" + html.escape(line[2:]) + "</li>")
+            output.append("<li>" + inline(line[2:]) + "</li>")
         else:
             if listing:
                 output.append("</ul>")
                 listing = False
             heading = line.startswith("#")
-            content = html.escape(line.lstrip("# ") if heading else line)
+            content = inline(line.lstrip("# ") if heading else line)
             output.append("<p>" + ("<strong>" + content + "</strong>" if heading else content) + "</p>")
     if listing:
         output.append("</ul>")
