@@ -135,6 +135,10 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             client.execute(() -> net.godwand.client.FugaRenderer.receive(payload));
         });
 
+        ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.BlueRedPayload.ID, (client, handler, buf, responseSender) -> {
+            var payload = net.godwand.network.BlueRedPayload.read(buf);
+            client.execute(() -> net.godwand.client.BlueRedRenderer.receive(payload));
+        });
         ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.SilentGatePayload.ID, (client, handler, buf, responseSender) -> {
             var payload = net.godwand.network.SilentGatePayload.read(buf);
             client.execute(() -> net.godwand.client.SilentGateRenderer.receive(payload));
@@ -175,6 +179,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.AtomicPostFx.capture(context.matrixStack().last().pose(), context.projectionMatrix(), tickDelta);
             GodWandPostFxManager.onWorldRender(context.matrixStack().last().pose(), context.projectionMatrix(), tickDelta);
             GodWandPostFxManager.renderAfterWorld();
+            // After the clouds (as on 1.21.1): drawn earlier, the clouds behind painted over the orbs, which write no depth.
+            net.godwand.client.BlueRedRenderer.render(context.matrixStack(), context.camera(), tickDelta);
+            net.godwand.client.BlueRedRenderer.renderOverlay();
         });
 
         HudRenderCallback.EVENT.register(CustomImpactFrameOverlay::render);
@@ -182,6 +189,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         HudRenderCallback.EVENT.register((graphics,timer)->net.godwand.client.SkillCooldownClient.render(graphics));
         HudRenderCallback.EVENT.register(net.godwand.client.FugaCinematic::render);
         HudRenderCallback.EVENT.register(net.godwand.client.SilentGateCinematic::render);
+        HudRenderCallback.EVENT.register((graphics,partial)->net.godwand.client.BlueRedHud.render(graphics,partial));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             net.godwand.client.AtomicRenderer.tick(client);
@@ -189,6 +197,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.SilentGateRenderer.tick(client);
             net.godwand.client.FugaCinematic.tick(client);
             net.godwand.client.SilentGateCinematic.tick(client);
+            net.godwand.client.BlueRedInput.tick(client);
+            net.godwand.client.BlueRedRenderer.tick(client);
+            net.godwand.client.PurpleCinematic.tick(client);
             net.godwand.client.SkillCooldownClient.tick(client);
             SkillWheelScreen.handleKeyInput(client);
             SupernovaAccretionRenderer.tickCharge(client);
@@ -206,6 +217,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
             net.godwand.client.SilentGateCinematic.reset();
+            net.godwand.client.BlueRedInput.reset();
+            net.godwand.client.BlueRedRenderer.reset();
+            net.godwand.client.PurpleCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();
@@ -225,6 +239,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
             net.godwand.client.SilentGateCinematic.reset();
+            net.godwand.client.BlueRedInput.reset();
+            net.godwand.client.BlueRedRenderer.reset();
+            net.godwand.client.PurpleCinematic.reset();
             StoneCannonWindSound.reset();
             EarthDrillSoundscape.reset();
             SupernovaAccretionRenderer.reset();

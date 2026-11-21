@@ -79,6 +79,10 @@ public class GodWandFabricMod implements ModInitializer {
             var payload=net.godwand.network.AtomicSkipPayload.read(buf);
             server.execute(() -> net.godwand.skill.AtomicManager.releaseMovement(player,payload.startedAt()));
         });
+        ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.BlueInputPayload.ID, (server,player,handler,buf,responseSender) -> {
+            var payload=net.godwand.network.BlueInputPayload.read(buf);
+            server.execute(() -> net.godwand.skill.BlueRedManager.input(player,payload.held()));
+        });
         ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.SilentGateCancelPayload.ID, (server,player,handler,buf,responseSender) -> {
             var payload=net.godwand.network.SilentGateCancelPayload.read(buf);
             server.execute(() -> net.godwand.skill.SilentGateManager.cancelFromClient(player,payload.startedAt()));
@@ -153,6 +157,7 @@ public class GodWandFabricMod implements ModInitializer {
             net.godwand.skill.AtomicManager.tick(level);
             net.godwand.skill.SilentGateManager.tick(level);
             net.godwand.skill.FugaManager.tick(level);
+            net.godwand.skill.BlueRedManager.tick(level);
             SpatialBridge.tickWorld(level);
             SpatialDisplacementManager.tick(level);
         });
@@ -160,10 +165,15 @@ public class GodWandFabricMod implements ModInitializer {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             SpatialPathWalker.deactivate(handler.player);
             net.godwand.skill.SkillCooldowns.reset(handler.player);
+            net.godwand.skill.BlueRedManager.onLeave(handler.player);
         });
+
+        net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) ->
+                net.godwand.skill.BlueRedManager.onLeave(player));
 
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (entity instanceof ServerPlayer player) {
+                net.godwand.skill.BlueRedManager.onLeave(player);
                 SpatialPathWalker.deactivate(player);
                 net.godwand.skill.SkillCooldowns.reset(player);
             }
@@ -181,6 +191,7 @@ public class GodWandFabricMod implements ModInitializer {
             net.godwand.skill.AtomicManager.clearAllTasks();
             net.godwand.skill.FugaManager.clearAllTasks();
             net.godwand.skill.SilentGateManager.clearAllTasks();
+            net.godwand.skill.BlueRedManager.clearAll();
             for (ServerLevel level : server.getAllLevels()) {
                 SpatialBridge.clearVisuals(level);
                 SpatialDisplacementManager.emergencyRestoreAll(level);
