@@ -89,6 +89,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
 
         ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.SilentGatePayload.ID, (payload, context) ->
                 context.client().execute(() -> net.godwand.client.SilentGateRenderer.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.BlueRedPayload.ID, (payload, context) ->
+                context.client().execute(() -> net.godwand.client.BlueRedRenderer.receive(payload)));
 
         ClientPlayNetworking.registerGlobalReceiver(SpatialAuraPayload.ID, (payload, context) ->
                 context.client().execute(() -> SpatialAuraRenderer.receive(payload)));
@@ -137,6 +139,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             AtomicRenderer.render(matrices, camera, tickDelta);
             net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
             net.godwand.client.SilentGateRenderer.render(matrices, camera, tickDelta);
+            net.godwand.client.BlueRedRenderer.render(matrices, camera, tickDelta);
+            net.godwand.client.BlueRedRenderer.renderOverlay();
             net.godwand.client.compat.GodWandGeometry.deferFlush();
         });
 
@@ -158,6 +162,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","fuga"),net.godwand.client.FugaCinematic::render);
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","silent_gate"),net.godwand.client.SilentGateCinematic::render);
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","cooldown"),(graphics,timer) -> net.godwand.client.SkillCooldownClient.render(graphics));
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","blue_red"),(graphics,timer) -> net.godwand.client.BlueRedHud.render(graphics, timer.getGameTimeDeltaPartialTick(false)));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             net.godwand.client.SkillCooldownClient.tick(client);
@@ -167,6 +172,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.SilentGateRenderer.tick(client);
             net.godwand.client.FugaCinematic.tick(client);
             net.godwand.client.SilentGateCinematic.tick(client);
+            net.godwand.client.BlueRedInput.tick(client);
+            net.godwand.client.BlueRedRenderer.tick(client);
+            net.godwand.client.PurpleCinematic.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
             EarthDrillSoundscape.tick(client);
@@ -183,6 +191,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
             net.godwand.client.SilentGateCinematic.reset();
+            net.godwand.client.BlueRedInput.reset();
+            net.godwand.client.BlueRedRenderer.reset();
+            net.godwand.client.PurpleCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();
@@ -203,6 +214,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
             net.godwand.client.SilentGateCinematic.reset();
+            net.godwand.client.BlueRedInput.reset();
+            net.godwand.client.BlueRedRenderer.reset();
+            net.godwand.client.PurpleCinematic.reset();
             StoneCannonWindSound.reset();
             EarthDrillSoundscape.reset();
             SupernovaAccretionRenderer.reset();

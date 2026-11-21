@@ -75,6 +75,8 @@ public class GodWandNeoForgeClientMod {
                 (payload, context) -> context.enqueueWork(() -> net.godwand.client.FugaRenderer.receive(payload)));
         registrar.playToClient(net.godwand.network.SilentGatePayload.ID, net.godwand.network.SilentGatePayload.CODEC,
                 (payload, context) -> context.enqueueWork(() -> net.godwand.client.SilentGateRenderer.receive(payload)));
+        registrar.playToClient(net.godwand.network.BlueRedPayload.ID, net.godwand.network.BlueRedPayload.CODEC,
+                (payload, context) -> context.enqueueWork(() -> net.godwand.client.BlueRedRenderer.receive(payload)));
         registrar.playToClient(
                 DrillWindPayload.ID,
                 DrillWindPayload.CODEC,
@@ -173,6 +175,8 @@ public class GodWandNeoForgeClientMod {
             AtomicRenderer.render(matrices,camera,tickDelta);
             net.godwand.client.FugaRenderer.render(matrices,camera,tickDelta);
             net.godwand.client.SilentGateRenderer.render(matrices,camera,tickDelta);
+            net.godwand.client.BlueRedRenderer.render(matrices, camera, tickDelta);
+            net.godwand.client.BlueRedRenderer.renderOverlay();
             net.godwand.client.compat.GodWandGeometry.flush(event.getModelViewMatrix());
         }
 
@@ -184,6 +188,7 @@ public class GodWandNeoForgeClientMod {
                 net.godwand.client.FugaCinematic.render(event.getGuiGraphics(), event.getPartialTick());
                 net.godwand.client.SilentGateCinematic.render(event.getGuiGraphics(), event.getPartialTick());
                 net.godwand.client.SkillCooldownClient.render(event.getGuiGraphics());
+                net.godwand.client.BlueRedHud.render(event.getGuiGraphics(), event.getPartialTick().getGameTimeDeltaPartialTick(false));
             }
         }
 
@@ -197,6 +202,9 @@ public class GodWandNeoForgeClientMod {
             net.godwand.client.SilentGateRenderer.tick(client);
             net.godwand.client.FugaCinematic.tick(client);
             net.godwand.client.SilentGateCinematic.tick(client);
+            net.godwand.client.BlueRedInput.tick(client);
+            net.godwand.client.BlueRedRenderer.tick(client);
+            net.godwand.client.PurpleCinematic.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
             EarthDrillSoundscape.tick(client);
@@ -214,6 +222,9 @@ public class GodWandNeoForgeClientMod {
             net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
             net.godwand.client.SilentGateCinematic.reset();
+            net.godwand.client.BlueRedInput.reset();
+            net.godwand.client.BlueRedRenderer.reset();
+            net.godwand.client.PurpleCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();
