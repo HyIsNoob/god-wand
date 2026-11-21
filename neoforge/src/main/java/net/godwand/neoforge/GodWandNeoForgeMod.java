@@ -117,6 +117,7 @@ public class GodWandNeoForgeMod {
         NeoForge.EVENT_BUS.addListener(this::onServerStopping);
         NeoForge.EVENT_BUS.addListener(this::onServerStopped);
         NeoForge.EVENT_BUS.addListener(this::onLevelLoad);
+        NeoForge.EVENT_BUS.addListener(this::onChangedDimension);
 
         GodWandMod.LOGGER.info("God Wand NeoForge initialized.");
     }
@@ -147,6 +148,10 @@ public class GodWandNeoForgeMod {
                 (payload,context) -> context.enqueueWork(() -> {
                     if(context.player() instanceof ServerPlayer player)net.godwand.skill.SilentGateManager.cancelFromClient(player,payload.startedAt());
                 }));
+        registrar.playToServer(net.godwand.network.BlueInputPayload.ID, net.godwand.network.BlueInputPayload.CODEC,
+                (payload,context) -> context.enqueueWork(() -> {
+                    if(context.player() instanceof ServerPlayer player)net.godwand.skill.BlueRedManager.input(player,payload.held());
+                }));
 
         registrar.playToServer(
                 SelectSkillPayload.ID,
@@ -175,6 +180,7 @@ public class GodWandNeoForgeMod {
             registrar.playToClient(AtomicFxPayload.ID, AtomicFxPayload.CODEC, (payload, context) -> {});
             registrar.playToClient(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC, (payload, context) -> {});
             registrar.playToClient(net.godwand.network.SilentGatePayload.ID, net.godwand.network.SilentGatePayload.CODEC, (payload, context) -> {});
+            registrar.playToClient(net.godwand.network.BlueRedPayload.ID, net.godwand.network.BlueRedPayload.CODEC, (payload, context) -> {});
             registrar.playToClient(net.godwand.network.SkillCooldownPayload.ID, net.godwand.network.SkillCooldownPayload.CODEC, (payload, context) -> {});
         }
     }
@@ -191,6 +197,7 @@ public class GodWandNeoForgeMod {
             AtomicManager.tick(level);
             net.godwand.skill.SilentGateManager.tick(level);
             net.godwand.skill.FugaManager.tick(level);
+            net.godwand.skill.BlueRedManager.tick(level);
             SpatialBridge.tickWorld(level);
             SpatialDisplacementManager.tick(level);
         }
@@ -244,11 +251,18 @@ public class GodWandNeoForgeMod {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             SpatialPathWalker.deactivate(serverPlayer);
             net.godwand.skill.SkillCooldowns.reset(serverPlayer);
+            net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
         }
+    }
+
+    /** Blue and Red stay in the dimension they were cast in: their caster leaving it lets them go (as on Fabric). */
+    private void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
     }
 
     private void onLivingDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
             SpatialPathWalker.deactivate(serverPlayer);
             net.godwand.skill.SkillCooldowns.reset(serverPlayer);
         }
@@ -268,6 +282,7 @@ public class GodWandNeoForgeMod {
         AtomicManager.clearAllTasks();
         net.godwand.skill.FugaManager.clearAllTasks();
         net.godwand.skill.SilentGateManager.clearAllTasks();
+        net.godwand.skill.BlueRedManager.clearAll();
         for (ServerLevel level : event.getServer().getAllLevels()) {
             SpatialBridge.clearVisuals(level);
             SpatialDisplacementManager.emergencyRestoreAll(level);

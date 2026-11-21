@@ -75,6 +75,8 @@ public class GodWandNeoForgeClientMod {
                 (payload, context) -> context.enqueueWork(() -> net.godwand.client.FugaRenderer.receive(payload)));
         registrar.playToClient(net.godwand.network.SilentGatePayload.ID, net.godwand.network.SilentGatePayload.CODEC,
                 (payload, context) -> context.enqueueWork(() -> net.godwand.client.SilentGateRenderer.receive(payload)));
+        registrar.playToClient(net.godwand.network.BlueRedPayload.ID, net.godwand.network.BlueRedPayload.CODEC,
+                (payload, context) -> context.enqueueWork(() -> net.godwand.client.BlueRedRenderer.receive(payload)));
         registrar.playToClient(
                 DrillWindPayload.ID,
                 DrillWindPayload.CODEC,
@@ -189,6 +191,11 @@ public class GodWandNeoForgeClientMod {
                 AtomicRenderer.render(matrices, camera, tickDelta);
                 if (!net.godwand.client.FugaRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
                 if (!net.godwand.client.SilentGateRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.SilentGateRenderer.render(matrices, camera, tickDelta);
+            } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
+                // After the clouds and weather, as Fabric's LAST: drawn earlier, the clouds behind painted over the orbs, which write no depth.
+                float tickDelta = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+                net.godwand.client.BlueRedRenderer.render(event.getPoseStack(), event.getCamera(), tickDelta);
+                net.godwand.client.BlueRedRenderer.renderOverlay();
             } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
                 float tickDelta = event.getPartialTick().getGameTimeDeltaPartialTick(false);
                 GodWandPostFxManager.onWorldRender(event.getModelViewMatrix(), event.getProjectionMatrix(), tickDelta);
@@ -204,6 +211,7 @@ public class GodWandNeoForgeClientMod {
                 net.godwand.client.FugaCinematic.render(event.getGuiGraphics(), event.getPartialTick());
                 net.godwand.client.SilentGateCinematic.render(event.getGuiGraphics(), event.getPartialTick());
                 net.godwand.client.SkillCooldownClient.render(event.getGuiGraphics());
+                net.godwand.client.BlueRedHud.render(event.getGuiGraphics(), event.getPartialTick().getGameTimeDeltaPartialTick(false));
             }
         }
 
@@ -216,6 +224,9 @@ public class GodWandNeoForgeClientMod {
             net.godwand.client.SilentGateRenderer.tick(client);
             net.godwand.client.FugaCinematic.tick(client);
             net.godwand.client.SilentGateCinematic.tick(client);
+            net.godwand.client.BlueRedInput.tick(client);
+            net.godwand.client.BlueRedRenderer.tick(client);
+            net.godwand.client.PurpleCinematic.tick(client);
             net.godwand.client.SkillCooldownClient.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
             StoneCannonWindSound.update(client);
@@ -233,6 +244,9 @@ public class GodWandNeoForgeClientMod {
             net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
             net.godwand.client.SilentGateCinematic.reset();
+            net.godwand.client.BlueRedInput.reset();
+            net.godwand.client.BlueRedRenderer.reset();
+            net.godwand.client.PurpleCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();
