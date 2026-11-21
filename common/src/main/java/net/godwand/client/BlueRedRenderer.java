@@ -370,9 +370,7 @@ public final class BlueRedRenderer {
             }
         }
         for (Small s : SMALLS) if (clock - s.at() == BlueRedRules.SMALL_DETONATE) {
-            // Its burst: sound, a violet ground wave, sparks and a jolt for whoever is near.
-            sound(s.pos(), SoundEvents.GENERIC_EXPLODE.value(), 5f, .8f);
-            sound(s.pos(), SoundEvents.WARDEN_SONIC_BOOM, 3f, .9f);
+            // Its burst: a violet ground wave, sparks and a jolt for whoever is near (its sound is in the owner's one track, 2026-11-21).
             ImpactDebrisRenderer.groundWave(groundUnder(s.pos()), 20 + 30 * s.power(), 0xB050FF);
             for (int i = 0; i < 120; i++) { Vec3 d = randomDir(); spray(i % 3 == 0 ? ParticleTypes.ELECTRIC_SPARK : ParticleTypes.REVERSE_PORTAL, s.pos(), d.scale(.6 + RANDOM.nextDouble())); }
             if (client.player != null) GodWandCinematicEngine.addTrauma((float) Math.max(0, .9 * (1 - client.player.position().distanceTo(s.pos()) / 60)), 24);
