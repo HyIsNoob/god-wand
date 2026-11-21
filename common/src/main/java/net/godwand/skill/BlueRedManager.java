@@ -282,7 +282,7 @@ public final class BlueRedManager {
 
     /** The Purple shot (owner, 2026-11-20): gathering in front of its caster until let go, then flying. */
     private static final class Shot {
-        final ServerPlayer owner; final ServerLevel level; int age; boolean fired; Vec3 pos, dir; double flown;
+        final ServerPlayer owner; final ServerLevel level; int age; boolean fired, blueUsed; Vec3 pos, dir; double flown;
         final java.util.Set<java.util.UUID> struck = new java.util.HashSet<>();
         Shot(ServerPlayer owner, ServerLevel level) { this.owner = owner; this.level = level; }
     }
@@ -302,7 +302,10 @@ public final class BlueRedManager {
         Blue own = blueOf(player);
         if (own != null) { BLUES.remove(own); BlueEater.retireAll(own.eaten); }
         REDS.removeIf(r -> r.shooter == player && !r.fired);
-        SHOTS.add(new Shot(player, level));
+        Shot shot = new Shot(player, level);
+        // A Blue already at work past the input grace was really cast: calling the shot off must not hand it back for free.
+        shot.blueUsed = own != null && own.age > BlueRedRules.INPUT_GRACE;
+        SHOTS.add(shot);
         send(level, player.getEyePosition(), event(BlueRedPayload.SHOT_START, player, player.getEyePosition(), Vec3.ZERO));
         return true;
     }
@@ -325,6 +328,7 @@ public final class BlueRedManager {
 
     private static void endShot(Shot s, Vec3 at, boolean calledOff) {
         SHOTS.remove(s);
+        if (!s.fired && s.blueUsed) SkillCooldowns.start(s.owner, GodWandItem.MODE_BLUE_RED, GodWandConfig.skillCooldownTicks(GodWandItem.MODE_BLUE_RED, 1));
         send(s.level, at, new BlueRedPayload(BlueRedPayload.SHOT_END, s.owner.getId(), -1, 0, at.x, at.y, at.z, 0, 0, 0, calledOff ? 1 : 0));
     }
 

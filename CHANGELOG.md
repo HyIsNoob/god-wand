@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.1]
+
+### Fixed
+
+- Holding Blue, then pressing Red and letting go of both before the Purple shot formed, skipped Blue's cooldown.
+
 ## [1.6.0]
 
 ### Important: pets are now safe from spells
