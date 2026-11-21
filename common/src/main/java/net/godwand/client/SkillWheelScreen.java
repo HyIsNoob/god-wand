@@ -79,6 +79,7 @@ public final class SkillWheelScreen extends Screen {
     private void confirm() {
         if (canSelect() && minecraft.isWindowActive()) {
             updateSelection();
+            if (hovered >= 0 && (net.godwand.item.WandSkillLock.disabledMask(wand) >> hovered & 1) != 0) hovered = -1;
             if (hovered >= 0 && hovered != GodWandItem.getSkillMode(wand)) {
                 Services.NETWORK.sendToServer(new SelectSkillPayload(hovered, slot));
             }
@@ -130,6 +131,8 @@ public final class SkillWheelScreen extends Screen {
         if (!canSelect()) return;
         hovered = SkillWheelSelection.modeAt((mouseX - width / 2.0) / wheelScale(),
                 (mouseY - height / 2.0) / wheelScale());
+        int disabled = net.godwand.item.WandSkillLock.disabledMask(wand);
+        if (hovered >= 0 && (disabled >> hovered & 1) != 0) hovered = -1;
         int current = Math.max(0, Math.min(GodWandItem.TOTAL_MODES - 1, GodWandItem.getSkillMode(wand)));
         int shown = hovered >= 0 ? hovered : current;
         float[] cooldown=new float[GodWandItem.TOTAL_MODES];
@@ -138,7 +141,7 @@ public final class SkillWheelScreen extends Screen {
         context.pose().pushPose();
         context.pose().translate(width / 2f, height / 2f, 0);
         context.pose().scale(wheelScale(), wheelScale(), 1);
-        drawWheel(context, current, hovered, cooldown);
+        drawWheel(context, current, hovered, cooldown, disabled);
         context.drawCenteredString(font, Component.translatable("skill.godwand." + current), 0, -4, skillColor(current));
         if (hovered >= 0 && hovered != current)
             context.drawCenteredString(font, Component.translatable("skill.godwand." + shown), 0, -124, skillColor(shown));
@@ -146,11 +149,15 @@ public final class SkillWheelScreen extends Screen {
         context.pose().popPose();
     }
 
-    static void drawWheel(GuiGraphics context, int current, int hovered, float[] cooldown) {
+    static void drawWheel(GuiGraphics context, int current, int hovered, float[] cooldown) { drawWheel(context, current, hovered, cooldown, 0); }
+
+    /** {@code disabled}: bit n set, skill n is turned off on this server and left out of the wheel. */
+    static void drawWheel(GuiGraphics context, int current, int hovered, float[] cooldown, int disabled) {
         context.blit(SECTORS, -112, -112, GodWandItem.TOTAL_MODES * 224f, 0f, 224, 224, (GodWandItem.TOTAL_MODES + 1) * 224, 224);
         if (hovered >= 0)
             context.blit(SECTORS, -112, -112, hovered * 224f, 0f, 224, 224, (GodWandItem.TOTAL_MODES + 1) * 224, 224);
         for (int mode = 0; mode < GodWandItem.TOTAL_MODES; mode++) {
+            if ((disabled >> mode & 1) != 0) continue;
             double angle = -Math.PI / 2 + mode * SECTOR;
             int x = (int)Math.round(Math.cos(angle) * 82) - 20;
             int y = (int)Math.round(Math.sin(angle) * 82) - 20;

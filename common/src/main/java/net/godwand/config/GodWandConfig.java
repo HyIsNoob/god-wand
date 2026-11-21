@@ -63,6 +63,9 @@ public final class GodWandConfig {
         }
     }
 
+    /** Each skill's name in commands and settings, by its mode number. */
+    public static final String[] SKILL_IDS = {"spatial_path", "singularity", "earth_drill", "supernova", "stone_cannon", "atomic", "fuga", "silent_gate", "purple"};
+
     public static final class Server {
         // Grouped by skill: the file is written in this order, a blank line between skills (see format).
         public int cooldownDefaultsVersion = 3;
@@ -76,6 +79,15 @@ public final class GodWandConfig {
         /** Who spells hurt and push: "all"; "no_pets" (spares tamed, named and leashed mobs); "hostile" (monsters only). Other
          *  players follow pvp. */
         public String spellTargets = "no_pets";
+        /** Skills taken out of every wand on this server (owner, 2026-11-21), by the names of /godwand lock: they cannot be chosen or cast. */
+        public List<String> disabledSkills = new ArrayList<>();
+        /** Bit n set: skill n is disabled. Never every skill (a wand with nothing left would be useless). */
+        public int disabledMask() {
+            int mask = 0;
+            if (disabledSkills != null) for (String name : disabledSkills) for (int m = 0; m < SKILL_IDS.length; m++) if (SKILL_IDS[m].equals(name)) mask |= 1 << m;
+            return mask == (1 << SKILL_IDS.length) - 1 ? 0 : mask;
+        }
+        public boolean skillDisabled(int mode) { return mode >= 0 && (disabledMask() >> mode & 1) != 0; }
 
         public int spatialPathCooldownTicks = 20;
 
@@ -207,6 +219,7 @@ public final class GodWandConfig {
             atomicDamage=finiteClamp(atomicDamage,0,1_000_000,9999);
             atomicShockwaveDamage=finiteClamp(atomicShockwaveDamage,0,1_000_000,15);
             if(dimensionBlacklist==null)dimensionBlacklist=new ArrayList<>();
+            if(disabledSkills==null)disabledSkills=new ArrayList<>();
         }
     }
 

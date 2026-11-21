@@ -93,6 +93,9 @@ public class GodWandForgeClientMod {
             if(net.godwand.client.AtomicCinematic.active()||net.godwand.client.FugaCinematic.active()||net.godwand.client.SilentGateCinematic.active()||net.godwand.client.PurpleCinematic.active())event.setCanceled(true);
         }
 
+        private static final org.joml.Matrix4f LEVEL_POSE = new org.joml.Matrix4f();
+        private static final org.joml.Matrix3f LEVEL_NORMAL = new org.joml.Matrix3f();
+
         @SubscribeEvent
         public static void onRenderLevelStage(RenderLevelStageEvent event) {
             if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
@@ -103,6 +106,8 @@ public class GodWandForgeClientMod {
                 if (!net.godwand.client.FugaRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
                 if (!net.godwand.client.SilentGateRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.SilentGateRenderer.render(matrices, camera, tickDelta);
                 net.godwand.client.AtomicPostFx.capture(matrices.last().pose(), event.getProjectionMatrix(), tickDelta);
+                LEVEL_POSE.set(matrices.last().pose());
+                LEVEL_NORMAL.set(matrices.last().normal());
                 CannonPressureRenderer.render(matrices, camera, tickDelta);
                 DrillWindRenderer.render(matrices, camera, tickDelta);
                 ImpactDebrisRenderer.render(matrices, camera, tickDelta);
@@ -115,7 +120,11 @@ public class GodWandForgeClientMod {
             } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
                 // Last in the level, as Fabric's LAST: after the clouds (drawn earlier they painted over the orbs, which write no depth).
                 // Not AFTER_WEATHER: Forge fires it with the camera already on the model-view stack, so the orbs were turned twice (owner, 2026-11-21).
-                net.godwand.client.BlueRedRenderer.render(event.getPoseStack(), event.getCamera(), event.getPartialTick());
+                // Forge 1.20.1 hands AFTER_LEVEL the projection stack, not the camera's: draw with the level pose kept above.
+                PoseStack level = new PoseStack();
+                level.last().pose().set(LEVEL_POSE);
+                level.last().normal().set(LEVEL_NORMAL);
+                net.godwand.client.BlueRedRenderer.render(level, event.getCamera(), event.getPartialTick());
                 net.godwand.client.BlueRedRenderer.renderOverlay();
                 GodWandPostFxManager.renderAfterWorld();
                 net.godwand.client.AtomicPostFx.renderAfterWorld();

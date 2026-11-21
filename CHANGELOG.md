@@ -22,6 +22,7 @@
 - One switch in the settings menu (K) turns all cutscenes off or on. Each cutscene still has its own switch.
 - New in the settings menu (K): a volume slider for the mod's sounds, the Blue/Red rings around the crosshair, casting Purple and Fuga bare-handed, and an optional third-person view while casting Blue and Red.
 - New server settings: one switch to turn off terrain damage for every skill, PvP on or off, and which creatures spells hit.
+- Server owners can take skills out of the wand (`disabledSkills`, e.g. `["fuga", "atomic"]`): they disappear from the skill wheel and cannot be cast.
 
 ## [1.5.1]
 

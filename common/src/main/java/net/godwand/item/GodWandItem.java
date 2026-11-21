@@ -82,6 +82,7 @@ public class GodWandItem extends Item {
         if (mode < 0 || mode >= TOTAL_MODES) return;
         ItemStack stack = user.getItemInHand(hand);
         if (!(stack.getItem() instanceof GodWandItem) || net.godwand.item.WandSkillLock.isLocked(stack)) return;
+        if (!user.level().isClientSide() && net.godwand.config.GodWandConfig.SERVER.skillDisabled(mode)) return;
         if (user.isUsingItem() && user.getUseItem() == stack) {
             if (user instanceof ServerPlayer player) {
                 SupernovaManager.cancelCharge(player);
@@ -122,8 +123,12 @@ public class GodWandItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level world, Player user, InteractionHand hand) {
         ItemStack stack = user.getItemInHand(hand);
         int currentMode = getSkillMode(stack);
-
-
+        // A skill the server turned off (the client knows from the wand's data, the server from its settings).
+        if (world.isClientSide() ? (net.godwand.item.WandSkillLock.disabledMask(stack) >> currentMode & 1) != 0
+                : net.godwand.config.GodWandConfig.SERVER.skillDisabled(currentMode)) {
+            if (!world.isClientSide()) user.displayClientMessage(Component.translatable("message.godwand.skill_disabled", Component.translatable("skill.godwand." + currentMode)), true);
+            return InteractionResultHolder.fail(stack);
+        }
 
         String dimId = world.dimension().location().toString();
         if (net.godwand.config.GodWandConfig.SERVER.isDimensionBlacklisted(dimId)) {

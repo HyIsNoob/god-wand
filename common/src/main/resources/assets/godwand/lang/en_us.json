@@ -51,6 +51,7 @@
   "message.godwand.gate_command": "Right-click to command the gate",
   "message.godwand.gate_cancel": "Sneak to stop the spell",
   "message.godwand.skill_cooldown": "%s: %ss",
+  "message.godwand.skill_disabled": "%s is turned off on this server.",
   "message.godwand.skill_locked": "Locked skill: %s",
   "command.godwand.hold_wand": "Hold a God Wand in your main hand.",
   "command.godwand.stop_casting": "Finish or cancel your current cast first.",

@@ -86,6 +86,7 @@ Destructive spells can change a large area. **Terrain destruction is enabled by 
 *   **One switch turns off terrain damage for every skill.** Each skill also has its own switch, and Earth Drill and Supernova can keep lifting blocks without leaving permanent damage.
 *   **Your pets are safe by default.** Spells don't hurt or push tamed animals, mobs with a name tag or mobs on a lead. Server owners can make spells hit everything, or monsters only.
 *   **PvP can be turned off,** so spells never hurt other players.
+*   **Server owners can remove skills from the wand.** Removed skills disappear from the skill wheel and cannot be cast.
 
 Damage, cooldowns and terrain ranges can be adjusted for each skill. Existing settings files gain new options automatically and keep your choices.
 

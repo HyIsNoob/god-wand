@@ -467,6 +467,7 @@ public final class BlueRedManager {
         if (chargingRedOf(player) != null) { startShot(player); return; }
         // One Blue each; an anchored one waiting for Red is never replaced by a stray click.
         if (existing != null || !player.isAlive() || player.isSpectator() || !holdsBlueRed(player)) return;
+        if (GodWandConfig.SERVER.skillDisabled(GodWandItem.MODE_BLUE_RED)) return;
         ServerLevel level = player.serverLevel();
         if (!GodWandConfig.SERVER.isDimensionAllowed(level.dimension().location().toString())) return;
         if (!SkillCooldowns.ready(player, GodWandItem.MODE_BLUE_RED)) return;
@@ -497,6 +498,7 @@ public final class BlueRedManager {
 
     public static void tick(ServerLevel level) {
         GodWandAdvancements.tick(level.getServer());
+        net.godwand.item.WandSkillLock.stampHeld(level);
         var cfg = GodWandConfig.SERVER;
         // Shared terrain allowance for every Blue in this level this tick, like Fuga and Atomic.
         int budget = 32768;

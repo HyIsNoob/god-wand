@@ -1,9 +1,13 @@
 {
-  "reason": "Native CustomData exposes compound-tag queries through copyTag",
+  "reason": "Explicit version/loader API adapter",
   "changes": [
     {
-      "before": "data.contains(\"GodWandLocked\")",
-      "after": "data.copyTag().contains(\"GodWandLocked\")"
+      "before": "    private WandSkillLock() {}\n    public static boolean isLocked(ItemStack stack) {\n        var data = stack.get(DataComponents.CUSTOM_DATA);\n        return data != null && data.contains(\"GodWandLocked\");\n    }\n    public static void lock(ItemStack stack, int mode) {\n        if (!(stack.getItem() instanceof GodWandItem) || mode < 0 || mode >= GodWandItem.TOTAL_MODES)\n",
+      "after": "    private WandSkillLock() {}\n    public static boolean isLocked(ItemStack stack) {\n        var data = stack.get(DataComponents.CUSTOM_DATA);\n        return data != null && data.copyTag().contains(\"GodWandLocked\");\n    }\n    public static void lock(ItemStack stack, int mode) {\n        if (!(stack.getItem() instanceof GodWandItem) || mode < 0 || mode >= GodWandItem.TOTAL_MODES)\n"
+    },
+    {
+      "before": "    /** The server's disabled skills as last stamped on this wand (bit n: skill n); what the client's wheel reads. */\n    public static int disabledMask(ItemStack stack) {\n        var data = stack.get(DataComponents.CUSTOM_DATA);\n        return data == null || !data.contains(\"GodWandDisabled\") ? 0 : data.copyTag().getInt(\"GodWandDisabled\");\n    }\n\n    /** Stamps the server's disabled skills on a wand, and moves it off a skill that has been turned off (unless an admin locked it there). */\n",
+      "after": "    /** The server's disabled skills as last stamped on this wand (bit n: skill n); what the client's wheel reads. */\n    public static int disabledMask(ItemStack stack) {\n        var data = stack.get(DataComponents.CUSTOM_DATA);\n        return data == null ? 0 : data.copyTag().getIntOr(\"GodWandDisabled\", 0);\n    }\n\n    /** Stamps the server's disabled skills on a wand, and moves it off a skill that has been turned off (unless an admin locked it there). */\n"
     }
   ]
 }

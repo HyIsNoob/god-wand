@@ -1,25 +1,13 @@
 {
-  "reason": "Legacy item NBT API",
+  "reason": "Explicit version/loader API adapter",
   "changes": [
     {
-      "before": "import net.minecraft.core.component.DataComponents;\n",
-      "after": ""
+      "before": "package net.godwand.item;\n\nimport net.minecraft.core.component.DataComponents;\nimport net.minecraft.world.item.ItemStack;\nimport net.minecraft.world.item.component.CustomData;\n\n/** A restriction travels with the stack when traded, copied or saved. */\npublic final class WandSkillLock {\n    private WandSkillLock() {}\n    public static boolean isLocked(ItemStack stack) {\n        var data = stack.get(DataComponents.CUSTOM_DATA);\n        return data != null && data.contains(\"GodWandLocked\");\n    }\n    public static void lock(ItemStack stack, int mode) {\n",
+      "after": "package net.godwand.item;\n\nimport net.minecraft.world.item.ItemStack;\n\n/** A restriction travels with the stack when traded, copied or saved. */\npublic final class WandSkillLock {\n    private WandSkillLock() {}\n    public static boolean isLocked(ItemStack stack) {\n        var data = stack.getTag();\n        return data != null && data.contains(\"GodWandLocked\");\n    }\n    public static void lock(ItemStack stack, int mode) {\n"
     },
     {
-      "before": "import net.minecraft.world.item.component.CustomData;\n",
-      "after": ""
-    },
-    {
-      "before": "        var data = stack.get(DataComponents.CUSTOM_DATA);\n        return data != null && data.contains(\"GodWandLocked\");",
-      "after": "        var data = stack.getTag();\n        return data != null && data.contains(\"GodWandLocked\");"
-    },
-    {
-      "before": "        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putInt(\"GodWandLocked\", 1));",
-      "after": "        stack.getOrCreateTag().putInt(\"GodWandLocked\", 1);"
-    },
-    {
-      "before": "        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.remove(\"GodWandLocked\"));",
-      "after": "        if (stack.getTag() != null) stack.getTag().remove(\"GodWandLocked\");"
+      "before": "            throw new IllegalArgumentException(\"Expected a wand and a valid skill\");\n        unlock(stack);\n        GodWandItem.setSkillMode(stack, mode);\n        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putInt(\"GodWandLocked\", 1));\n    }\n    public static void unlock(ItemStack stack) {\n        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.remove(\"GodWandLocked\"));\n    }\n\n    /** The server's disabled skills as last stamped on this wand (bit n: skill n); what the client's wheel reads. */\n    public static int disabledMask(ItemStack stack) {\n        var data = stack.get(DataComponents.CUSTOM_DATA);\n        return data == null || !data.contains(\"GodWandDisabled\") ? 0 : data.copyTag().getInt(\"GodWandDisabled\");\n    }\n\n    /** Stamps the server's disabled skills on a wand, and moves it off a skill that has been turned off (unless an admin locked it there). */\n    public static void stampDisabled(ItemStack stack, int mask) {\n        if (!(stack.getItem() instanceof GodWandItem)) return;\n        if (disabledMask(stack) != mask) {\n            if (mask == 0) CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.remove(\"GodWandDisabled\"));\n            else CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putInt(\"GodWandDisabled\", mask));\n        }\n        int mode = GodWandItem.getSkillMode(stack);\n        if (mode >= 0 && (mask >> mode & 1) != 0 && !isLocked(stack))\n",
+      "after": "            throw new IllegalArgumentException(\"Expected a wand and a valid skill\");\n        unlock(stack);\n        GodWandItem.setSkillMode(stack, mode);\n        stack.getOrCreateTag().putInt(\"GodWandLocked\", 1);\n    }\n    public static void unlock(ItemStack stack) {\n        if (stack.getTag() != null) stack.getTag().remove(\"GodWandLocked\");\n    }\n\n    /** The server's disabled skills as last stamped on this wand (bit n: skill n); what the client's wheel reads. */\n    public static int disabledMask(ItemStack stack) {\n        var data = stack.getTag();\n        return data == null ? 0 : data.getInt(\"GodWandDisabled\");\n    }\n\n    /** Stamps the server's disabled skills on a wand, and moves it off a skill that has been turned off (unless an admin locked it there). */\n    public static void stampDisabled(ItemStack stack, int mask) {\n        if (!(stack.getItem() instanceof GodWandItem)) return;\n        if (disabledMask(stack) != mask) {\n            if (mask == 0) { if (stack.getTag() != null) stack.getTag().remove(\"GodWandDisabled\"); }\n            else stack.getOrCreateTag().putInt(\"GodWandDisabled\", mask);\n        }\n        int mode = GodWandItem.getSkillMode(stack);\n        if (mode >= 0 && (mask >> mode & 1) != 0 && !isLocked(stack))\n"
     }
   ]
 }

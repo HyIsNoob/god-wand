@@ -51,6 +51,7 @@
   "message.godwand.gate_command": "右键指挥之门",
   "message.godwand.gate_cancel": "潜行以中止",
   "message.godwand.skill_cooldown": "%s：%s 秒",
+  "message.godwand.skill_disabled": "此服务器已禁用%s。",
   "message.godwand.skill_locked": "技能已锁定：%s",
   "command.godwand.hold_wand": "请用主手持握神之杖。",
   "command.godwand.stop_casting": "请先完成或取消当前施法。",
