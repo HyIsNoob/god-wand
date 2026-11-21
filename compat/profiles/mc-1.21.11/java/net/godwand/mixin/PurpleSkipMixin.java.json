@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "@Mixin(KeyboardHandler.class)\npublic abstract class PurpleSkipMixin {\n    @Inject(method = \"keyPress\", at = @At(\"HEAD\"), cancellable = true)\n    private void godwand$skipPurple(long window, int key, int scan, int action, int modifiers, CallbackInfo ci) {\n        var client = Minecraft.getInstance();\n        if (window == client.getWindow().getWindow() && key == GLFW.GLFW_KEY_ESCAPE && action == GLFW.GLFW_PRESS && client.screen == null && PurpleCinematic.active()) {\n            PurpleCinematic.skip();\n            ci.cancel();\n        }\n",
+      "after": "@Mixin(KeyboardHandler.class)\npublic abstract class PurpleSkipMixin {\n    @Inject(method = \"keyPress\", at = @At(\"HEAD\"), cancellable = true)\n    private void godwand$skipPurple(long window, int action, net.minecraft.client.input.KeyEvent event, CallbackInfo ci) {\n        var client = Minecraft.getInstance();\n        if (window == client.getWindow().handle() && event.key() == GLFW.GLFW_KEY_ESCAPE && action == GLFW.GLFW_PRESS && client.screen == null && PurpleCinematic.active()) {\n            PurpleCinematic.skip();\n            ci.cancel();\n        }\n"
+    }
+  ]
+}

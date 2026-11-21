@@ -1,0 +1,13 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "import net.minecraft.network.RegistryFriendlyByteBuf;\nimport net.minecraft.network.codec.StreamCodec;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.resources.ResourceLocation;\n\n/**\n * One Blue/Red/Purple event (mode 8). ownerId: the Blue owner or Red shooter; otherId: the Red shooter on PURPLE, else -1.\n",
+      "after": "import net.minecraft.network.RegistryFriendlyByteBuf;\nimport net.minecraft.network.codec.StreamCodec;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.resources.Identifier;\n\n/**\n * One Blue/Red/Purple event (mode 8). ownerId: the Blue owner or Red shooter; otherId: the Red shooter on PURPLE, else -1.\n"
+    },
+    {
+      "before": "            if (!Double.isFinite(c) || Math.abs(c) > 2) throw new IllegalArgumentException(\"Invalid Blue/Red direction\");\n    }\n\n    public static final Type<BlueRedPayload> ID = new Type<>(ResourceLocation.fromNamespaceAndPath(\"godwand\", \"blue_red\"));\n    public static final StreamCodec<RegistryFriendlyByteBuf, BlueRedPayload> CODEC = new StreamCodec<>() {\n        public BlueRedPayload decode(RegistryFriendlyByteBuf buf) {\n            return new BlueRedPayload(buf.readVarInt(), buf.readVarInt(), buf.readVarInt() - 1, buf.readLong(),\n",
+      "after": "            if (!Double.isFinite(c) || Math.abs(c) > 2) throw new IllegalArgumentException(\"Invalid Blue/Red direction\");\n    }\n\n    public static final Type<BlueRedPayload> ID = new Type<>(Identifier.fromNamespaceAndPath(\"godwand\", \"blue_red\"));\n    public static final StreamCodec<RegistryFriendlyByteBuf, BlueRedPayload> CODEC = new StreamCodec<>() {\n        public BlueRedPayload decode(RegistryFriendlyByteBuf buf) {\n            return new BlueRedPayload(buf.readVarInt(), buf.readVarInt(), buf.readVarInt() - 1, buf.readLong(),\n"
+    }
+  ]
+}

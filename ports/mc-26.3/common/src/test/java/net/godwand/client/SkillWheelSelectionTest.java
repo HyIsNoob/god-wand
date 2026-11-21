@@ -3,11 +3,11 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 class SkillWheelSelectionTest {
  @Test void eightCentersAndTheirBoundariesStaySelectable() {
-  for(int mode=0;mode<8;mode++) {
-   double a=-Math.PI/2+mode*Math.PI*2/8;
+  for(int mode=0;mode<9;mode++) {
+   double a=-Math.PI/2+mode*Math.PI*2/9;
    assertEquals(mode,SkillWheelSelection.modeAt(Math.cos(a)*80,Math.sin(a)*80));
    assertEquals(mode,SkillWheelSelection.modeAt(Math.cos(a)*800,Math.sin(a)*800));
-   for(double edge:new double[]{-.38,.38})assertEquals(mode,SkillWheelSelection.modeAt(Math.cos(a+edge)*80,Math.sin(a+edge)*80));
+   for(double edge:new double[]{-.33,.33})assertEquals(mode,SkillWheelSelection.modeAt(Math.cos(a+edge)*80,Math.sin(a+edge)*80));
   }
  }
  @Test void centerKeepsCurrentSkillAndTopSeamStaysValid() {

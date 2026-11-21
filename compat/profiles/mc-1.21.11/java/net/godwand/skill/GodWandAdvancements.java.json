@@ -1,0 +1,13 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "package net.godwand.skill;\n\nimport net.godwand.item.GodWandItem;\nimport net.minecraft.resources.ResourceLocation;\nimport net.minecraft.server.level.ServerPlayer;\nimport net.minecraft.world.entity.Entity;\nimport net.minecraft.world.entity.LivingEntity;\n",
+      "after": "package net.godwand.skill;\n\nimport net.godwand.item.GodWandItem;\nimport net.minecraft.resources.Identifier;\nimport net.minecraft.server.level.ServerPlayer;\nimport net.minecraft.world.entity.Entity;\nimport net.minecraft.world.entity.LivingEntity;\n"
+    },
+    {
+      "before": "    private GodWandAdvancements() {}\n\n    public static void award(Entity who, String id) {\n        if (!(who instanceof ServerPlayer player) || player.getServer() == null) return;\n        var advancement = player.getServer().getAdvancements().get(ResourceLocation.fromNamespaceAndPath(\"godwand\", id));\n        if (advancement != null) player.getAdvancements().award(advancement, \"done\");\n    }\n\n    /** A skill used (its cooldown started): its advancement pops once the skill has played out, after its cutscene (owner, 2026-11-20),\n     *  not the moment it is cast. Blue, Red and Purple are awarded where each happens. */\n    public static void used(ServerPlayer player, int mode) {\n        if (mode < 0 || mode >= GodWandItem.MODE_BLUE_RED || player.getServer() == null) return;\n        PENDING.add(new Pending(player, \"use_\" + mode, player.getServer().getTickCount() + playsFor(mode)));\n    }\n\n    /** Roughly how long a skill plays on after its cooldown starts, in ticks. */\n",
+      "after": "    private GodWandAdvancements() {}\n\n    public static void award(Entity who, String id) {\n        if (!(who instanceof ServerPlayer player) || player.level().getServer() == null) return;\n        var advancement = player.level().getServer().getAdvancements().get(Identifier.fromNamespaceAndPath(\"godwand\", id));\n        if (advancement != null) player.getAdvancements().award(advancement, \"done\");\n    }\n\n    /** A skill used (its cooldown started): its advancement pops once the skill has played out, after its cutscene (owner, 2026-11-20),\n     *  not the moment it is cast. Blue, Red and Purple are awarded where each happens. */\n    public static void used(ServerPlayer player, int mode) {\n        if (mode < 0 || mode >= GodWandItem.MODE_BLUE_RED || player.level().getServer() == null) return;\n        PENDING.add(new Pending(player, \"use_\" + mode, player.level().getServer().getTickCount() + playsFor(mode)));\n    }\n\n    /** Roughly how long a skill plays on after its cooldown starts, in ticks. */\n"
+    }
+  ]
+}

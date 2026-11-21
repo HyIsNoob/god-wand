@@ -1,0 +1,17 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "package net.godwand.client;\n\nimport com.mojang.blaze3d.systems.RenderSystem;\nimport net.minecraft.resources.ResourceLocation;\n\n/**\n * The Blue/Red/Purple VFX atlas, authored by tools/blue-red-atlas.py: 1024 square like GateAtlas (so GateAtlas.Region and GateDraw's solid texel at\n",
+      "after": "package net.godwand.client;\n\nimport net.minecraft.resources.Identifier;\n\n/**\n * The Blue/Red/Purple VFX atlas, authored by tools/blue-red-atlas.py: 1024 square like GateAtlas (so GateAtlas.Region and GateDraw's solid texel at\n"
+    },
+    {
+      "before": " */\nfinal class BlueRedAtlas {\n    private BlueRedAtlas() {}\n    static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(\"godwand\", \"textures/vfx/blue_red.png\");\n    static final GateAtlas.Region GLOW = new GateAtlas.Region(0, 0, 128, 128), STAR = new GateAtlas.Region(128, 0, 128, 128),\n            BUBBLE = new GateAtlas.Region(256, 0, 64, 64), LIGHT = new GateAtlas.Region(320, 0, 64, 64), SHOCK = new GateAtlas.Region(384, 0, 128, 128),\n            /** Turbulent plasma, two periods side by side: U 0..0.5 is one full turn. */\n",
+      "after": " */\nfinal class BlueRedAtlas {\n    private BlueRedAtlas() {}\n    static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(\"godwand\", \"textures/vfx/blue_red.png\");\n    static final GateAtlas.Region GLOW = new GateAtlas.Region(0, 0, 128, 128), STAR = new GateAtlas.Region(128, 0, 128, 128),\n            BUBBLE = new GateAtlas.Region(256, 0, 64, 64), LIGHT = new GateAtlas.Region(320, 0, 64, 64), SHOCK = new GateAtlas.Region(384, 0, 128, 128),\n            /** Turbulent plasma, two periods side by side: U 0..0.5 is one full turn. */\n"
+    },
+    {
+      "before": "        return out;\n    }\n\n    static void bind() { RenderSystem.setShaderTexture(0, TEXTURE); }\n}\n",
+      "after": "        return out;\n    }\n\n    static void bind() { net.godwand.client.compat.GodWandGeometry.textured(); net.godwand.client.compat.GodWandGeometry.setShaderTexture(0, TEXTURE); }\n}\n"
+    }
+  ]
+}
