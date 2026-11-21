@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "import net.minecraft.network.RegistryFriendlyByteBuf;\nimport net.minecraft.network.codec.StreamCodec;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.resources.ResourceLocation;\n\n/** Client → server: left click started (true) or stopped (false) while the wand is on Blue/Red. */\npublic record BlueInputPayload(boolean held) implements CustomPacketPayload {\n    public static final Type<BlueInputPayload> ID = new Type<>(ResourceLocation.fromNamespaceAndPath(\"godwand\", \"blue_input\"));\n    public static final StreamCodec<RegistryFriendlyByteBuf, BlueInputPayload> CODEC = new StreamCodec<>() {\n        public BlueInputPayload decode(RegistryFriendlyByteBuf buf) { return new BlueInputPayload(buf.readBoolean()); }\n        public void encode(RegistryFriendlyByteBuf buf, BlueInputPayload value) { buf.writeBoolean(value.held()); }\n",
+      "after": "import net.minecraft.network.RegistryFriendlyByteBuf;\nimport net.minecraft.network.codec.StreamCodec;\nimport net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.resources.Identifier;\n\n/** Client → server: left click started (true) or stopped (false) while the wand is on Blue/Red. */\npublic record BlueInputPayload(boolean held) implements CustomPacketPayload {\n    public static final Type<BlueInputPayload> ID = new Type<>(Identifier.fromNamespaceAndPath(\"godwand\", \"blue_input\"));\n    public static final StreamCodec<RegistryFriendlyByteBuf, BlueInputPayload> CODEC = new StreamCodec<>() {\n        public BlueInputPayload decode(RegistryFriendlyByteBuf buf) { return new BlueInputPayload(buf.readBoolean()); }\n        public void encode(RegistryFriendlyByteBuf buf, BlueInputPayload value) { buf.writeBoolean(value.held()); }\n"
+    }
+  ]
+}

@@ -26,7 +26,12 @@
     "AtomicLocalMovementMixin",
     "PostPassUniformsAccessor",
     "AtomicPoseCaptureMixin",
-    "SkillCooldownUseMixin"
+    "SkillCooldownUseMixin",
+    "BlueRedAttackMixin",
+    "BlueRedHandMixin",
+    "BlueRedPoseMixin",
+    "PurpleSkipMixin",
+    "GodWandVolumeMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "    @Inject(method = \"calculateVolume(Lnet/minecraft/client/resources/sounds/SoundInstance;)F\", at = @At(\"RETURN\"), cancellable = true)\n    private void godwand$modVolume(SoundInstance sound, CallbackInfoReturnable<Float> cir) {\n        float volume = net.godwand.config.GodWandConfig.CLIENT.soundVolume;\n        if (volume < .999f && \"godwand\".equals(sound.getLocation().getNamespace())) cir.setReturnValue(cir.getReturnValue() * volume);\n    }\n}\n",
+      "after": "    @Inject(method = \"calculateVolume(Lnet/minecraft/client/resources/sounds/SoundInstance;)F\", at = @At(\"RETURN\"), cancellable = true)\n    private void godwand$modVolume(SoundInstance sound, CallbackInfoReturnable<Float> cir) {\n        float volume = net.godwand.config.GodWandConfig.CLIENT.soundVolume;\n        if (volume < .999f && \"godwand\".equals(sound.getIdentifier().getNamespace())) cir.setReturnValue(cir.getReturnValue() * volume);\n    }\n}\n"
+    }
+  ]
+}

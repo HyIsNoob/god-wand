@@ -1,0 +1,13 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "import net.godwand.client.PurpleCinematic;\nimport net.minecraft.client.KeyboardHandler;\nimport net.minecraft.client.Minecraft;\nimport org.lwjgl.glfw.GLFW;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.injection.At;\nimport org.spongepowered.asm.mixin.injection.Inject;\n",
+      "after": "import net.godwand.client.PurpleCinematic;\nimport net.minecraft.client.KeyboardHandler;\nimport net.minecraft.client.Minecraft;\nimport com.mojang.blaze3d.platform.InputConstants;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.injection.At;\nimport org.spongepowered.asm.mixin.injection.Inject;\n"
+    },
+    {
+      "before": "@Mixin(KeyboardHandler.class)\npublic abstract class PurpleSkipMixin {\n    @Inject(method = \"keyPress\", at = @At(\"HEAD\"), cancellable = true)\n    private void godwand$skipPurple(long window, int key, int scan, int action, int modifiers, CallbackInfo ci) {\n        var client = Minecraft.getInstance();\n        if (window == client.getWindow().getWindow() && key == GLFW.GLFW_KEY_ESCAPE && action == GLFW.GLFW_PRESS && client.screen == null && PurpleCinematic.active()) {\n            PurpleCinematic.skip();\n            ci.cancel();\n        }\n",
+      "after": "@Mixin(KeyboardHandler.class)\npublic abstract class PurpleSkipMixin {\n    @Inject(method = \"keyPress\", at = @At(\"HEAD\"), cancellable = true)\n    private void godwand$skipPurple(long window, int action, net.minecraft.client.input.KeyEvent event, CallbackInfo ci) {\n        var client = Minecraft.getInstance();\n        if (window == client.getWindow().handle() && event.key() == InputConstants.KEY_ESCAPE && action == InputConstants.PRESS && client.gui.screen() == null && PurpleCinematic.active()) {\n            PurpleCinematic.skip();\n            ci.cancel();\n        }\n"
+    }
+  ]
+}

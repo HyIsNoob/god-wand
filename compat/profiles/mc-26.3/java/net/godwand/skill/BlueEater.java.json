@@ -1,0 +1,17 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "    interface Shower { Display.BlockDisplay show(ServerLevel level, BlockPos pos, BlockState state); }\n    /** Test seam: spawns a tracked display that the displacement lifecycle discards if its chunk reloads later. */\n    static Shower shower = (level, pos, state) -> {\n        var display = new Display.BlockDisplay(EntityType.BLOCK_DISPLAY, level);\n        display.addTag(\"godwand_managed_displacement\");\n        display.setPos(pos.getX(), pos.getY(), pos.getZ());\n        display.setBlockState(state);\n",
+      "after": "    interface Shower { Display.BlockDisplay show(ServerLevel level, BlockPos pos, BlockState state); }\n    /** Test seam: spawns a tracked display that the displacement lifecycle discards if its chunk reloads later. */\n    static Shower shower = (level, pos, state) -> {\n        var display = new Display.BlockDisplay(net.minecraft.world.entity.EntityTypes.BLOCK_DISPLAY, level);\n        display.addTag(\"godwand_managed_displacement\");\n        display.setPos(pos.getX(), pos.getY(), pos.getZ());\n        display.setBlockState(state);\n"
+    },
+    {
+      "before": "\n    /** Removes one block if it may go (loaded chunk, in height, not air, displaceable); returns what was there, else null. */\n    private static BlockState clear(ServerLevel level, BlockPos.MutableBlockPos pos) {\n        if (pos.getY() < level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight()) return null;\n        var chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);\n        if (chunk == null) return null;\n        BlockState state = chunk.getBlockState(pos);\n",
+      "after": "\n    /** Removes one block if it may go (loaded chunk, in height, not air, displaceable); returns what was there, else null. */\n    private static BlockState clear(ServerLevel level, BlockPos.MutableBlockPos pos) {\n        if (pos.getY() < level.getMinY() || pos.getY() > level.getMaxY()) return null;\n        var chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);\n        if (chunk == null) return null;\n        BlockState state = chunk.getBlockState(pos);\n"
+    },
+    {
+      "before": "        }\n    }\n\n    private static final BlockState[] STAIN = {Blocks.AMETHYST_BLOCK.defaultBlockState(), Blocks.PURPLE_CONCRETE.defaultBlockState(),\n            Blocks.PURPLE_TERRACOTTA.defaultBlockState(), Blocks.CRYING_OBSIDIAN.defaultBlockState(), Blocks.PURPUR_BLOCK.defaultBlockState(),\n            Blocks.PURPLE_TERRACOTTA.defaultBlockState(), Blocks.PURPLE_CONCRETE.defaultBlockState()};\n    private static final Map<Integer, int[][]> DISCS = new java.util.concurrent.ConcurrentHashMap<>();\n    static final int STAIN_PER_TICK = 600, PURPLE_CLEAR_PER_TICK = 2500;\n\n",
+      "after": "        }\n    }\n\n    private static final BlockState[] STAIN = {Blocks.AMETHYST_BLOCK.defaultBlockState(), Blocks.CONCRETE.purple().defaultBlockState(),\n            Blocks.DYED_TERRACOTTA.purple().defaultBlockState(), Blocks.CRYING_OBSIDIAN.defaultBlockState(), Blocks.PURPUR_BLOCK.defaultBlockState(),\n            Blocks.DYED_TERRACOTTA.purple().defaultBlockState(), Blocks.CONCRETE.purple().defaultBlockState()};\n    private static final Map<Integer, int[][]> DISCS = new java.util.concurrent.ConcurrentHashMap<>();\n    static final int STAIN_PER_TICK = 600, PURPLE_CLEAR_PER_TICK = 2500;\n\n"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "#version 150\n// God Wand Blue/Red/Purple VFX. UV v < 2: the VFX atlas, tinted (no alpha cut-off, so edges stay soft).\n// UV v >= 2: a procedural effect: id = floor(v) - 2, seed = floor(u), local (0..1, 0..1) = the fractional parts.\n// Colour comes from a ramp built from the vertex tint (dark, tint, white hot); vertex alpha is the master alpha.\n\nuniform sampler2D Sampler0;\nuniform vec4 ColorModulator;\nuniform float VfxTime;\n\nin vec2 texCoord0;\nin vec4 vertexColor;\n\nout vec4 fragColor;\n\nfloat hash(vec3 p) {\n    p = fract(p * 0.3183099 + vec3(0.1, 0.17, 0.13));\n",
+      "after": "#version 330\n#extension GL_ARB_separate_shader_objects : require\n// God Wand Blue/Red/Purple VFX. UV v < 2: the VFX atlas, tinted (no alpha cut-off, so edges stay soft).\n// UV v >= 2: a procedural effect: id = floor(v) - 2, seed = floor(u), local (0..1, 0..1) = the fractional parts.\n// Colour comes from a ramp built from the vertex tint (dark, tint, white hot); vertex alpha is the master alpha.\n\nuniform sampler2D Sampler0;\nlayout(std140) uniform DynamicTransforms {\n    mat4 ModelViewMat;\n    mat4 TextureMat;\n    vec4 ColorModulator;\n    vec3 ModelOffset;\n};\nlayout(std140) uniform Globals {\n    ivec3 CameraBlockPos;\n    float GlintAlpha;\n    vec3 CameraOffset;\n    float GameTime;\n    vec2 ScreenSize;\n    int MenuBlurRadius;\n    int UseRgss;\n};\n// Seconds: GameTime is the game time over 24000 ticks (20 minutes).\n#define VfxTime (GameTime * 1200.0)\n\nlayout(location = 0) in vec2 texCoord0;\nlayout(location = 1) in vec4 vertexColor;\n\nlayout(location = 0) out vec4 fragColor;\n\nfloat hash(vec3 p) {\n    p = fract(p * 0.3183099 + vec3(0.1, 0.17, 0.13));\n"
+    }
+  ]
+}

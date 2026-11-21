@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "    @Shadow @Final public ModelPart leftArm;\n    @Shadow @Final public ModelPart head;\n\n    @Inject(method = \"setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V\", at = @At(\"TAIL\"))\n    private void godwand$blueRedPose(LivingEntity entity, float walk, float stride, float time, float yaw, float pitch, CallbackInfo ci) {\n        net.godwand.client.BlueRedHand.thirdPerson(entity, net.minecraft.util.Mth.clamp(time - entity.tickCount, 0, 1), rightArm, leftArm, head);\n    }\n}\n",
+      "after": "    @Shadow @Final public ModelPart leftArm;\n    @Shadow @Final public ModelPart head;\n\n    @Inject(method = \"setupAnim(Lnet/minecraft/client/renderer/entity/state/HumanoidRenderState;)V\", at = @At(\"TAIL\"))\n    private void godwand$blueRedPose(net.minecraft.client.renderer.entity.state.HumanoidRenderState state, CallbackInfo ci) {\n        var level = net.minecraft.client.Minecraft.getInstance().level;\n        var entity = level == null ? null : level.getEntity(net.godwand.client.AtomicPoseFrames.entityId(state));\n        if (entity instanceof LivingEntity living) net.godwand.client.BlueRedHand.thirdPerson(living, net.godwand.client.AtomicPoseFrames.partial(state), rightArm, leftArm, head);\n    }\n}\n"
+    }
+  ]
+}
