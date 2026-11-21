@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "\n    /** Removes one block if it may go (loaded chunk, in height, not air, displaceable); returns what was there, else null. */\n    private static BlockState clear(ServerLevel level, BlockPos.MutableBlockPos pos) {\n        if (pos.getY() < level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight()) return null;\n        var chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);\n        if (chunk == null) return null;\n        BlockState state = chunk.getBlockState(pos);\n",
+      "after": "\n    /** Removes one block if it may go (loaded chunk, in height, not air, displaceable); returns what was there, else null. */\n    private static BlockState clear(ServerLevel level, BlockPos.MutableBlockPos pos) {\n        if (pos.getY() < level.getMinY() || pos.getY() > level.getMaxY()) return null;\n        var chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);\n        if (chunk == null) return null;\n        BlockState state = chunk.getBlockState(pos);\n"
+    }
+  ]
+}

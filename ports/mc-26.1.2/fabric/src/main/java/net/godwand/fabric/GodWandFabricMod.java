@@ -82,6 +82,7 @@ public class GodWandFabricMod implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(AtomicFxPayload.ID, AtomicFxPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.SilentGatePayload.ID, net.godwand.network.SilentGatePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.BlueRedPayload.ID, net.godwand.network.BlueRedPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.SkillCooldownPayload.ID, net.godwand.network.SkillCooldownPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(SpatialAuraPayload.ID, SpatialAuraPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(CannonPressurePayload.ID, CannonPressurePayload.CODEC);
@@ -91,6 +92,9 @@ public class GodWandFabricMod implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(SelectSkillPayload.ID, SelectSkillPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(net.godwand.network.AtomicSkipPayload.ID, net.godwand.network.AtomicSkipPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(net.godwand.network.SilentGateCancelPayload.ID, net.godwand.network.SilentGateCancelPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(net.godwand.network.BlueInputPayload.ID, net.godwand.network.BlueInputPayload.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.BlueInputPayload.ID, (payload, context) ->
+                context.server().execute(() -> net.godwand.skill.BlueRedManager.input(context.player(), payload.held())));
         ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.AtomicSkipPayload.ID, (payload, context) ->
                 context.server().execute(() -> net.godwand.skill.AtomicManager.releaseMovement(context.player(),payload.startedAt())));
         ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.SilentGateCancelPayload.ID, (payload, context) ->
@@ -163,18 +167,24 @@ public class GodWandFabricMod implements ModInitializer {
             SupernovaManager.tick(level);
             AtomicManager.tick(level);
             net.godwand.skill.SilentGateManager.tick(level);
+            net.godwand.skill.BlueRedManager.tick(level);
             net.godwand.skill.FugaManager.tick(level);
             SpatialBridge.tickWorld(level);
             SpatialDisplacementManager.tick(level);
         });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            net.godwand.skill.BlueRedManager.onLeave(handler.player);
             SpatialPathWalker.deactivate(handler.player);
             net.godwand.skill.SkillCooldowns.reset(handler.player);
         });
 
+        net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register((player, origin, destination) ->
+                net.godwand.skill.BlueRedManager.onLeave(player));
+
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (entity instanceof ServerPlayer player) {
+            net.godwand.skill.BlueRedManager.onLeave(player);
                 SpatialPathWalker.deactivate(player);
                 net.godwand.skill.SkillCooldowns.reset(player);
             }
@@ -192,6 +202,7 @@ public class GodWandFabricMod implements ModInitializer {
             AtomicManager.clearAllTasks();
             net.godwand.skill.FugaManager.clearAllTasks();
             net.godwand.skill.SilentGateManager.clearAllTasks();
+            net.godwand.skill.BlueRedManager.clearAll();
             for (ServerLevel level : server.getAllLevels()) {
                 SpatialBridge.clearVisuals(level);
                 SpatialDisplacementManager.emergencyRestoreAll(level);

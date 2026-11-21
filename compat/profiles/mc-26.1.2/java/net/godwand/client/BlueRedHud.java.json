@@ -1,0 +1,17 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "\nimport net.godwand.config.GodWandConfig;\nimport net.minecraft.client.Minecraft;\nimport net.minecraft.client.gui.GuiGraphics;\n\n/**\n * Blue/Red around the crosshair (owner, 2026-11-20): Red's charge as a thin ring that fills clockwise and flashes red-white once full; the\n",
+      "after": "\nimport net.godwand.config.GodWandConfig;\nimport net.minecraft.client.Minecraft;\nimport net.minecraft.client.gui.GuiGraphicsExtractor;\n\n/**\n * Blue/Red around the crosshair (owner, 2026-11-20): Red's charge as a thin ring that fills clockwise and flashes red-white once full; the\n"
+    },
+    {
+      "before": "public final class BlueRedHud {\n    private BlueRedHud() {}\n\n    public static void render(GuiGraphics g, float partial) {\n        var mc = Minecraft.getInstance();\n        var me = mc.player;\n        if (me == null || !net.godwand.config.GodWandConfig.CLIENT.skillHud || mc.options.hideGui || mc.screen != null || PurpleCinematic.active() || !BlueRedHand.holds(me)) return;\n",
+      "after": "public final class BlueRedHud {\n    private BlueRedHud() {}\n\n    public static void render(GuiGraphicsExtractor g, float partial) {\n        var mc = Minecraft.getInstance();\n        var me = mc.player;\n        if (me == null || !net.godwand.config.GodWandConfig.CLIENT.skillHud || mc.options.hideGui || mc.screen != null || PurpleCinematic.active() || !BlueRedHand.holds(me)) return;\n"
+    },
+    {
+      "before": "\n    /** A ring of 1-pixel dots, {@code fill} of it (from the top, clockwise) in {@code on}, the rest in {@code off} (0: not drawn). A non-zero\n     *  {@code spin} makes it dashed and turning. */\n    private static void ring(GuiGraphics g, int cx, int cy, int r, int n, double fill, int on, int off, double spin) {\n        for (int i = 0; i < n; i++) {\n            if (spin != 0 && (i / 4) % 2 == 1) continue;\n            double a = (double) i / n * Math.PI * 2 + spin;\n",
+      "after": "\n    /** A ring of 1-pixel dots, {@code fill} of it (from the top, clockwise) in {@code on}, the rest in {@code off} (0: not drawn). A non-zero\n     *  {@code spin} makes it dashed and turning. */\n    private static void ring(GuiGraphicsExtractor g, int cx, int cy, int r, int n, double fill, int on, int off, double spin) {\n        for (int i = 0; i < n; i++) {\n            if (spin != 0 && (i / 4) % 2 == 1) continue;\n            double a = (double) i / n * Math.PI * 2 + spin;\n"
+    }
+  ]
+}
