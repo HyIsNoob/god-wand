@@ -30,7 +30,7 @@ final class FugaCrater {
         return 1+(int)(radius*.6*Math.sqrt(1-r*r)*(.86+.14*grain));
     }
     /** The blast ring past the rim: trees and plants are blown away and the ground is scorched, terrain stays. */
-    static int reach(int radius) {return Math.min(AtomicSequence.MAX_RADIUS,radius*3/2);}
+    static int reach(int radius) {return radius;}
     static boolean blast(int radius,int dx,int dz) {return depth(radius,dx,dz)==0 && dx*dx+dz*dz<=reach(radius)*reach(radius);}
     /** Blocks the blast ring gouges out of the ground: ragged, 1-4 deep near the rim and fading toward its edge. */
     static int scour(int radius,int dx,int dz) {
@@ -127,6 +127,8 @@ final class FugaCrater {
                 for(int dx=-2;dx<=2;dx++)for(int dz=-2;dz<=2;dz++) {
                     if(dx*dx+dz*dz>w*w)continue;
                     pos.set(cx+dx,y,cz+dz);used++;
+                    int offsetX=pos.getX()-center.getX(),offsetZ=pos.getZ()-center.getZ();
+                    if(offsetX*offsetX+offsetZ*offsetZ>radius*radius)continue;
                     var at=world.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4);
                     if(at==null)continue;
                     var state=at.getBlockState(pos);

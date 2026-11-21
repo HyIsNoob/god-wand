@@ -13,6 +13,7 @@
     "AtomicCameraMixin",
     "AtomicPoseMixin",
     "GatePoseMixin",
+    "CastPoseLastMixin",
     "AtomicFacingMixin",
     "AtomicGuiMixin",
     "AtomicToastMixin",

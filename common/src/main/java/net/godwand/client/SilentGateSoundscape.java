@@ -23,16 +23,17 @@ import java.util.Map;
  *  The sounds are mixed from the owner's CC0 library by tools/audio/silent_gate.py; every level is a constant below, to be tuned by ear. */
 final class SilentGateSoundscape {
     private SilentGateSoundscape() {}
-    /** Loop levels: the wait (held chord, far choir, glass shimmer), the barrage (storm of air, high choir, ground rumble). */
-    static final float WAIT = .8f, RAIN = .75f;
-    /** Timed track levels: the build (480 ticks from click 1) and the ending (from the end of the barrage). */
-    static final float BUILD = 1f, END = 1f;
+    /** Loop level under the barrage (storm of air, high choir, ground rumble). */
+    static final float RAIN = .75f;
+    /** Timed track levels: the build, the owner's track from click 1 through the wait to the command, which the server gives by itself after
+     *  gateWaitTicks (139 = 6.95 s; owner, 2026-11-16: no loop, so the wait is as long as the track); and the ending, softer (it was loud and boomy). */
+    static final float BUILD = 1f, END = .55f;
     /** One-shot levels: the command, a strike close by, a strike far off, the kill beam. */
     static final float COMMAND = .9f, STRIKE = .6f, STRIKE_FAR = .35f, KILL = 1f;
     /** A strike this far from the listener is at its faintest; the whole cast fades out for a viewer this far from its caster. */
     static final double STRIKE_REACH = 240, CAST_REACH = 220;
 
-    private static final class Cast { Loop wait, rain, build, end; boolean built, ended; double lastCommand = -1; }
+    private static final class Cast { Loop rain, build, end; boolean built, ended; double lastCommand = -1; }
     private static final Map<Integer, Cast> CASTS = new HashMap<>();
     private static final RandomSource RANDOM = RandomSource.create();
 
@@ -56,15 +57,15 @@ final class SilentGateSoundscape {
             Vec3 body = client.player != null ? client.player.position() : ear;
             float gain = (float) Mth.clamp(1.25 - f.anchor().distanceTo(body) / CAST_REACH, 0, 1);
             double command = f.commandAge(), rain = command - SilentGateSequence.ACTIVATE_TICKS;
-            boolean waiting = command < 0 && f.age() >= SilentGateSequence.BUILD_TICKS, raining = command >= 0 && rain < f.barrageTicks();
+            boolean raining = command >= 0 && rain < f.barrageTicks();
             // The timed tracks start on their beat, or as near it as this client could (a slow first frame can hold the first ticks back: the owner heard no build
             // track at all with a stricter limit); a viewer who arrives well after the start hears the loops only.
             if (!c.built && command < 0 && f.age() < 40) { c.built = true; c.build = track(client, "gate_build", BUILD * gain); }
             double end = SilentGateSequence.ACTIVATE_TICKS + f.barrageTicks();
             if (!c.ended && command >= end && command < end + 40) { c.ended = true; c.end = track(client, "gate_end", END * gain); }
-            if (c.build != null) c.build.target = BUILD * gain;
+            // A command before the track's end cuts it (owner, 2026-11-16): the command's own sound takes over.
+            if (c.build != null) { if (command >= 0) c.build.cut(); else c.build.target = BUILD * gain; }
             if (c.end != null) c.end.target = END * gain;
-            c.wait = keep(client, c.wait, waiting, "gate_wait", WAIT * gain);
             c.rain = keep(client, c.rain, raining, "gate_rain", RAIN * gain);
             if (c.lastCommand < 0 && command >= 0 && command < 4 && gain > 0) at(client, "gate_command", f.anchor(), COMMAND * gain, 1);
             c.lastCommand = command;
@@ -114,7 +115,7 @@ final class SilentGateSoundscape {
 
     private static ResourceLocation id(String path) { return ResourceLocation.fromNamespaceAndPath("godwand", path); }
 
-    private static void stop(Cast c) { for (Loop l : new Loop[]{c.wait, c.rain, c.build, c.end}) if (l != null) l.target = 0; }
+    private static void stop(Cast c) { for (Loop l : new Loop[]{c.rain, c.build, c.end}) if (l != null) l.target = 0; }
 
     /** Every loop is told to fade; called when the world goes away, and every tick while there is none (so it must stay cheap when nothing plays). */
     static void reset() {
@@ -125,7 +126,9 @@ final class SilentGateSoundscape {
 
     /** A loop that swells to its target level over a second and dies away over a second once the target is 0. */
     private static final class Loop extends AbstractTickableSoundInstance {
-        float target;
+        float target, fade = .03f;
+        /** Gone in four ticks instead of a second, without a click. */
+        void cut() { target = 0; fade = .25f; }
         Loop(ResourceLocation sound, boolean loop, float start) {
             super(SoundEvent.createVariableRangeEvent(sound), SoundSource.PLAYERS, RandomSource.create());
             looping = loop; delay = 0; relative = true;
@@ -133,7 +136,7 @@ final class SilentGateSoundscape {
             volume = Math.max(.001f, start);
         }
         public void tick() {
-            if (target <= 0) { volume -= .03f; if (volume <= 0) { volume = 0; stop(); } }
+            if (target <= 0) { volume -= fade; if (volume <= 0) { volume = 0; stop(); } }
             else volume += Mth.clamp(target - volume, -.03f, .03f);
         }
     }

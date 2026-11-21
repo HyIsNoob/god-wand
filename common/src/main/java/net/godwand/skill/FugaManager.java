@@ -188,7 +188,7 @@ public final class FugaManager {
         return world.isInWorldBounds(pos) && world.getChunkSource().getChunkNow(pos.getX()>>4,pos.getZ()>>4)!=null;
     }
     private static void damage(Task task,long age) {
-        double radius=FugaSequence.columnRadius(age);
+        double radius=Math.min(FugaSequence.columnRadius(age),GodWandConfig.SERVER.fugaTerrainRadius);
         if(radius<=0)return;
         var p=task.position;
         var area=new AABB(p.x-radius,task.world.getMinBuildHeight(),p.z-radius,p.x+radius,p.y+FugaSequence.COLUMN_HEIGHT,p.z+radius);
@@ -199,8 +199,11 @@ public final class FugaManager {
     /** The damage only lands with the blast: from the hit until then, whatever stands under the sphere is slowed so it
      *  is still there when it detonates. Refreshed every half second, so anything walking in is caught too. */
     private static void slow(Task task) {
-        double r=FugaSequence.RADIUS*1.2;var p=task.position;
+        if(!GodWandConfig.SERVER.fugaSlowness)return;
+        double r=Math.min(FugaSequence.RADIUS*1.2,GodWandConfig.SERVER.fugaTerrainRadius);var p=task.position;
+        if(r<=0)return;
         for(var entity:task.world.getEntitiesOfClass(LivingEntity.class,new AABB(p.x-r,p.y-16,p.z-r,p.x+r,p.y+48,p.z+r),e->e!=task.caster && e.isAlive()
+                && Math.hypot(e.getX()-p.x,e.getZ()-p.z)<=r
                 && !(e instanceof Player player && (player.isCreative() || player.isSpectator()))))
             entity.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN,30,3,false,false));
     }
@@ -243,41 +246,28 @@ public final class FugaManager {
         for(long key:forced)world.setChunkForced((int)(key>>32),(int)key,false);
         forced.clear();
     }
-    /** The pillar's hot outflow rolling out over the ground (the shader aura): it keeps burning and shoving whatever
-     *  it reaches, and sets fire to flammable things in its path, until the column fades. */
+    /** Gameplay follows the configured radius; the client's expanding heat aura is visual only. */
     private static void outflow(Task task,long age) {
         double visual=FugaSequence.visualAge(age);
         if(visual<40 || visual>=150)return;
         var p=task.position;
-        double inner=FugaSequence.RADIUS*.6,reach=Math.min(230,FugaSequence.RADIUS*.75+10+(visual-40)*7);
+        double inner=Math.min(FugaSequence.RADIUS,GodWandConfig.SERVER.fugaTerrainRadius)*.6;
+        double reach=Math.min(GodWandConfig.SERVER.fugaTerrainRadius,Math.min(230,FugaSequence.RADIUS*.75+10+(visual-40)*7));
+        if(reach<=0)return;
         if(age%10==0) {
             var area=new AABB(p.x-reach,p.y-6,p.z-reach,p.x+reach,p.y+40,p.z+reach);
-            float amount=GodWandConfig.SERVER.fugaDamage*GodWandConfig.SERVER.damageMultiplier*.08f;
+            float amount=GodWandConfig.SERVER.fugaDamage*GodWandConfig.SERVER.damageMultiplier*GodWandConfig.SERVER.fugaShockwaveDamageMultiplier;
             for(var entity:task.world.getEntitiesOfClass(LivingEntity.class,area,e->e!=task.caster && e.isAlive()
                     && !(e instanceof Player player && (player.isCreative() || player.isSpectator())))) {
                 double dx=entity.getX()-p.x,dz=entity.getZ()-p.z,d=Math.hypot(dx,dz);
                 if(d<inner || d>reach || !SpellDamage.affects(entity,task.caster))continue;
-                SpellDamage.hurt(entity,task.world.damageSources().indirectMagic(task.caster,task.caster),amount);
-                entity.setRemainingFireTicks(Math.max(entity.getRemainingFireTicks(),100));
-                entity.setDeltaMovement(entity.getDeltaMovement().add(dx/Math.max(1,d)*.6,.15,dz/Math.max(1,d)*.6));
-                entity.hurtMarked=true;
+                if(amount>0)SpellDamage.hurt(entity,task.world.damageSources().indirectMagic(task.caster,task.caster),amount);
+                if(GodWandConfig.SERVER.fugaIgniteEntities)entity.setRemainingFireTicks(Math.max(entity.getRemainingFireTicks(),100));
+                if(GodWandConfig.SERVER.fugaShockwaveKnockback) {
+                    entity.setDeltaMovement(entity.getDeltaMovement().add(dx/Math.max(1,d)*.6,.15,dz/Math.max(1,d)*.6));
+                    entity.hurtMarked=true;
+                }
             }
-        }
-        if(!GodWandConfig.SERVER.terrain(GodWandConfig.SERVER.fugaTerrainDamage))return;
-        // Only flammable things it touches catch: plants, wood, leaves. Loaded chunks only, protected blocks kept.
-        var random=task.world.getRandom();
-        for(int i=0;i<6;i++) {
-            double a=random.nextDouble()*Math.PI*2,r=reach-random.nextDouble()*14;
-            int x=net.minecraft.util.Mth.floor(p.x+Math.cos(a)*r),z=net.minecraft.util.Mth.floor(p.z+Math.sin(a)*r);
-            var chunk=task.world.getChunkSource().getChunkNow(x>>4,z>>4);
-            if(chunk==null)continue;
-            int y=chunk.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE,x&15,z&15);
-            var top=new BlockPos(x,y,z);var state=chunk.getBlockState(top);
-            if(!state.ignitedByLava())continue;
-            var at=state.canBeReplaced()?top:top.above();
-            var there=chunk.getBlockState(at);
-            if(!there.canBeReplaced() || !net.godwand.spatial.SpatialDisplacementManager.canDisplace(task.world,at,there))continue;
-            task.world.setBlock(at,net.minecraft.world.level.block.BaseFireBlock.getState(task.world,at),3);
         }
     }
 }

@@ -64,45 +64,66 @@ public final class GodWandConfig {
     }
 
     public static final class Server {
+        // Grouped by skill: the file is written in this order, a blank line between skills (see format).
         public int cooldownDefaultsVersion = 3;
         public float cooldownMultiplier = 1;
         public float damageMultiplier = 1;
-        public int spatialPathCooldownTicks = 20;
-        public int[] singularityCooldownTicks = {60,120,200};
-        public int[] earthDrillCooldownTicks = {80,140,220,320};
-        public int[] stoneCannonCooldownTicks = {40,80,140,220};
-        public int supernovaCooldownTicks = 900;
-        public int atomicCooldownTicks = 1200;
-        public int fugaCooldownTicks = 1200;
-        public int gateCooldownTicks = 1200;
-        public float[] singularityDamageMultipliers = {1,1,1};
-        public float[] earthDrillDamageMultipliers = {1,1,1,1};
-        public float[] stoneCannonDamageMultipliers = {1,1,1,1};
-        public float supernovaDamageMultiplier = 1;
-        public float supernovaInstantKillHealthThreshold = 50;
+        /** Master switch over every skill's own terrain damage (owner, 2026-11-20: one switch for servers). */
+        public boolean terrainDamage = true;
+        public boolean terrain(boolean skill) { return terrainDamage && skill; }
+        /** Spells hurting other players. */
+        public boolean pvp = true;
+        /** Who spells hurt and push: "all"; "no_pets" (spares tamed, named and leashed mobs); "hostile" (monsters only). Other
+         *  players follow pvp. */
+        public String spellTargets = "no_pets";
 
-        public boolean supernovaTerrainDamage = true;
-        public boolean supernovaBlockLift = true;
+        public int spatialPathCooldownTicks = 20;
+
+        public int[] singularityCooldownTicks = {60,120,200};
+        public float[] singularityDamageMultipliers = {1,1,1};
+
+        public int[] earthDrillCooldownTicks = {80,140,220,320};
+        public float[] earthDrillDamageMultipliers = {1,1,1,1};
         public boolean earthDrillTerrainDamage = true;
         public boolean earthDrillBlockLift = true;
+
+        public int[] stoneCannonCooldownTicks = {40,80,140,220};
+        public float[] stoneCannonDamageMultipliers = {1,1,1,1};
         public boolean stoneCannonTerrainDamage = true;
+
+        public int supernovaCooldownTicks = 900;
+        public float supernovaDamageMultiplier = 1;
+        public float supernovaInstantKillHealthThreshold = 50;
+        public boolean supernovaTerrainDamage = true;
+        public boolean supernovaBlockLift = true;
         public int supernovaTerrainRadius = 120;
         public int supernovaMaxDisplays = 1800;
-        public int atomicTerrainRadius = 98;
+
+        public int atomicCooldownTicks = 1200;
         public float atomicDamage = 9999;
         public float atomicShockwaveDamage = 15;
         public boolean atomicTerrainDamage = true;
+        public int atomicTerrainRadius = 98;
+
+        public int fugaCooldownTicks = 1200;
+        public float fugaDamage = 9999;
+        public float fugaShockwaveDamageMultiplier = .08f;
+        public boolean fugaIgniteEntities = true;
+        public boolean fugaShockwaveKnockback = true;
+        public boolean fugaSlowness = true;
         public boolean fugaTerrainDamage = true;
         public int fugaTerrainRadius = (int)net.godwand.skill.FugaSequence.RADIUS;
-        public float fugaDamage = 9999;
+
+        public int gateCooldownTicks = 1200;
         public float gateBeamDamage = 80;
-        public int gateTargetRadius = 160;
         public String gateTargetMode = "hostile";
+        public int gateTargetRadius = 160;
         public int gateBarrageTicks = 400;
-        public int gateWaitTicks = 300;
+        public int gateWaitTicks = 139;
         public int gateSkyCircles = 220;
         public boolean gateTerrainDamage = true;
         public int gateCraterRadius = 3;
+
         public int blueCooldownTicks = 60;
         public int redCooldownTicks = 80;
         public int purpleCooldownTicks = 1200;
@@ -124,15 +145,6 @@ public final class GodWandConfig {
         public boolean blueTerrainDamage = true;
         public boolean redTerrainDamage = true;
         public boolean purpleTerrainDamage = true;
-        public List<String> dimensionBlacklist = new ArrayList<>();
-        /** Master switch over every skill's own terrain damage (owner, 2026-11-20: one switch for servers). */
-        public boolean terrainDamage = true;
-        public boolean terrain(boolean skill) { return terrainDamage && skill; }
-        /** Spells hurting other players. */
-        public boolean pvp = true;
-        /** Who spells hurt and push: "all"; "no_pets" (spares tamed, named and leashed mobs); "hostile" (monsters only). Other
-         *  players follow pvp. */
-        public String spellTargets = "no_pets";
         /** Red into an unready Blue (or an early Red) makes the small Purple; off, Red passes the Blue by. */
         public boolean smallPurple = true;
         public float smallPurpleStrength = 1;
@@ -140,6 +152,8 @@ public final class GodWandConfig {
         public float purpleAssist = 2;
         /** The cutscene Purple needs a fully charged Red (otherwise any Red into a ready Blue). */
         public boolean purpleNeedsFullRed = true;
+
+        public List<String> dimensionBlacklist = new ArrayList<>();
 
         public boolean isDimensionBlacklisted(String dimensionId) { return !isDimensionAllowed(dimensionId); }
         public boolean isDimensionAllowed(String dimensionId) { return dimensionBlacklist==null||!dimensionBlacklist.contains(dimensionId); }
@@ -159,6 +173,7 @@ public final class GodWandConfig {
             gateWaitTicks=Mth.clamp(gateWaitTicks,40,1200);
             gateSkyCircles=Mth.clamp(gateSkyCircles,8,256);
             gateCraterRadius=Mth.clamp(gateCraterRadius,0,6);
+            fugaShockwaveDamageMultiplier=finiteClamp(fugaShockwaveDamageMultiplier,0,1000,.08f);
             blueCooldownTicks=Mth.clamp(blueCooldownTicks,0,72000);
             redCooldownTicks=Mth.clamp(redCooldownTicks,0,72000);
             purpleCooldownTicks=Mth.clamp(purpleCooldownTicks,0,72000);
@@ -244,17 +259,14 @@ public final class GodWandConfig {
                 boolean upgraded = type==Server.class && upgradeCooldownDefaults(object);
                 T value = JSON.fromJson(object, type);
                 if (value == null) throw new IllegalArgumentException("Expected a JSON object");
-
-                for (var entry : JSON.toJsonTree(defaults).getAsJsonObject().entrySet()) {
-                    if (!object.has(entry.getKey())) {
-                        object.add(entry.getKey(), entry.getValue()); upgraded = true;
-                    }
-                }
-                if (upgraded) {
+                // New options are added with their defaults and the file is laid out like a new one (grouped, short lists); every value the player
+                // set and every unknown key a modpack added is kept as it was.
+                String text = format(canonical(object, defaults), type == Server.class) + System.lineSeparator();
+                if (upgraded || !text.equals(Files.readString(file))) {
                     // Replace only after a complete write so an interrupted upgrade preserves the old config.
                     Path temporary = Files.createTempFile(file.toAbsolutePath().getParent(), file.getFileName().toString(), ".tmp");
                     try {
-                        Files.writeString(temporary, JSON.toJson(object) + System.lineSeparator());
+                        Files.writeString(temporary, text);
                         try {
                             Files.move(temporary, file, java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                         } catch (java.nio.file.AtomicMoveNotSupportedException exception) {
@@ -265,7 +277,7 @@ public final class GodWandConfig {
                 return value;
             }
             Files.createDirectories(file.getParent());
-            Files.writeString(file, JSON.toJson(defaults) + System.lineSeparator());
+            Files.writeString(file, format(JSON.toJsonTree(defaults).getAsJsonObject(), type == Server.class) + System.lineSeparator());
         } catch (IOException | RuntimeException exception) {
             if(type==Server.class)throw new IllegalStateException("Cannot load server config "+file+"; refusing to enable default terrain destruction. Fix the file before restarting.",exception);
             GodWandMod.LOGGER.warn("Cannot load {}; using defaults. Existing file is preserved.", file, exception);
@@ -276,10 +288,45 @@ public final class GodWandConfig {
     static <T> void write(Path file, T value) {
         try {
             Files.createDirectories(file.getParent());
-            Files.writeString(file, JSON.toJson(value) + System.lineSeparator());
+            Files.writeString(file, format(JSON.toJsonTree(value).getAsJsonObject(), value instanceof Server) + System.lineSeparator());
         } catch (IOException exception) {
             GodWandMod.LOGGER.error("Cannot save {}", file, exception);
         }
+    }
+
+    /** The keys of {@code defaults} in their order, with the file's value where it has one, then any key only the file has. */
+    static com.google.gson.JsonObject canonical(com.google.gson.JsonObject file, Object defaults) {
+        var out = new com.google.gson.JsonObject();
+        for (var entry : JSON.toJsonTree(defaults).getAsJsonObject().entrySet())
+            out.add(entry.getKey(), file.has(entry.getKey()) ? file.get(entry.getKey()) : entry.getValue());
+        for (var entry : file.entrySet()) if (!out.has(entry.getKey())) out.add(entry.getKey(), entry.getValue());
+        return out;
+    }
+
+    /** Skill prefixes of the server file, in order; a blank line separates one skill's keys from the next. */
+    private static final String[] GROUPS = {"spatialPath", "singularity", "earthDrill", "stoneCannon", "supernova", "atomic", "fuga", "gate", "blue", "red", "purple", "smallPurple", "dimension"};
+    private static final java.util.regex.Pattern LIST = java.util.regex.Pattern.compile("\\[([^\\[\\]{}]*)\\]");
+    private static final java.util.regex.Pattern KEY = java.util.regex.Pattern.compile("^  \"(\\w+)\":");
+
+    /** Pretty JSON with every list of plain values on one line (the per-level cooldowns ran one number per line), and for the server file a blank
+     *  line between skills (owner, 2026-11-16: shorter, and each skill's settings together). */
+    static String format(com.google.gson.JsonObject object, boolean grouped) {
+        String text = LIST.matcher(JSON.toJson(object)).replaceAll(m -> java.util.regex.Matcher.quoteReplacement("[" + m.group(1).trim().replaceAll("\\s*\\n\\s*", " ") + "]"));
+        if (!grouped) return text;
+        var out = new StringBuilder();
+        String last = null;
+        for (String line : text.split("\n", -1)) {
+            var key = KEY.matcher(line);
+            if (key.find()) {
+                String group = "general";
+                // Blue, Red and Purple are one skill.
+                for (String g : GROUPS) if (key.group(1).startsWith(g)) { group = g.equals("blue") || g.equals("red") || g.equals("smallPurple") ? "purple" : g; break; }
+                if (last != null && !group.equals(last)) out.append('\n');
+                last = group;
+            }
+            out.append(line).append('\n');
+        }
+        return out.substring(0, out.length() - 1);
     }
 
     private static int[] validatedCooldowns(int[] values,int[] defaults) {

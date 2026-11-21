@@ -10,8 +10,6 @@
   <link rel="canonical" href="https://god-wand-wiki.vercel.app/">
   
   <!-- LLM & AI Agents Standard Specification -->
-  <link rel="alternate" type="text/plain" href="llms.txt" title="LLM Context (Summary)">
-  <link rel="alternate" type="text/plain" href="llms-full.txt" title="Full LLM Context (Complete Knowledge Base)">
   
   <!-- Open Graph -->
   <meta property="og:title" content="God Wand Wiki — Technical Documentation v1.5.0">
@@ -75,14 +73,6 @@
     </div>
 
     <div class="header-actions">
-      <!-- 1-Click Copy AI Context Button -->
-      <button class="ai-btn ai-copy-context-trigger" aria-label="Copy AI Context" title="Copy complete documentation context for AI (ChatGPT, Claude, Gemini...)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-        <span class="lang-en">Copy for AI</span>
-        <span class="lang-vi">Hỏi AI</span>
-        <span class="lang-zh">复制给 AI</span>
-      </button>
-
       <button id="theme-toggle" class="theme-btn" aria-label="Toggle light or dark theme" title="Toggle theme">
         <svg class="theme-icon-sun" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
         <svg class="theme-icon-moon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
@@ -190,20 +180,6 @@
         </ul>
       </div>
 
-      <div class="sidebar-group">
-        <div class="sidebar-title">
-          <span class="lang-en">5. AI & LLM Integration</span>
-          <span class="lang-vi">5. Tích Hợp AI & LLM</span>
-          <span class="lang-zh">5. AI 与大模型集成</span>
-        </div>
-        <ul class="sidebar-nav">
-          <li><a href="#ai-tools">
-            <span class="lang-en">Copy AI Context / llms.txt</span>
-            <span class="lang-vi">Ngữ cảnh AI & llms.txt</span>
-            <span class="lang-zh">AI 上下文与 llms.txt</span>
-          </a></li>
-        </ul>
-      </div>
     </aside>
     <div class="sidebar-backdrop"></div>
 
@@ -229,22 +205,6 @@
         <p class="hero-desc lang-zh">
           神之杖 (God Wand) v1.5.0 官方技术文档：8 种终极神术（含全新第八技能 <strong>Silent Gate 静默之门</strong> 天界光束轰炸与 Fuga 火焰神鸟）、动作模组原生兼容、Boss 伤害穿透机制以及服务端（43 项）与客户端（12 项）配置项全景参考。
         </p>
-
-        <!-- AI Integration Action Strip -->
-        <div class="hero-ai-strip">
-          <button class="hero-ai-btn ai-copy-context-trigger" title="Copy structured Markdown context for ChatGPT, Claude, Gemini, DeepSeek...">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-            <span class="lang-en">✨ Copy Full Context for AI</span>
-            <span class="lang-vi">✨ Sao Chép Toàn Bộ Ngữ Cảnh Cho AI</span>
-            <span class="lang-zh">✨ 复制完整上下文供 AI 问答</span>
-          </button>
-          <a href="llms.txt" target="_blank" rel="noopener noreferrer" class="hero-ai-link" title="Standard summary format for AI crawlers">
-            📄 <code>llms.txt</code>
-          </a>
-          <a href="llms-full.txt" target="_blank" rel="noopener noreferrer" class="hero-ai-link" title="Full Markdown knowledge base for LLM web-browsing">
-            📚 <code>llms-full.txt</code>
-          </a>
-        </div>
       </div>
 
       <!-- Section 1: Overview & Controls -->
@@ -1737,41 +1697,6 @@
   "bloomStrength": 0.85,
   "bloomDownsample": 4
 }</code></pre>
-        </div>
-      </section>
-
-      <!-- Section 6: AI & LLM Integration -->
-      <section id="ai-tools" class="doc-section">
-        <div class="section-header">
-          <h2 class="section-title">
-            <span class="lang-en">AI &amp; LLM Integration</span>
-            <span class="lang-vi">Tích Hợp AI &amp; Trợ Lý Ảo</span>
-            <span class="lang-zh">AI 与大语言模型集成工具</span>
-          </h2>
-          <p class="section-lead lang-en">Standard specifications and 1-click tools for feeding God Wand knowledge directly into AI assistants (ChatGPT, Claude, Gemini, DeepSeek, Cursor, Copilot).</p>
-          <p class="section-lead lang-vi">Tiêu chuẩn và công cụ 1-click để cung cấp toàn bộ tri thức God Wand vào các trợ lý AI (ChatGPT, Claude, Gemini, DeepSeek, Cursor, Copilot).</p>
-          <p class="section-lead lang-zh">面向大模型（ChatGPT、Claude、Gemini、DeepSeek 等）的标准化知识库规范与一键投喂工具。</p>
-        </div>
-
-        <div class="cards-grid">
-          <div class="card">
-            <div class="card-title">✨ 1-Click Copy AI Context</div>
-            <p class="lang-en">Click the "Copy for AI" button in the header or hero banner. The full markdown knowledge base is copied instantly to your clipboard. Paste it directly into your AI chat prompt.</p>
-            <p class="lang-vi">Bấm nút "Hỏi AI" ở thanh điều hướng hoặc banner đầu trang. Toàn bộ tri thức kỹ thuật dạng Markdown sẽ được sao chép ngay vào bộ nhớ tạm để dán vào khung chat AI.</p>
-            <p class="lang-zh">点击导航栏或横幅上的“复制给 AI”按钮，整篇精炼的 Markdown 格式技术档案将直接拷入剪贴板，随后可直接粘贴至 AI 对话框中进行提问。</p>
-          </div>
-          <div class="card">
-            <div class="card-title">📄 Web AI Standard: llms.txt</div>
-            <p class="lang-en">Standard endpoint for AI web-browsing agents (Perplexity, Cursor, Copilot, ChatGPT Browse) located at <a href="llms.txt" target="_blank"><code>/llms.txt</code></a>, giving crawlers an ultra-fast structural sitemap.</p>
-            <p class="lang-vi">Đường dẫn chuẩn dành cho các trình duyệt AI tự động đọc web tại <a href="llms.txt" target="_blank"><code>/llms.txt</code></a>, giúp AI lập tức hiểu cấu trúc mod và tài liệu liên quan mà không bị nhiễu HTML.</p>
-            <p class="lang-zh">遵循现代大模型网页抓取标准的 <a href="llms.txt" target="_blank"><code>/llms.txt</code></a> 接口，使 AI 搜索代理能够极速读取模块化摘要与索引。</p>
-          </div>
-          <div class="card">
-            <div class="card-title">📚 Full Corpus: llms-full.txt</div>
-            <p class="lang-en">Uncompressed full documentation corpus located at <a href="llms-full.txt" target="_blank"><code>/llms-full.txt</code></a>. AI models can fetch this URL directly to diagnose modpack crashes or author customized JSON configs.</p>
-            <p class="lang-vi">Kho tri thức đầy đủ không nén tại <a href="llms-full.txt" target="_blank"><code>/llms-full.txt</code></a>. Các mô hình AI có thể đọc trực tiếp URL này để tạo preset JSON riêng hoặc hỗ trợ sửa lỗi modpack.</p>
-            <p class="lang-zh">未压缩的完整文档全量文本接口 <a href="llms-full.txt" target="_blank"><code>/llms-full.txt</code></a>，支持大模型直接通过 URL 抓取整份技术规则并为你编写个性化配置。</p>
-          </div>
         </div>
       </section>
 

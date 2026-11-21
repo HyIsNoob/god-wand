@@ -104,6 +104,44 @@ class GodWandConfigTest {
         assertEquals(upgraded,Files.readString(file));
     }
 
+    @Test void oldFilesAreLaidOutShortAndGroupedKeepingEveryValue() throws Exception {
+        Path file = directory.resolve("godwand-server.json");
+        Files.writeString(file, "{\n  \"gateBeamDamage\": 12,\n  \"earthDrillCooldownTicks\": [\n    1,\n    2,\n    3,\n    4\n  ],\n  \"packOption\": \"keep\"\n}\n");
+        var server = GodWandConfig.read(file, GodWandConfig.Server.class, new GodWandConfig.Server());
+        assertEquals(12, server.gateBeamDamage);
+        assertArrayEquals(new int[]{1, 2, 3, 4}, server.earthDrillCooldownTicks);
+        String text = Files.readString(file);
+        assertTrue(text.contains("\"earthDrillCooldownTicks\": [1, 2, 3, 4],"), "a list on one line");
+        assertTrue(text.contains("\"gateBeamDamage\": 12"), "the player's value kept");
+        assertTrue(text.contains("\"packOption\": \"keep\""), "a modpack's key kept");
+        assertTrue(text.indexOf("earthDrillCooldownTicks") < text.indexOf("earthDrillTerrainDamage") && text.indexOf("earthDrillBlockLift") < text.indexOf("stoneCannonCooldownTicks"), "one skill's settings together");
+        assertTrue(text.contains("\n\n  \"gateCooldownTicks\""), "a blank line before each skill");
+        long lines = text.lines().count();
+        // 1.6.0 adds Purple and the safety switches (about 30 lines).
+        assertTrue(lines < 110, "short: " + lines + " lines");
+        // A second load finds nothing to change.
+        GodWandConfig.read(file, GodWandConfig.Server.class, new GodWandConfig.Server());
+        assertEquals(text, Files.readString(file));
+    }
+
+    @Test void terrainPresetsDisableFugaBlockDamageWhenLoaded() throws Exception {
+        var previous = GodWandConfig.SERVER;
+        try {
+            Path file = directory.resolve("godwand-server.json");
+            for (String preset : new String[]{"preserve-terrain.json", "reversible-block-effects.json"}) {
+                Path source = Path.of("..", "docs", "config-presets", preset);
+                Files.writeString(file, Files.readString(source));
+                GodWandConfig.loadServer(directory);
+                assertFalse(GodWandConfig.SERVER.fugaTerrainDamage, preset);
+                // Every skill's block damage, so a new skill cannot be left out of the presets again (Fuga 1.4.3, Silent Gate 1.5.0).
+                for (var field : GodWandConfig.Server.class.getFields())
+                    if (field.getName().endsWith("TerrainDamage")) assertFalse(field.getBoolean(GodWandConfig.SERVER), preset + " " + field.getName());
+            }
+        } finally {
+            GodWandConfig.SERVER = previous;
+        }
+    }
+
     @Test void atomicDamageDefaultsMigrateFromPartialConfigsAndRejectInvalidValues() throws Exception {
         Path file=directory.resolve("server.json"); Files.writeString(file,"{\"atomicTerrainRadius\":32}");
         var server=GodWandConfig.read(file,GodWandConfig.Server.class,new GodWandConfig.Server());

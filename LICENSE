@@ -34,6 +34,20 @@ assets; they do not remove the permissions granted for MIT-licensed Java code.
 These updated terms do not revoke rights granted for copies previously published
 under an earlier license. Preserve all applicable third-party license notices.
 
+5. GOD WAND BRANDING
+   The MIT License applies to Java source code only and does not grant
+   permission to use the God Wand name, logos, or official branding.
+
+   Developers may use MIT-licensed code to create their own projects,
+   provided they comply with the MIT License and use their own assets
+   and branding.
+
+   Unauthorized releases must not claim to be official God Wand releases
+   or endorsed by HyIsNoob.
+
+   Accurate references to God Wand for compatibility or attribution
+   are permitted.
+
 ==============================================================================
 
 MIT License (Applies to Java source and its Java compatibility adapters)

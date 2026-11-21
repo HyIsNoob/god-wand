@@ -22,6 +22,7 @@ loom {
 }
 
 test {
+    inputs.files(rootProject.fileTree('docs/config-presets') { include '*.json' })
     dependsOn rootProject.tasks.named('verifySharedSources')
     useJUnitPlatform()
     systemProperty 'net.bytebuddy.experimental', 'true'

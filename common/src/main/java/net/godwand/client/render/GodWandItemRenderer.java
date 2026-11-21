@@ -282,4 +282,10 @@ public class GodWandItemRenderer {
                     () -> buffers.getBuffer(RenderType.entityTranslucentEmissive(TEXTURE)), light, noOverlay, 0xFF5CD8FF);
         }
     }
+
+    /** Draws only the floating wand's own batches: flushing the whole buffer source mid-level would draw other renderers' pending batches early. */
+    public static void endFloating(MultiBufferSource.BufferSource buffers) {
+        buffers.endBatch(RenderType.entityCutoutNoCull(TEXTURE));
+        buffers.endBatch(RenderType.entityTranslucentEmissive(TEXTURE));
+    }
 }

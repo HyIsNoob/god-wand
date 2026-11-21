@@ -23,6 +23,12 @@
 - New in the settings menu (K): a volume slider for the mod's sounds, the Blue/Red rings around the crosshair, casting Purple and Fuga bare-handed, and an optional third-person view while casting Blue and Red.
 - New server settings: one switch to turn off terrain damage for every skill, PvP on or off, and which creatures spells hit.
 
+## [1.5.1]
+
+### Fixed
+
+- Silent Gate's floating wand no longer forces the rest of the world to draw early while it is on screen. This could make nearby creatures show up with the wrong look on some setups.
+
 ## [1.5.0]
 
 ### New skill: Silent Gate

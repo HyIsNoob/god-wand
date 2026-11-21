@@ -232,10 +232,10 @@ def write(out_dir, name, x):
 if __name__ == '__main__':
     out = sys.argv[1]
     os.makedirs(out, exist_ok=True)
-    for name, loop in (('gate_wait', wait_loop()), ('gate_rain', rain_loop())):
+    # gate_build is the owner's own track (click 1 to the command, 31.68 s) and there is no wait loop any more: neither is written here.
+    for name, loop in (('gate_rain', rain_loop()),):
         assert np.max(np.abs(loop[-1] - loop[0])) < .1, name   # the seam: the last sample runs on into the first
         write(out, name, loop)
-    write(out, 'gate_build', build())
     write(out, 'gate_end', ending())
     write(out, 'gate_command', command())
     write(out, 'gate_kill', kill())

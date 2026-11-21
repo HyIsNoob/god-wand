@@ -324,9 +324,9 @@ class SilentGateCinematicTest {
             assertEquals(0, p.position().distanceTo(pos(142)), 20, "E3 is the far camera of the gate");
             assertTrue(inFrame(p, SilentGateSequence.gateFoot(PLAYER, 0f, SilentGateSequence.gateRise(e)).add(0, 40 * SilentGateSequence.SCALE, 0), SilentGateCinematic.lens(700, endB + e, 200)), "the climbing gate is in frame at " + e);
         }
-        for (double e = 221; e < 265; e += 6) assertTrue(inFrame(barrage(endB + e, 200), circleCentre, SilentGateCinematic.lens(700, endB + e, 200)), "E3 ends on the great circle at " + e);
+        for (double e = 194; e < 238; e += 6) assertTrue(inFrame(barrage(endB + e, 200), circleCentre, SilentGateCinematic.lens(700, endB + e, 200)), "E3 ends on the great circle at " + e);
         int end = SilentGateSequence.endTick(200);
-        assertEquals(477, end);
+        assertEquals(450, end);
         assertNotNull(barrage(end + 15 - .01, 200));
         assertNull(barrage(end + 15, 200));
         int end4 = SilentGateSequence.endTick(400);
@@ -375,6 +375,30 @@ class SilentGateCinematicTest {
             var b = SilentGateCinematic.cameraFor(frame(2, 481 + c, c + 1, 200), PLAYER, 0f, 0f, true, List.of(), hills, null);
             assertTrue(a.position().distanceTo(b.position()) < 2.5, "smooth at " + c);
         }
+    }
+
+    @Test void killLockFollowsANewTargetAndKnowsWhenItsOneIsGone() {
+        var zombie = new SilentGateCinematic.Candidate(1, 20, new Vec3(0, 70, 30));
+        var husk = new SilentGateCinematic.Candidate(4, 20, new Vec3(8, 70, 36));
+        var lock = new SilentGateCinematic.KillLock();
+        assertEquals(zombie.position(), lock.update(100, 60, 60, List.of(zombie, husk), PLAYER, 1));
+        assertTrue(lock.present());
+        lock.update(100, 61, 60, List.of(husk), PLAYER, 1);
+        assertFalse(lock.present(), "the zombie died to something else");
+        assertEquals(husk.position(), lock.update(100, 62, 60, List.of(husk), PLAYER, 4), "the server picked the husk: follow it");
+        assertTrue(lock.present());
+    }
+
+    @Test void killBeamFollowsAFlyingTargetUntilItLands() {
+        int barrage = SilentGateSequence.Phase.BARRAGE.ordinal(), heavy = SilentGatePayload.HEAVY + 3;
+        SilentGateRenderer.accept(new SilentGatePayload(9, 5000, 5000, barrage, 4, 70, 8, 0f, 7L, 48, 200, new int[]{heavy}, new double[]{10, 90, 40}, 77), 5100);
+        SilentGateRenderer.followKillTargets(5104, id -> null);
+        assertEquals(new Vec3(10, 90, 40), SilentGateRenderer.shots(9).get(0).hit(), "target not seen by this client: the server's aim stands");
+        SilentGateRenderer.followKillTargets(5105, id -> id == 77 ? new Vec3(30, 95, 60) : null);
+        assertEquals(new Vec3(30, 95, 60), SilentGateRenderer.shots(9).get(0).hit(), "the phantom flew on: the beam follows it");
+        SilentGateRenderer.followKillTargets(5100 + SilentGateSequence.HEAVY_CHARGE + 3, id -> new Vec3(99, 99, 99));
+        assertEquals(new Vec3(30, 95, 60), SilentGateRenderer.shots(9).get(0).hit(), "landed: the strike stays where it struck");
+        SilentGateRenderer.accept(new SilentGatePayload(9, 5000, 5000, SilentGatePayload.CANCEL, 4, 70, 8, 0f, 7L, 48, 200, new int[0], new double[0]), 5130);
     }
 
     @Test void killShotKeepsTheSameTargetForItsWholeWindow() {

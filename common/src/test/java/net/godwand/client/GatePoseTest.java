@@ -101,7 +101,7 @@ class GatePoseTest {
 
     @Test void manaGainShape() {
         assertEquals(0, GatePose.manaGain(frame(0, -1)), 1e-9);
-        double strong = GatePose.manaGain(frame(40, -1)), calm = GatePose.manaGain(frame(440, -1)), gone = GatePose.manaGain(frame(640, 477));
+        double strong = GatePose.manaGain(frame(40, -1)), calm = GatePose.manaGain(frame(440, -1)), gone = GatePose.manaGain(frame(640, 450));
         assertTrue(strong > .95 && calm < strong && calm > .4 && gone < 1e-6, strong + " " + calm + " " + gone);
     }
     private static SilentGateRenderer.Frame frame(double age, double cmd) {

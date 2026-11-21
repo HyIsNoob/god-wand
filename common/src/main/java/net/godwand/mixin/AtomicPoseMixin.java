@@ -57,6 +57,7 @@ public abstract class AtomicPoseMixin {
         head.xRot=net.minecraft.util.Mth.lerp(glance,head.xRot,(float)look.x)*(1-facing);
         head.yRot=AtomicSequence.blendHeadYaw(head.yRot,(float)look.y,glance)*(1-facing);
         head.zRot=net.minecraft.util.Mth.lerp(glance,head.zRot,(float)look.z)*(1-facing);
+        net.godwand.client.CastPoseLock.capture(rightArm,leftArm,body,head);
         hat.copyFrom(head);
 
     }

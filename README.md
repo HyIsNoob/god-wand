@@ -1,21 +1,21 @@
-# God Wand 1.4.0
+# God Wand 1.5.0
 
-One wand with seven skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile, hold **I am Atomic** until you choose to release, or fire Fuga’s blazing arrow.
+One wand with eight skills: walk through mountains, pull enemies into a gravity orb, raise a drill, unleash Supernova, fire a stone projectile, hold **I am Atomic** until you choose to release, fire Fuga’s blazing arrow, or open the **Silent Gate** and rain light on an army.
 
 [Wiki and guides](https://god-wand-wiki.vercel.app/) · [CurseForge downloads](https://www.curseforge.com/minecraft/mc-mods/god-wand) · [Full mod description](DESCRIPTION.md) · [Changelog](CHANGELOG.md)
 
 | Minecraft | Loader | Java | Installable file |
 | --- | --- | --- | --- |
-| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.4.0.jar` |
-| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.4.0.jar` |
-| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.4.0.jar` |
-| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.4.0.jar` |
-| 1.21.11 | Fabric + Fabric API | 21 | `godwand-fabric-1.21.11-1.4.0.jar` |
-| 1.21.11 | NeoForge | 21 | `godwand-neoforge-1.21.11-1.4.0.jar` |
-| 26.1.2 | Fabric + Fabric API | 25 | `godwand-fabric-26.1.2-1.4.0.jar` |
-| 26.1.2 | NeoForge | 25 | `godwand-neoforge-26.1.2-1.4.0.jar` |
-| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.4.0.jar` |
-| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.4.0.jar` |
+| 1.21.1 | Fabric + Fabric API | 21 | `godwand-fabric-1.5.0.jar` |
+| 1.21.1 | NeoForge | 21 | `godwand-neoforge-1.5.0.jar` |
+| 1.20.1 | Fabric + Fabric API | 17 | `godwand-fabric-1.20.1-1.5.0.jar` |
+| 1.20.1 | Forge | 17 | `godwand-forge-1.20.1-1.5.0.jar` |
+| 1.21.11 | Fabric + Fabric API | 21 | `godwand-fabric-1.21.11-1.5.0.jar` |
+| 1.21.11 | NeoForge | 21 | `godwand-neoforge-1.21.11-1.5.0.jar` |
+| 26.1.2 | Fabric + Fabric API | 25 | `godwand-fabric-26.1.2-1.5.0.jar` |
+| 26.1.2 | NeoForge | 25 | `godwand-neoforge-26.1.2-1.5.0.jar` |
+| 26.3 | Fabric + Fabric API | 25 | `godwand-fabric-26.3-1.5.0.jar` |
+| 26.3 | NeoForge | 25 | `godwand-neoforge-26.3-1.5.0.jar` |
 
 Install one God Wand jar matching your exact Minecraft version and loader. The mod is required on the client and server. For multiplayer, update God Wand on both the server and every player’s client.
 
@@ -30,8 +30,9 @@ Hold **V** with the wand to select a skill. Press **K** for client graphics and 
 5. **Stone Cannon:** charge and release a piercing stone projectile.
 6. **I am Atomic:** hold through the buildup, ATOMIC pose and compression. The dark pause waits for you to release right-click, triggering the blast. Movement is locked and incoming damage is blocked during the cast. Esc/F5 skips its camera; skipping after detonation also restores movement.
 7. **Fuga:** hold to form a fire arrow, aim while standing still, then release to fire. Releasing before the arrow is ready cancels. Toggle its camera in **K**.
+8. **Silent Gate:** a giant magic circle opens the sky and a winged gate descends. Right-click to command it (or wait about seven seconds and it fires by itself): hundreds of circles rain beams on every monster around you and a golden beam finishes the strongest. Sneak while it forms to stop it. Toggle its camera in **K**.
 
-AUTO selects Aqua Heartia for skills 3/5, Shadow Blade for skill 6, and Eclipse for the others. K also supports a manual model choice.
+AUTO selects Aqua Heartia for skills 3/5, Shadow Blade for skill 6, Silent Witch Staff for skill 8, and Eclipse for the others. K also supports a manual model choice.
 
 ## Terrain and modpacks
 
@@ -39,13 +40,13 @@ AUTO selects Aqua Heartia for skills 3/5, Shadow Blade for skill 6, and Eclipse 
 
 Permanent terrain changes are configurable in `config/godwand-server.json`; defaults retain destructive spell behavior. Use the [terrain guide and presets](docs/TERRAIN_CONFIG.md) for damage-only spells or reversible block movement. An unreadable or malformed server config stops startup instead of enabling destructive defaults.
 
-Client graphics settings are in `config/godwand-client.json`. [Dedicated-server verification and limits](docs/DEDICATED_SERVER.md) describes what has actually been tested.
+The server config groups each skill's settings together and tidies older files automatically on load. Cutscene poses keep working with other animation mods such as Emotecraft, Better Combat and Not Enough Animations. Client graphics settings are in `config/godwand-client.json`. [Dedicated-server verification and limits](docs/DEDICATED_SERVER.md) describes what has actually been tested.
 
 ## Single-skill wands
 
-Admins can hold a God Wand in their main hand and use `/godwand lock atomic` to restrict that wand to one skill. Other names: `spatial_path`, `singularity`, `earth_drill`, `supernova`, `stone_cannon`. Use `/godwand unlock` to restore skill selection.
+Admins can hold a God Wand in their main hand and use `/godwand lock atomic` to restrict that wand to one skill. Other names: `spatial_path`, `singularity`, `earth_drill`, `supernova`, `stone_cannon`, `fuga`, `silent_gate`. Use `/godwand unlock` to restore skill selection.
 
-The restriction stays on the item when saved, copied or traded. It does not change other wands. Commands require operator permission level 2; finish or cancel casting before using them. Locked wands show their skill in the tooltip and do not open the skill wheel.
+The restriction stays on the item when saved, copied or traded. It does not change other wands. Commands require operator permission level 2 (`/godwand reset_cooldowns [players]`, which clears every skill cooldown, requires level 4); finish or cancel casting before using them. Locked wands show their skill in the tooltip and do not open the skill wheel.
 
 ## Build
 
@@ -70,7 +71,7 @@ See [development](docs/DEVELOPMENT.md) for individual builds and tests, and [sha
 
 ## Release status
 
-1.4.0 adds Fuga, the seventh skill, and includes every 1.3.x fix, including the unreleased 1.3.5 fixes, plus the new Minecraft 26.1.2 builds. Update both server and clients together.
+1.5.0 adds Silent Gate, the eighth skill, a shorter server config grouped by skill, and keeps cutscene poses under animation mods. It includes every 1.4.x fix. Update both server and clients together. See the [changelog](CHANGELOG.md).
 
 All ten version/loader targets pass automated build and test checks. Build and automated checks do not replace gameplay, multiplayer or shaderpack testing. See [boss compatibility and limits](docs/BOSS_COMPATIBILITY.md).
 
@@ -79,6 +80,7 @@ All ten version/loader targets pass automated build and test checks. Build and a
 * **Java source and Java compatibility adapters:** Licensed under the [MIT License](LICENSE).
 * **Assets & Audio (`**/src/main/resources/assets/` and top-level `assets/`):** Custom sound effects (SFX), audio arrangements, visual assets, and mod branding are **All Rights Reserved**. Extracting or reusing these assets in standalone projects without explicit permission is prohibited.
 * **Font:** The bundled *Bebas Neue* font retains its original [SIL Open Font License (OFL)](https://openfontlicense.org/).
+* **Branding:** The MIT License does not grant permission to use the God Wand name, logos or official branding. Forks must use their own assets and branding and must not present themselves as official releases. Accurate references for compatibility or attribution are fine. See [LICENSE](LICENSE).
 * **Distribution & Modpacks:**
   * **Modpacks:** Permitted, provided the modpack references the official CurseForge/Modrinth release and does not monetize this mod directly.
   * **Third-Party Re-uploads:** Standalone redistribution of compiled `.jar` files on third-party websites or mod platforms (CurseForge, Modrinth, 9Minecraft, etc.) without explicit permission is strictly prohibited.

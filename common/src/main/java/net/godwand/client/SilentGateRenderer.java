@@ -42,7 +42,7 @@ public final class SilentGateRenderer {
         Vec3 anchor;
         float yaw;
         long seed;
-        final ArrayDeque<Shot> shots = new ArrayDeque<>();
+        final java.util.LinkedList<Shot> shots = new java.util.LinkedList<>();
     }
     private static final Map<Integer, Cast> CASTS = new LinkedHashMap<>();
     // Newest cast and the cast last cancelled per caster, so late or reordered packets cannot resurrect anything.
@@ -85,6 +85,22 @@ public final class SilentGateRenderer {
     }
 
     private static void trim(Cast cast, long now) { cast.shots.removeIf(s -> now - s.tick() > SHOT_MEMORY_TICKS); }
+
+    /** The kill beam is aimed where its target stood when it began to gather; a flyer (a phantom, a dragon) is well away by the time it lands, so the beam,
+     *  its strike and the kill shot's impact frame went to empty air. Until the beam lands its end follows the featured target ({@code centre} by entity id,
+     *  null when this client does not see it); after that it stays where it struck. */
+    static void followKillTargets(long now, java.util.function.IntFunction<Vec3> centre) {
+        for (Cast cast : CASTS.values()) {
+            if (cast.featured < 0) continue;
+            Vec3 at = null;
+            for (var it = cast.shots.listIterator(); it.hasNext(); ) {
+                Shot s = it.next();
+                if (!s.heavy() || now >= s.tick() + SilentGateSequence.HEAVY_CHARGE + GateBeams.FALL_TICKS) continue;
+                if (at == null && (at = centre.apply(cast.featured)) == null) break;
+                it.set(new Shot(s.circle(), at, s.tick(), true));
+            }
+        }
+    }
 
     /** Past this the camera is released and the cast is forgotten. */
     private static boolean over(Cast cast, double now) {
@@ -141,8 +157,9 @@ public final class SilentGateRenderer {
             // Body first; then, with the gate's depth stamped, the shade (smoke and storm darken what is behind them) and last the light, which adds over both.
             // The body is drawn over its own stamped depth too: only its nearest faces pass, else back faces painted over front ones made it look hollow.
             for (int layer : new int[]{0, 2, 1}) {
-                if (layer == 0) { depthPrepass(pose, camera, frames, true); RenderSystem.defaultBlendFunc(); }
-                else if (layer == 2) { depthPrepass(pose, camera, frames, false); RenderSystem.blendFunc(GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR); GateAtlas.bindGlow(); GateDraw.premultiplied = true; }
+                if (layer == 0) { stampPartial = false; depthPrepass(pose, camera, frames, true); RenderSystem.defaultBlendFunc(); }
+                // The stamp before the body already holds the gate's depth; it is stamped again only for what it left out (a fading gate, a doorway just opening).
+                else if (layer == 2) { if (stampPartial) depthPrepass(pose, camera, frames, false); RenderSystem.blendFunc(GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR); GateAtlas.bindGlow(); GateDraw.premultiplied = true; }
                 else additiveBlend();
                 for (Frame f : frames) {
                     BufferBuilder buffer = begin();
@@ -262,9 +279,11 @@ public final class SilentGateRenderer {
             wandRenderer.renderFloating(pose, buffers, light, (float) f.age());
             pose.popPose();
         }
-        buffers.endBatch();
+        net.godwand.client.render.GodWandItemRenderer.endFloating(buffers);
     }
     /** The gate body is alpha blended without depth writes; stamp its depth so the additive layer (circle glow, rays) cannot shine through it. */
+    /** Set when the stamp before the body left part of a gate out, so the stamp before the shade must be drawn too. */
+    static boolean stampPartial;
     private static void depthPrepass(PoseStack pose, Camera camera, List<Frame> frames, boolean beforeBody) {
         RenderSystem.colorMask(false, false, false, false); RenderSystem.depthMask(true);
         try {
@@ -424,7 +443,7 @@ public final class SilentGateRenderer {
         if (appear <= 0 || fadeOut <= 0) return;
         double saved = c.fade;
         c.fade = saved * appear * fadeOut;
-        if (c.beforeBody && c.fade < .95) { c.fade = saved; return; }
+        if (c.beforeBody && c.fade < .95) { stampPartial = true; c.fade = saved; return; }
         // The stuck doors shudder the whole gate a little.
         double shake = e < 0 ? SilentGateSequence.gateShake(age) : 0;
         GateFx.Pose pose = GateFx.Pose.of(SilentGateSequence.gateFoot(anchor, yaw, descent + rise).add(0, shake * Math.sin(age * 2.3), 0), yaw);
@@ -480,6 +499,7 @@ public final class SilentGateRenderer {
             return gone;
         });
         CASTS.values().forEach(c -> trim(c, now));
+        followKillTargets(now, id -> world.getEntity(id) instanceof net.minecraft.world.entity.LivingEntity e ? e.getBoundingBox().getCenter() : null);
         GateMana.tick(frames(0), world);
         SilentGateSoundscape.tick(client, frames(0));
         // The cast brings its own night (this viewer's sky only; the server's clock is never touched).

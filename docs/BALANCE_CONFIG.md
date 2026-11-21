@@ -15,6 +15,7 @@ Values are in ticks: **20 ticks = 1 second**. Lists run from charge level 1 to t
 | supernovaCooldownTicks | 900 | Supernova |
 | atomicCooldownTicks | 1200 | Atomic |
 | fugaCooldownTicks | 1200 | Fuga |
+| gateCooldownTicks | 1200 | Silent Gate |
 
 Each skill has its own cooldown per player. Changing skills lets you cast another ready skill; changing wands does not reset the timers. The skill wheel shows each cooldown separately. Singularity can still be collapsed while its cooldown is running. Charge durations and cinematic timing are unchanged.
 
@@ -33,7 +34,24 @@ Some spells hit repeatedly or lose damage with distance. Their settings multiply
 | supernovaInstantKillHealthThreshold | 50 | Enemies with this maximum health or less can be killed outright;0 disables this rule |
 | atomicDamage | 9999 | Atomic center damage before distance falloff |
 | atomicShockwaveDamage | 15 | Each successful outer wave hit |
-| fugaDamage | 9999 | Fuga blast damage before distance falloff; its fire outflow deals a small share of it |
+| fugaDamage | 9999 | Fuga main blast damage, scaled by damageMultiplier |
+| fugaShockwaveDamageMultiplier | 0.08 | Shockwave damage multiplier applied to fugaDamage and damageMultiplier. Set 0 to disable shockwave damage |
+| fugaIgniteEntities | true | Whether the shockwave sets targets on fire |
+| fugaShockwaveKnockback | true | Whether the shockwave pushes targets |
+| fugaSlowness | true | Whether targets under the sphere are slowed |
+
+Silent Gate:
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| gateBeamDamage | 80 | Each beam, scaled by damageMultiplier. The kill beam deals 6 times this |
+| gateTargetMode | "hostile" | "hostile" hits monsters only; "all" also hits animals and other players (not your pets, not creative players) |
+| gateTargetRadius | 160 | Range in blocks around the caster in which targets are found (8–256) |
+| gateBarrageTicks | 400 | Length of the barrage after the command (60–600; 20 ticks = 1 second) |
+| gateWaitTicks | 139 | How long the opened gate waits for your command before it fires by itself (40–1200; 139 = 6.95 s, the length of the music) |
+| gateSkyCircles | 220 | Number of small circles that fire (8–256); fewer is lighter on slow computers |
+
+Fuga gameplay effects are capped by fugaTerrainRadius around the impact column. These settings control gameplay while its VFX remain available. See [terrain configuration](TERRAIN_CONFIG.md) for an entirely harmless Fuga preset.
 
 Spatial Path has no separate spell damage to tune. Its shield keeps normal projectile behavior.
 
