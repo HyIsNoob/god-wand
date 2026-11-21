@@ -73,17 +73,20 @@
   "red_formation": {
     "sounds": [{"name":"godwand:red_formation","stream":true}]
   },
+  "red_formation_stereo": {
+    "sounds": [{"name":"godwand:red_formation_stereo","stream":true}]
+  },
   "red_hold": {
     "sounds": [{"name":"godwand:red_holding","stream":false}]
   },
   "red_fire": {
     "sounds": [{"name":"godwand:red_fire","stream":false}]
   },
-  "red_fire_stereo": {
-    "sounds": [{"name":"godwand:red_fire_stereo","stream":false}]
-  },
   "purple_formation": {
     "sounds": [{"name":"godwand:purple_formation","stream":true}]
+  },
+  "purple_formation_stereo": {
+    "sounds": [{"name":"godwand:purple_formation_stereo","stream":true}]
   },
   "purple_loop": {
     "sounds": [{"name":"godwand:purple_loop","stream":false}]
@@ -91,10 +94,10 @@
   "purple_fire": {
     "sounds": [{"name":"godwand:purple_fire","stream":false}]
   },
-  "purple_fire_stereo": {
-    "sounds": [{"name":"godwand:purple_fire_stereo","stream":false}]
-  },
   "purple_max": {
     "sounds": [{"name":"godwand:purple_max","stream":true}]
+  },
+  "purple_small": {
+    "sounds": [{"name":"godwand:purple_small","stream":true}]
   }
 }

@@ -129,7 +129,7 @@ public final class BlueRedRenderer {
                     // Black and red impact frames on the shot (owner, 2026-11-19).
                     if (GodWandConfig.CLIENT.impactFrames) { IMPACTS.clear(); IMPACTS.add(new Burst(at, clock, false, new Vec3(p.dx(), p.dy(), p.dz()))); }
                 }
-                BlueRedSounds.fire(p.ownerId(), at, BlueRedSounds.RED_FIRE, BlueRedSounds.RED_FIRE_STEREO, 2f);
+                BlueRedSounds.fire(p.ownerId(), at, BlueRedSounds.RED_FIRE, 2f);
             }
             case BlueRedPayload.RED_END -> {
                 endFlight(p.ownerId(), at);
@@ -154,12 +154,18 @@ public final class BlueRedRenderer {
                 // Its Blue and Red are taken into it.
                 BLUES.remove(p.ownerId()); CHARGES.remove(p.ownerId());
                 SHOTS.put(p.ownerId(), new ShotView(clock));
-                BlueRedSounds.cast(p.ownerId(), BlueRedSounds.SHOT_FORMATION, BlueRedSounds.SHOT_LOOP);
+                BlueRedSounds.cast(p.ownerId(), BlueRedSounds.SHOT_FORMATION, BlueRedSounds.SHOT_FORMATION_STEREO, BlueRedSounds.SHOT_LOOP);
             }
             case BlueRedPayload.SHOT_FIRE -> {
                 ShotView v = SHOTS.computeIfAbsent(p.ownerId(), k -> new ShotView(clock - BlueRedRules.SHOT_FORM));
                 v.fired = clock; v.origin = at; v.dir = new Vec3(p.dx(), p.dy(), p.dz());
-                BlueRedSounds.fire(p.ownerId(), at, BlueRedSounds.SHOT_FIRE, BlueRedSounds.SHOT_FIRE_STEREO, 3f);
+                // The owner's track ends in the blast timed to the sphere's end of range (owner, 2026-11-21), so it rides the sphere.
+                Vec3[] last = {at};
+                BlueRedSounds.fireFollowing(p.ownerId(), () -> {
+                    if (v.origin != null) last[0] = v.ended >= 0 && v.end != null ? v.end
+                            : v.origin.add(v.dir.scale(Math.min((clock - v.fired) * BlueRedRules.SHOT_SPEED, BlueRedRules.SHOT_RANGE)));
+                    return last[0];
+                }, BlueRedSounds.SHOT_FIRE, 3f);
                 var me = Minecraft.getInstance().player;
                 if (me != null && me.getId() == p.ownerId()) { GodWandCinematicEngine.addTrauma(.8f, 16); GodWandCinematicEngine.setFovPunch(1.1f, 4); }
                 else if (me != null) GodWandCinematicEngine.addTrauma((float) Math.max(0, .5 * (1 - me.position().distanceTo(at) / 48)), 10);
@@ -168,7 +174,7 @@ public final class BlueRedRenderer {
                 ShotView v = SHOTS.get(p.ownerId());
                 if (v != null) {
                     if (p.state() == 1 || v.fired < 0) { SHOTS.remove(p.ownerId()); BlueRedSounds.end(p.ownerId()); }
-                    else { v.ended = clock; v.end = at; sound(at, SoundEvents.GENERIC_EXPLODE.value(), 2.5f, 1.1f); }
+                    else { v.ended = clock; v.end = at; }
                 }
             }
             case BlueRedPayload.PURPLE_SMALL -> {
@@ -176,8 +182,7 @@ public final class BlueRedRenderer {
                 SMALLS.add(new Small(at, clock, p.state() / 100.0));
                 // Red's own impact frames give way to the violet ones of the small Purple forming.
                 IMPACTS.clear();
-                sound(at, SoundEvents.BEACON_ACTIVATE, 1.6f, 1.4f);
-                sound(at, SoundEvents.WARDEN_SONIC_BOOM, 1.2f, 1.6f);
+                BlueRedSounds.smallPurple(at);
                 var near = Minecraft.getInstance().player;
                 if (near != null) GodWandCinematicEngine.addTrauma((float) Math.max(0, .6 * (1 - near.position().distanceTo(at) / 48)), 10);
             }
@@ -283,7 +288,7 @@ public final class BlueRedRenderer {
         if (lvl != null) for (var charge : CHARGES.entrySet()) {
             if (clock - charge.getValue() == BlueRedRules.INPUT_GRACE) {
                 var who = lvl.getEntity(charge.getKey());
-                if (who != null) BlueRedSounds.cast(charge.getKey(), BlueRedSounds.RED_FORMATION, BlueRedSounds.RED_HOLD);
+                if (who != null) BlueRedSounds.cast(charge.getKey(), BlueRedSounds.RED_FORMATION, BlueRedSounds.RED_FORMATION_STEREO, BlueRedSounds.RED_HOLD);
             }
         }
         if (lvl != null) for (var charge : CHARGES.entrySet()) {
@@ -363,7 +368,6 @@ public final class BlueRedRenderer {
                 double near = Math.max(0, 1 - client.player.position().distanceTo(s.pos()) / 40);
                 if (near > 0) GodWandCinematicEngine.holdTrauma((float) (near * (.1 + .35 * age / BlueRedRules.SMALL_DETONATE)));
             }
-            if (age == BlueRedRules.SMALL_DETONATE / 2) sound(s.pos(), SoundEvents.RESPAWN_ANCHOR_CHARGE, 2f, .7f);
         }
         for (Small s : SMALLS) if (clock - s.at() == BlueRedRules.SMALL_DETONATE) {
             // Its burst: sound, a violet ground wave, sparks and a jolt for whoever is near.
@@ -569,6 +573,9 @@ public final class BlueRedRenderer {
             if (viewer.position().distanceTo(s.pos()) > 64) continue;
             int age = (int) Math.floor(now - s.at());
             if (age == 0) ink = 3; else if (age == 1) ink = 4;
+            // Its burst (owner, 2026-11-21): four violet ink frames flipping, as Purple's own blast.
+            int t = age - BlueRedRules.SMALL_DETONATE;
+            if (t >= 0 && t < 4) ink = t % 2 == 0 ? 3 : 4;
         }
         // The Purple shot: violet ink as Blue and Red meet, and again as it is fired.
         if (GodWandConfig.CLIENT.impactFrames && viewer != null) for (var e : SHOTS.entrySet()) {
