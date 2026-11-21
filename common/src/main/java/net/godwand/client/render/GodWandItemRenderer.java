@@ -87,6 +87,8 @@ public class GodWandItemRenderer {
 
         int currentMode = GodWandItem.getSkillMode(stack);
         if(currentMode==GodWandItem.MODE_FUGA && mode!=ItemDisplayContext.GUI && mode!=ItemDisplayContext.GROUND && mode!=ItemDisplayContext.FIXED)return;
+        // Purple is cast bare-handed in third person too (owner, 2026-11-21); the hotbar, the ground and item frames still show the wand.
+        if(currentMode==GodWandItem.MODE_BLUE_RED && net.godwand.config.GodWandConfig.CLIENT.bareHand && mode!=ItemDisplayContext.GUI && mode!=ItemDisplayContext.GROUND && mode!=ItemDisplayContext.FIXED)return;
         if(currentMode==GodWandItem.MODE_SILENT_GATE && mode!=ItemDisplayContext.GUI && mode!=ItemDisplayContext.GROUND && mode!=ItemDisplayContext.FIXED && net.godwand.client.SilentGateRenderer.holdsWand())return;
         float chargeRatio = getChargeRatio(client, stack);
 
