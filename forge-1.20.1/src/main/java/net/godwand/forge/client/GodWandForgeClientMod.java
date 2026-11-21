@@ -74,6 +74,7 @@ public class GodWandForgeClientMod {
             event.registerAboveAll("atomic_cinematic", (gui, graphics, partialTick, width, height) -> {net.godwand.client.AtomicCinematic.render(graphics, partialTick);net.godwand.client.SkillCooldownClient.render(graphics);});
             event.registerAboveAll("fuga_cinematic", (gui, graphics, partialTick, width, height) -> net.godwand.client.FugaCinematic.render(graphics, partialTick));
             event.registerAboveAll("silent_gate_cinematic", (gui, graphics, partialTick, width, height) -> net.godwand.client.SilentGateCinematic.render(graphics, partialTick));
+            event.registerAboveAll("blue_red_hud", (gui, graphics, partialTick, width, height) -> net.godwand.client.BlueRedHud.render(graphics, partialTick));
             event.registerAbove(VanillaGuiOverlay.VIGNETTE.id(), "impact_frame",
                     (gui, guiGraphics, partialTick, screenWidth, screenHeight) ->
                             CustomImpactFrameOverlay.render(guiGraphics, partialTick));
@@ -83,13 +84,13 @@ public class GodWandForgeClientMod {
     public static class GameBusEvents {
         @SubscribeEvent
         public static void onGuiOverlay(net.minecraftforge.client.event.RenderGuiOverlayEvent.Pre event) {
-            if((net.godwand.client.AtomicCinematic.active()||net.godwand.client.FugaCinematic.active()||net.godwand.client.SilentGateCinematic.active()) && event.getOverlay().id().getNamespace().equals("minecraft"))event.setCanceled(true);
+            if((net.godwand.client.AtomicCinematic.active()||net.godwand.client.FugaCinematic.active()||net.godwand.client.SilentGateCinematic.active()||net.godwand.client.PurpleCinematic.active()) && event.getOverlay().id().getNamespace().equals("minecraft"))event.setCanceled(true);
         }
 
         // The cinematic camera owns the view: no first-person hand, as on the other loaders.
         @SubscribeEvent
         public static void onRenderHand(net.minecraftforge.client.event.RenderHandEvent event) {
-            if(net.godwand.client.AtomicCinematic.active()||net.godwand.client.FugaCinematic.active()||net.godwand.client.SilentGateCinematic.active())event.setCanceled(true);
+            if(net.godwand.client.AtomicCinematic.active()||net.godwand.client.FugaCinematic.active()||net.godwand.client.SilentGateCinematic.active()||net.godwand.client.PurpleCinematic.active())event.setCanceled(true);
         }
 
         @SubscribeEvent
@@ -111,6 +112,10 @@ public class GodWandForgeClientMod {
                 ArcaneOrbChargeRenderer.render(matrices, camera, tickDelta);
                 SupernovaAccretionRenderer.render(matrices, camera, tickDelta);
                 GodWandPostFxManager.onWorldRender(matrices.last().pose(), event.getProjectionMatrix(), tickDelta);
+            } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_WEATHER) {
+                // After the clouds and weather, as Fabric's LAST: drawn earlier, the clouds behind painted over the orbs, which write no depth.
+                net.godwand.client.BlueRedRenderer.render(event.getPoseStack(), event.getCamera(), event.getPartialTick());
+                net.godwand.client.BlueRedRenderer.renderOverlay();
             } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_LEVEL) {
                 GodWandPostFxManager.renderAfterWorld();
                 net.godwand.client.AtomicPostFx.renderAfterWorld();
@@ -126,6 +131,9 @@ public class GodWandForgeClientMod {
             net.godwand.client.SilentGateRenderer.tick(client);
             net.godwand.client.FugaCinematic.tick(client);
             net.godwand.client.SilentGateCinematic.tick(client);
+            net.godwand.client.BlueRedInput.tick(client);
+            net.godwand.client.BlueRedRenderer.tick(client);
+            net.godwand.client.PurpleCinematic.tick(client);
             net.godwand.client.SkillCooldownClient.tick(client);
             SkillWheelScreen.handleKeyInput(client);
             SupernovaAccretionRenderer.tickCharge(client);
@@ -144,6 +152,9 @@ public class GodWandForgeClientMod {
             net.godwand.client.SilentGateRenderer.reset();
             net.godwand.client.FugaCinematic.reset();
             net.godwand.client.SilentGateCinematic.reset();
+            net.godwand.client.BlueRedInput.reset();
+            net.godwand.client.BlueRedRenderer.reset();
+            net.godwand.client.PurpleCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
             SingularityThreadRenderer.reset();

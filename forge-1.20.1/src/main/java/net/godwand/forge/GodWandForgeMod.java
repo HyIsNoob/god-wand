@@ -141,6 +141,7 @@ public class GodWandForgeMod {
             net.godwand.skill.AtomicManager.tick(level);
             net.godwand.skill.SilentGateManager.tick(level);
             net.godwand.skill.FugaManager.tick(level);
+            net.godwand.skill.BlueRedManager.tick(level);
             SpatialBridge.tickWorld(level);
             SpatialDisplacementManager.tick(level);
         }
@@ -198,12 +199,20 @@ public class GodWandForgeMod {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             SpatialPathWalker.deactivate(serverPlayer);
             net.godwand.skill.SkillCooldowns.reset(serverPlayer);
+            net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
         }
+    }
+
+    /** Blue and Red stay in the dimension they were cast in: their caster leaving it lets them go (as on Fabric). */
+    @SubscribeEvent
+    public void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
     }
 
     @SubscribeEvent
     public void onLivingDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
             SpatialPathWalker.deactivate(serverPlayer);
             net.godwand.skill.SkillCooldowns.reset(serverPlayer);
         }
@@ -225,6 +234,7 @@ public class GodWandForgeMod {
         net.godwand.skill.AtomicManager.clearAllTasks();
         net.godwand.skill.FugaManager.clearAllTasks();
         net.godwand.skill.SilentGateManager.clearAllTasks();
+        net.godwand.skill.BlueRedManager.clearAll();
         for (ServerLevel level : event.getServer().getAllLevels()) {
             SpatialBridge.clearVisuals(level);
             SpatialDisplacementManager.emergencyRestoreAll(level);

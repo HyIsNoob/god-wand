@@ -27,7 +27,12 @@
     "GatePoseMixin",
     "CastPoseLastMixin",
     "AtomicToastMixin",
-    "SkillCooldownUseMixin"
+    "SkillCooldownUseMixin",
+    "BlueRedAttackMixin",
+    "BlueRedHandMixin",
+    "BlueRedPoseMixin",
+    "PurpleSkipMixin",
+    "GodWandVolumeMixin"
   ],
   "injectors": {
     "defaultRequire": 1
