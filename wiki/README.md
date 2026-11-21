@@ -1,6 +1,6 @@
-# God Wand 1.5.0 Wiki — Deployment Guide
+# God Wand 1.6.0 Wiki — Deployment Guide
 
-Trang wiki kỹ thuật chính thức cho mod **God Wand**. Được xây dựng bằng **HTML5 / CSS3 / Vanilla JS**, không cần Node.js build step, tải siêu tốc, hỗ trợ 3 ngôn ngữ (Tiếng Anh / Tiếng Việt / Tiếng Trung - EN / VI / ZH), có tìm kiếm nhanh và chế độ sáng/tối.
+Trang wiki chính thức cho mod **God Wand**. Được xây dựng bằng **HTML5 / CSS3 / Vanilla JS**, không cần Node.js build step, tải siêu tốc, hỗ trợ 3 ngôn ngữ (Tiếng Anh / Tiếng Việt / Tiếng Trung - EN / VI / ZH), tích hợp chuẩn `llms.txt` và nút 1-click **Copy Context cho AI**.
 
 ---
 
@@ -27,8 +27,11 @@ vercel --prod
 
 ## Cấu Trúc Thư Mục
 
-- `index.html`: Giao diện chính, cấu trúc tài liệu đa ngôn ngữ (EN / VI / ZH), 8 chiêu thức ma pháp (kèm Silent Gate), 4 skin trượng, 43 tham số server config, 12 tham số client config.
-- `style.css`: Hệ màu Dark-Fantasy/Light, responsive và trau chuốt UX/UI.
-- `script.js`: Xử lý chuyển đổi ngôn ngữ (i18n), tìm kiếm nhanh theo danh mục và sao chép config.
-- `vercel.json`: Cấu hình routing tĩnh cho Vercel.
-- `assets/`: Hình ảnh avatar, công thức chế tạo và tài nguyên mở rộng.
+- `index.html`: Giao diện chính đa ngôn ngữ (EN / VI / ZH), gồm 9 kỹ năng (thêm Purple), phần Cutscenes chung, 15 thành tựu (Advancements), 4 ngoại hình trượng, 71 tham số server config và 18 tham số client config.
+- `config-builder.js`: Trình tạo config trực quan đầy đủ 71 server keys + 18 client keys (hỗ trợ 3 ngôn ngữ, preview ẩn mặc định, copy trọn file JSON hoặc tải xuống).
+- `style.css`: Hệ màu Dark/Light, responsive trên cả máy tính và điện thoại.
+- `script.js`: Xử lý chuyển ngôn ngữ (dropdown EN / VI / ZH + `?lang=`), tìm kiếm nhanh có highlight & nhảy kết quả, lọc kỹ năng, sao chép JSON và gom ngữ cảnh AI.
+- `llms.txt`: Bản tóm tắt cấu trúc chuẩn cho AI agent.
+- `llms-full.txt`: Toàn bộ tài liệu dạng văn bản thuần (đủ 9 kỹ năng, 15 thành tựu, 71 server keys và 18 client keys kèm mặc định và giới hạn).
+- `vercel.json`: Cấu hình routing tĩnh cho Vercel kèm CORS và content-type cho `llms*.txt`.
+- `assets/`: Hình ảnh avatar và công thức chế tạo.

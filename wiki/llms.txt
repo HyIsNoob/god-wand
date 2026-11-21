@@ -1,28 +1,38 @@
-# God Wand 1.5.0
+# God Wand 1.6.0
 
-> God Wand is a premier Minecraft magic mod featuring eight catastrophic and cinematic spells with customizable terrain manipulation, boss damage routing, custom 3D wand models, and extensive server/client configuration. Available across 10 builds (Fabric & NeoForge for 1.21.1, 1.20.1 Forge/Fabric, 1.21.11, 26.1.2, and 26.3).
+> God Wand is a Minecraft magic mod with one wand and nine skills: Spatial Path, Singularity, Earth Drill, Supernova, Stone Cannon, I am Atomic, Fuga, Silent Gate, and Purple. Version 1.6.0 adds Purple (Blue + Red), protects pets by default, adds 15 advancements, and adds master switches for terrain damage, PvP and spell targets. Available across 10 builds (Fabric & NeoForge for 1.21.1, 1.21.11, 26.1.2, and 26.3; Fabric & Forge for 1.20.1).
+
+## Flash Warning
+This mod contains intense flashing lights and visual effects that may trigger seizures in people with photosensitive epilepsy. Impact Frames, Sky Blackout, Cutscenes and Camera Shake can be disabled in the in-game settings menu (K).
 
 ## Documentation Files
-- [Full LLM Knowledge Base](llms-full.txt): Comprehensive technical documentation, spell metrics, server & client configs, commands, and presets.
-- [Official Web Wiki](https://god-wand-wiki.vercel.app/): Interactive trilingual web documentation with dark/light mode and search.
-- [CurseForge Page](https://www.curseforge.com/minecraft/mc-mods/god-wand): Download installable jars and release notes.
-- [GitHub Repository](https://github.com/HyIsNoob/god-wand): Source code and issue tracking.
+- [Full LLM Knowledge Base](llms-full.txt): Complete plain-text guide with all nine skills, Purple mechanics & multiplayer table, cutscenes, all 15 advancements, presets, and every server (71 keys) and client (18 keys) config option with defaults and allowed ranges.
+- [Official Web Wiki](https://god-wand-wiki.vercel.app/): Interactive trilingual (English / Vietnamese / Simplified Chinese) wiki with dark/light theme, search, and copy buttons.
+- [CurseForge Page](https://www.curseforge.com/minecraft/mc-mods/god-wand): Mod downloads and release notes.
+- [GitHub Repository](https://github.com/HyIsNoob/god-wand): Source code and issue tracker.
 
-## Core Capabilities & Spells
-- **1. Spatial Path:** Toggleable spatial tunnel through mountains with automatic block restoration, projectile shielding, and sneak-bridge generation.
-- **2. Singularity:** 3-tier charged gravity orb pulling entities and terrain, with manual early collapse and auto-healing block restoration.
-- **3. Earth Drill:** 4-tier charged spinning rock drill slammed into earth; automatically equips Aqua Heartia wand skin.
-- **4. Supernova:** 7-second charged black hole executing mobs <= 50 HP and carving a 120-block crater; merges XP orbs for tick performance.
-- **5. Stone Cannon:** 4-tier high-velocity piercing compressed stone projectile with impact explosion; automatically equips Aqua Heartia.
-- **6. I am Atomic:** 19-second charged sword stance with complete invulnerability, release-to-detonate 9,999 center damage, fluid clearing, and 98-block circular crater; automatically equips Shadow Blade.
-- **7. Fuga:** Blazing arrow transforming into a soaring phoenix, falling meteor, and 384-block pillar of fire (9,999 DMG); slows enemies under meteor and shockwaves track terrain contours.
-- **8. Silent Gate:** Summons a celestial winged gate from a giant sky circle; command the gate to rain light beams (80 DMG each) on monsters with a final 6x golden kill beam (480 DMG); automatically equips Silent Witch Staff.
+## Nine Skills
+- **1. Spatial Path:** Temporary tunnel through solid terrain; blocks restore behind you; shields projectiles; hold Shift for a temporary bridge. Cooldown: 1 s (20 ticks).
+- **2. Singularity:** 3-tier gravity orb pulling enemies and blocks; right-click again to collapse early; terrain restores afterward. Cooldown: 3 s / 6 s / 10 s.
+- **3. Earth Drill:** 4-tier spinning drill of lifted blocks slammed into the ground; auto skin Aqua Heartia. Cooldown: 4 s / 7 s / 11 s / 16 s.
+- **4. Supernova:** 7-second charged black hole and 120-block blast; executes mobs <= 50 HP; merges XP orbs. Cooldown: 45 s (900 ticks).
+- **5. Stone Cannon:** 4-tier piercing stone projectile with impact explosion; auto skin Aqua Heartia. Cooldown: 2 s / 4 s / 7 s / 11 s.
+- **6. I am Atomic:** Invulnerable charged stance; release to detonate a 98-block light column (9,999 center DMG) and clear fluids; auto skin Shadow Blade. Cooldown: 60 s (1200 ticks).
+- **7. Fuga:** Draw a bow of flame; arrow becomes a phoenix, meteor and fire pillar (9,999 DMG) that slows enemies beneath. Cooldown: 60 s (1200 ticks).
+- **8. Silent Gate:** Giant sky circle and winged gate; right-click (or wait) to rain 80 DMG light beams and a 6x golden beam; auto skin Silent Witch Staff. Cooldown: 60 s (1200 ticks).
+- **9. Purple [NEW in 1.6.0]:** Blue (hold left-click, 3 s cooldown), Red (hold right-click, 4 s cooldown), Full Purple (full Red into ready Blue, cutscene, 48-block sphere, 9,999 DMG in 72 blocks, works across players, locks both 60 s), Small Purple (any other Red into Blue, 2.5 s delay, locks both 15 s), Purple sphere (hold both buttons for 2.5 s, fire straight ahead 90 blocks carving a 3-block tunnel, locks both 15 s).
 
-## Key Controls
-- Hold `V`: Radial skill wheel (8 skills).
-- `Right-Click`: Cast / charge / command.
-- `K`: Client visual settings & wand model picker.
-- `Shift` while active: Build bridge (Spatial Path) / Sneak to cancel (Silent Gate).
-- `Esc` or `F5`: Skip cinematic cutscenes (Atomic, Fuga, Silent Gate).
-- `/godwand lock <skill>` & `/godwand unlock`: Admin single-skill lock (OP Level 2).
-- `/godwand reset_cooldowns [players]`: Reset all skill cooldowns (OP Level 4).
+## Key Controls & Commands
+- Hold `V`: Skill wheel (9 skills).
+- `Right-Click`: Cast / charge selected skill (or hold for Red in Purple mode; command Silent Gate while waiting).
+- `Left-Click` (Purple only): Hold for Blue; hold with Right-Click for Purple sphere. (Other skills: 5 melee DMG.)
+- `K`: Settings menu (wand appearance, Cutscenes master switch, Skill Sounds volume, Skill HUD, Bare Hand, Red Recoil, Purple: Third Person, visual effects).
+- `Shift`: Bridge in Spatial Path; cancel Silent Gate while forming or Red while charging.
+- `Esc` or `F5`: Skip cutscene camera (Atomic, Fuga, Silent Gate, Purple).
+- `/godwand lock <skill>` & `/godwand unlock` (OP Level 2); `/godwand reset_cooldowns [players]` (OP Level 4).
+
+## Key 1.6.0 Server Defaults
+- `spellTargets`: `"no_pets"` (spares tamed animals, named mobs, and leashed mobs from damage and pulls/knockback; also `"all"` or `"hostile"`).
+- `pvp`: `true` (controls whether spells hurt or push other players; caster is never hurt).
+- `terrainDamage`: `true` (master switch; set `false` to prevent all skills from breaking or lifting blocks).
+- `disabledSkills`: `[]` (list of skill IDs turned off server-wide, e.g. `["fuga", "atomic"]`; uses `/godwand lock` names; listing all 9 is ignored; admin-locked wands stay locked).
