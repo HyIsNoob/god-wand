@@ -1,16 +1,17 @@
 {
-  "module": "ports/mc-26.3/common",
-  "exclude": [
-    "resources/assets/minecraft/shaders/post/godwand_atomic.json",
-    "resources/assets/minecraft/shaders/post/godwand_impact.json",
-    "resources/assets/minecraft/shaders/post/godwand_nova.json",
-    "resources/assets/minecraft/shaders/program/godwand_atomic.json",
-    "resources/assets/minecraft/shaders/program/godwand_bloom.json",
-    "resources/assets/minecraft/shaders/program/godwand_impact.json",
-    "resources/assets/minecraft/shaders/program/godwand_nova_composite.json",
-    "resources/assets/minecraft/shaders/post/godwand_gate.json",
-    "resources/assets/minecraft/shaders/program/godwand_gate_ink.json",
-    "resources/assets/minecraft/shaders/program/godwand_gate_ink.fsh"
-  ],
-  "rename": {}
+ "module": "ports/mc-26.3/common",
+ "exclude": [
+  "resources/assets/minecraft/shaders/post/godwand_atomic.json",
+  "resources/assets/minecraft/shaders/post/godwand_impact.json",
+  "resources/assets/minecraft/shaders/post/godwand_nova.json",
+  "resources/assets/minecraft/shaders/program/godwand_atomic.json",
+  "resources/assets/minecraft/shaders/program/godwand_bloom.json",
+  "resources/assets/minecraft/shaders/program/godwand_impact.json",
+  "resources/assets/minecraft/shaders/program/godwand_nova_composite.json",
+  "resources/assets/minecraft/shaders/post/godwand_gate.json",
+  "resources/assets/minecraft/shaders/program/godwand_gate_ink.json",
+  "resources/assets/minecraft/shaders/program/godwand_gate_ink.fsh",
+  "resources/assets/minecraft/shaders/core/godwand_bluered_add.json"
+ ],
+ "rename": {}
 }

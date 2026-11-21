@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "{\n    \"vertex\": \"godwand_bluered\",\n    \"fragment\": \"godwand_bluered\",\n    \"samplers\": [\n",
+      "after": "{\n    \"blend\": { \"func\": \"add\", \"srcrgb\": \"srcalpha\", \"dstrgb\": \"1-srcalpha\" },\n    \"vertex\": \"godwand_bluered\",\n    \"fragment\": \"godwand_bluered\",\n    \"samplers\": [\n"
+    }
+  ]
+}
