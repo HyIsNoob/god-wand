@@ -96,5 +96,32 @@
   },
   "purple_small": {
     "sounds": [{"name":"godwand:purple_small","stream":true}]
+  },
+  "dominion_orbit_loop": {
+    "sounds": [{"name":"godwand:dominion_orbit_loop","stream":false}]
+  },
+  "dominion_auto_loop": {
+    "sounds": [{"name":"godwand:dominion_auto_loop","stream":false}]
+  },
+  "dominion_pickup": {
+    "sounds": [{"name":"godwand:dominion_pickup","stream":false}]
+  },
+  "dominion_parry": {
+    "sounds": [{"name":"godwand:dominion_parry","stream":false}]
+  },
+  "dominion_volley_charge": {
+    "sounds": [{"name":"godwand:dominion_volley_charge","stream":false}]
+  },
+  "dominion_volley_release": {
+    "sounds": [{"name":"godwand:dominion_volley_release","stream":false}]
+  },
+  "dominion_impact": {
+    "sounds": [{"name":"godwand:dominion_impact","stream":false}]
+  },
+  "dominion_unfold": {
+    "sounds": [{"name":"godwand:dominion_unfold","stream":false}]
+  },
+  "dominion_shield_lock": {
+    "sounds": [{"name":"godwand:dominion_shield_lock","stream":false}]
   }
 }

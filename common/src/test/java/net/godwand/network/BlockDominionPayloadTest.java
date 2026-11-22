@@ -1,6 +1,7 @@
 package net.godwand.network;
 
 import io.netty.buffer.Unpooled;
+import net.godwand.skill.BlockDominionBrain;
 import net.godwand.skill.BlockDominionRules;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -29,6 +30,9 @@ class BlockDominionPayloadTest {
                 BlockDominionRules.Mode.MANUAL.ordinal(),
                 BlockDominionRules.FLAG_STOWED | BlockDominionRules.FLAG_VOLLEY_CHARGING,
                 14,
+                BlockDominionBrain.FormationKind.SHIELD_MULTI.ordinal(),
+                1f, 0f, 0f,
+                0f, 0f, -1f,
                 new int[]{1, 10, 42, 77},
                 BlockDominionRules.EVENT_PICKUP,
                 12.5, 64.5, -33.5,
@@ -38,13 +42,17 @@ class BlockDominionPayloadTest {
     }
 
     @Test
-    void rejectsOutOfRangeActionsModesAndBlockCounts() {
+    void rejectsOutOfRangeActionsModesFormationsAndBlockCounts() {
         assertThrows(IllegalArgumentException.class, () -> new BlockDominionInputPayload(2, BlockPos.ZERO));
         assertThrows(IllegalArgumentException.class, () -> new BlockDominionStatePayload(
-                1, 3, 0, 0, new int[0], 0, 0, 0, 0, 0));
+                1, 3, 0, 0, 0, 0, 0, 1, 0, 0, 0, new int[0], 0, 0, 0, 0, 0));
         assertThrows(IllegalArgumentException.class, () -> new BlockDominionStatePayload(
-                1, 1, 0, 0, new int[65], 0, 0, 0, 0, 0));
+                1, 1, 0, 0, 99, 0, 0, 1, 0, 0, 0, new int[0], 0, 0, 0, 0, 0));
         assertThrows(IllegalArgumentException.class, () -> new BlockDominionStatePayload(
-                1, 1, 0, 0, new int[0], 0, Double.NaN, 0, 0, 0));
+                1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, new int[65], 0, 0, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new BlockDominionStatePayload(
+                1, 1, 0, 0, 0, Float.NaN, 0, 1, 0, 0, 0, new int[0], 0, 0, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new BlockDominionStatePayload(
+                1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, new int[0], 0, Double.NaN, 0, 0, 0));
     }
 }

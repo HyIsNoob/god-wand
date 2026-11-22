@@ -15,8 +15,10 @@ import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
@@ -26,6 +28,9 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.FallingBlockEntity;
+import net.minecraft.world.entity.item.PrimedTnt;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.monster.RangedAttackMob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
@@ -47,6 +52,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class BlockDominionManager {
     private static final double PICKUP_REACH = 7.5;
     private static final double SYNC_RADIUS = 96.0;
+    private static final SoundEvent IMPACT_SFX = SoundEvent.createVariableRangeEvent(
+            ResourceLocation.fromNamespaceAndPath("godwand", "dominion_impact"));
 
     private record DroppedBlock(BlockPos pos, BlockState state) {}
     private record RecallSnapshot(ResourceKey<Level> dimension, long deactivatedAtTick, boolean died, List<DroppedBlock> blocks) {}
@@ -65,6 +72,9 @@ public final class BlockDominionManager {
         long postParryInvulnUntil = -1;
         long lastHeartbeatTick = -1;
         int volleySilenceLeft;
+        BlockDominionBrain.FormationKind formation = BlockDominionBrain.FormationKind.IDLE;
+        Vec3 threatPrimary = new Vec3(0, 0, 1);
+        Vec3 threatSecondary = Vec3.ZERO;
         final ArrayDeque<QueuedShot> volleyQueue = new ArrayDeque<>();
         RecallSnapshot recall;
     }
@@ -614,11 +624,12 @@ public final class BlockDominionManager {
                 hitPos.x, hitPos.y, hitPos.z, 22, 0.45, 0.45, 0.45, 0.22);
         world.sendParticles(ParticleTypes.EXPLOSION, hitPos.x, hitPos.y, hitPos.z, 1, 0.1, 0.1, 0.1, 0.0);
         world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.1f, 0.72f);
+                SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.0f, 0.72f);
         world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                SoundEvents.BASALT_BREAK, SoundSource.PLAYERS, 0.9f, 0.65f);
+                SoundEvents.BASALT_BREAK, SoundSource.PLAYERS, 0.85f, 0.65f);
         world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.35f, 0.75f);
+                IMPACT_SFX, SoundSource.PLAYERS, projectile.isVolley() ? 1.15f : 0.85f,
+                0.92f + (float) (Math.random() * 0.16));
     }
 
     private static void carveSmallCrater(ServerLevel world, Vec3 center, double radius, Entity owner) {
@@ -700,36 +711,99 @@ public final class BlockDominionManager {
 
         boolean newStowed = !holdsBlockDominion(player);
         boolean newHidden = inCutscene(player);
-        if (newStowed != st.stowed || newHidden != st.hiddenInCutscene) {
-            boolean unfolded = st.stowed && !newStowed;
-            boolean stowedNow = !st.stowed && newStowed;
-            st.stowed = newStowed;
-            st.hiddenInCutscene = newHidden;
-            if (stowedNow) {
-                cancelVolleyInternal(player, st, false);
-                st.rapidFiring = false;
-                if (!st.reserve.isEmpty()) {
-                    world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                            SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 0.45f, 1.35f);
-                }
-                sync(player, st, BlockDominionRules.EVENT_STOW, player.getX(), player.getY() + 1.2, player.getZ(), 0);
-            } else if (unfolded) {
-                if (!st.reserve.isEmpty()) {
-                    world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                            SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 0.65f, 0.95f);
-                    world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                            SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.35f, 1.35f);
-                }
-                sync(player, st, BlockDominionRules.EVENT_UNFOLD, player.getX(), player.getY() + 1.2, player.getZ(), 0);
-            } else {
-                sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.2, player.getZ(), 0);
+        boolean stateChanged = newStowed != st.stowed || newHidden != st.hiddenInCutscene;
+        boolean unfolded = st.stowed && !newStowed;
+        boolean stowedNow = !st.stowed && newStowed;
+        st.stowed = newStowed;
+        st.hiddenInCutscene = newHidden;
+
+        if (stowedNow) {
+            cancelVolleyInternal(player, st, false);
+            st.rapidFiring = false;
+            if (!st.reserve.isEmpty()) {
+                world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                        SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 0.45f, 1.35f);
             }
+        } else if (unfolded && !st.reserve.isEmpty()) {
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 0.65f, 0.95f);
+        }
+
+        // Milestone 2 Block Brain: scan threats every 2 ticks and update defensive formation
+        boolean brainChanged = false;
+        if (st.mode == BlockDominionRules.Mode.MANUAL && !st.hiddenInCutscene && ((now + player.getId()) % 2 == 0 || stateChanged)) {
+            List<BlockDominionBrain.ThreatSample> threats = st.reserve.isEmpty() || st.volleyCharging
+                    ? List.of() : scanThreats(world, player);
+            BlockDominionBrain.BrainPlan plan = BlockDominionBrain.plan(threats, st.reserve.size(), st.stowed, st.volleyCharging);
+            if (plan.kind() != st.formation
+                    || (plan.kind().isShield() && (BlockDominionBrain.directionChangedSignificantly(plan.primaryDir(), st.threatPrimary)
+                    || BlockDominionBrain.directionChangedSignificantly(plan.secondaryDir(), st.threatSecondary)))) {
+                st.formation = plan.kind();
+                st.threatPrimary = plan.primaryDir();
+                st.threatSecondary = plan.secondaryDir();
+                brainChanged = true;
+            }
+        } else if (st.mode != BlockDominionRules.Mode.MANUAL) {
+            st.formation = BlockDominionBrain.FormationKind.IDLE;
+        }
+
+        if (stateChanged || brainChanged) {
+            int evt = stowedNow ? BlockDominionRules.EVENT_STOW
+                    : unfolded ? BlockDominionRules.EVENT_UNFOLD
+                    : BlockDominionRules.EVENT_SYNC;
+            sync(player, st, evt, player.getX(), player.getY() + 1.2, player.getZ(), 0);
             return;
         }
 
         if (now - st.lastHeartbeatTick >= 40) {
             sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.2, player.getZ(), 0);
         }
+    }
+
+    /** Scans within 16 blocks for incoming projectiles, imminent explosions and hostile mobs targeting the player. */
+    private static List<BlockDominionBrain.ThreatSample> scanThreats(ServerLevel world, ServerPlayer player) {
+        List<BlockDominionBrain.ThreatSample> threats = new ArrayList<>();
+        Vec3 center = player.position().add(0, 1.15, 0);
+        AABB box = player.getBoundingBox().inflate(BlockDominionBrain.THREAT_SCAN_RADIUS);
+
+        for (Entity entity : world.getEntities(player, box, Entity::isAlive)) {
+            if (entity.isSpectator()) continue;
+            if (entity instanceof Projectile proj) {
+                if (proj instanceof DominionBlockProjectileEntity && SpellDamage.isCaster(proj.getOwner(), player)) continue;
+                if (SpellDamage.isCaster(proj.getOwner(), player)) continue;
+                if (BlockDominionBrain.isIncomingProjectile(center, proj.position(), proj.getDeltaMovement())) {
+                    Vec3 dir = proj.position().subtract(center);
+                    double dist = dir.length();
+                    if (dist > 0.05) {
+                        threats.add(new BlockDominionBrain.ThreatSample(dir, 14.0 + (16.0 - dist), false));
+                    }
+                }
+            } else if (entity instanceof PrimedTnt tnt) {
+                Vec3 dir = tnt.position().add(0, 0.5, 0).subtract(center);
+                double dist = dir.length();
+                if (dist <= 9.0 && dist > 0.05) {
+                    threats.add(new BlockDominionBrain.ThreatSample(dir, 22.0 + (9.0 - dist), true));
+                }
+            } else if (entity instanceof Creeper creeper) {
+                Vec3 dir = creeper.position().add(0, 0.9, 0).subtract(center);
+                double dist = dir.length();
+                boolean fusing = creeper.isIgnited() || creeper.getSwellDir() > 0;
+                if ((fusing && dist <= 7.0) || (creeper.getTarget() == player && dist <= 5.5)) {
+                    if (dist > 0.05) {
+                        threats.add(new BlockDominionBrain.ThreatSample(dir, fusing ? 24.0 : 9.0, fusing));
+                    }
+                }
+            } else if (entity instanceof Mob mob && mob.getTarget() == player) {
+                Vec3 dir = mob.position().add(0, mob.getBbHeight() * 0.5, 0).subtract(center);
+                double dist = dir.length();
+                boolean ranged = mob instanceof RangedAttackMob;
+                double maxRange = ranged ? 15.0 : 6.5;
+                if (dist <= maxRange && dist > 0.05) {
+                    threats.add(new BlockDominionBrain.ThreatSample(dir, (ranged ? 5.0 : 8.5) + (maxRange - dist) * 0.4, false));
+                }
+            }
+        }
+        return threats;
     }
 
     /** Deactivates Block Dominion, dropping all reserve blocks in a spiral around the player. */
@@ -915,8 +989,15 @@ public final class BlockDominionManager {
                 | (st.hiddenInCutscene ? BlockDominionRules.FLAG_HIDDEN : 0);
         int[] ids = new int[st.reserve.size()];
         for (int i = 0; i < ids.length; i++) ids[i] = Block.getId(st.reserve.get(i));
+        BlockDominionBrain.FormationKind form = st.volleyCharging && !st.stowed
+                ? BlockDominionBrain.FormationKind.VOLLEY_FAN
+                : (st.mode == BlockDominionRules.Mode.MANUAL ? st.formation : BlockDominionBrain.FormationKind.IDLE);
         BlockDominionStatePayload payload = new BlockDominionStatePayload(
-                player.getId(), st.mode.ordinal(), flags, st.volleyChargeTicks, ids, eventKind, ex, ey, ez, eventBlockId);
+                player.getId(), st.mode.ordinal(), flags, st.volleyChargeTicks,
+                form.ordinal(),
+                (float) st.threatPrimary.x, (float) st.threatPrimary.y, (float) st.threatPrimary.z,
+                (float) st.threatSecondary.x, (float) st.threatSecondary.y, (float) st.threatSecondary.z,
+                ids, eventKind, ex, ey, ez, eventBlockId);
         Services.NETWORK.sendToNearby(world, player.position(), SYNC_RADIUS, payload);
     }
 }
