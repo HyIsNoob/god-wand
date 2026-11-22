@@ -1,0 +1,23 @@
+allprojects {
+    plugins.withId('fabric-loom') {
+        if (project.name == 'fabric') loom.runs.named('client') { runDir '../build/dominion-qa/run' }
+    }
+    plugins.withId('java') {
+        tasks.register('writeDominionQaClasspath') {
+            doLast {
+                def out = rootProject.file('build/dominion-qa/classpath.txt')
+                out.parentFile.mkdirs()
+                out.text = sourceSets.main.runtimeClasspath.asPath
+            }
+        }
+    }
+}
+gradle.projectsEvaluated {
+    def p = gradle.rootProject
+    p.project(':fabric').tasks.named('runClient') {
+        workingDir p.file('build/dominion-qa/run')
+        jvmArgs '-Dgodwand.dominion.qa=true', '-Dfabric.addMods=' + p.file('build/dominion-qa/probe.jar').absolutePath
+        args '--width', '1280', '--height', '720'
+        maxHeapSize = '2G'
+    }
+}

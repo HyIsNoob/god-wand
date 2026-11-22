@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"godwand_dominion_qa","version":"1.0.0","name":"Block Dominion QA (development only)","environment":"client","entrypoints":{"client":["net.godwand.qa.DominionProbe"]},"mixins":["dominion-qa.mixins.json"],"depends":{"fabricloader":">=0.16.0","fabric-api":"*","godwand":"*"}}

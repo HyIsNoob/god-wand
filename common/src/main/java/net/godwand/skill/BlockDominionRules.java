@@ -187,8 +187,8 @@ public final class BlockDominionRules {
     }
 
     public static float blockScale(boolean stowed, float unfoldProgress, boolean volleyCharging, float volleyProgress) {
-        float full = volleyCharging ? (0.68f + 0.14f * Mth.clamp(volleyProgress, 0f, 1f)) : 0.62f;
-        float tiny = 0.24f;
+        float full = volleyCharging ? (0.58f + 0.14f * Mth.clamp(volleyProgress, 0f, 1f)) : 0.50f;
+        float tiny = 0.22f;
         if (stowed) return tiny;
         if (unfoldProgress < 1.0f) {
             float t = Mth.clamp(unfoldProgress, 0f, 1f);

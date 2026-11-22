@@ -394,18 +394,24 @@ public final class BlockDominionRenderer {
         }
     }
 
-    /** Crisp 4-tick golden edge parry flash on HUD (respects impactFrames setting, never obscures center view). */
+    /** Soft multi-band feathered golden edge glint on HUD when parrying (respects impactFrames setting). */
     public static void renderHud(GuiGraphics graphics) {
         if (localParryFlashTicks <= 0 || !GodWandConfig.CLIENT.impactFrames) return;
         int w = graphics.guiWidth(), h = graphics.guiHeight();
         float t = localParryFlashTicks / 4.0f;
-        int edgeAlpha = Mth.clamp((int) (t * t * 95), 0, 255);
-        int gold = (edgeAlpha << 24) | 0xFFE696;
-        int thick = Math.max(8, Math.min(w, h) / 26);
-        graphics.fill(0, 0, w, thick, gold);
-        graphics.fill(0, h - thick, w, h, gold);
-        graphics.fill(0, thick, thick, h - thick, gold);
-        graphics.fill(w - thick, thick, w, h - thick, gold);
+        int layers = 4;
+        int step = Math.max(4, Math.min(w, h) / 48);
+        for (int i = 0; i < layers; i++) {
+            float falloff = 1.0f - (i / (float) layers);
+            int alpha = Mth.clamp((int) (t * t * falloff * falloff * 58), 0, 255);
+            if (alpha <= 1) continue;
+            int gold = (alpha << 24) | 0xFFE89E;
+            int inset = i * step;
+            graphics.fill(inset, inset, w - inset, inset + step, gold);
+            graphics.fill(inset, h - inset - step, w - inset, h - inset, gold);
+            graphics.fill(inset, inset + step, inset + step, h - inset - step, gold);
+            graphics.fill(w - inset - step, inset + step, w - inset, h - inset - step, gold);
+        }
     }
 
     public static void render(PoseStack matrices, Camera camera, float tickDelta) {
