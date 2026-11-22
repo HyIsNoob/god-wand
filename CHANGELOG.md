@@ -6,6 +6,10 @@
 
 - Controller support: two new keybinds, **Next skill** and **Previous skill** (Options → Controls → Key Binds → God Wand). They are unbound by default; bind them to keys, or to gamepad buttons with a controller mod such as Controlify or Controllable. They skip skills the server has disabled and do nothing while the skill is locked.
 
+### Fixed
+
+- Blue can now be cast with a controller's attack button (Controllable).
+
 ## [1.6.1]
 
 ### Fixed
