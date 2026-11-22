@@ -84,6 +84,7 @@ public final class BlockDominionManager {
         boolean flightBoostInput;
         long lastFlightPacketTick = -1000;
         long lastStepEventTick = -1000;
+        long lastPickupTick = -1000;
         Vec3 flightVel = Vec3.ZERO;
         final ArrayDeque<QueuedShot> volleyQueue = new ArrayDeque<>();
         RecallSnapshot recall;
@@ -346,6 +347,30 @@ public final class BlockDominionManager {
             return false;
         }
         st.reserve.add(state);
+        long now = world.getGameTime();
+        boolean continuousHold = (now - st.lastPickupTick) <= 6;
+        st.lastPickupTick = now;
+
+        // Holding left-click rips a cluster of up to 2 extra adjacent blocks so players summon a massive swarm rapidly
+        if (continuousHold && st.reserve.size() < capacity) {
+            int extra = 0;
+            BlockPos[] neighbors = {
+                    pos.north(), pos.south(), pos.east(), pos.west(),
+                    pos.above(), pos.north().east(), pos.south().west(), pos.below()
+            };
+            for (BlockPos nb : neighbors) {
+                if (extra >= 2 || st.reserve.size() >= capacity) break;
+                if (player.getEyePosition().distanceToSqr(Vec3.atCenterOf(nb)) > (PICKUP_REACH + 1.0) * (PICKUP_REACH + 1.0)) continue;
+                if (!canPickUpWorldBlock(world, nb)) continue;
+                BlockState ns = world.getBlockState(nb);
+                if (world.setBlock(nb, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS)) {
+                    st.reserve.add(ns);
+                    extra++;
+                    world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, ns),
+                            nb.getX() + 0.5, nb.getY() + 0.5, nb.getZ() + 0.5, 6, 0.2, 0.2, 0.2, 0.1);
+                }
+            }
+        }
         GodWandAdvancements.award(player, "use_9");
 
         double cx = pos.getX() + 0.5, cy = pos.getY() + 0.5, cz = pos.getZ() + 0.5;

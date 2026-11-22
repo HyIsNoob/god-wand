@@ -19,8 +19,8 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 /**
- * Renders DominionBlockProjectileEntity as a spinning full block with custom GLSL shader
- * golden plasma slipstream ribbons and Mach shock rings.
+ * Renders DominionBlockProjectileEntity as a spinning full block with Purple-grade
+ * two-pass smoky dark-gold wake, liquid plasma comet ribbon, and crackling lightning.
  */
 public class DominionBlockEntityRenderer extends EntityRenderer<DominionBlockProjectileEntity> {
     public DominionBlockEntityRenderer(EntityRendererProvider.Context context) {
@@ -36,7 +36,7 @@ public class DominionBlockEntityRenderer extends EntityRenderer<DominionBlockPro
     public void render(DominionBlockProjectileEntity entity, float entityYaw, float tickDelta, PoseStack matrices,
                        MultiBufferSource vertexConsumers, int light) {
         float time = entity.tickCount + tickDelta;
-        float scale = entity.isVolley() ? 0.86f : 0.78f;
+        float scale = entity.isVolley() ? 0.88f : 0.78f;
 
         matrices.pushPose();
         matrices.mulPose(Axis.YP.rotationDegrees(time * 38f));
@@ -47,31 +47,38 @@ public class DominionBlockEntityRenderer extends EntityRenderer<DominionBlockPro
                 entity.getBlockState(), matrices, vertexConsumers, light, OverlayTexture.NO_OVERLAY);
         matrices.popPose();
 
-        // Custom GLSL plasma slipstream & shock collar along flight vector
         Vec3 vel = entity.getDeltaMovement();
         if (vel.lengthSqr() > 0.01) {
             Vec3 dir = vel.normalize();
-            double length = entity.isVolley() ? 4.4 : 3.2;
-            int rCol = 255;
-            int gCol = entity.isVolley() ? 222 : 210;
-            int bCol = entity.isVolley() ? 122 : 138;
+            double length = entity.isVolley() ? 4.8 : 3.4;
+            Matrix4f mat = matrices.last().pose();
+            Vec3 tail = dir.scale(-length);
+            Vec3 head = dir.scale(0.35);
 
             RenderSystem.enableBlend();
-            RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
             RenderSystem.disableCull();
             RenderSystem.depthMask(false);
             DominionShader.bind(time / 20.0f);
             try {
-                var buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-                Matrix4f mat = matrices.last().pose();
-                Vec3 tail = dir.scale(-length);
-                Vec3 head = dir.scale(0.35);
-                DominionShader.emitBeam(buffer, mat, tail, head, entity.isVolley() ? 0.34 : 0.24,
-                        entity.getId() & 31, rCol, gCol, bCol, 225);
-                DominionShader.emitDisc(buffer, mat, dir.scale(0.15), dir, entity.isVolley() ? 1.15 : 0.85,
-                        DominionShader.FX_MACH_SHOCK, (entity.getId() + 7) & 31, 255, 242, 185, 195);
-                var mesh = buffer.build();
-                if (mesh != null) BufferUploader.drawWithShader(mesh);
+                // Pass 1 (BODY): dark obsidian-gold brush wake
+                RenderSystem.defaultBlendFunc();
+                var bodyBuf = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+                DominionShader.emitLiveBolt(bodyBuf, mat, tail, head, 6, 0.22, entity.isVolley() ? 0.36 : 0.26,
+                        entity.getId() * 19L, time, 26, 18, 12, 165);
+                var bodyMesh = bodyBuf.build();
+                if (bodyMesh != null) BufferUploader.drawWithShader(bodyMesh);
+
+                // Pass 2 (GLOW): blazing liquid plasma comet + ragged shock collar + lightning spine
+                RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+                var glowBuf = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+                DominionShader.emitBeam(glowBuf, mat, tail, head, entity.isVolley() ? 0.34 : 0.24,
+                        entity.getId() & 31, 255, entity.isVolley() ? 224 : 210, entity.isVolley() ? 120 : 136, 215);
+                DominionShader.emitLiveBolt(glowBuf, mat, tail.scale(0.85), head, 6, 0.18, 0.055,
+                        entity.getId() * 19L + 7, time, 255, 242, 186, 210);
+                DominionShader.emitOrganicWave(glowBuf, mat, dir.scale(0.1), dir, entity.isVolley() ? 0.95 : 0.72,
+                        0.16, time, entity.getId() * 31L, DominionShader.FX_PLASMA, 255, 236, 156, 175);
+                var glowMesh = glowBuf.build();
+                if (glowMesh != null) BufferUploader.drawWithShader(glowMesh);
             } finally {
                 RenderSystem.depthMask(true);
                 RenderSystem.enableCull();

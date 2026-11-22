@@ -123,19 +123,26 @@ class BlockDominionBrainTest {
                 BlockDominionBrain.plan(List.of(), 4, false, false, true, false, false).kind());
 
         Vec3 look = new Vec3(0, 0, 1);
-        // Wings span both left (-X) and right (+X) behind the back (-Z), and boost sweeps further back
-        boolean hasLeft = false, hasRight = false;
+        // Sculpted multi-scale wings span both left (-X) and right (+X) behind the back (-Z),
+        // with elongated non-uniform primary feathers and deeper sweep-back on Mach boost
+        boolean hasLeft = false, hasRight = false, hasElongatedFeather = false;
         double hoverMinZ = 0, boostMinZ = 0;
-        for (int i = 0; i < 24; i++) {
-            Vec3 w = BlockDominionBrain.wingsOffset(i, 24, 10.0, look, false);
-            Vec3 wb = BlockDominionBrain.wingsOffset(i, 24, 10.0, look, true);
-            assertTrue(w.z < -0.2, "Wings stay behind back");
-            if (w.x < -1.5) hasLeft = true;
-            if (w.x > 1.5) hasRight = true;
+        for (int i = 0; i < 40; i++) {
+            var pose = BlockDominionBrain.wingPose(i, 40, 10.0, look, false);
+            var boostPose = BlockDominionBrain.wingPose(i, 40, 10.0, look, true);
+            Vec3 w = pose.offset();
+            Vec3 wb = boostPose.offset();
+            assertTrue(w.z < -0.15, "Wings stay behind back");
+            if (w.x < -1.8) hasLeft = true;
+            if (w.x > 1.8) hasRight = true;
+            if (pose.tier() == 2 && pose.scale().y > 1.0 && pose.scale().x < 0.35) {
+                hasElongatedFeather = true;
+            }
             hoverMinZ = Math.min(hoverMinZ, w.z);
             boostMinZ = Math.min(boostMinZ, wb.z);
         }
         assertTrue(hasLeft && hasRight, "Wings must form symmetrical left and right pinions");
+        assertTrue(hasElongatedFeather, "Primary flight feathers must use elongated non-uniform sculpted scales");
         assertTrue(boostMinZ < hoverMinZ - 0.15, "Boost chevron sweeps further back than hover wings");
 
         // Air stairs place first steps directly beneath feet (y < -1.1 relative to chest)

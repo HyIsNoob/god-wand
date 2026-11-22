@@ -158,9 +158,9 @@ public final class DominionProbe implements ClientModInitializer {
             };
             pickupQueue.clear();
             int idx = 0;
-            for (int r = 3; r <= 5; r++) {
-                int pts = r * 4;
-                for (int i = 0; i < pts && pickupQueue.size() < 28; i++) {
+            for (int r = 3; r <= 6; r++) {
+                int pts = r * 5;
+                for (int i = 0; i < pts && pickupQueue.size() < 48; i++) {
                     double ang = Math.PI * 2.0 * i / pts;
                     int bx = OX + (int) Math.round(Math.cos(ang) * r);
                     int bz = OZ + (int) Math.round(Math.sin(ang) * r);
@@ -190,20 +190,20 @@ public final class DominionProbe implements ClientModInitializer {
         System.out.println("DOMINION_QA SETUP complete, groundY=" + groundY + " pickupQueue=" + pickupQueue.size());
     }
 
-    /** Stage 1 (86 ticks): Enable Manual, lift 28 blocks into 3 orbital tiers (ring -> twin rings -> sovereign halo). */
+    /** Stage 1 (90 ticks): Enable Manual, lift 48 blocks into massive 3-tier sovereign armada! */
     private void stagePickupAndTiers(Minecraft c, MinecraftServer server, int t) {
         if (t == 6) {
             server.submit(() -> BlockDominionManager.cycleMode(me(server, c))).join();
         }
-        if (t >= 12 && t % 2 == 0 && pickupCursor < pickupQueue.size()) {
+        if (t >= 12 && pickupCursor < pickupQueue.size()) {
             BlockPos target = pickupQueue.get(pickupCursor++);
             server.submit(() -> BlockDominionManager.tryPickUpBlock(me(server, c), target)).join();
         }
-        if (t == 30) saveKeyframe(c, "kf_01_orbit_tier1.png");
-        if (t == 54) saveKeyframe(c, "kf_02_orbit_tier2.png");
-        if (t == 76) {
+        if (t == 24) saveKeyframe(c, "kf_01_orbit_tier1.png");
+        if (t == 42) saveKeyframe(c, "kf_02_orbit_tier2.png");
+        if (t == 74) {
             int count = server.submit(() -> BlockDominionManager.reserveCount(me(server, c))).join();
-            recordCheck("pickup_28_blocks", count == 28, "count=" + count);
+            recordCheck("pickup_48_blocks", count >= 44, "count=" + count);
             saveKeyframe(c, "kf_03_orbit_halo.png");
         }
         if (t >= 86) {

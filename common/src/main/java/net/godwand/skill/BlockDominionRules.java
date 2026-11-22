@@ -29,9 +29,9 @@ public final class BlockDominionRules {
         CONSUME_AUTO_BLOCK
     }
 
-    public static final int DEFAULT_CAPACITY = 32;
+    public static final int DEFAULT_CAPACITY = 48;
     public static final int MIN_CAPACITY = 4;
-    public static final int MAX_CAPACITY = 64;
+    public static final int MAX_CAPACITY = 96;
 
     public static final int HOLD_PICKUP_INTERVAL = 4;
     public static final int RAPID_FIRE_START_INTERVAL = 6;
@@ -298,25 +298,40 @@ public final class BlockDominionRules {
             double hz = lz * Math.cos(tilt);
             return right.scale(lx).add(forward.scale(hz - 0.35)).add(up.scale(ly + 0.15));
         }
-        // Tier 3 (21+): grand sovereign halo behind the back + orbiting inner ring
-        int innerCount = Math.min(10, count / 3);
+        // Tier 3 (21+): colossal multi-ring sovereign armada — inner orbiting belt + twin diagonal rings + grand looming halo
+        int innerCount = Math.min(12, count / 4);
         if (index < innerCount) {
-            double angle = time * 0.055 + (Math.PI * 2.0 * index / innerCount);
-            double r = 1.95;
+            double angle = time * 0.058 + (Math.PI * 2.0 * index / innerCount);
+            double r = 2.05;
             double lx = Math.cos(angle) * r;
             double lz = Math.sin(angle) * r;
-            double ly = Math.sin(angle * 2.0 + time * 0.05) * 0.25 - 0.15;
-            return right.scale(lx).add(forward.scale(lz - 0.2)).add(up.scale(ly));
+            double ly = Math.sin(angle * 2.0 + time * 0.05) * 0.30 - 0.18;
+            return right.scale(lx).add(forward.scale(lz - 0.25)).add(up.scale(ly));
         }
-        int haloIdx = index - innerCount;
-        int haloCount = count - innerCount;
-        boolean outerArc = haloIdx % 2 == 0;
-        double arcFrac = (double) haloIdx / Math.max(1, haloCount);
-        double angle = arcFrac * Math.PI * 2.0 + time * (outerArc ? 0.028 : -0.036);
-        double r = outerArc ? 2.85 : 2.15;
+        int midCount = count >= 34 ? Math.min(14, (count - innerCount) / 2) : 0;
+        if (index < innerCount + midCount) {
+            int mi = index - innerCount;
+            boolean tiltA = (mi & 1) == 0;
+            int ri = mi / 2;
+            int rc = Math.max(1, tiltA ? (midCount + 1) / 2 : midCount / 2);
+            double angle = time * (tiltA ? 0.036 : -0.044) + (Math.PI * 2.0 * ri / rc);
+            double r = tiltA ? 3.25 : 2.70;
+            double tilt = tiltA ? 0.56 : -0.56;
+            double lx = Math.cos(angle) * r;
+            double lz = Math.sin(angle) * r;
+            double ly = lz * Math.sin(tilt) + 0.55;
+            double hz = lz * Math.cos(tilt);
+            return right.scale(lx).add(forward.scale(hz - 0.85)).add(up.scale(ly));
+        }
+        int haloIdx = index - innerCount - midCount;
+        int haloCount = Math.max(1, count - innerCount - midCount);
+        int ring = haloIdx % 2;
+        double arcFrac = (double) haloIdx / haloCount;
+        double angle = arcFrac * Math.PI * 2.0 + time * (ring == 0 ? 0.024 : -0.032);
+        double r = ring == 0 ? 3.65 : 2.55;
         double lx = Math.cos(angle) * r;
-        double ly = Math.sin(angle) * r * 0.88 + 0.55;
-        double lz = -1.45 - (outerArc ? 0.35 : 0.0) + Math.cos(angle * 3.0 + time * 0.04) * 0.12;
+        double ly = Math.sin(angle) * r * 0.86 + 0.95;
+        double lz = -1.65 - (ring == 0 ? 0.55 : 0.0) + Math.cos(angle * 3.0 + time * 0.04) * 0.16;
         return right.scale(lx).add(forward.scale(lz)).add(up.scale(ly));
     }
 

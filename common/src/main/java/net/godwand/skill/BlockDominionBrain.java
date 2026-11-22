@@ -61,6 +61,15 @@ public final class BlockDominionBrain {
         public static final BrainPlan WINGS_BOOST_PLAN = new BrainPlan(FormationKind.WINGS_BOOST, new Vec3(0, 0, 1), Vec3.ZERO);
     }
 
+    /**
+     * Full sculpted 3D pose for a single wing block: chest-relative offset, non-uniform 3D scale (sx, sy, sz),
+     * exact right-handed world-space orthonormal basis (axisX, axisY, axisZ) so feathers align with zero Euler
+     * distortion at any yaw, and anatomical tier:
+     * 0 = spine/scapula core, 1 = curved upper wing arch/bone spar, 2 = long splayed primary flight feathers,
+     * 3 = overlapping secondary coverts & lower plumes.
+     */
+    public record WingPose(Vec3 offset, Vec3 scale, Vec3 axisX, Vec3 axisY, Vec3 axisZ, int tier) {}
+
     private BlockDominionBrain() {}
 
     /** True if a moving projectile is heading toward {@code playerCenter} within scan radius and hit corridor. */
@@ -188,89 +197,173 @@ public final class BlockDominionBrain {
     }
 
     /**
-     * Articulated multi-layered Block Wings behind the player's back.
-     * In {@code WINGS_HOVER} (!boosted): grand outstretched seraphic stone wings with a traveling organic
-     * flap wave from shoulder to wingtip. In {@code WINGS_BOOST} (boosted): swept-back aerodynamic
-     * chevron delta-wings built for high-speed Mach flight.
+     * Articulated multi-scale anatomical Block Wings behind the player's back.
+     * Delegates to {@link #wingPose} so position, non-uniform feather scale, and 3D rotation stay in perfect sync.
      */
     public static Vec3 wingsOffset(int index, int count, double time, Vec3 lookDir, boolean boosted) {
+        return wingPose(index, count, time, lookDir, boosted).offset();
+    }
+
+    /**
+     * Computes full sculpted 3D wing anatomy for block {@code index} of {@code count}:
+     * - Tier 0: Armored spine / scapula mount between shoulder blades
+     * - Tier 1: Continuous curved upper wing arch / bone spar tapering smoothly to the wrist & tip
+     * - Tier 2: Long slender splayed primary flight feathers (non-uniform stretched stone blades up to 1.65m!)
+     * - Tier 3: Layered secondary coverts filling the inner wing membrane for a dense, majestic silhouette.
+     */
+    public static WingPose wingPose(int index, int count, double time, Vec3 lookDir, boolean boosted) {
         Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
         if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
         else forward = forward.normalize();
         Vec3 right = new Vec3(-forward.z, 0, forward.x);
         Vec3 up = new Vec3(0, 1, 0);
 
-        // Central spine/scapula anchor blocks right behind the upper back when reserve >= 10
-        int spineCount = count >= 10 ? 2 : 0;
+        int spineCount = count >= 12 ? 2 : 0;
         if (index < spineCount) {
             double yOff = index == 0 ? 0.24 : -0.22;
-            double back = boosted ? -0.82 : -0.68;
-            return forward.scale(back).add(up.scale(yOff + Math.sin(time * 0.16 + index) * 0.04));
+            double back = boosted ? -0.52 : -0.44;
+            Vec3 pos = forward.scale(back).add(up.scale(yOff + Math.sin(time * 0.14 + index) * 0.025));
+            Vec3 sc = index == 0 ? new Vec3(0.42, 0.64, 0.24) : new Vec3(0.32, 0.46, 0.20);
+            Vec3 yA = up;
+            Vec3 zA = forward;
+            Vec3 xA = yA.cross(zA).normalize();
+            return new WingPose(pos, sc, xA, yA, zA, 0);
         }
 
         int wingBlock = index - spineCount;
-        int side = (wingBlock & 1) == 0 ? -1 : 1; // alternate Left (-1) and Right (+1) for perfect symmetry
-        int perWingTotal = Math.max(1, (count - spineCount + (side < 0 ? 1 : 0)) / 2);
+        int side = (wingBlock & 1) == 0 ? -1 : 1; // Left (-1) / Right (+1)
+        int perWing = Math.max(1, (count - spineCount + (side < 0 ? 1 : 0)) / 2);
         int localIdx = wingBlock / 2;
 
-        // Split each wing into upper primary pinions (~60%) and lower secondary feathers (~40%)
-        int primaryCount = Math.max(3, (int) Math.ceil(perWingTotal * 0.62));
-        boolean primary = localIdx < primaryCount;
-        int featherIdx = primary ? localIdx : (localIdx - primaryCount);
-        int featherCount = primary ? primaryCount : Math.max(1, perWingTotal - primaryCount);
-        double u = featherCount <= 1 ? 0.5 : (featherIdx / (double) (featherCount - 1)); // 0 (root) -> 1 (tip)
+        // Allocate each wing cleanly into 3 anatomical tiers: Arch Spar (~26%), Long Primaries (~46%), Coverts (~28%)
+        int archCount = Math.max(2, (int) Math.round(perWing * 0.26));
+        int primaryCount = Math.max(2, (int) Math.round(perWing * 0.46));
+        if (archCount + primaryCount > perWing) {
+            primaryCount = Math.max(1, perWing - archCount);
+        }
+        int covertCount = Math.max(0, perWing - archCount - primaryCount);
 
-        if (boosted) {
-            // Sleek swept-back supersonic delta chevron wings (kept well in front of 3rd-person camera!)
-            double span = primary ? (0.62 + u * 2.55) : (0.52 + u * 1.72);
-            double sweepBack = primary ? (-0.42 - u * 1.18) : (-0.64 - u * 0.92);
-            double lift = primary
-                    ? (0.24 + Math.sin(u * Math.PI * 0.72) * 1.05 + u * 0.35)
-                    : (-0.28 + u * 0.36);
-            double vibe = Math.sin(time * 1.45 + index * 1.7) * 0.028 * u;
-            return right.scale(side * span)
-                    .add(forward.scale(sweepBack))
-                    .add(up.scale(lift + vibe));
+        if (localIdx < archCount) {
+            // Tier 1: Continuous curved upper wing arch (long axisX runs right along the curve tangent!)
+            double u = archCount <= 1 ? 0.4 : (localIdx / (double) (archCount - 1));
+            Vec3 pos = wingArchPoint(side < 0, u, time, lookDir, boosted);
+            Vec3 next = wingArchPoint(side < 0, Math.min(1.0, u + 0.08), time, lookDir, boosted);
+            Vec3 prev = wingArchPoint(side < 0, Math.max(0.0, u - 0.08), time, lookDir, boosted);
+            Vec3 xA = next.subtract(prev);
+            xA = xA.lengthSqr() > 1e-6 ? xA.normalize() : right.scale(side);
+            // Make sure yA points generally upward perpendicular to arch tangent
+            Vec3 zA = xA.cross(up);
+            if (zA.lengthSqr() < 1e-5) zA = forward;
+            else zA = zA.normalize();
+            if (zA.dot(forward) < 0) zA = zA.scale(-1.0);
+            Vec3 yA = zA.cross(xA).normalize();
+            if (yA.y < 0) {
+                yA = yA.scale(-1.0);
+                zA = xA.cross(yA).normalize();
+            }
+
+            double sx = Mth.lerp(u, 0.62, 0.34);
+            double sy = Mth.lerp(u, 0.28, 0.16);
+            double sz = Mth.lerp(u, 0.28, 0.18);
+            return new WingPose(pos, new Vec3(sx, sy, sz), xA, yA, zA, 1);
         }
 
-        // Regal seraphic outstretched wings with dense feathered arch and organic traveling flap wave
-        double flapPhase = time * 0.22 - u * 1.15;
-        double flapY = Math.sin(flapPhase) * (0.14 + u * 0.52);
-        double flapBack = -Math.cos(flapPhase) * (0.10 + u * 0.20);
+        if (localIdx < archCount + primaryCount) {
+            // Tier 2: Long slender splayed primary flight feathers — axisY points EXACTLY from arch root -> feather tip!
+            int fi = localIdx - archCount;
+            double u = primaryCount <= 1 ? 0.6 : (fi / (double) (primaryCount - 1));
+            double archU = 0.14 + u * 0.86;
+            Vec3 root = wingArchPoint(side < 0, archU, time, lookDir, boosted);
+            Vec3 tip = wingFeatherTip(side < 0, u, time, lookDir, boosted);
+            Vec3 center = root.lerp(tip, 0.50);
 
-        double span = primary ? (0.58 + u * 2.68) : (0.52 + u * 1.82);
-        double archY = primary
-                ? (0.22 + Math.sin(u * Math.PI * 0.80) * 1.38 + u * 0.26)
-                : (-0.26 + Math.sin(u * Math.PI * 0.74) * 0.68 - u * 0.18);
-        double sweepBack = primary
-                ? (-0.48 - u * 0.62 + flapBack)
-                : (-0.70 - u * 0.52 + flapBack * 0.8);
+            double featherLen = Math.max(0.75, root.distanceTo(tip));
+            double sx = Mth.lerp(u, 0.26, 0.17);
+            double sy = featherLen * (boosted ? 1.06 : 1.02);
+            double sz = 0.11;
 
-        return right.scale(side * span)
-                .add(forward.scale(sweepBack))
-                .add(up.scale(archY + flapY));
+            Vec3 yA = tip.subtract(root).normalize();
+            // Thin feather face aligns with wing plane (normal ~ forward, slightly angled for graceful overlapping depth)
+            Vec3 planeRef = forward.add(right.scale(side * (boosted ? 0.28 : 0.14))).normalize();
+            Vec3 xA = yA.cross(planeRef);
+            if (xA.lengthSqr() < 1e-5) xA = right;
+            else xA = xA.normalize();
+            Vec3 zA = xA.cross(yA).normalize();
+            return new WingPose(center, new Vec3(sx, sy, sz), xA, yA, zA, 2);
+        }
+
+        // Tier 3: Layered secondary coverts tucked along the inner wing hollow aligned cleanly with the feather fan
+        int ci = localIdx - archCount - primaryCount;
+        double u = covertCount <= 1 ? 0.5 : (ci / (double) (covertCount - 1));
+        double archU = 0.08 + u * 0.72;
+        Vec3 root = wingArchPoint(side < 0, archU, time, lookDir, boosted);
+        Vec3 tip = wingFeatherTip(side < 0, u * 0.82, time, lookDir, boosted);
+        Vec3 center = root.lerp(tip, 0.34).add(forward.scale(boosted ? -0.14 : -0.10));
+        double sx = Mth.lerp(u, 0.30, 0.22);
+        double sy = Mth.lerp(u, 0.54, 0.80);
+        double sz = 0.13;
+        Vec3 yA = tip.subtract(root).normalize();
+        Vec3 xA = yA.cross(forward);
+        if (xA.lengthSqr() < 1e-5) xA = right;
+        else xA = xA.normalize();
+        Vec3 zA = xA.cross(yA).normalize();
+        return new WingPose(center, new Vec3(sx, sy, sz), xA, yA, zA, 3);
     }
 
-    /** Returns the world-relative offset (from chest) of the outer left or right wingtip for ribbon/particle emission. */
-    public static Vec3 wingTipOffset(boolean left, double time, Vec3 lookDir, boolean boosted) {
+    /** Point along the sculpted curved leading-edge wing arch ({@code u} = 0 at shoulder -> 1 at outer wingtip). */
+    public static Vec3 wingArchPoint(boolean left, double u, double time, Vec3 lookDir, boolean boosted) {
         Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
         if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
         else forward = forward.normalize();
         Vec3 right = new Vec3(-forward.z, 0, forward.x);
         Vec3 up = new Vec3(0, 1, 0);
         int side = left ? -1 : 1;
-        double u = 1.0;
+
         if (boosted) {
-            return right.scale(side * (0.62 + 2.55))
-                    .add(forward.scale(-0.42 - 1.18))
-                    .add(up.scale(0.24 + Math.sin(Math.PI * 0.72) * 1.05 + 0.35));
+            // Swept-back supersonic chevron arch (kept clearly visible in 3rd-person back view!)
+            double span = 0.42 + u * 2.55;
+            double archY = 0.24 + Math.sin(u * Math.PI * 0.76) * 1.02 + u * 0.22;
+            double sweepBack = -0.44 - u * 1.12;
+            double vibe = Math.sin(time * 1.35 + u * 6.0) * 0.022 * u;
+            return right.scale(side * span).add(forward.scale(sweepBack)).add(up.scale(archY + vibe));
         }
+
+        // Majestic eagle/seraphic arch: rises sharply to high wrist at u~0.42, then sweeps gracefully outward
         double flapPhase = time * 0.22 - u * 1.15;
-        double flapY = Math.sin(flapPhase) * (0.14 + u * 0.52);
-        double flapBack = -Math.cos(flapPhase) * (0.10 + u * 0.20);
-        return right.scale(side * (0.58 + 2.68))
-                .add(forward.scale(-0.48 - 0.62 + flapBack))
-                .add(up.scale(0.22 + Math.sin(Math.PI * 0.80) * 1.38 + 0.26 + flapY));
+        double flapY = Math.sin(flapPhase) * (0.12 + u * 0.48);
+        double flapBack = -Math.cos(flapPhase) * (0.08 + u * 0.18);
+        double span = 0.44 + u * 2.78;
+        double archY = 0.24 + Math.sin(Math.pow(u, 0.78) * Math.PI * 0.86) * 1.48 + u * 0.18;
+        double sweepBack = -0.44 - u * 0.60 + flapBack;
+        return right.scale(side * span).add(forward.scale(sweepBack)).add(up.scale(archY + flapY));
+    }
+
+    /** Trailing feather-tip position corresponding to primary feather {@code u} (0=inner -> 1=outermost pinion). */
+    public static Vec3 wingFeatherTip(boolean left, double u, double time, Vec3 lookDir, boolean boosted) {
+        Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
+        if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
+        else forward = forward.normalize();
+        Vec3 right = new Vec3(-forward.z, 0, forward.x);
+        Vec3 up = new Vec3(0, 1, 0);
+        int side = left ? -1 : 1;
+
+        double archU = 0.16 + u * 0.84;
+        Vec3 root = wingArchPoint(left, archU, time, lookDir, boosted);
+        double len = (boosted ? 0.92 : 0.96) + Math.sin(u * Math.PI * 0.88) * (boosted ? 0.56 : 0.72);
+        // Splay angle sweeps smoothly from downward-outward (inner feathers) to wide horizontal-outward (wingtip pinions!)
+        double splayRad = Mth.lerp(u, Math.toRadians(-72.0), Math.toRadians(boosted ? -8.0 : -14.0));
+        double outX = Math.cos(splayRad) * len;
+        double outY = Math.sin(splayRad) * len;
+        double trailBack = boosted ? (-0.52 - u * 0.45) : (-0.24 - u * 0.28);
+        double waveTip = boosted ? 0.0 : Math.sin(time * 0.22 - archU * 1.25 - 0.55) * (0.14 + u * 0.22);
+        return root.add(right.scale(side * outX))
+                .add(up.scale(outY + waveTip))
+                .add(forward.scale(trailBack));
+    }
+
+    /** Returns the world-relative offset (from chest) of the outer left or right wingtip for ribbon/particle emission. */
+    public static Vec3 wingTipOffset(boolean left, double time, Vec3 lookDir, boolean boosted) {
+        return wingFeatherTip(left, 1.0, time, lookDir, boosted);
     }
 
     /**

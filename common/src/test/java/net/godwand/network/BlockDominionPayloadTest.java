@@ -66,7 +66,7 @@ class BlockDominionPayloadTest {
         assertThrows(IllegalArgumentException.class, () -> new BlockDominionStatePayload(
                 1, 1, 0, 0, 99, 0, 0, 1, 0, 0, 0, new int[0], 0, 0, 0, 0, 0));
         assertThrows(IllegalArgumentException.class, () -> new BlockDominionStatePayload(
-                1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, new int[65], 0, 0, 0, 0, 0));
+                1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, new int[BlockDominionRules.MAX_CAPACITY + 1], 0, 0, 0, 0, 0));
         assertThrows(IllegalArgumentException.class, () -> new BlockDominionStatePayload(
                 1, 1, 0, 0, 0, Float.NaN, 0, 1, 0, 0, 0, new int[0], 0, 0, 0, 0, 0));
         assertThrows(IllegalArgumentException.class, () -> new BlockDominionStatePayload(

@@ -20,11 +20,11 @@ class BlockDominionRulesTest {
     }
 
     @Test
-    void capacityClampsBetweenFourAndSixtyFour() {
+    void capacityClampsBetweenFourAndNinetySix() {
         assertEquals(4, BlockDominionRules.clampCapacity(0));
         assertEquals(4, BlockDominionRules.clampCapacity(-10));
-        assertEquals(32, BlockDominionRules.clampCapacity(32));
-        assertEquals(64, BlockDominionRules.clampCapacity(128));
+        assertEquals(48, BlockDominionRules.clampCapacity(48));
+        assertEquals(96, BlockDominionRules.clampCapacity(128));
     }
 
     @Test

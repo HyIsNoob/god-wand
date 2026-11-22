@@ -166,7 +166,7 @@ public final class GodWandConfig {
         public boolean purpleNeedsFullRed = true;
 
         public int blockDominionCooldownTicks = 80;
-        public int blockDominionCapacity = 32;
+        public int blockDominionCapacity = 48;
         public float blockDominionDamage = 45;
         public float blockDominionBlastRadius = 2.5f;
         public float blockDominionCraterRadius = 1.8f;
@@ -212,7 +212,7 @@ public final class GodWandConfig {
             purpleRadius=Mth.clamp(purpleRadius,0,64);
             purpleDamage=finiteClamp(purpleDamage,0,1_000_000,9999);
             blockDominionCooldownTicks=Mth.clamp(blockDominionCooldownTicks,0,72000);
-            blockDominionCapacity=Mth.clamp(blockDominionCapacity,4,64);
+            blockDominionCapacity=Mth.clamp(blockDominionCapacity,4,96);
             blockDominionDamage=finiteClamp(blockDominionDamage,0,1_000_000,45);
             blockDominionBlastRadius=finiteClamp(blockDominionBlastRadius,0,16,2.5f);
             blockDominionCraterRadius=finiteClamp(blockDominionCraterRadius,0,8,1.8f);

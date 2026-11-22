@@ -10,6 +10,7 @@ Set-Location $root
 
 New-Item -ItemType Directory -Force build/dominion-qa | Out-Null
 Remove-Item -Recurse -Force build/dominion-qa/classes, build/dominion-qa/run/screenshots/dominion-frames, build/dominion-qa/run/screenshots/dominion-keyframes -ErrorAction SilentlyContinue
+Remove-Item -Force build/dominion-qa/run/config/godwand-server.json -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force "build/dominion-qa/run/saves/Dominion QA" -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force build/dominion-qa/classes, build/dominion-qa/run/screenshots/dominion-frames, build/dominion-qa/run/screenshots/dominion-keyframes | Out-Null
 Set-Content -Path build/dominion-qa/run/options.txt -Value "onboardAccessibility:false`npauseOnLostFocus:false`ntutorialStep:none`n" -Encoding ascii
