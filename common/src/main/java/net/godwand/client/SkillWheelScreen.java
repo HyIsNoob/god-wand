@@ -18,6 +18,11 @@ public final class SkillWheelScreen extends Screen {
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.godwand");
     public static final KeyMapping OPEN_CONFIG = new KeyMapping("key.godwand.config",
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, "key.categories.godwand");
+    // Unbound by default; controller mods (Controlify, Controllable) can bind these to gamepad buttons.
+    public static final KeyMapping NEXT_SKILL = new KeyMapping("key.godwand.next_skill",
+            InputConstants.Type.KEYSYM, InputConstants.UNKNOWN.getValue(), "key.categories.godwand");
+    public static final KeyMapping PREV_SKILL = new KeyMapping("key.godwand.prev_skill",
+            InputConstants.Type.KEYSYM, InputConstants.UNKNOWN.getValue(), "key.categories.godwand");
     private static final net.minecraft.resources.ResourceLocation ART = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("godwand", "textures/gui/skill_wheel.png");
     private static final net.minecraft.resources.ResourceLocation SECTORS = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("godwand", "textures/gui/skill_sectors.png");
     private static final double SECTOR = Math.PI * 2 / GodWandItem.TOTAL_MODES;
@@ -56,6 +61,23 @@ public final class SkillWheelScreen extends Screen {
                         hand == InteractionHand.MAIN_HAND ? client.player.getInventory().selected : 40, stack));
             }
         }
+        int step = 0;
+        while (NEXT_SKILL.consumeClick()) step++;
+        while (PREV_SKILL.consumeClick()) step--;
+        if (step == 0 || client.screen != null || client.player == null || !client.player.isAlive()
+                || client.player.isSpectator() || client.player.isUsingItem() || SilentGateCinematic.movementLocked()) return;
+        InteractionHand hand = client.player.getMainHandItem().getItem() instanceof GodWandItem
+                ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
+        ItemStack stack = client.player.getItemInHand(hand);
+        if (!(stack.getItem() instanceof GodWandItem)) return;
+        if (net.godwand.item.WandSkillLock.isLocked(stack)) {
+            client.player.displayClientMessage(Component.translatable("message.godwand.skill_locked", Component.translatable("skill.godwand." + GodWandItem.getSkillMode(stack))), true);
+            return;
+        }
+        int current = GodWandItem.getSkillMode(stack);
+        int mode = SkillWheelSelection.cycle(current, step, net.godwand.item.WandSkillLock.disabledMask(stack));
+        if (mode != current) Services.NETWORK.sendToServer(new SelectSkillPayload(mode,
+                hand == InteractionHand.MAIN_HAND ? client.player.getInventory().selected : 40));
     }
 
     private float wheelScale() {

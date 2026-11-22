@@ -19,6 +19,8 @@
   "subtitles.godwand.atomic_charge": "原子能量汇聚",
   "subtitles.godwand.atomic_blast": "原子爆炸",
   "key.godwand.config": "神之杖设置",
+  "key.godwand.next_skill": "下一个技能",
+  "key.godwand.prev_skill": "上一个技能",
   "skin.godwand.auto": "自动（按技能主题）",
   "skin.godwand.default": "魔导科技法杖",
   "skin.godwand.aqua_heartia": "水之心",

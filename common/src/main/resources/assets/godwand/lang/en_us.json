@@ -19,6 +19,8 @@
   "subtitles.godwand.atomic_charge": "Atomic energy gathering",
   "subtitles.godwand.atomic_blast": "Atomic detonation",
   "key.godwand.config": "God Wand Configuration",
+  "key.godwand.next_skill": "Next skill",
+  "key.godwand.prev_skill": "Previous skill",
   "skin.godwand.auto": "Auto (Thematic)",
   "skin.godwand.default": "Magitech Wand",
   "skin.godwand.aqua_heartia": "Aqua Heartia",

@@ -131,6 +131,8 @@ public class GodWandNeoForgeClientMod {
         public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
             event.register(SkillWheelScreen.OPEN);
             event.register(SkillWheelScreen.OPEN_CONFIG);
+            event.register(SkillWheelScreen.NEXT_SKILL);
+            event.register(SkillWheelScreen.PREV_SKILL);
         }
 
         @SubscribeEvent

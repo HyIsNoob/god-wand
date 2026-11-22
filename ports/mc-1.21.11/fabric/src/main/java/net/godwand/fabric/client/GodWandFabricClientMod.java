@@ -75,6 +75,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
 
         KeyBindingHelper.registerKeyBinding(SkillWheelScreen.OPEN);
         KeyBindingHelper.registerKeyBinding(SkillWheelScreen.OPEN_CONFIG);
+        KeyBindingHelper.registerKeyBinding(SkillWheelScreen.NEXT_SKILL);
+        KeyBindingHelper.registerKeyBinding(SkillWheelScreen.PREV_SKILL);
         EntityRendererRegistry.register(GodWandMod.ARCANE_ORB_ENTITY_TYPE, ArcaneOrbEntityRenderer::new);
         EntityRendererRegistry.register(GodWandMod.STONE_CANNON_ENTITY_TYPE, StoneCannonEntityRenderer::new);
 
