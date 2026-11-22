@@ -9,6 +9,8 @@ import net.minecraft.world.entity.player.Player;
 /** Turns holding left click with the wand on Blue/Red into start/stop messages for the server. */
 public final class BlueRedInput {
     private static boolean held;
+    /** Left-click hold as seen by Minecraft.continueAttack; also true for controller attack buttons. */
+    public static boolean attackHeld;
     private BlueRedInput() {}
 
     /** Main hand holds the wand set to Blue/Red; the attack mixin swallows left click only then. */
@@ -25,11 +27,11 @@ public final class BlueRedInput {
 
     public static void tick(Minecraft client) {
         if (client.player == null || client.getConnection() == null) { held = false; return; }
-        Boolean change = edge(held, client.options.keyAttack.isDown(), eligible(client.player), client.screen != null, client.isWindowActive());
+        Boolean change = edge(held, client.options.keyAttack.isDown() || attackHeld, eligible(client.player), client.screen != null, client.isWindowActive());
         if (change == null) return;
         held = change;
         Services.NETWORK.sendToServer(new BlueInputPayload(held));
     }
 
-    public static void reset() { held = false; }
+    public static void reset() { held = false; attackHeld = false; }
 }

@@ -18,6 +18,7 @@ public abstract class BlueRedAttackMixin {
 
     @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)
     private void godwand$blueInsteadOfMining(boolean leftClick, CallbackInfo ci) {
+        BlueRedInput.attackHeld = leftClick; // controller mods (Controllable) feed the hold here, never through keyAttack
         if (BlueRedInput.eligible(((Minecraft) (Object) this).player)) ci.cancel();
     }
 }

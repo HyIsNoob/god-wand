@@ -2,8 +2,8 @@
   "reason": "Explicit version/loader API adapter",
   "changes": [
     {
-      "before": "\n    public static void tick(Minecraft client) {\n        if (client.player == null || client.getConnection() == null) { held = false; return; }\n        Boolean change = edge(held, client.options.keyAttack.isDown(), eligible(client.player), client.screen != null, client.isWindowActive());\n        if (change == null) return;\n        held = change;\n        Services.NETWORK.sendToServer(new BlueInputPayload(held));\n",
-      "after": "\n    public static void tick(Minecraft client) {\n        if (client.player == null || client.getConnection() == null) { held = false; return; }\n        Boolean change = edge(held, client.options.keyAttack.isDown(), eligible(client.player), client.gui.screen() != null, client.isWindowActive());\n        if (change == null) return;\n        held = change;\n        Services.NETWORK.sendToServer(new BlueInputPayload(held));\n"
+      "before": "\n    public static void tick(Minecraft client) {\n        if (client.player == null || client.getConnection() == null) { held = false; return; }\n        Boolean change = edge(held, client.options.keyAttack.isDown() || attackHeld, eligible(client.player), client.screen != null, client.isWindowActive());\n        if (change == null) return;\n        held = change;\n        Services.NETWORK.sendToServer(new BlueInputPayload(held));\n",
+      "after": "\n    public static void tick(Minecraft client) {\n        if (client.player == null || client.getConnection() == null) { held = false; return; }\n        Boolean change = edge(held, client.options.keyAttack.isDown() || attackHeld, eligible(client.player), client.gui.screen() != null, client.isWindowActive());\n        if (change == null) return;\n        held = change;\n        Services.NETWORK.sendToServer(new BlueInputPayload(held));\n"
     }
   ]
 }
