@@ -48,6 +48,9 @@ public final class BlockDominionRules {
     public static final int FLAG_STOWED = 1;
     public static final int FLAG_VOLLEY_CHARGING = 2;
     public static final int FLAG_HIDDEN = 4;
+    public static final int FLAG_FLYING = 8;
+    public static final int FLAG_BOOSTING = 16;
+    public static final int FLAG_AIR_STAIRS = 32;
 
     public static final int EVENT_SYNC = 0;
     public static final int EVENT_PICKUP = 1;
@@ -56,6 +59,21 @@ public final class BlockDominionRules {
     public static final int EVENT_VOLLEY = 4;
     public static final int EVENT_UNFOLD = 5;
     public static final int EVENT_STOW = 6;
+    public static final int EVENT_FLIGHT_START = 7;
+    public static final int EVENT_FLIGHT_END = 8;
+    public static final int EVENT_FLIGHT_BOOST = 9;
+    public static final int EVENT_AIR_STEP = 10;
+    public static final int MAX_EVENT = EVENT_AIR_STEP;
+
+    public static final int MIN_FLIGHT_BLOCKS = 6;
+    public static final int MIN_STAIR_BLOCKS = 4;
+    public static final double FLIGHT_CRUISE_SPEED = 0.78;
+    public static final double FLIGHT_BOOST_SPEED = 1.72;
+    public static final double FLIGHT_ACCEL = 0.115;
+    public static final double FLIGHT_BOOST_ACCEL = 0.195;
+    public static final double FLIGHT_DRAG = 0.82;
+    public static final double STAIR_DESCEND_VY = -0.14;
+    public static final double STAIR_HOP_VY = 0.44;
 
     private BlockDominionRules() {}
 
@@ -196,6 +214,63 @@ public final class BlockDominionRules {
             return Mth.lerp(ease, tiny, full);
         }
         return full;
+    }
+
+    /**
+     * Pure per-tick 3D free-flight velocity integrator used identically on client and server.
+     * Supports smooth acceleration up to cruise speed, high-speed aerodynamic sprint boost,
+     * and smooth exponential deceleration to a regal midair hover when keys are released.
+     */
+    public static Vec3 stepFlightVelocity(Vec3 currentVel, Vec3 lookDir,
+                                          int forwardInput, int strafeInput, int verticalInput, boolean boost) {
+        Vec3 cur = currentVel == null ? Vec3.ZERO : currentVel;
+        Vec3 look = lookDir == null || lookDir.lengthSqr() < 1e-6 ? new Vec3(0, 0, 1) : lookDir.normalize();
+        Vec3 horizFwd = new Vec3(look.x, 0, look.z);
+        if (horizFwd.lengthSqr() < 1e-5) horizFwd = new Vec3(0, 0, 1);
+        else horizFwd = horizFwd.normalize();
+        Vec3 right = new Vec3(-horizFwd.z, 0, horizFwd.x);
+
+        Vec3 wish = Vec3.ZERO;
+        if (forwardInput != 0) wish = wish.add(look.scale(Mth.clamp(forwardInput, -1, 1)));
+        if (strafeInput != 0) wish = wish.add(right.scale(Mth.clamp(strafeInput, -1, 1)));
+        if (verticalInput != 0) wish = wish.add(0, Mth.clamp(verticalInput, -1, 1), 0);
+
+        if (wish.lengthSqr() > 1e-5) {
+            Vec3 wishDir = wish.normalize();
+            double maxSpeed = boost ? FLIGHT_BOOST_SPEED : FLIGHT_CRUISE_SPEED;
+            double accel = boost ? FLIGHT_BOOST_ACCEL : FLIGHT_ACCEL;
+            Vec3 targetVel = wishDir.scale(maxSpeed);
+            Vec3 diff = targetVel.subtract(cur);
+            double diffLen = diff.length();
+            if (diffLen <= accel) {
+                return targetVel;
+            }
+            // Blend steering smoothly so sharp turns feel crisp while acceleration stays weighty
+            Vec3 next = cur.add(diff.scale(accel / diffLen));
+            double nextLen = next.length();
+            if (nextLen > maxSpeed) {
+                next = next.scale(maxSpeed / nextLen);
+            }
+            return next;
+        }
+
+        // No movement keys held -> smooth aerodynamic braking into midair hover
+        Vec3 damped = cur.scale(FLIGHT_DRAG);
+        return damped.lengthSqr() < 0.000064 ? Vec3.ZERO : damped;
+    }
+
+    /**
+     * Pure per-tick vertical velocity controller for Air-Step Block Stairs ("stepping down creates stairs").
+     * Gently steps downward when walking forward, holds level when standing still, and allows a crisp stair-hop.
+     */
+    public static Vec3 stepAirStairsVelocity(Vec3 currentVel, double horizSpeed, boolean jumpPressed) {
+        Vec3 cur = currentVel == null ? Vec3.ZERO : currentVel;
+        if (jumpPressed) {
+            return new Vec3(cur.x, STAIR_HOP_VY, cur.z);
+        }
+        double targetVy = horizSpeed > 0.035 ? STAIR_DESCEND_VY : 0.0;
+        double vy = cur.y < targetVy ? Mth.lerp(0.65, cur.y, targetVy) : Math.min(cur.y, 0.28);
+        return new Vec3(cur.x, vy, cur.z);
     }
 
     private static Vec3 idleOrbitOffset(int index, int count, double time, Vec3 forward, Vec3 right, Vec3 up) {

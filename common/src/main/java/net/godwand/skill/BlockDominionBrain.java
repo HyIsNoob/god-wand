@@ -23,10 +23,21 @@ public final class BlockDominionBrain {
         SHIELD_SINGLE,
         SHIELD_MULTI,
         SHIELD_DOME,
-        VOLLEY_FAN;
+        VOLLEY_FAN,
+        AIR_STAIRS,
+        WINGS_HOVER,
+        WINGS_BOOST;
 
         public boolean isShield() {
             return this == SHIELD_SINGLE || this == SHIELD_MULTI || this == SHIELD_DOME;
+        }
+
+        public boolean isWings() {
+            return this == WINGS_HOVER || this == WINGS_BOOST;
+        }
+
+        public boolean isMobility() {
+            return isWings() || this == AIR_STAIRS;
         }
 
         public static FormationKind byOrdinal(int ordinal) {
@@ -45,6 +56,9 @@ public final class BlockDominionBrain {
         public static final BrainPlan IDLE_PLAN = new BrainPlan(FormationKind.IDLE, new Vec3(0, 0, 1), Vec3.ZERO);
         public static final BrainPlan STOWED_PLAN = new BrainPlan(FormationKind.STOWED, new Vec3(0, 0, 1), Vec3.ZERO);
         public static final BrainPlan VOLLEY_PLAN = new BrainPlan(FormationKind.VOLLEY_FAN, new Vec3(0, 0, 1), Vec3.ZERO);
+        public static final BrainPlan AIR_STAIRS_PLAN = new BrainPlan(FormationKind.AIR_STAIRS, new Vec3(0, 0, 1), Vec3.ZERO);
+        public static final BrainPlan WINGS_HOVER_PLAN = new BrainPlan(FormationKind.WINGS_HOVER, new Vec3(0, 0, 1), Vec3.ZERO);
+        public static final BrainPlan WINGS_BOOST_PLAN = new BrainPlan(FormationKind.WINGS_BOOST, new Vec3(0, 0, 1), Vec3.ZERO);
     }
 
     private BlockDominionBrain() {}
@@ -65,42 +79,62 @@ public final class BlockDominionBrain {
 
     /** Selects the best formation from active threats, reserve size, stowed state and volley charge. */
     public static BrainPlan plan(List<ThreatSample> threats, int blockCount, boolean stowed, boolean volleyCharging) {
-        if (volleyCharging && !stowed) return BrainPlan.VOLLEY_PLAN;
-        if (blockCount <= 0 || threats == null || threats.isEmpty()) {
-            return stowed ? BrainPlan.STOWED_PLAN : BrainPlan.IDLE_PLAN;
-        }
-
-        List<ThreatSample> sorted = new ArrayList<>(threats);
-        sorted.sort(Comparator.comparingDouble(ThreatSample::urgency).reversed());
-
-        boolean anyExplosive = false;
-        List<Vec3> clusters = new ArrayList<>();
-        for (ThreatSample sample : sorted) {
-            if (sample.explosive()) anyExplosive = true;
-            boolean merged = false;
-            for (Vec3 existing : clusters) {
-                if (existing.dot(sample.direction()) >= DIRECTION_CLUSTER_COS) {
-                    merged = true;
-                    break;
-                }
-            }
-            if (!merged) {
-                clusters.add(sample.direction());
-                if (clusters.size() >= 3) break;
-            }
-        }
-
-        if ((anyExplosive && blockCount >= 10) || (clusters.size() >= 3 && blockCount >= 8)) {
-            return new BrainPlan(FormationKind.SHIELD_DOME, clusters.get(0),
-                    clusters.size() > 1 ? clusters.get(1) : Vec3.ZERO);
-        }
-        if (clusters.size() >= 2 && blockCount >= 4) {
-            return new BrainPlan(FormationKind.SHIELD_MULTI, clusters.get(0), clusters.get(1));
-        }
-        return new BrainPlan(FormationKind.SHIELD_SINGLE, clusters.get(0), Vec3.ZERO);
+        return plan(threats, blockCount, stowed, volleyCharging, false, false, false);
     }
 
-    /** Computes target offset relative to player chest (y + 1.25) for any Milestone 1 or 2 formation. */
+    /**
+     * Full formation planner including mobility modes (Block Wings free flight, Mach boost chevron,
+     * and Air-Step floating block stairs). Immediate threats still raise defensive shields.
+     */
+    public static BrainPlan plan(List<ThreatSample> threats, int blockCount, boolean stowed, boolean volleyCharging,
+                                 boolean flying, boolean boosting, boolean airStairs) {
+        if (volleyCharging && !stowed) return BrainPlan.VOLLEY_PLAN;
+
+        boolean hasThreats = blockCount > 0 && threats != null && !threats.isEmpty();
+        if (hasThreats) {
+            List<ThreatSample> sorted = new ArrayList<>(threats);
+            sorted.sort(Comparator.comparingDouble(ThreatSample::urgency).reversed());
+
+            boolean anyExplosive = false;
+            List<Vec3> clusters = new ArrayList<>();
+            for (ThreatSample sample : sorted) {
+                if (sample.explosive()) anyExplosive = true;
+                boolean merged = false;
+                for (Vec3 existing : clusters) {
+                    if (existing.dot(sample.direction()) >= DIRECTION_CLUSTER_COS) {
+                        merged = true;
+                        break;
+                    }
+                }
+                if (!merged) {
+                    clusters.add(sample.direction());
+                    if (clusters.size() >= 3) break;
+                }
+            }
+
+            if ((anyExplosive && blockCount >= 10) || (clusters.size() >= 3 && blockCount >= 8)) {
+                return new BrainPlan(FormationKind.SHIELD_DOME, clusters.get(0),
+                        clusters.size() > 1 ? clusters.get(1) : Vec3.ZERO);
+            }
+            // During supersonic wing boost, keep wings locked unless an explosive or incoming projectile demands a shield
+            if (!boosting || sorted.get(0).urgency() >= 14.0) {
+                if (clusters.size() >= 2 && blockCount >= 4) {
+                    return new BrainPlan(FormationKind.SHIELD_MULTI, clusters.get(0), clusters.get(1));
+                }
+                return new BrainPlan(FormationKind.SHIELD_SINGLE, clusters.get(0), Vec3.ZERO);
+            }
+        }
+
+        if (flying && blockCount >= BlockDominionRules.MIN_FLIGHT_BLOCKS) {
+            return boosting ? BrainPlan.WINGS_BOOST_PLAN : BrainPlan.WINGS_HOVER_PLAN;
+        }
+        if (airStairs && !stowed && blockCount >= BlockDominionRules.MIN_STAIR_BLOCKS) {
+            return BrainPlan.AIR_STAIRS_PLAN;
+        }
+        return stowed ? BrainPlan.STOWED_PLAN : BrainPlan.IDLE_PLAN;
+    }
+
+    /** Computes target offset relative to player chest (y + 1.25) for any Block Dominion formation. */
     public static Vec3 slotOffset(FormationKind kind, int index, int count, double time, Vec3 lookDir,
                                   Vec3 primaryDir, Vec3 secondaryDir, float unfoldProgress, float volleyProgress) {
         if (count <= 0) return Vec3.ZERO;
@@ -118,7 +152,125 @@ public final class BlockDominionBrain {
                 }
             }
             case SHIELD_DOME -> shieldDomeOffset(index, count, time);
+            case AIR_STAIRS -> airStairsOffset(index, count, time, lookDir);
+            case WINGS_HOVER -> wingsOffset(index, count, time, lookDir, false);
+            case WINGS_BOOST -> wingsOffset(index, count, time, lookDir, true);
         };
+    }
+
+    /**
+     * Air-Step Block Stairs ("bước xuống tạo thang"): up to 6 reserve blocks materialize directly beneath
+     * and ahead of the player's feet as a glowing floating stone staircase; remaining blocks orbit behind.
+     */
+    public static Vec3 airStairsOffset(int index, int count, double time, Vec3 lookDir) {
+        Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
+        if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
+        else forward = forward.normalize();
+        Vec3 right = new Vec3(-forward.z, 0, forward.x);
+        Vec3 up = new Vec3(0, 1, 0);
+
+        int stairSlots = Math.min(6, count);
+        if (index < stairSlots) {
+            // Chest is at playerY + 1.25; -1.52 places the top face of a ~0.55-scale block right under the soles
+            double pulse = Math.sin(time * 0.25 + index * 1.1) * 0.025;
+            return switch (index) {
+                case 0 -> forward.scale(0.18).add(up.scale(-1.52 + pulse));
+                case 1 -> forward.scale(1.02).add(up.scale(-1.86 + pulse));
+                case 2 -> forward.scale(1.88).add(up.scale(-2.20 + pulse));
+                case 3 -> forward.scale(-0.78).add(up.scale(-1.18 + pulse));
+                case 4 -> forward.scale(0.55).add(right.scale(-0.78)).add(up.scale(-1.62 + pulse));
+                default -> forward.scale(0.55).add(right.scale(0.78)).add(up.scale(-1.62 + pulse));
+            };
+        }
+        int remIdx = index - stairSlots;
+        int remCount = Math.max(1, count - stairSlots);
+        return BlockDominionRules.formationOffset(remIdx, remCount, time, lookDir, false, 1f, false, 0f);
+    }
+
+    /**
+     * Articulated multi-layered Block Wings behind the player's back.
+     * In {@code WINGS_HOVER} (!boosted): grand outstretched seraphic stone wings with a traveling organic
+     * flap wave from shoulder to wingtip. In {@code WINGS_BOOST} (boosted): swept-back aerodynamic
+     * chevron delta-wings built for high-speed Mach flight.
+     */
+    public static Vec3 wingsOffset(int index, int count, double time, Vec3 lookDir, boolean boosted) {
+        Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
+        if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
+        else forward = forward.normalize();
+        Vec3 right = new Vec3(-forward.z, 0, forward.x);
+        Vec3 up = new Vec3(0, 1, 0);
+
+        // Central spine/scapula anchor blocks right behind the upper back when reserve >= 10
+        int spineCount = count >= 10 ? 2 : 0;
+        if (index < spineCount) {
+            double yOff = index == 0 ? 0.24 : -0.22;
+            double back = boosted ? -0.82 : -0.68;
+            return forward.scale(back).add(up.scale(yOff + Math.sin(time * 0.16 + index) * 0.04));
+        }
+
+        int wingBlock = index - spineCount;
+        int side = (wingBlock & 1) == 0 ? -1 : 1; // alternate Left (-1) and Right (+1) for perfect symmetry
+        int perWingTotal = Math.max(1, (count - spineCount + (side < 0 ? 1 : 0)) / 2);
+        int localIdx = wingBlock / 2;
+
+        // Split each wing into upper primary pinions (~60%) and lower secondary feathers (~40%)
+        int primaryCount = Math.max(3, (int) Math.ceil(perWingTotal * 0.62));
+        boolean primary = localIdx < primaryCount;
+        int featherIdx = primary ? localIdx : (localIdx - primaryCount);
+        int featherCount = primary ? primaryCount : Math.max(1, perWingTotal - primaryCount);
+        double u = featherCount <= 1 ? 0.5 : (featherIdx / (double) (featherCount - 1)); // 0 (root) -> 1 (tip)
+
+        if (boosted) {
+            // Sleek swept-back supersonic delta chevron wings (kept well in front of 3rd-person camera!)
+            double span = primary ? (0.62 + u * 2.55) : (0.52 + u * 1.72);
+            double sweepBack = primary ? (-0.42 - u * 1.18) : (-0.64 - u * 0.92);
+            double lift = primary
+                    ? (0.24 + Math.sin(u * Math.PI * 0.72) * 1.05 + u * 0.35)
+                    : (-0.28 + u * 0.36);
+            double vibe = Math.sin(time * 1.45 + index * 1.7) * 0.028 * u;
+            return right.scale(side * span)
+                    .add(forward.scale(sweepBack))
+                    .add(up.scale(lift + vibe));
+        }
+
+        // Regal seraphic outstretched wings with dense feathered arch and organic traveling flap wave
+        double flapPhase = time * 0.22 - u * 1.15;
+        double flapY = Math.sin(flapPhase) * (0.14 + u * 0.52);
+        double flapBack = -Math.cos(flapPhase) * (0.10 + u * 0.20);
+
+        double span = primary ? (0.58 + u * 2.68) : (0.52 + u * 1.82);
+        double archY = primary
+                ? (0.22 + Math.sin(u * Math.PI * 0.80) * 1.38 + u * 0.26)
+                : (-0.26 + Math.sin(u * Math.PI * 0.74) * 0.68 - u * 0.18);
+        double sweepBack = primary
+                ? (-0.48 - u * 0.62 + flapBack)
+                : (-0.70 - u * 0.52 + flapBack * 0.8);
+
+        return right.scale(side * span)
+                .add(forward.scale(sweepBack))
+                .add(up.scale(archY + flapY));
+    }
+
+    /** Returns the world-relative offset (from chest) of the outer left or right wingtip for ribbon/particle emission. */
+    public static Vec3 wingTipOffset(boolean left, double time, Vec3 lookDir, boolean boosted) {
+        Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
+        if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
+        else forward = forward.normalize();
+        Vec3 right = new Vec3(-forward.z, 0, forward.x);
+        Vec3 up = new Vec3(0, 1, 0);
+        int side = left ? -1 : 1;
+        double u = 1.0;
+        if (boosted) {
+            return right.scale(side * (0.62 + 2.55))
+                    .add(forward.scale(-0.42 - 1.18))
+                    .add(up.scale(0.24 + Math.sin(Math.PI * 0.72) * 1.05 + 0.35));
+        }
+        double flapPhase = time * 0.22 - u * 1.15;
+        double flapY = Math.sin(flapPhase) * (0.14 + u * 0.52);
+        double flapBack = -Math.cos(flapPhase) * (0.10 + u * 0.20);
+        return right.scale(side * (0.58 + 2.68))
+                .add(forward.scale(-0.48 - 0.62 + flapBack))
+                .add(up.scale(0.22 + Math.sin(Math.PI * 0.80) * 1.38 + 0.26 + flapY));
     }
 
     /**

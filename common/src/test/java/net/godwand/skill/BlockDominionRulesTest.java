@@ -130,4 +130,44 @@ class BlockDominionRulesTest {
         }
         assertTrue(BlockDominionRules.blockScale(true, 0f, false, 0f) < BlockDominionRules.blockScale(false, 1f, false, 0f));
     }
+
+    @Test
+    void freeFlightAcceleratesBoostsAndSmoothlyDeceleratesToHover() {
+        Vec3 look = new Vec3(0, 0.2, 1).normalize();
+        Vec3 vel = Vec3.ZERO;
+        // Cruise acceleration
+        for (int t = 0; t < 20; t++) {
+            vel = BlockDominionRules.stepFlightVelocity(vel, look, 1, 0, 0, false);
+        }
+        assertEquals(BlockDominionRules.FLIGHT_CRUISE_SPEED, vel.length(), 0.02);
+        assertTrue(vel.y > 0.05 && vel.z > 0.5, "Follows 3D look vector");
+
+        // Sprint Mach boost accelerates past cruise speed
+        Vec3 boosted = vel;
+        for (int t = 0; t < 20; t++) {
+            boosted = BlockDominionRules.stepFlightVelocity(boosted, look, 1, 0, 0, true);
+        }
+        assertEquals(BlockDominionRules.FLIGHT_BOOST_SPEED, boosted.length(), 0.02);
+        assertTrue(boosted.length() > vel.length() * 1.8);
+
+        // Releasing keys smoothly decelerates to hover
+        Vec3 braking = boosted;
+        for (int t = 0; t < 40; t++) {
+            braking = BlockDominionRules.stepFlightVelocity(braking, look, 0, 0, 0, false);
+        }
+        assertEquals(0.0, braking.length(), 1e-6);
+    }
+
+    @Test
+    void airStepStairsCatchesFallHoldsStillAndHopsOnJump() {
+        Vec3 falling = new Vec3(0.2, -0.8, 0.0);
+        Vec3 stepped = BlockDominionRules.stepAirStairsVelocity(falling, 0.2, false);
+        assertTrue(stepped.y > falling.y && stepped.y >= BlockDominionRules.STAIR_DESCEND_VY - 0.3);
+
+        Vec3 standing = BlockDominionRules.stepAirStairsVelocity(new Vec3(0, -0.5, 0), 0.0, false);
+        assertTrue(standing.y > -0.25, "Catches fall when hovering on step");
+
+        Vec3 hopped = BlockDominionRules.stepAirStairsVelocity(new Vec3(0.1, -0.1, 0.1), 0.14, true);
+        assertEquals(BlockDominionRules.STAIR_HOP_VY, hopped.y, 1e-6);
+    }
 }

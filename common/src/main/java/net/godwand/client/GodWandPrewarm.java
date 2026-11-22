@@ -31,7 +31,10 @@ public final class GodWandPrewarm {
                         client.getTextureManager().getTexture(ResourceLocation.fromNamespaceAndPath("godwand", path));
                     GateAtlas.prepare();
                 }
-                case 1 -> BlueRedShader.prewarm();
+                case 1 -> {
+                    BlueRedShader.prewarm();
+                    DominionShader.prewarm();
+                }
                 case 2 -> GatePostFx.process(0, 0, .5f, .5f, 0, 0, 0);
                 case 3 -> AtomicPostFx.prewarm();
                 case 4, 5, 6 -> dryRun(step - 5);

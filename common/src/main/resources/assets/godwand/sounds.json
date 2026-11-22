@@ -123,5 +123,17 @@
   },
   "dominion_shield_lock": {
     "sounds": [{"name":"godwand:dominion_shield_lock","stream":false}]
+  },
+  "dominion_wing_flap": {
+    "sounds": [{"name":"godwand:dominion_wing_flap","stream":false}]
+  },
+  "dominion_flight_boost": {
+    "sounds": [{"name":"godwand:dominion_flight_boost","stream":false}]
+  },
+  "dominion_flight_loop": {
+    "sounds": [{"name":"godwand:dominion_flight_loop","stream":false}]
+  },
+  "dominion_step": {
+    "sounds": [{"name":"godwand:dominion_step","stream":false}]
   }
 }

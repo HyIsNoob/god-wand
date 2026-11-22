@@ -109,4 +109,39 @@ class BlockDominionBrainTest {
         assertFalse(BlockDominionBrain.directionChangedSignificantly(forward, tinyJitter));
         assertTrue(BlockDominionBrain.directionChangedSignificantly(forward, bigTurn));
     }
+
+    @Test
+    void plansWingsBoostAndAirStairsFormationsWithValidGeometry() {
+        assertEquals(BlockDominionBrain.FormationKind.WINGS_HOVER,
+                BlockDominionBrain.plan(List.of(), 16, false, false, true, false, false).kind());
+        assertEquals(BlockDominionBrain.FormationKind.WINGS_BOOST,
+                BlockDominionBrain.plan(List.of(), 16, false, false, true, true, false).kind());
+        assertEquals(BlockDominionBrain.FormationKind.AIR_STAIRS,
+                BlockDominionBrain.plan(List.of(), 12, false, false, false, false, true).kind());
+        // Not enough blocks -> falls back to IDLE
+        assertEquals(BlockDominionBrain.FormationKind.IDLE,
+                BlockDominionBrain.plan(List.of(), 4, false, false, true, false, false).kind());
+
+        Vec3 look = new Vec3(0, 0, 1);
+        // Wings span both left (-X) and right (+X) behind the back (-Z), and boost sweeps further back
+        boolean hasLeft = false, hasRight = false;
+        double hoverMinZ = 0, boostMinZ = 0;
+        for (int i = 0; i < 24; i++) {
+            Vec3 w = BlockDominionBrain.wingsOffset(i, 24, 10.0, look, false);
+            Vec3 wb = BlockDominionBrain.wingsOffset(i, 24, 10.0, look, true);
+            assertTrue(w.z < -0.2, "Wings stay behind back");
+            if (w.x < -1.5) hasLeft = true;
+            if (w.x > 1.5) hasRight = true;
+            hoverMinZ = Math.min(hoverMinZ, w.z);
+            boostMinZ = Math.min(boostMinZ, wb.z);
+        }
+        assertTrue(hasLeft && hasRight, "Wings must form symmetrical left and right pinions");
+        assertTrue(boostMinZ < hoverMinZ - 0.15, "Boost chevron sweeps further back than hover wings");
+
+        // Air stairs place first steps directly beneath feet (y < -1.1 relative to chest)
+        Vec3 step0 = BlockDominionBrain.airStairsOffset(0, 16, 5.0, look);
+        Vec3 step1 = BlockDominionBrain.airStairsOffset(1, 16, 5.0, look);
+        assertTrue(step0.y < -1.2 && step1.y < step0.y, "Stairs step downward in front of feet");
+        assertTrue(step1.z > step0.z, "Next stair step lies ahead of player");
+    }
 }

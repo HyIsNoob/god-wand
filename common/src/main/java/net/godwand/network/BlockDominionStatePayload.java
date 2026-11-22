@@ -33,7 +33,7 @@ public record BlockDominionStatePayload(
         if (formationKind < 0 || formationKind >= BlockDominionBrain.FormationKind.values().length) {
             throw new IllegalArgumentException("Invalid Block Dominion formation: " + formationKind);
         }
-        if (eventKind < 0 || eventKind > BlockDominionRules.EVENT_STOW) {
+        if (eventKind < 0 || eventKind > BlockDominionRules.MAX_EVENT) {
             throw new IllegalArgumentException("Invalid Block Dominion event: " + eventKind);
         }
         if (blockStateIds == null) blockStateIds = new int[0];

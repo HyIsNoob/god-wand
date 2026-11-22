@@ -30,6 +30,10 @@ public final class BlockDominionSounds {
     public static final SoundEvent IMPACT = event("dominion_impact");
     public static final SoundEvent UNFOLD = event("dominion_unfold");
     public static final SoundEvent SHIELD_LOCK = event("dominion_shield_lock");
+    public static final SoundEvent WING_FLAP = event("dominion_wing_flap");
+    public static final SoundEvent FLIGHT_BOOST = event("dominion_flight_boost");
+    public static final SoundEvent FLIGHT_LOOP = event("dominion_flight_loop");
+    public static final SoundEvent STEP = event("dominion_step");
 
     private static final Map<Integer, FollowLoop> LOOPS = new HashMap<>();
     private static final Map<Integer, FollowLoop> VOLLEY_CHARGES = new HashMap<>();

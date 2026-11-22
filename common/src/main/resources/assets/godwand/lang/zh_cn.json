@@ -74,6 +74,8 @@
   "message.godwand.dominion_count": "方块：%s/%s",
   "message.godwand.dominion_volley": "万块归宗！（%s 个方块）",
   "message.godwand.dominion_no_nearby": "附近没有可用方块。",
+  "message.godwand.dominion_wings_on": "方块之翼：自由飞行（疾跑加速）",
+  "message.godwand.dominion_wings_need": "展开方块之翼至少需要 %s 个方块",
   "advancements.godwand.root.title": "神之杖",
   "advancements.godwand.root.description": "握住一根能扭曲世界的魔杖",
   "advancements.godwand.use_0.title": "朕行之处，即是道路",

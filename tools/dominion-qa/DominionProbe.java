@@ -114,10 +114,11 @@ public final class DominionProbe implements ClientModInitializer {
         switch (stage) {
             case 1 -> stagePickupAndTiers(c, server, t);
             case 2 -> stageStowAndUnfold(c, server, t);
-            case 3 -> stageBrainShieldsAndParry(c, server, t);
-            case 4 -> stageRapidAndVolley(c, server, t);
-            case 5 -> stageAutoModeAndCounter(c, server, t);
-            case 6 -> stageSpiralDropAndFinish(c, server, t);
+            case 3 -> stageAirStairsAndWingsFlight(c, server, t);
+            case 4 -> stageBrainShieldsAndParry(c, server, t);
+            case 5 -> stageRapidAndVolley(c, server, t);
+            case 6 -> stageAutoModeAndCounter(c, server, t);
+            case 7 -> stageSpiralDropAndFinish(c, server, t);
             default -> {}
         }
         grabFrame(c);
@@ -221,13 +222,102 @@ public final class DominionProbe implements ClientModInitializer {
             server.submit(() -> GodWandItem.selectSkill(me(server, c), InteractionHand.MAIN_HAND, GodWandItem.MODE_BLOCK_DOMINION)).join();
         }
         if (t == 32) saveKeyframe(c, "kf_05_unfold.png");
-        if (t >= 52) {
+        if (t >= 48) {
             stage = 3;
             stageStart = ticks;
         }
     }
 
-    /** Stage 3 (110 ticks): Survival mode! Single shield + arrow parry -> Dual shields -> 360 Dome + TNT parry! */
+    /** Stage 3 (150 ticks): Survival Air-Step Block Stairs off a high tower -> Block Wings Hover -> Mach Boost -> Smooth Deceleration! */
+    private void stageAirStairsAndWingsFlight(Minecraft c, MinecraftServer server, int t) {
+        final int S3X = OX - 50, S3Z = OZ + 20;
+        if (t == 1) {
+            c.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+            server.submit(() -> {
+                ServerPlayer p = me(server, c);
+                ServerLevel level = p.serverLevel();
+                // Build a dramatic 12-block high obsidian/gold overlook platform
+                for (int dx = -2; dx <= 2; dx++) {
+                    for (int dz = -2; dz <= 2; dz++) {
+                        level.setBlock(new BlockPos(S3X + dx, groundY + 11, S3Z + dz),
+                                ((dx + dz) & 1) == 0 ? Blocks.DEEPSLATE_BRICKS.defaultBlockState() : Blocks.GILDED_BLACKSTONE.defaultBlockState(), 3);
+                    }
+                }
+                for (int y = groundY; y < groundY + 11; y++) {
+                    level.setBlock(new BlockPos(S3X - 2, y, S3Z - 2), Blocks.POLISHED_BLACKSTONE.defaultBlockState(), 3);
+                    level.setBlock(new BlockPos(S3X + 2, y, S3Z - 2), Blocks.POLISHED_BLACKSTONE.defaultBlockState(), 3);
+                }
+                p.setGameMode(GameType.SURVIVAL);
+                p.setHealth(p.getMaxHealth());
+                p.connection.teleport(S3X + 0.5, groundY + 12.0, S3Z + 1.5, 0f, 18f);
+            }).join();
+        }
+        // Walk off the cliff edge (+Z) to trigger Air-Step Block Stairs!
+        if (t >= 6 && t < 44) {
+            c.options.keyUp.setDown(true);
+            c.options.keyShift.setDown(false);
+        }
+        if (t == 22) saveKeyframe(c, "kf_05b_air_stairs_step.png");
+        if (t == 34) {
+            boolean stairsOn = server.submit(() -> BlockDominionManager.isAirStairsActive(me(server, c))).join();
+            recordCheck("air_stairs_active_midair", stairsOn, "stairs=" + stairsOn);
+            recordCheck("custom_glsl_shader_compiled", net.godwand.client.DominionShader.isAvailable(),
+                    "available=" + net.godwand.client.DominionShader.isAvailable());
+            saveKeyframe(c, "kf_05c_air_stairs_descend.png");
+        }
+        if (t == 44) {
+            c.options.keyUp.setDown(false);
+        }
+
+        // Engage Block Wings Free Flight right from midair and drive real WASD + Space + Sprint controls!
+        if (t == 48) {
+            server.submit(() -> {
+                ServerPlayer p = me(server, c);
+                p.connection.teleport(p.getX(), groundY + 14.0, p.getZ(), 0f, 4f);
+                boolean started = BlockDominionManager.setWingFlight(p, true);
+                recordCheck("wing_flight_engaged", started, "started=" + started);
+            }).join();
+            c.options.keyJump.setDown(true);
+        }
+        if (t == 60) {
+            // Release jump -> settle into regal midair hover with flapping seraphic block wings
+            c.options.keyJump.setDown(false);
+        }
+        if (t == 72) {
+            saveKeyframe(c, "kf_05d_wings_hover.png");
+        }
+        // Accelerate into full Sprint Mach Boost (real W + Sprint keys!)
+        if (t == 78) {
+            c.options.keyUp.setDown(true);
+            c.options.keySprint.setDown(true);
+        }
+        if (t == 94) {
+            double spd = c.player.getDeltaMovement().length();
+            recordCheck("wing_flight_mach_boost", spd >= 1.15, String.format(Locale.ROOT, "speed=%.2f", spd));
+            saveKeyframe(c, "kf_05e_wings_mach_boost.png");
+        }
+        // Release keys -> smooth aerodynamic deceleration back to regal hover!
+        if (t == 102) {
+            c.options.keyUp.setDown(false);
+            c.options.keySprint.setDown(false);
+        }
+        if (t == 132) {
+            double slowed = c.player.getDeltaMovement().length();
+            float hp = server.submit(() -> me(server, c).getHealth()).join();
+            recordCheck("wing_flight_decelerate_and_safe_hp", slowed < 0.15 && hp >= 19.9f,
+                    String.format(Locale.ROOT, "slowed=%.3f hp=%.1f", slowed, hp));
+            saveKeyframe(c, "kf_05f_wings_decel_hover.png");
+        }
+        if (t == 138) {
+            server.submit(() -> BlockDominionManager.setWingFlight(me(server, c), false)).join();
+        }
+        if (t >= 146) {
+            stage = 4;
+            stageStart = ticks;
+        }
+    }
+
+    /** Stage 4 (110 ticks): Survival mode! Single shield + arrow parry -> Dual shields -> 360 Dome + TNT parry! */
     private void stageBrainShieldsAndParry(Minecraft c, MinecraftServer server, int t) {
         if (t == 1) {
             c.options.setCameraType(CameraType.THIRD_PERSON_BACK);
@@ -303,12 +393,12 @@ public final class DominionProbe implements ClientModInitializer {
             }).join();
         }
         if (t >= 110) {
-            stage = 4;
+            stage = 5;
             stageStart = ticks;
         }
     }
 
-    /** Stage 4 (115 ticks): Clean arena -> Rapid fire + Myriad Volley (Shift + Right-Click fan -> center-out barrage!). */
+    /** Stage 5 (115 ticks): Clean arena -> Rapid fire + Myriad Volley (Shift + Right-Click fan -> impact frame + center-out barrage!). */
     private void stageRapidAndVolley(Minecraft c, MinecraftServer server, int t) {
         final int S4Z = OZ + 50;
         if (t == 1) {
@@ -356,6 +446,7 @@ public final class DominionProbe implements ClientModInitializer {
             c.options.keyUse.setDown(false);
             c.options.keyShift.setDown(false);
         }
+        if (t == 70) saveKeyframe(c, "kf_12a_volley_impact_frame.png");
         if (t == 76) saveKeyframe(c, "kf_12_volley_launch.png");
         if (t == 90) {
             int rem = server.submit(() -> BlockDominionManager.reserveCount(me(server, c))).join();
@@ -371,12 +462,12 @@ public final class DominionProbe implements ClientModInitializer {
                 }
                 spawnedMobs.clear();
             }).join();
-            stage = 5;
+            stage = 6;
             stageStart = ticks;
         }
     }
 
-    /** Stage 5 (62 ticks): Auto Mode gravity field + Survival auto-parry & auto-counter launch! */
+    /** Stage 6 (62 ticks): Auto Mode gravity field + Survival auto-parry & auto-counter launch! */
     private void stageAutoModeAndCounter(Minecraft c, MinecraftServer server, int t) {
         if (t == 1) {
             server.submit(() -> {
@@ -419,12 +510,12 @@ public final class DominionProbe implements ClientModInitializer {
             recordCheck("auto_mode_parry_zero_damage", hp >= 19.9f, "hp=" + hp);
         }
         if (t >= 62) {
-            stage = 6;
+            stage = 7;
             stageStart = ticks;
         }
     }
 
-    /** Stage 6 (55 ticks): Lift 10 blocks, deactivate to Off -> spiral drop, then finish cleanly. */
+    /** Stage 7 (55 ticks): Lift 10 blocks, deactivate to Off -> spiral drop, then finish cleanly. */
     private void stageSpiralDropAndFinish(Minecraft c, MinecraftServer server, int t) {
         if (t == 1) {
             server.submit(() -> {
