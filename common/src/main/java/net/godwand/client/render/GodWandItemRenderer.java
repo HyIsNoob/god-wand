@@ -61,6 +61,7 @@ public class GodWandItemRenderer {
             case 3 -> 0x160D26;
             case 4 -> 0xFFF1C0;
             case 5 -> 0xD950FF;
+            case 9 -> 0xEBC64E;
             default -> 0xFF2D55;
         };
         float t = .28f + Math.clamp(charge, 0, 1) * .72f;

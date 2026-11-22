@@ -18,8 +18,8 @@ class SkillCooldownStateTest {
   assertThrows(IllegalArgumentException.class,()->timers.set(0,20,21,0));assertThrows(IllegalArgumentException.class,()->timers.set(0,-1,0,0));
  }
  @Test void redSlotIsIndependent() {
-  assertEquals(9,SkillCooldownState.RED_SLOT);assertEquals(10,SkillCooldownState.SLOTS);
+  assertEquals(10,SkillCooldownState.RED_SLOT);assertEquals(11,SkillCooldownState.SLOTS);
   var timers=new SkillCooldownState();timers.set(SkillCooldownState.RED_SLOT,80,80,0);
-  assertEquals(70,timers.remaining(9,10));assertEquals(0,timers.remaining(8,10));
+  assertEquals(70,timers.remaining(SkillCooldownState.RED_SLOT,10));assertEquals(0,timers.remaining(8,10));assertEquals(0,timers.remaining(9,10));
  }
 }

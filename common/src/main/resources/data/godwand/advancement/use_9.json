@@ -1,0 +1,23 @@
+{
+  "parent": "godwand:root",
+  "display": {
+    "icon": {
+      "id": "minecraft:gilded_blackstone"
+    },
+    "title": {
+      "translate": "advancements.godwand.use_9.title"
+    },
+    "description": {
+      "translate": "advancements.godwand.use_9.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

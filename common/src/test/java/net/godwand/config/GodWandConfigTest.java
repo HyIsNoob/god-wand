@@ -65,7 +65,8 @@ class GodWandConfigTest {
         var previous=GodWandConfig.SERVER;
         try {
             var s=new GodWandConfig.Server();GodWandConfig.SERVER=s;s.cooldownMultiplier=1;
-            assertEquals(60,GodWandConfig.skillCooldownTicks(8,1));assertEquals(80,GodWandConfig.skillCooldownTicks(9,1));
+            assertEquals(60,GodWandConfig.skillCooldownTicks(8,1));assertEquals(80,GodWandConfig.skillCooldownTicks(net.godwand.skill.SkillCooldownState.RED_SLOT,1));
+            assertEquals(80,GodWandConfig.skillCooldownTicks(9,1));
             assertEquals(1200,s.purpleCooldownTicks);assertEquals(50,s.blueReadyDamage);assertEquals(3,s.blueReadyKills);assertEquals(48,s.purpleRadius);
             s.blueReadyDamage=-1;s.purpleRadius=999;s.redRange=0;s.blueCoreDamage=Float.NaN;s.bluePullRadius=99;s.redChargeTicks=1;s.validate();
             assertTrue(s.blueReadyDamage>0);assertTrue(s.purpleRadius<=64);assertTrue(s.redRange>=8);
@@ -117,8 +118,8 @@ class GodWandConfigTest {
         assertTrue(text.indexOf("earthDrillCooldownTicks") < text.indexOf("earthDrillTerrainDamage") && text.indexOf("earthDrillBlockLift") < text.indexOf("stoneCannonCooldownTicks"), "one skill's settings together");
         assertTrue(text.contains("\n\n  \"gateCooldownTicks\""), "a blank line before each skill");
         long lines = text.lines().count();
-        // 1.6.0 adds Purple and the safety switches (about 30 lines).
-        assertTrue(lines < 110, "short: " + lines + " lines");
+        // 1.6.0 adds Purple and the safety switches; 1.7.0 adds Block Dominion.
+        assertTrue(lines < 125, "short: " + lines + " lines");
         // A second load finds nothing to change.
         GodWandConfig.read(file, GodWandConfig.Server.class, new GodWandConfig.Server());
         assertEquals(text, Files.readString(file));

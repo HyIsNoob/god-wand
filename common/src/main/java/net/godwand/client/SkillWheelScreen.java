@@ -206,6 +206,7 @@ public final class SkillWheelScreen extends Screen {
             case 6 -> 0xFFFF9C38;
             case 7 -> 0xFF68D6FF;
             case 8 -> 0xFF5A8CFF;
+            case 9 -> 0xFFEBC64E;
             default -> 0xFFC17AF2;
         };
     }

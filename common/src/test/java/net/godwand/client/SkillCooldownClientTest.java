@@ -36,7 +36,7 @@ class SkillCooldownClientTest {
    SkillCooldownClient.tick(client);
    SkillCooldownClient.receive(new SkillCooldownPayload(8,60,20,false));
    assertEquals(20,SkillCooldownClient.shown(8));assertTrue(SkillCooldownClient.canUse(8));
-   SkillCooldownClient.receive(new SkillCooldownPayload(9,80,70,false));
+   SkillCooldownClient.receive(new SkillCooldownPayload(net.godwand.skill.SkillCooldownState.RED_SLOT,80,70,false));
    assertEquals(70,SkillCooldownClient.shown(8));assertEquals(70/80f,SkillCooldownClient.fraction(8),1e-6);
    assertFalse(SkillCooldownClient.canUse(8));
   }

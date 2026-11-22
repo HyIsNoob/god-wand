@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw
 
 COLORS = [(139, 216, 255), (72, 152, 255), (255, 100, 54),
           (224, 62, 112), (176, 135, 89), (180, 99, 236), (255, 156, 56), (104, 214, 255),
-          (90, 140, 255)]
+          (90, 140, 255), (235, 198, 78)]
 N = len(COLORS)
 
 
@@ -127,6 +127,24 @@ def icon(mode):
                 put(x, y, ramp[max(0, min(5, int(v * 6.4)))])
         for x, y in [(8, 7), (9, 7), (8, 8)]: put(x, y, (255, 240, 255))
         for x, y in [(2, 4), (21, 3), (3, 20), (20, 21), (22, 12)]: put(x, y, (190, 120, 255))
+    elif mode == 9:  # Block Dominion: golden-rimmed monolithic cube surrounded by orbiting mini blocks.
+        gold, gold_l, gold_d = (235, 198, 78), (255, 238, 168), (146, 110, 34)
+        stone_top, stone_l, stone_r = (176, 170, 162), (118, 114, 118), (74, 72, 82)
+        # Orbiting halo ring behind the cube
+        d.ellipse((1, 4, 22, 20), outline=gold_d)
+        d.arc((1, 4, 22, 20), 200, 345, fill=gold)
+        # Isometric central block (top diamond, left face, right face)
+        d.polygon([(12, 5), (18, 8), (12, 11), (6, 8)], fill=stone_top)
+        d.polygon([(6, 8), (12, 11), (12, 18), (6, 15)], fill=stone_l)
+        d.polygon([(18, 8), (12, 11), (12, 18), (18, 15)], fill=stone_r)
+        # Crisp golden bevel edges
+        d.line([(12, 5), (18, 8), (18, 15), (12, 18), (6, 15), (6, 8), (12, 5)], fill=gold)
+        d.line([(6, 8), (12, 11), (18, 8)], fill=gold_l)
+        d.line([(12, 11), (12, 18)], fill=gold_l)
+        # Four smaller orbiting pixel blocks around the halo
+        for bx, by in [(2, 9), (19, 6), (19, 15), (3, 16)]:
+            d.rectangle((bx, by, bx + 2, by + 2), fill=stone_l, outline=gold)
+            d.point((bx, by), fill=gold_l)
     else:  # Silent Gate: the winged gate of heaven, its doorway white (owner, 2026-11-15: "just the gate with wings").
         def put(x, y, c):
             if 0 <= x < 24 and 0 <= y < 24: im.putpixel((x, y), c + (255,))
@@ -172,6 +190,7 @@ def build():
                 [(179, 76, 28), (242, 137, 37), (255, 217, 144)],
                 [(61, 134, 190), (104, 214, 255), (214, 245, 255)],
                 [(52, 78, 170), (90, 140, 255), (255, 120, 110)],
+                [(152, 118, 42), (235, 198, 78), (255, 238, 168)],
             ]
             trim = trims[mode][state]
             d.rectangle((2, 2, 37, 37), outline=trim, width=2)

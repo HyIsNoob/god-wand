@@ -9,5 +9,6 @@
   "gateTerrainDamage": false,
   "blueTerrainDamage": false,
   "redTerrainDamage": false,
-  "purpleTerrainDamage": false
+  "purpleTerrainDamage": false,
+  "blockDominionTerrainDamage": false
 }

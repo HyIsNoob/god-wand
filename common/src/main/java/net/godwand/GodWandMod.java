@@ -1,6 +1,7 @@
 package net.godwand;
 
 import net.godwand.entity.ArcaneOrbEntity;
+import net.godwand.entity.DominionBlockProjectileEntity;
 import net.godwand.entity.StoneCannonProjectileEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -17,6 +18,7 @@ public class GodWandMod {
 
     public static EntityType<ArcaneOrbEntity> ARCANE_ORB_ENTITY_TYPE;
     public static EntityType<StoneCannonProjectileEntity> STONE_CANNON_ENTITY_TYPE;
+    public static EntityType<DominionBlockProjectileEntity> DOMINION_BLOCK_ENTITY_TYPE;
     public static Item GOD_WAND_ITEM;
     public static final ResourceKey<CreativeModeTab> GODWAND_ITEM_GROUP_KEY = ResourceKey.create(
             Registries.CREATIVE_MODE_TAB,

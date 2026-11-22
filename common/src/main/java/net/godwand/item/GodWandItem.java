@@ -46,7 +46,8 @@ public class GodWandItem extends Item {
     public static final int MODE_FUGA = 6;
     public static final int MODE_SILENT_GATE = 7;
     public static final int MODE_BLUE_RED = 8;
-    public static final int TOTAL_MODES = 9;
+    public static final int MODE_BLOCK_DOMINION = 9;
+    public static final int TOTAL_MODES = 10;
 
     public static String chargeMeter(int level, int maximum) {
         int filled = Mth.clamp(level, 0, maximum);
@@ -89,6 +90,7 @@ public class GodWandItem extends Item {
                 AtomicManager.cancelCharge(player);
                 net.godwand.skill.FugaManager.cancelCharge(player);
                 net.godwand.skill.BlueRedManager.cancelRed(player);
+                net.godwand.skill.BlockDominionManager.cancelCharge(player);
             }
             user.stopUsingItem();
         }
@@ -99,6 +101,7 @@ public class GodWandItem extends Item {
             if (mode == MODE_SILENT_GATE) user.displayClientMessage(Component.literal("§bSilent Gate"), true);
             if (mode == MODE_ATOMIC) user.displayClientMessage(Component.literal("§dI am Atomic"), true);
             if (mode == MODE_BLUE_RED) user.displayClientMessage(Component.literal("§5Purple"), true);
+            if (mode == MODE_BLOCK_DOMINION) user.displayClientMessage(Component.literal("§eBlock Dominion"), true);
             switch (mode) {
                 case MODE_SPATIAL_PATH -> {
                     user.displayClientMessage(Component.literal("§bSpatial Path"), true);
@@ -151,8 +154,8 @@ public class GodWandItem extends Item {
             }
         }
 
-        // Blue/Red checks Red's own cooldown slot in BlueRedManager.beginRed.
-        if (currentMode != MODE_BLUE_RED && !net.godwand.skill.SkillCooldowns.ready(user,currentMode)) return InteractionResultHolder.fail(stack);
+        // Blue/Red checks Red's own cooldown slot; Block Dominion checks cooldown only for Shift+RMB Volley.
+        if (currentMode != MODE_BLUE_RED && currentMode != MODE_BLOCK_DOMINION && !net.godwand.skill.SkillCooldowns.ready(user,currentMode)) return InteractionResultHolder.fail(stack);
         switch (currentMode) {
             case MODE_SPATIAL_PATH -> {
                 if (!world.isClientSide() && user instanceof ServerPlayer serverPlayer) {
@@ -181,6 +184,17 @@ public class GodWandItem extends Item {
                 user.startUsingItem(hand);
                 return InteractionResultHolder.consume(stack);
             }
+            case MODE_BLOCK_DOMINION -> {
+                if (user instanceof ServerPlayer player) {
+                    if (net.godwand.skill.BlockDominionManager.beginRightClick(player)) {
+                        user.startUsingItem(hand);
+                        return InteractionResultHolder.consume(stack);
+                    }
+                    return InteractionResultHolder.success(stack);
+                }
+                user.startUsingItem(hand);
+                return InteractionResultHolder.consume(stack);
+            }
             case MODE_ATOMIC -> {
                 if (user instanceof ServerPlayer player && !AtomicManager.beginCharge(player,hand))
                     return InteractionResultHolder.fail(stack);
@@ -201,7 +215,7 @@ public class GodWandItem extends Item {
     @Override
     public int getUseDuration(ItemStack stack, LivingEntity user) {
         int mode = getSkillMode(stack);
-        if (mode == MODE_ARCANE_ORB || mode == MODE_SUPERNOVA || mode == MODE_RATIO_COLLAPSE || mode == MODE_STONE_CANNON || mode == MODE_ATOMIC || mode == MODE_FUGA || mode == MODE_BLUE_RED) {
+        if (mode == MODE_ARCANE_ORB || mode == MODE_SUPERNOVA || mode == MODE_RATIO_COLLAPSE || mode == MODE_STONE_CANNON || mode == MODE_ATOMIC || mode == MODE_FUGA || mode == MODE_BLUE_RED || mode == MODE_BLOCK_DOMINION) {
             return 72000;
         }
         return 0;
@@ -222,6 +236,10 @@ public class GodWandItem extends Item {
 
         if (currentMode == MODE_BLUE_RED) {
             if (user instanceof ServerPlayer player) net.godwand.skill.BlueRedManager.chargeTick(player, getUseDuration(stack, user) - remainingUseTicks);
+            return;
+        }
+        if (currentMode == MODE_BLOCK_DOMINION) {
+            if (user instanceof ServerPlayer player) net.godwand.skill.BlockDominionManager.useTick(player, getUseDuration(stack, user) - remainingUseTicks);
             return;
         }
         if (currentMode == MODE_ATOMIC) {
@@ -385,6 +403,10 @@ public class GodWandItem extends Item {
             if (user instanceof ServerPlayer player) net.godwand.skill.BlueRedManager.releaseRed(player);
             return;
         }
+        if (getSkillMode(stack) == MODE_BLOCK_DOMINION) {
+            if (user instanceof ServerPlayer player) net.godwand.skill.BlockDominionManager.releaseRightClick(player);
+            return;
+        }
         if (getSkillMode(stack) == MODE_FUGA) {
             if(user instanceof ServerPlayer player) {
                 boolean ready=getUseDuration(stack,user)-remainingUseTicks>=net.godwand.skill.FugaSequence.CHARGE_TICKS;
@@ -508,6 +530,7 @@ public class GodWandItem extends Item {
             case MODE_SILENT_GATE -> tooltip.add(Component.literal("§f§bSilent Gate §7(Click to summon - Click again to command)"));
             case MODE_ATOMIC -> tooltip.add(Component.literal("§dI am Atomic §7(Hold through ATOMIC - Release to detonate)"));
             case MODE_BLUE_RED -> tooltip.add(Component.literal("§5Purple §7(Hold left: §9Blue§7 - Hold right: §cRed§7)"));
+            case MODE_BLOCK_DOMINION -> tooltip.add(Component.literal("§eBlock Dominion §7(Shift+LMB: Mode - LMB: Lift - RMB: Fire)"));
         }
         super.appendHoverText(stack, context, tooltip, type);
     }

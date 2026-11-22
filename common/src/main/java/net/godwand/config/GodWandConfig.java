@@ -64,7 +64,7 @@ public final class GodWandConfig {
     }
 
     /** Each skill's name in commands and settings, by its mode number. */
-    public static final String[] SKILL_IDS = {"spatial_path", "singularity", "earth_drill", "supernova", "stone_cannon", "atomic", "fuga", "silent_gate", "purple"};
+    public static final String[] SKILL_IDS = {"spatial_path", "singularity", "earth_drill", "supernova", "stone_cannon", "atomic", "fuga", "silent_gate", "purple", "block_dominion"};
 
     public static final class Server {
         // Grouped by skill: the file is written in this order, a blank line between skills (see format).
@@ -165,6 +165,14 @@ public final class GodWandConfig {
         /** The cutscene Purple needs a fully charged Red (otherwise any Red into a ready Blue). */
         public boolean purpleNeedsFullRed = true;
 
+        public int blockDominionCooldownTicks = 80;
+        public int blockDominionCapacity = 32;
+        public float blockDominionDamage = 45;
+        public float blockDominionBlastRadius = 2.5f;
+        public float blockDominionCraterRadius = 1.8f;
+        public float blockDominionProjectileSpeed = 3.2f;
+        public boolean blockDominionTerrainDamage = true;
+
         public List<String> dimensionBlacklist = new ArrayList<>();
 
         public boolean isDimensionBlacklisted(String dimensionId) { return !isDimensionAllowed(dimensionId); }
@@ -203,6 +211,12 @@ public final class GodWandConfig {
             redCraterRadius=Mth.clamp(redCraterRadius,0,8);
             purpleRadius=Mth.clamp(purpleRadius,0,64);
             purpleDamage=finiteClamp(purpleDamage,0,1_000_000,9999);
+            blockDominionCooldownTicks=Mth.clamp(blockDominionCooldownTicks,0,72000);
+            blockDominionCapacity=Mth.clamp(blockDominionCapacity,4,64);
+            blockDominionDamage=finiteClamp(blockDominionDamage,0,1_000_000,45);
+            blockDominionBlastRadius=finiteClamp(blockDominionBlastRadius,0,16,2.5f);
+            blockDominionCraterRadius=finiteClamp(blockDominionCraterRadius,0,8,1.8f);
+            blockDominionProjectileSpeed=finiteClamp(blockDominionProjectileSpeed,0.5f,10,3.2f);
             singularityCooldownTicks=validatedCooldowns(singularityCooldownTicks,new int[]{60,120,200});
             earthDrillCooldownTicks=validatedCooldowns(earthDrillCooldownTicks,new int[]{80,140,220,320});
             stoneCannonCooldownTicks=validatedCooldowns(stoneCannonCooldownTicks,new int[]{40,80,140,220});
@@ -317,7 +331,7 @@ public final class GodWandConfig {
     }
 
     /** Skill prefixes of the server file, in order; a blank line separates one skill's keys from the next. */
-    private static final String[] GROUPS = {"spatialPath", "singularity", "earthDrill", "stoneCannon", "supernova", "atomic", "fuga", "gate", "blue", "red", "purple", "smallPurple", "dimension"};
+    private static final String[] GROUPS = {"spatialPath", "singularity", "earthDrill", "stoneCannon", "supernova", "atomic", "fuga", "gate", "blue", "red", "purple", "smallPurple", "blockDominion", "dimension"};
     private static final java.util.regex.Pattern LIST = java.util.regex.Pattern.compile("\\[([^\\[\\]{}]*)\\]");
     private static final java.util.regex.Pattern KEY = java.util.regex.Pattern.compile("^  \"(\\w+)\":");
 
@@ -354,6 +368,7 @@ public final class GodWandConfig {
     }
     private static int tierIndex(int level,int length) { return Mth.clamp(level-1,0,length-1); }
     public static int skillCooldownTicks(int skill,int level) {
+        if (skill == net.godwand.skill.SkillCooldownState.RED_SLOT) return SERVER.redCooldownTicks == 0 ? 0 : cooldownTicks(SERVER.redCooldownTicks);
         int ticks=switch(skill) {
             case 0 -> SERVER.spatialPathCooldownTicks;
             case 1 -> SERVER.singularityCooldownTicks[tierIndex(level,3)];
@@ -364,7 +379,7 @@ public final class GodWandConfig {
             case 6 -> SERVER.fugaCooldownTicks;
             case 7 -> SERVER.gateCooldownTicks;
             case 8 -> SERVER.blueCooldownTicks;
-            case 9 -> SERVER.redCooldownTicks;
+            case 9 -> SERVER.blockDominionCooldownTicks;
             default -> 0;
         };
         return ticks==0?0:cooldownTicks(ticks);

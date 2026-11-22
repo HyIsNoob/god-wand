@@ -38,9 +38,10 @@ public final class SkillCooldownClient {
         int slot=mode==GodWandItem.MODE_BLUE_RED&&remaining(SkillCooldownState.RED_SLOT)>remaining(mode)?SkillCooldownState.RED_SLOT:mode;
         return remaining(slot)==0?0:timers.fraction(slot,clock);
     }
-    /** Gates right click; on Blue/Red right click is Red. */
+    /** Gates right click; on Blue/Red right click is Red, on Block Dominion single/rapid fire has no cooldown. */
     public static boolean canUse(int mode) {
         if(mode==GodWandItem.MODE_BLUE_RED)return remaining(SkillCooldownState.RED_SLOT)==0;
+        if(mode==GodWandItem.MODE_BLOCK_DOMINION)return true;
         return remaining(mode)==0||mode==1&&recall;
     }
     public static void render(GuiGraphics graphics) {
@@ -54,7 +55,7 @@ public final class SkillCooldownClient {
             // Blue and Red each have their own timer; a Purple sets both at once (owner, 2026-11-20: say which one is cooling down).
             int blue=remaining(mode),red=remaining(SkillCooldownState.RED_SLOT);
             if(blue==red){graphics.drawCenteredString(client.font,text("skill.godwand.8",blue),x,y,0xFFC89BFF);return;}
-            var b=text("skill.godwand.blue",blue);var r=text("skill.godwand.9",red);
+            var b=text("skill.godwand.blue",blue);var r=text("skill.godwand.red",red);
             if(red==0){graphics.drawCenteredString(client.font,b,x,y,0xFF7FC8FF);return;}
             if(blue==0){graphics.drawCenteredString(client.font,r,x,y,0xFFFF8080);return;}
             int wb=client.font.width(b),wr=client.font.width(r),start=x-(wb+12+wr)/2;
