@@ -82,6 +82,9 @@ public final class BlockDominionManager {
         boolean airStairsActive;
         boolean stairAscending;
         boolean rainingOverhead;
+        boolean liquidStrideActive;
+        boolean sovereignPerchActive;
+        int hoverIdleTicks;
         long stairAscendUntil = -1000;
         int flightForward;
         int flightStrafe;
@@ -91,10 +94,28 @@ public final class BlockDominionManager {
         long lastStepEventTick = -1000;
         long lastPickupTick = -1000;
         long lastSurgeTick = -1000;
+        long lastCageTick = -1000;
         long safeFallUntil = -1;
         Vec3 flightVel = Vec3.ZERO;
+        ActiveCage activeCage;
         final ArrayDeque<QueuedShot> volleyQueue = new ArrayDeque<>();
         RecallSnapshot recall;
+    }
+
+    private static final class ActiveCage {
+        final int targetId;
+        final List<BlockState> blocks;
+        final Vec3 anchor;
+        final long endTick;
+        final ResourceKey<Level> dimension;
+
+        ActiveCage(int targetId, List<BlockState> blocks, Vec3 anchor, long endTick, ResourceKey<Level> dimension) {
+            this.targetId = targetId;
+            this.blocks = blocks;
+            this.anchor = anchor;
+            this.endTick = endTick;
+            this.dimension = dimension;
+        }
     }
 
     private static final Map<UUID, PlayerState> STATES = new ConcurrentHashMap<>();
@@ -144,6 +165,24 @@ public final class BlockDominionManager {
         if (player == null) return false;
         PlayerState state = STATES.get(player.getUUID());
         return state != null && state.formation == BlockDominionBrain.FormationKind.RAIN_UMBRELLA;
+    }
+
+    public static boolean isLiquidStrideActive(Player player) {
+        if (player == null) return false;
+        PlayerState state = STATES.get(player.getUUID());
+        return state != null && state.liquidStrideActive;
+    }
+
+    public static boolean isSovereignPerchActive(Player player) {
+        if (player == null) return false;
+        PlayerState state = STATES.get(player.getUUID());
+        return state != null && state.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH;
+    }
+
+    public static boolean hasActiveCage(Player player) {
+        if (player == null) return false;
+        PlayerState state = STATES.get(player.getUUID());
+        return state != null && state.activeCage != null;
     }
 
     /** Switches Block Wings between Hover (free 3D levitation) and Glide (Elytra aerodynamic gliding + rocket boost). */
@@ -306,6 +345,86 @@ public final class BlockDominionManager {
             tryPickUpBlock(player, payload.targetPos());
         } else if (payload.action() == BlockDominionInputPayload.ACTION_EARTHEN_SURGE) {
             triggerEarthenSurge(player);
+        } else if (payload.action() == BlockDominionInputPayload.ACTION_CAGE_ENTITY) {
+            triggerMonolithCage(player, payload.cageEntityId());
+        }
+    }
+
+    /**
+     * Monolith Cage ("Lồng Đá Phong Ấn"): detaches up to 12 reserve blocks to slam around a targeted enemy
+     * and suspend them midair inside a rotating hexagonal stone prison for 3 seconds (perfect combo setup!).
+     */
+    public static boolean triggerMonolithCage(ServerPlayer player, int targetEntityId) {
+        if (player == null || !player.isAlive() || player.isSpectator()) return false;
+        PlayerState st = STATES.get(player.getUUID());
+        if (st == null || st.mode != BlockDominionRules.Mode.MANUAL || st.stowed || st.hiddenInCutscene) return false;
+        ServerLevel world = player.serverLevel();
+        long now = world.getGameTime();
+        if (now - st.lastCageTick < BlockDominionRules.CAGE_COOLDOWN_TICKS) return false;
+        if (st.reserve.size() < BlockDominionRules.CAGE_MIN_BLOCKS) {
+            player.displayClientMessage(Component.translatable("message.godwand.dominion_cage_need",
+                    BlockDominionRules.CAGE_MIN_BLOCKS), true);
+            return false;
+        }
+        Entity raw = world.getEntity(targetEntityId);
+        if (!(raw instanceof LivingEntity target) || !target.isAlive()
+                || SpellDamage.isCaster(target, player) || !SpellDamage.affects(target, player)) {
+            return false;
+        }
+        if (target.distanceToSqr(player) > BlockDominionRules.CAGE_RANGE * BlockDominionRules.CAGE_RANGE) {
+            return false;
+        }
+
+        // Release any previous cage cleanly first
+        if (st.activeCage != null) {
+            releaseCage(player, st, false);
+        }
+
+        int take = Math.min(BlockDominionRules.CAGE_BLOCK_COUNT, st.reserve.size());
+        List<BlockState> cageBlocks = new ArrayList<>(take);
+        for (int i = 0; i < take; i++) {
+            cageBlocks.add(st.reserve.remove(st.reserve.size() - 1));
+        }
+        Vec3 anchor = target.position().add(0, 1.35, 0);
+        st.activeCage = new ActiveCage(target.getId(), cageBlocks, anchor,
+                now + BlockDominionRules.CAGE_DURATION_TICKS, world.dimension());
+        st.lastCageTick = now;
+
+        target.setNoGravity(true);
+        target.setDeltaMovement(0, 0.28, 0);
+        target.hurtMarked = true;
+
+        world.playSound(null, anchor.x, anchor.y, anchor.z,
+                SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 1.0f, 0.65f);
+        world.playSound(null, anchor.x, anchor.y, anchor.z,
+                SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.55f, 0.85f);
+        world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, cageBlocks.get(0)),
+                anchor.x, anchor.y, anchor.z, 20, 0.65, 0.85, 0.65, 0.14);
+        player.displayClientMessage(Component.translatable("message.godwand.dominion_cage", take), true);
+        sync(player, st, BlockDominionRules.EVENT_CAGE_START, anchor.x, anchor.y, anchor.z, target.getId());
+        return true;
+    }
+
+    private static void releaseCage(ServerPlayer player, PlayerState st, boolean broadcast) {
+        ActiveCage cage = st.activeCage;
+        if (cage == null) return;
+        st.activeCage = null;
+        ServerLevel world = player.serverLevel();
+        if (world.dimension().equals(cage.dimension)) {
+            Entity raw = world.getEntity(cage.targetId);
+            if (raw instanceof LivingEntity target) {
+                target.setNoGravity(false);
+                target.fallDistance = 0.0f;
+            }
+        }
+        int capacity = BlockDominionRules.clampCapacity(GodWandConfig.SERVER.blockDominionCapacity);
+        for (BlockState bs : cage.blocks) {
+            if (st.reserve.size() < capacity) {
+                st.reserve.add(bs);
+            }
+        }
+        if (broadcast) {
+            sync(player, st, BlockDominionRules.EVENT_CAGE_END, cage.anchor.x, cage.anchor.y, cage.anchor.z, cage.targetId);
         }
     }
 
@@ -411,7 +530,11 @@ public final class BlockDominionManager {
 
         cancelVolleyInternal(player, st, false);
         stopWingFlightInternal(player, st, false);
+        releaseCage(player, st, false);
         st.airStairsActive = false;
+        st.liquidStrideActive = false;
+        st.sovereignPerchActive = false;
+        st.hoverIdleTicks = 0;
         st.rapidFiring = false;
         st.volleyQueue.clear();
 
@@ -835,9 +958,9 @@ public final class BlockDominionManager {
             if (delta.lengthSqr() > 1e-4) threatDir = delta.normalize();
         }
 
-        // Discard direct incoming hostile projectile so it doesn't stick/re-hit
+        // Kinetic Deflect: reflect direct incoming hostile projectile straight back at shooter!
         if (source.getDirectEntity() instanceof Projectile incoming && !(incoming instanceof DominionBlockProjectileEntity)) {
-            incoming.discard();
+            deflectProjectile(world, player, incoming);
         }
 
         // Auto mode: counter-launch the parried block straight back at the attacker!
@@ -1095,6 +1218,20 @@ public final class BlockDominionManager {
                     st.wingBoosting = st.flightBoostInput && st.flightVel.lengthSqr() > 0.55 * 0.55;
                 }
                 player.setDeltaMovement(st.flightVel);
+                // Sovereign Perch: calm idle Hover for ~1.7s -> materialize floating stone pedestal & fold guardian wings!
+                boolean idleHover = !st.wingGlideMode && !st.volleyCharging && !st.wingBoosting
+                        && st.flightForward == 0 && st.flightStrafe == 0 && st.flightVertical == 0
+                        && st.flightVel.lengthSqr() < 0.015;
+                if (idleHover) {
+                    st.hoverIdleTicks = Math.min(200, st.hoverIdleTicks + 1);
+                } else {
+                    st.hoverIdleTicks = 0;
+                }
+                boolean perchNow = st.hoverIdleTicks >= BlockDominionRules.PERCH_IDLE_TICKS;
+                if (perchNow != st.sovereignPerchActive) {
+                    st.sovereignPerchActive = perchNow;
+                    mobilityChanged = true;
+                }
                 // Only force-push velocity to client when not driven by client's own synchronized prediction
                 if (now - st.lastFlightPacketTick > 4) {
                     player.hurtMarked = true;
@@ -1110,11 +1247,70 @@ public final class BlockDominionManager {
                     mobilityChanged = true;
                 }
             }
+        } else {
+            st.hoverIdleTicks = 0;
+            if (st.sovereignPerchActive) {
+                st.sovereignPerchActive = false;
+                mobilityChanged = true;
+            }
+        }
+
+        // Tick active Monolith Cage: suspend target midair & return blocks cleanly when finished
+        if (st.activeCage != null) {
+            ActiveCage cage = st.activeCage;
+            Entity raw = world.dimension().equals(cage.dimension) ? world.getEntity(cage.targetId) : null;
+            if (!(raw instanceof LivingEntity target) || !target.isAlive() || now >= cage.endTick) {
+                releaseCage(player, st, true);
+                mobilityChanged = true;
+            } else {
+                Vec3 pull = cage.anchor.subtract(target.position()).scale(0.32);
+                target.setNoGravity(true);
+                target.setDeltaMovement(pull);
+                target.fallDistance = 0.0f;
+                target.hurtMarked = true;
+            }
+        }
+
+        // QoL Liquid Stride: automatically lay flat stone stepping slabs over water & lava surfaces!
+        double liquidSurface = findLiquidStrideSurface(world, player);
+        boolean wantLiquidStride = st.mode == BlockDominionRules.Mode.MANUAL && !st.stowed && !st.wingFlying
+                && !st.volleyCharging && !st.hiddenInCutscene
+                && st.reserve.size() >= BlockDominionRules.MIN_STAIR_BLOCKS
+                && !player.isShiftKeyDown() && !player.isUnderWater()
+                && !player.isPassenger() && !player.getAbilities().flying
+                && !Double.isNaN(liquidSurface);
+        if (wantLiquidStride != st.liquidStrideActive) {
+            st.liquidStrideActive = wantLiquidStride;
+            mobilityChanged = true;
+            if (wantLiquidStride) {
+                mobilityEvent = BlockDominionRules.EVENT_AIR_STEP;
+                mobEy = liquidSurface;
+                st.lastStepEventTick = now;
+            }
+        }
+        if (st.liquidStrideActive) {
+            player.fallDistance = 0.0f;
+            if (player.isOnFire() || !world.getFluidState(player.blockPosition().below()).isEmpty()) {
+                player.clearFire();
+            }
+            Vec3 cur = player.getDeltaMovement();
+            Vec3 nextVel = BlockDominionRules.stepLiquidStrideVelocity(cur, player.getY(), liquidSurface, false);
+            if (cur.y < nextVel.y - 0.02 || player.getY() < liquidSurface - 0.05) {
+                player.setDeltaMovement(nextVel);
+            }
+            double horiz = Math.sqrt(cur.x * cur.x + cur.z * cur.z);
+            if (horiz > 0.03 && now - st.lastStepEventTick >= 6) {
+                st.lastStepEventTick = now;
+                mobilityChanged = true;
+                mobilityEvent = BlockDominionRules.EVENT_AIR_STEP;
+                mobEy = liquidSurface;
+            }
         }
 
         // Air-Step Block Stairs (both slow regal descending stairs AND ascending sky stairs!)
         boolean ascendIntent = st.stairAscending && now <= st.stairAscendUntil;
         boolean canStair = st.mode == BlockDominionRules.Mode.MANUAL && !st.stowed && !st.wingFlying
+                && !st.liquidStrideActive
                 && !st.volleyCharging && !st.hiddenInCutscene
                 && st.reserve.size() >= BlockDominionRules.MIN_STAIR_BLOCKS
                 && !player.isShiftKeyDown()
@@ -1164,12 +1360,20 @@ public final class BlockDominionManager {
             player.fallDistance = 0.0f;
         }
 
-        // Prevent dedicated Survival servers (allow-flight=false) from kicking players using Block Wings or Air Stairs!
-        if ((st.wingFlying || st.airStairsActive || st.safeFallUntil >= now) && player.connection != null) {
+        // Prevent dedicated Survival servers (allow-flight=false) from kicking players using Block Wings, Stairs or Liquid Stride!
+        if ((st.wingFlying || st.airStairsActive || st.liquidStrideActive || st.safeFallUntil >= now) && player.connection != null) {
             ((net.godwand.mixin.ServerGamePacketListenerAccessor) player.connection).godwand$setAboveGroundTickCount(0);
         }
 
-        // Milestone 2+3+4 Block Brain: scan threats every 2 ticks and update defensive/mobility/offensive/QoL formation
+        // Kinetic Deflect: when a shield formation is raised, proactively catch & reflect incoming hostile projectiles!
+        if (st.mode == BlockDominionRules.Mode.MANUAL && st.formation.isShield()
+                && !st.hiddenInCutscene && !st.reserve.isEmpty()) {
+            if (tryProactiveKineticDeflect(world, player, st, now)) {
+                return;
+            }
+        }
+
+        // Milestone 2+3+4+5 Block Brain: scan threats every 2 ticks and update defensive/mobility/offensive/QoL formation
         boolean brainChanged = false;
         if (st.mode == BlockDominionRules.Mode.MANUAL && !st.hiddenInCutscene
                 && ((now + player.getId()) % 2 == 0 || stateChanged || mobilityChanged)) {
@@ -1177,7 +1381,8 @@ public final class BlockDominionManager {
                     ? List.of() : scanThreats(world, player);
             BlockDominionBrain.BrainPlan plan = BlockDominionBrain.plan(
                     threats, st.reserve.size(), st.stowed, st.volleyCharging,
-                    st.wingFlying, st.wingBoosting, st.airStairsActive, st.rapidFiring, st.rainingOverhead);
+                    st.wingFlying, st.wingBoosting, st.airStairsActive, st.rapidFiring, st.rainingOverhead,
+                    st.liquidStrideActive, st.sovereignPerchActive);
             if (plan.kind() != st.formation
                     || (plan.kind().isShield() && (BlockDominionBrain.directionChangedSignificantly(plan.primaryDir(), st.threatPrimary)
                     || BlockDominionBrain.directionChangedSignificantly(plan.secondaryDir(), st.threatSecondary)))) {
@@ -1202,6 +1407,78 @@ public final class BlockDominionManager {
         if (now - st.lastHeartbeatTick >= 40) {
             sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.2, player.getZ(), 0);
         }
+    }
+
+    /**
+     * Checks if the player is walking directly atop or skimming a water or lava surface (within 0.65 blocks).
+     * Returns the target standing Y atop the fluid surface, or {@code Double.NaN} if not over liquid.
+     */
+    private static double findLiquidStrideSurface(ServerLevel world, ServerPlayer player) {
+        BlockPos feet = player.blockPosition();
+        BlockPos[] probe = {feet, feet.below()};
+        for (BlockPos p : probe) {
+            if (!world.hasChunkAt(p) || !world.isInWorldBounds(p)) continue;
+            if (!world.getFluidState(p).isEmpty() && world.getFluidState(p.above()).isEmpty()) {
+                double surface = p.getY() + 0.96;
+                if (player.getY() <= surface + 0.55 && player.getY() >= p.getY() - 0.15) {
+                    return surface;
+                }
+            }
+        }
+        return Double.NaN;
+    }
+
+    /**
+     * Kinetic Deflect: proactively catches incoming hostile projectiles hitting the raised Block Shield
+     * and fires them straight back toward their shooter!
+     */
+    private static boolean tryProactiveKineticDeflect(ServerLevel world, ServerPlayer player, PlayerState st, long now) {
+        Vec3 center = player.position().add(0, 1.15, 0);
+        AABB box = player.getBoundingBox().inflate(2.75);
+        for (Entity entity : world.getEntities(player, box, Entity::isAlive)) {
+            if (!(entity instanceof Projectile proj)) continue;
+            if (proj instanceof DominionBlockProjectileEntity) continue;
+            if (SpellDamage.isCaster(proj.getOwner(), player)) continue;
+            Vec3 vel = proj.getDeltaMovement();
+            if (vel.lengthSqr() < 0.04) continue;
+            Vec3 toPlayer = center.subtract(proj.position());
+            if (toPlayer.dot(vel) <= 0.0) continue; // Moving away already!
+
+            boolean free = st.postParryInvulnUntil >= now;
+            BlockState parriedState = free
+                    ? st.reserve.get(st.reserve.size() - 1)
+                    : st.reserve.remove(st.reserve.size() - 1);
+            st.postParryInvulnUntil = now + BlockDominionRules.PARRY_INVULN_TICKS;
+
+            Vec3 threatDir = proj.position().subtract(center);
+            threatDir = threatDir.lengthSqr() > 1e-4 ? threatDir.normalize() : player.getViewVector(1.0f);
+            deflectProjectile(world, player, proj);
+
+            Vec3 parryPoint = center.add(threatDir.scale(1.35));
+            world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, parriedState),
+                    parryPoint.x, parryPoint.y, parryPoint.z, 14, 0.25, 0.25, 0.25, 0.16);
+            world.sendParticles(ParticleTypes.CRIT, parryPoint.x, parryPoint.y, parryPoint.z, 8, 0.2, 0.2, 0.2, 0.14);
+            world.playSound(null, parryPoint.x, parryPoint.y, parryPoint.z,
+                    SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.50f, 1.55f);
+            world.playSound(null, parryPoint.x, parryPoint.y, parryPoint.z,
+                    SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 0.88f, 1.22f);
+            Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                    CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.20f, 5));
+            sync(player, st, BlockDominionRules.EVENT_PARRY, threatDir.x, threatDir.y, threatDir.z, Block.getId(parriedState));
+            return true;
+        }
+        return false;
+    }
+
+    private static void deflectProjectile(ServerLevel world, ServerPlayer defender, Projectile proj) {
+        Entity origOwner = proj.getOwner();
+        Vec3 shooterPos = (origOwner instanceof LivingEntity l && l.isAlive() && !SpellDamage.isCaster(l, defender))
+                ? l.position().add(0, l.getBbHeight() * 0.65, 0) : null;
+        Vec3 deflected = BlockDominionRules.deflectVelocity(proj.getDeltaMovement(), proj.position(), shooterPos, 1.85);
+        proj.setOwner(defender);
+        proj.setDeltaMovement(deflected);
+        proj.hasImpulse = true;
+        proj.hurtMarked = true;
     }
 
     /** Scans within 16 blocks for incoming projectiles, imminent explosions and hostile mobs targeting the player. */
@@ -1266,7 +1543,11 @@ public final class BlockDominionManager {
         if (st == null) return;
         cancelVolleyInternal(player, st, false);
         stopWingFlightInternal(player, st, false);
+        releaseCage(player, st, false);
         st.airStairsActive = false;
+        st.liquidStrideActive = false;
+        st.sovereignPerchActive = false;
+        st.hoverIdleTicks = 0;
         st.rapidFiring = false;
         st.volleyQueue.clear();
         if (!st.reserve.isEmpty()) {
@@ -1448,7 +1729,9 @@ public final class BlockDominionManager {
                 | (st.rapidFiring ? BlockDominionRules.FLAG_RAPID_FIRING : 0)
                 | (st.rainingOverhead ? BlockDominionRules.FLAG_UMBRELLA : 0)
                 | (st.wingGlideMode ? BlockDominionRules.FLAG_GLIDE_MODE : 0)
-                | (st.stairAscending ? BlockDominionRules.FLAG_STAIR_ASCEND : 0);
+                | (st.stairAscending ? BlockDominionRules.FLAG_STAIR_ASCEND : 0)
+                | (st.liquidStrideActive ? BlockDominionRules.FLAG_LIQUID_STRIDE : 0)
+                | (st.sovereignPerchActive ? BlockDominionRules.FLAG_PERCH : 0);
         int[] ids = new int[st.reserve.size()];
         for (int i = 0; i < ids.length; i++) ids[i] = Block.getId(st.reserve.get(i));
         BlockDominionBrain.FormationKind form = st.volleyCharging && !st.stowed

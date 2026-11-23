@@ -29,18 +29,24 @@ public final class BlockDominionBrain {
         WINGS_BOOST,
         RAILGUN_RING,
         ORBITAL_METEOR,
-        RAIN_UMBRELLA;
+        RAIN_UMBRELLA,
+        LIQUID_STRIDE,
+        SOVEREIGN_PERCH;
 
         public boolean isShield() {
             return this == SHIELD_SINGLE || this == SHIELD_MULTI || this == SHIELD_DOME;
         }
 
         public boolean isWings() {
-            return this == WINGS_HOVER || this == WINGS_BOOST;
+            return this == WINGS_HOVER || this == WINGS_BOOST || this == SOVEREIGN_PERCH;
         }
 
         public boolean isMobility() {
-            return isWings() || this == AIR_STAIRS;
+            return isWings() || this == AIR_STAIRS || this == LIQUID_STRIDE;
+        }
+
+        public boolean isStepping() {
+            return this == AIR_STAIRS || this == LIQUID_STRIDE;
         }
 
         public boolean isVolley() {
@@ -69,6 +75,8 @@ public final class BlockDominionBrain {
         public static final BrainPlan WINGS_HOVER_PLAN = new BrainPlan(FormationKind.WINGS_HOVER, new Vec3(0, 0, 1), Vec3.ZERO);
         public static final BrainPlan WINGS_BOOST_PLAN = new BrainPlan(FormationKind.WINGS_BOOST, new Vec3(0, 0, 1), Vec3.ZERO);
         public static final BrainPlan RAIN_UMBRELLA_PLAN = new BrainPlan(FormationKind.RAIN_UMBRELLA, new Vec3(0, 0, 1), Vec3.ZERO);
+        public static final BrainPlan LIQUID_STRIDE_PLAN = new BrainPlan(FormationKind.LIQUID_STRIDE, new Vec3(0, 0, 1), Vec3.ZERO);
+        public static final BrainPlan SOVEREIGN_PERCH_PLAN = new BrainPlan(FormationKind.SOVEREIGN_PERCH, new Vec3(0, 0, 1), Vec3.ZERO);
     }
 
     /**
@@ -111,14 +119,21 @@ public final class BlockDominionBrain {
         return plan(threats, blockCount, stowed, volleyCharging, flying, boosting, airStairs, rapidFiring, false);
     }
 
+    public static BrainPlan plan(List<ThreatSample> threats, int blockCount, boolean stowed, boolean volleyCharging,
+                                 boolean flying, boolean boosting, boolean airStairs, boolean rapidFiring,
+                                 boolean rainingOverhead) {
+        return plan(threats, blockCount, stowed, volleyCharging, flying, boosting, airStairs,
+                rapidFiring, rainingOverhead, false, false);
+    }
+
     /**
-     * Full formation planner including mobility (Block Wings, Mach Boost, Air Stairs),
+     * Full formation planner including mobility (Block Wings, Mach Boost, Sovereign Perch, Air Stairs, Liquid Stride),
      * offensive formations (Floating Railgun Ring, Aerial Orbital Meteor Crown),
      * QoL auto rain umbrella canopy, and automatic threat-reactive shields.
      */
     public static BrainPlan plan(List<ThreatSample> threats, int blockCount, boolean stowed, boolean volleyCharging,
                                  boolean flying, boolean boosting, boolean airStairs, boolean rapidFiring,
-                                 boolean rainingOverhead) {
+                                 boolean rainingOverhead, boolean liquidStride, boolean sovereignPerch) {
         if (volleyCharging && !stowed) {
             return flying ? BrainPlan.ORBITAL_METEOR_PLAN : BrainPlan.VOLLEY_PLAN;
         }
@@ -161,7 +176,12 @@ public final class BlockDominionBrain {
             return BrainPlan.RAILGUN_RING_PLAN;
         }
         if (flying && blockCount >= BlockDominionRules.MIN_FLIGHT_BLOCKS) {
-            return boosting ? BrainPlan.WINGS_BOOST_PLAN : BrainPlan.WINGS_HOVER_PLAN;
+            if (boosting) return BrainPlan.WINGS_BOOST_PLAN;
+            if (sovereignPerch && blockCount >= 10) return BrainPlan.SOVEREIGN_PERCH_PLAN;
+            return BrainPlan.WINGS_HOVER_PLAN;
+        }
+        if (liquidStride && !stowed && blockCount >= BlockDominionRules.MIN_STAIR_BLOCKS) {
+            return BrainPlan.LIQUID_STRIDE_PLAN;
         }
         if (airStairs && !stowed && blockCount >= BlockDominionRules.MIN_STAIR_BLOCKS) {
             return BrainPlan.AIR_STAIRS_PLAN;
@@ -191,12 +211,82 @@ public final class BlockDominionBrain {
             }
             case SHIELD_DOME -> shieldDomeOffset(index, count, time);
             case AIR_STAIRS -> airStairsOffset(index, count, time, lookDir);
+            case LIQUID_STRIDE -> liquidStrideOffset(index, count, time, lookDir);
             case WINGS_HOVER -> wingsOffset(index, count, time, lookDir, false);
             case WINGS_BOOST -> wingsOffset(index, count, time, lookDir, true);
+            case SOVEREIGN_PERCH -> sovereignPerchPose(index, count, time, lookDir).offset();
             case RAILGUN_RING -> railgunRingOffset(index, count, time, lookDir);
             case ORBITAL_METEOR -> orbitalMeteorOffset(index, count, time, lookDir, volleyProgress);
             case RAIN_UMBRELLA -> rainUmbrellaOffset(index, count, time, lookDir);
         };
+    }
+
+    /**
+     * Liquid Stride stepping stones: 6 flat slabs skim level right across water or lava surfaces beneath & ahead of feet.
+     */
+    public static Vec3 liquidStrideOffset(int index, int count, double time, Vec3 lookDir) {
+        Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
+        if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
+        else forward = forward.normalize();
+        Vec3 right = new Vec3(-forward.z, 0, forward.x);
+        Vec3 up = new Vec3(0, 1, 0);
+
+        int slabs = Math.min(6, count);
+        if (index < slabs) {
+            double y = -1.36 + Math.sin(time * 0.18 + index * 1.1) * 0.02;
+            return switch (index) {
+                case 0 -> up.scale(y);
+                case 1 -> forward.scale(0.95).add(up.scale(y));
+                case 2 -> forward.scale(1.85).add(up.scale(y));
+                case 3 -> forward.scale(-0.88).add(up.scale(y));
+                case 4 -> forward.scale(0.45).add(right.scale(-0.82)).add(up.scale(y));
+                default -> forward.scale(0.45).add(right.scale(0.82)).add(up.scale(y));
+            };
+        }
+        return BlockDominionRules.formationOffset(index - slabs, Math.max(1, count - slabs),
+                time, lookDir, false, 1f, false, 0f);
+    }
+
+    /**
+     * Sovereign Perch (idle midair throne pedestal + half-furled guardian wings):
+     * - First 7 blocks lock beneath the player's soles as a rotating hexagonal floating stone dais (y = -1.40)
+     * - Remaining blocks fold gracefully inward into tall, noble half-furled guardian wings behind the back!
+     */
+    public static WingPose sovereignPerchPose(int index, int count, double time, Vec3 lookDir) {
+        Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
+        if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
+        else forward = forward.normalize();
+        Vec3 right = new Vec3(-forward.z, 0, forward.x);
+        Vec3 up = new Vec3(0, 1, 0);
+
+        int daisCount = Math.min(7, count);
+        if (index < daisCount) {
+            double yBase = -1.40 + Math.sin(time * 0.09) * 0.025;
+            Vec3 pos;
+            if (index == 0) {
+                pos = up.scale(yBase);
+            } else {
+                double ang = (Math.PI / 3.0) * (index - 1) + time * 0.02;
+                double r = 0.88;
+                pos = right.scale(Math.cos(ang) * r).add(forward.scale(Math.sin(ang) * r)).add(up.scale(yBase - 0.03));
+            }
+            Vec3 xA = up.cross(forward).normalize();
+            return new WingPose(pos, new Vec3(0.84, 0.22, 0.84), xA, up, forward, 0);
+        }
+
+        // Half-furled noble wings draped closely behind the shoulders
+        int wingIdx = index - daisCount;
+        int wingTotal = Math.max(1, count - daisCount);
+        WingPose base = wingPose(wingIdx, wingTotal, time * 0.35, lookDir, false);
+        // Tuck wing span inward 58% and slightly back for a calm, furled guardian mantle
+        Vec3 off = base.offset();
+        double sideComp = off.dot(right);
+        double fwdComp = off.dot(forward);
+        double upComp = off.y;
+        Vec3 tucked = right.scale(sideComp * 0.56)
+                .add(forward.scale(fwdComp - 0.18 - Math.abs(sideComp) * 0.14))
+                .add(up.scale(upComp * 0.92 + 0.15));
+        return new WingPose(tucked, base.scale(), base.axisX(), base.axisY(), base.axisZ(), base.tier());
     }
 
     /**

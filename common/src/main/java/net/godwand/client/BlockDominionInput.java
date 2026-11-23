@@ -52,6 +52,15 @@ public final class BlockDominionInput {
             return;
         }
         suppressHoldUntilRelease = false;
+        if (BlockDominionRenderer.isLocalManualActive()
+                && BlockDominionRenderer.localReserveCount() >= BlockDominionRules.CAGE_MIN_BLOCKS) {
+            net.minecraft.world.entity.LivingEntity target = findCrosshairLivingTarget(client, 16.0);
+            if (target != null) {
+                suppressHoldUntilRelease = true;
+                Services.NETWORK.sendToServer(BlockDominionInputPayload.cageEntity(target.getId()));
+                return;
+            }
+        }
         if (client.hitResult instanceof BlockHitResult bhr && bhr.getType() == HitResult.Type.BLOCK) {
             holdCooldown = BlockDominionRules.HOLD_PICKUP_INTERVAL;
             Services.NETWORK.sendToServer(new BlockDominionInputPayload(
@@ -61,6 +70,34 @@ public final class BlockDominionInput {
             Services.NETWORK.sendToServer(new BlockDominionInputPayload(
                     BlockDominionInputPayload.ACTION_EARTHEN_SURGE, BlockPos.ZERO));
         }
+    }
+
+    /** Finds a hostile/living target under the player's crosshair up to {@code range} blocks for Monolith Cage. */
+    private static net.minecraft.world.entity.LivingEntity findCrosshairLivingTarget(Minecraft client, double range) {
+        if (client.hitResult instanceof net.minecraft.world.phys.EntityHitResult ehr
+                && ehr.getEntity() instanceof net.minecraft.world.entity.LivingEntity l && l.isAlive()) {
+            return l;
+        }
+        if (client.level == null || client.player == null) return null;
+        if (client.hitResult instanceof BlockHitResult bhr && bhr.getType() == HitResult.Type.BLOCK) return null;
+        Vec3 eye = client.player.getEyePosition(1.0f);
+        Vec3 look = client.player.getViewVector(1.0f).normalize();
+        Vec3 end = eye.add(look.scale(range));
+        var box = client.player.getBoundingBox().expandTowards(look.scale(range)).inflate(1.2);
+        net.minecraft.world.entity.LivingEntity best = null;
+        double bestDistSq = range * range;
+        for (var entity : client.level.getEntities(client.player, box,
+                e -> e instanceof net.minecraft.world.entity.LivingEntity l && l.isAlive() && !l.isSpectator())) {
+            var hit = entity.getBoundingBox().inflate(0.45).clip(eye, end);
+            if (hit.isPresent()) {
+                double d2 = eye.distanceToSqr(hit.get());
+                if (d2 < bestDistSq) {
+                    bestDistSq = d2;
+                    best = (net.minecraft.world.entity.LivingEntity) entity;
+                }
+            }
+        }
+        return best;
     }
 
     /** Per-client-tick handler for continuous pickup, double-tap Space wing toggle, Hover/Glide flight & Air-Step stairs. */
@@ -178,6 +215,31 @@ public final class BlockDominionInput {
             wasLocalFlying = false;
             localFlightVel = Vec3.ZERO;
             player.setNoGravity(false);
+        }
+
+        // QoL Liquid Stride: synchronized local client buoyancy over water & lava surfaces!
+        if (localManual && !BlockDominionRenderer.isLocalStowed()
+                && localBlocks >= BlockDominionRules.MIN_STAIR_BLOCKS
+                && !shiftDown && !player.isUnderWater() && !player.getAbilities().flying
+                && client.level != null) {
+            BlockPos feet = player.blockPosition();
+            double surfaceY = Double.NaN;
+            for (BlockPos probe : new BlockPos[]{feet, feet.below()}) {
+                if (!client.level.getFluidState(probe).isEmpty() && client.level.getFluidState(probe.above()).isEmpty()) {
+                    double sy = probe.getY() + 0.96;
+                    if (player.getY() <= sy + 0.55 && player.getY() >= probe.getY() - 0.15) {
+                        surfaceY = sy;
+                        break;
+                    }
+                }
+            }
+            if (!Double.isNaN(surfaceY)) {
+                Vec3 next = BlockDominionRules.stepLiquidStrideVelocity(
+                        player.getDeltaMovement(), player.getY(), surfaceY, jumpDown);
+                player.fallDistance = 0.0f;
+                player.setDeltaMovement(next);
+                return;
+            }
         }
 
         // Ascending & Descending Block Stairs:

@@ -74,10 +74,14 @@ public final class BlockDominionHud {
             tag = "METEOR";
         } else if (formation == BlockDominionBrain.FormationKind.VOLLEY_FAN) {
             tag = "VOLLEY";
+        } else if (formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
+            tag = "PERCH";
         } else if (boosting) {
             tag = glideMode ? "JET" : "MACH";
         } else if (flying) {
             tag = glideMode ? "GLIDE" : "HOVER";
+        } else if (formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE) {
+            tag = "STRIDE";
         } else if (formation == BlockDominionBrain.FormationKind.AIR_STAIRS) {
             tag = stairAscending ? "STAIR ▲" : "STAIR ▼";
         } else if (formation == BlockDominionBrain.FormationKind.RAIN_UMBRELLA) {

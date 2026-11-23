@@ -80,6 +80,8 @@
   "message.godwand.dominion_wings_need": "Need at least %s blocks in orbit for Block Wings",
   "message.godwand.dominion_surge": "Earthen Surge! +%s blocks (%s/%s)",
   "message.godwand.dominion_orbital": "Orbital Meteor Barrage! (%s blocks)",
+  "message.godwand.dominion_cage": "Monolith Cage! Sealed target (%s blocks)",
+  "message.godwand.dominion_cage_need": "Need at least %s blocks in orbit for Monolith Cage",
   "advancements.godwand.root.title": "God Wand",
   "advancements.godwand.root.description": "Hold a wand that bends the world",
   "advancements.godwand.use_0.title": "Where I Walk, There Is a Road",

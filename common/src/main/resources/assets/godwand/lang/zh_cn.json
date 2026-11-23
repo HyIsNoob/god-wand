@@ -80,6 +80,8 @@
   "message.godwand.dominion_wings_need": "展开方块之翼至少需要 %s 个方块",
   "message.godwand.dominion_surge": "裂地涌升！+%s 个方块（%s/%s）",
   "message.godwand.dominion_orbital": "天穹陨石雨！（%s 个方块）",
+  "message.godwand.dominion_cage": "巨石囚笼！已封印目标（%s 个方块）",
+  "message.godwand.dominion_cage_need": "巨石囚笼至少需要 %s 个环绕方块",
   "advancements.godwand.root.title": "神之杖",
   "advancements.godwand.root.description": "握住一根能扭曲世界的魔杖",
   "advancements.godwand.use_0.title": "朕行之处，即是道路",

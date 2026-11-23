@@ -61,7 +61,12 @@ public final class BlockDominionPose {
             float yawDelta = Float.isNaN(st.lastYaw) ? 0f : Mth.wrapDegrees(yaw - st.lastYaw);
             st.lastYaw = yaw;
 
-            if (glideMode || (boosting && speed > 0.65)) {
+            if (BlockDominionRenderer.formationOf(entity.getId()) == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
+                // Standing regally upright atop the floating stone pedestal
+                targetHover = 0.5f;
+                targetPitch = 0f;
+                targetRoll = 0f;
+            } else if (glideMode || (boosting && speed > 0.65)) {
                 // Aerodynamic horizontal flight along 3D velocity vector (62..88 deg pitch forward like Elytra!)
                 targetGlide = 1.0f;
                 float velPitchDeg = speed > 0.12
@@ -142,6 +147,22 @@ public final class BlockDominionPose {
         }
 
         BlockDominionBrain.FormationKind form = BlockDominionRenderer.formationOf(entity.getId());
+        if (form == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
+            // Noble upright sovereign stance perched atop floating hexagonal dais (crossed/poised arms, calm legs)
+            float sway = (float) Math.sin((entity.tickCount + partialTick) * 0.08f) * 0.025f;
+            leftArm.xRot = -0.82f + sway;
+            leftArm.yRot = 0.55f;
+            leftArm.zRot = -0.18f;
+            rightArm.xRot = -0.74f - sway;
+            rightArm.yRot = -0.38f;
+            rightArm.zRot = 0.16f;
+            rightLeg.xRot = 0.04f;
+            rightLeg.zRot = 0.05f;
+            leftLeg.xRot = -0.04f;
+            leftLeg.zRot = -0.05f;
+            hat.copyFrom(head);
+            return;
+        }
         if (form == BlockDominionBrain.FormationKind.VOLLEY_FAN
                 || form == BlockDominionBrain.FormationKind.ORBITAL_METEOR) {
             boolean orbital = form == BlockDominionBrain.FormationKind.ORBITAL_METEOR;

@@ -58,6 +58,11 @@ class BlockDominionPayloadTest {
         assertEquals(stairDown, stairDownRt);
         assertFalse(stairDownRt.stairAscending());
 
+        var cage = BlockDominionInputPayload.cageEntity(777);
+        var cageRt = roundTrip(BlockDominionInputPayload.CODEC, cage);
+        assertEquals(cage, cageRt);
+        assertEquals(777, cageRt.cageEntityId());
+
         var state = new BlockDominionStatePayload(
                 42,
                 BlockDominionRules.Mode.MANUAL.ordinal(),
@@ -76,7 +81,7 @@ class BlockDominionPayloadTest {
 
     @Test
     void rejectsOutOfRangeActionsModesFormationsAndBlockCounts() {
-        assertThrows(IllegalArgumentException.class, () -> new BlockDominionInputPayload(7, BlockPos.ZERO));
+        assertThrows(IllegalArgumentException.class, () -> new BlockDominionInputPayload(8, BlockPos.ZERO));
         assertThrows(IllegalArgumentException.class, () -> new BlockDominionStatePayload(
                 1, 3, 0, 0, 0, 0, 0, 1, 0, 0, 0, new int[0], 0, 0, 0, 0, 0));
         assertThrows(IllegalArgumentException.class, () -> new BlockDominionStatePayload(

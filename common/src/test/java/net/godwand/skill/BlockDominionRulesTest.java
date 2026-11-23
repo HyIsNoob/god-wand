@@ -213,4 +213,21 @@ class BlockDominionRulesTest {
         }
         assertEquals(BlockDominionRules.GLIDE_MAX_SPEED, jet.length(), 0.04);
     }
+
+    @Test
+    void liquidStrideBuoysPlayerAndKineticDeflectReversesProjectilesTowardShooter() {
+        Vec3 dipped = BlockDominionRules.stepLiquidStrideVelocity(new Vec3(0.2, -0.3, 0.0), 63.7, 63.96, false);
+        assertTrue(dipped.y > 0.05, "Lifts player smoothly back onto liquid surface");
+        Vec3 jumped = BlockDominionRules.stepLiquidStrideVelocity(new Vec3(0.2, 0.0, 0.0), 63.96, 63.96, true);
+        assertEquals(0.42, jumped.y, 1e-6);
+
+        // Kinetic Deflect aims straight back toward shooter at amplified speed
+        Vec3 incoming = new Vec3(0.0, 0.0, -1.6);
+        Vec3 deflected = BlockDominionRules.deflectVelocity(incoming, new Vec3(0, 1.4, 2.0), new Vec3(0, 1.5, 10.0), 1.85);
+        assertTrue(deflected.z > 2.0, "Deflected arrow flies strongly back toward shooter");
+
+        // Fallback without shooter reverses incoming trajectory
+        Vec3 reversed = BlockDominionRules.deflectVelocity(incoming, new Vec3(0, 1.4, 2.0), null, 1.85);
+        assertTrue(reversed.z > 2.0);
+    }
 }

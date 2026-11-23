@@ -55,6 +55,8 @@ public final class BlockDominionRules {
     public static final int FLAG_UMBRELLA = 128;
     public static final int FLAG_GLIDE_MODE = 256;
     public static final int FLAG_STAIR_ASCEND = 512;
+    public static final int FLAG_LIQUID_STRIDE = 1024;
+    public static final int FLAG_PERCH = 2048;
 
     public static final int EVENT_SYNC = 0;
     public static final int EVENT_PICKUP = 1;
@@ -70,11 +72,19 @@ public final class BlockDominionRules {
     public static final int EVENT_SURGE = 11;
     public static final int EVENT_ORBITAL_BARRAGE = 12;
     public static final int EVENT_HERO_LAND = 13;
-    public static final int MAX_EVENT = EVENT_HERO_LAND;
+    public static final int EVENT_CAGE_START = 14;
+    public static final int EVENT_CAGE_END = 15;
+    public static final int MAX_EVENT = EVENT_CAGE_END;
 
     public static final int SURGE_RADIUS = 8;
     public static final int SURGE_MAX_BLOCKS = 24;
     public static final int SURGE_COOLDOWN_TICKS = 30;
+    public static final int CAGE_MIN_BLOCKS = 10;
+    public static final int CAGE_BLOCK_COUNT = 12;
+    public static final int CAGE_DURATION_TICKS = 60;
+    public static final int CAGE_COOLDOWN_TICKS = 50;
+    public static final double CAGE_RANGE = 22.0;
+    public static final int PERCH_IDLE_TICKS = 34;
 
     public static final int MIN_FLIGHT_BLOCKS = 6;
     public static final int MIN_STAIR_BLOCKS = 4;
@@ -346,6 +356,37 @@ public final class BlockDominionRules {
         double targetVy = horizSpeed > 0.025 ? STAIR_DESCEND_VY : 0.0;
         double vy = cur.y < targetVy ? Mth.lerp(0.68, cur.y, targetVy) : Math.min(cur.y, 0.26);
         return new Vec3(cur.x, vy, cur.z);
+    }
+
+    /**
+     * Liquid Stride vertical velocity controller: keeps the player buoyed cleanly atop water or lava surfaces
+     * so stepping stones feel solid under their soles.
+     */
+    public static Vec3 stepLiquidStrideVelocity(Vec3 currentVel, double feetY, double surfaceY, boolean jumpPressed) {
+        Vec3 cur = currentVel == null ? Vec3.ZERO : currentVel;
+        if (jumpPressed) {
+            return new Vec3(cur.x, 0.42, cur.z);
+        }
+        double delta = surfaceY - feetY;
+        double vy = delta > 0.02 ? Mth.clamp(delta * 0.48, 0.04, 0.34) : Math.max(0.0, cur.y * 0.4);
+        return new Vec3(cur.x, vy, cur.z);
+    }
+
+    /**
+     * Kinetic Deflect return velocity: redirects an intercepted projectile back toward its shooter (or straight back
+     * along its incoming path when no shooter is available) with amplified kinetic speed.
+     */
+    public static Vec3 deflectVelocity(Vec3 incomingVel, Vec3 impactPos, Vec3 shooterPos, double minSpeed) {
+        double speed = Math.max(minSpeed, (incomingVel == null ? 0.0 : incomingVel.length()) * 1.35);
+        Vec3 dir;
+        if (shooterPos != null && impactPos != null && shooterPos.distanceToSqr(impactPos) > 0.25) {
+            dir = shooterPos.subtract(impactPos).normalize();
+        } else if (incomingVel != null && incomingVel.lengthSqr() > 1e-5) {
+            dir = incomingVel.normalize().scale(-1.0);
+        } else {
+            dir = new Vec3(0, 0.15, 1).normalize();
+        }
+        return dir.scale(speed);
     }
 
     private static Vec3 idleOrbitOffset(int index, int count, double time, Vec3 forward, Vec3 right, Vec3 up) {

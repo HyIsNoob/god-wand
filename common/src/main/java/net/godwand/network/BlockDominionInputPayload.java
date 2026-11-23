@@ -18,12 +18,22 @@ public record BlockDominionInputPayload(int action, BlockPos targetPos) implemen
     public static final int ACTION_EARTHEN_SURGE = 4;
     public static final int ACTION_TOGGLE_FLIGHT_STYLE = 5;
     public static final int ACTION_STAIR_INTENT = 6;
+    public static final int ACTION_CAGE_ENTITY = 7;
 
     public BlockDominionInputPayload {
-        if (action < ACTION_CYCLE_MODE || action > ACTION_STAIR_INTENT) {
+        if (action < ACTION_CYCLE_MODE || action > ACTION_CAGE_ENTITY) {
             throw new IllegalArgumentException("Invalid Block Dominion input action: " + action);
         }
         if (targetPos == null) targetPos = BlockPos.ZERO;
+    }
+
+    /** Sends Monolith Cage lock request targeting living entity {@code entityId}. */
+    public static BlockDominionInputPayload cageEntity(int entityId) {
+        return new BlockDominionInputPayload(ACTION_CAGE_ENTITY, new BlockPos(entityId, 0, 0));
+    }
+
+    public int cageEntityId() {
+        return targetPos.getX();
     }
 
     /** Sends stair climbing intent (ascending=true when holding Space while walking). */

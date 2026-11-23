@@ -61,6 +61,7 @@ public final class DominionProbe implements ClientModInitializer {
     private final List<UUID> spawnedMobs = new ArrayList<>();
     private final List<String> checks = new ArrayList<>();
     private double stairAscendStartY = 0.0;
+    private UUID deflectedArrowId = null;
     private Path framesDir;
     private Path keyframesDir;
 
@@ -302,7 +303,7 @@ public final class DominionProbe implements ClientModInitializer {
             c.options.keyJump.setDown(false);
         }
 
-        // Part C: Wing Mode 1 — HOVER (Free 3D Levitation + regal hover)
+        // Part C: Wing Mode 1 — HOVER (Free 3D Levitation) -> idle ~1.7s -> SOVEREIGN PERCH floating pedestal!
         if (t == 92) {
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
@@ -312,12 +313,17 @@ public final class DominionProbe implements ClientModInitializer {
                 recordCheck("wing_flight_engaged", started, "started=" + started);
             }).join();
         }
-        if (t == 112) {
+        if (t == 108) {
             saveKeyframe(c, "kf_05d_wings_hover.png");
+        }
+        if (t == 146) {
+            boolean perched = server.submit(() -> BlockDominionManager.isSovereignPerchActive(me(server, c))).join();
+            recordCheck("sovereign_perch_active", perched, "perch=" + perched);
+            saveKeyframe(c, "kf_05d2_sovereign_perch.png");
         }
 
         // Part D: Wing Mode 2 — ELYTRA GLIDE + Jet Rocket Boost!
-        if (t == 118) {
+        if (t == 152) {
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
                 BlockDominionManager.setFlightStyle(p, true);
@@ -327,7 +333,7 @@ public final class DominionProbe implements ClientModInitializer {
             }).join();
         }
         // Glide dive smoothly for 16 ticks, then pitch level & fire Jet Rocket Boost!
-        if (t == 134) {
+        if (t == 168) {
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
                 p.connection.teleport(p.getX(), p.getY(), p.getZ(), 0f, -4f);
@@ -335,26 +341,26 @@ public final class DominionProbe implements ClientModInitializer {
             c.options.keySprint.setDown(true);
             c.options.keyJump.setDown(true);
         }
-        if (t == 144) {
+        if (t == 178) {
             // Subtle aerodynamic bank right to showcase Glide camera roll + radial speed blur!
             c.options.keyRight.setDown(true);
         }
-        if (t == 152) {
+        if (t == 186) {
             double spd = c.player.getDeltaMovement().length();
             recordCheck("wing_glide_jet_boost", spd >= 1.30, String.format(Locale.ROOT, "speed=%.2f", spd));
             saveKeyframe(c, "kf_05e_wings_glide_boost.png");
         }
         // Brief 1st-person wing glide preview so owner sees unobstructed sightline while flying!
-        if (t == 158) {
+        if (t == 192) {
             c.options.keyRight.setDown(false);
             c.options.keySprint.setDown(false);
             c.options.keyJump.setDown(false);
             c.options.setCameraType(CameraType.FIRST_PERSON);
         }
-        if (t == 170) {
+        if (t == 204) {
             saveKeyframe(c, "kf_05f_wings_first_person.png");
         }
-        if (t == 178) {
+        if (t == 212) {
             c.options.setCameraType(CameraType.THIRD_PERSON_BACK);
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
@@ -365,7 +371,7 @@ public final class DominionProbe implements ClientModInitializer {
         }
 
         // Part E: QoL Auto Rain Umbrella Canopy under rain!
-        if (t == 186) {
+        if (t == 220) {
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
                 ServerLevel level = p.serverLevel();
@@ -373,15 +379,39 @@ public final class DominionProbe implements ClientModInitializer {
                 level.setWeatherParameters(0, 200, true, false);
             }).join();
         }
-        if (t == 216) {
+        if (t == 246) {
             boolean umbrella = server.submit(() -> BlockDominionManager.isUmbrellaActive(me(server, c))).join();
             recordCheck("rain_umbrella_active", umbrella, "umbrella=" + umbrella);
             saveKeyframe(c, "kf_05g_rain_umbrella.png");
         }
-        if (t == 228) {
-            server.submit(() -> me(server, c).serverLevel().setWeatherParameters(60000, 0, false, false)).join();
+        if (t == 254) {
+            // Part F: QoL Liquid Stride across glowing Lava Pool in Survival!
+            server.submit(() -> {
+                ServerPlayer p = me(server, c);
+                ServerLevel level = p.serverLevel();
+                level.setWeatherParameters(60000, 0, false, false);
+                for (int dx = -4; dx <= 4; dx++) {
+                    for (int dz = 0; dz <= 10; dz++) {
+                        level.setBlock(new BlockPos(S3X + dx, groundY - 1, S3Z + 42 + dz), Blocks.LAVA.defaultBlockState(), 3);
+                        level.setBlock(new BlockPos(S3X + dx, groundY, S3Z + 42 + dz), Blocks.AIR.defaultBlockState(), 3);
+                    }
+                }
+                p.connection.teleport(S3X + 0.5, groundY + 0.02, S3Z + 42.5, 0f, 16f);
+            }).join();
+            c.options.keyUp.setDown(true);
+            c.options.keyShift.setDown(false);
         }
-        if (t >= 238) {
+        if (t == 276) {
+            boolean stride = server.submit(() -> BlockDominionManager.isLiquidStrideActive(me(server, c))).join();
+            float hp = server.submit(() -> me(server, c).getHealth()).join();
+            recordCheck("liquid_stride_lava_safe", stride && hp >= 19.9f,
+                    String.format(Locale.ROOT, "stride=%s hp=%.1f", stride, hp));
+            saveKeyframe(c, "kf_05h_liquid_stride_lava.png");
+        }
+        if (t == 284) {
+            c.options.keyUp.setDown(false);
+        }
+        if (t >= 290) {
             stage = 4;
             stageStart = ticks;
         }
@@ -407,7 +437,7 @@ public final class DominionProbe implements ClientModInitializer {
             }).join();
         }
         if (t == 16) saveKeyframe(c, "kf_06_shield_single.png");
-        // Launch real hostile arrow straight at player to trigger Parry!
+        // Launch real hostile arrow straight at player to trigger Shield Kinetic Deflect!
         if (t == 20) {
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
@@ -419,9 +449,21 @@ public final class DominionProbe implements ClientModInitializer {
                 arrow.setPos(OX + 0.5, groundY + 1.4, OZ + 7.2);
                 arrow.setDeltaMovement(0, 0.02, -1.65);
                 level.addFreshEntity(arrow);
+                deflectedArrowId = arrow.getUUID();
             }).join();
         }
-        if (t == 26) saveKeyframe(c, "kf_07_parry_arrow.png");
+        if (t == 26) {
+            boolean reversed = server.submit(() -> {
+                ServerLevel level = me(server, c).serverLevel();
+                Entity e = deflectedArrowId == null ? null : level.getEntity(deflectedArrowId);
+                // Either arrow is actively flying back (+Z) or already hit & hurt the Skeleton!
+                Entity skel = spawnedMobs.isEmpty() ? null : level.getEntity(spawnedMobs.get(0));
+                boolean skelHit = skel instanceof LivingEntity l && l.getHealth() < l.getMaxHealth();
+                return (e != null && e.getDeltaMovement().z > 0.5) || skelHit;
+            }).join();
+            recordCheck("kinetic_deflect_reverses_arrow", reversed, "reversed=" + reversed);
+            saveKeyframe(c, "kf_07_parry_arrow.png");
+        }
         if (t == 34) {
             float hp = server.submit(() -> me(server, c).getHealth()).join();
             recordCheck("survival_arrow_parry_zero_damage", hp >= 19.9f, "hp=" + hp);
@@ -495,8 +537,20 @@ public final class DominionProbe implements ClientModInitializer {
                 }
             }).join();
         }
-        // Rapid fire burst (t = 12..30)
-        if (t == 12) {
+        // Monolith Cage on the center Husk before unleashing Rapid Fire & Myriad Volley!
+        if (t == 4) {
+            server.submit(() -> {
+                ServerPlayer p = me(server, c);
+                ServerLevel level = p.serverLevel();
+                Entity midHusk = spawnedMobs.size() > 2 ? level.getEntity(spawnedMobs.get(2)) : null;
+                boolean caged = midHusk != null && BlockDominionManager.triggerMonolithCage(p, midHusk.getId());
+                recordCheck("monolith_cage_seals_target", caged && BlockDominionManager.hasActiveCage(p),
+                        "caged=" + caged);
+            }).join();
+        }
+        if (t == 10) saveKeyframe(c, "kf_09b_monolith_cage.png");
+        // Rapid fire burst (t = 14..30)
+        if (t == 14) {
             c.options.keyShift.setDown(false);
             c.options.keyUse.setDown(true);
         }

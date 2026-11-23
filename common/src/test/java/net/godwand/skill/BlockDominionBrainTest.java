@@ -178,5 +178,17 @@ class BlockDominionBrainTest {
             Vec3 u = BlockDominionBrain.rainUmbrellaOffset(i, 12, 6.0, look);
             assertTrue(u.y > 1.35, "Rain umbrella canopy blocks hover cleanly above player head");
         }
+
+        // Liquid Stride & Sovereign Perch formations
+        assertEquals(BlockDominionBrain.FormationKind.LIQUID_STRIDE,
+                BlockDominionBrain.plan(List.of(), 12, false, false, false, false, false, false, false, true, false).kind());
+        assertEquals(BlockDominionBrain.FormationKind.SOVEREIGN_PERCH,
+                BlockDominionBrain.plan(List.of(), 16, false, false, true, false, false, false, false, false, true).kind());
+        for (int i = 0; i < 7; i++) {
+            var dais = BlockDominionBrain.sovereignPerchPose(i, 24, 10.0, look);
+            assertTrue(dais.offset().y < -1.2, "Sovereign Perch dais slabs lock directly beneath boots");
+        }
+        Vec3 stride0 = BlockDominionBrain.liquidStrideOffset(0, 12, 5.0, look);
+        assertTrue(stride0.y < -1.2, "Liquid Stride slabs skim level beneath boots");
     }
 }

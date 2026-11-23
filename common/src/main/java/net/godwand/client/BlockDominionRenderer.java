@@ -149,6 +149,8 @@ public final class BlockDominionRenderer {
         boolean stairAscending;
         boolean umbrella;
         boolean rapidFiring;
+        boolean liquidStride;
+        boolean sovereignPerch;
         int volleyTicks;
         long unfoldStartTick = -1000;
         long shieldStartTick = -1000;
@@ -191,7 +193,11 @@ public final class BlockDominionRenderer {
         }
     }
 
+    private record ClientCage(int casterId, int targetId, Vec3 anchor, List<BlockState> blocks,
+                              long startTick, BlockDominionPalette palette) {}
+
     private static final Map<Integer, ClientFormation> FORMATIONS = new HashMap<>();
+    private static final Map<Integer, ClientCage> ACTIVE_CAGES = new HashMap<>();
     private static final List<ParryBurst> PARRIES = new ArrayList<>();
     private static final List<WaveBurst> WAVES = new ArrayList<>();
     private static final List<StepFlash> STEP_FLASHES = new ArrayList<>();
@@ -212,6 +218,7 @@ public final class BlockDominionRenderer {
 
     public static void reset() {
         FORMATIONS.clear();
+        ACTIVE_CAGES.clear();
         PARRIES.clear();
         WAVES.clear();
         STEP_FLASHES.clear();
@@ -341,6 +348,8 @@ public final class BlockDominionRenderer {
         f.stairAscending = (payload.flags() & BlockDominionRules.FLAG_STAIR_ASCEND) != 0;
         f.umbrella = (payload.flags() & BlockDominionRules.FLAG_UMBRELLA) != 0;
         f.rapidFiring = (payload.flags() & BlockDominionRules.FLAG_RAPID_FIRING) != 0;
+        f.liquidStride = (payload.flags() & BlockDominionRules.FLAG_LIQUID_STRIDE) != 0;
+        f.sovereignPerch = (payload.flags() & BlockDominionRules.FLAG_PERCH) != 0;
         f.volleyTicks = payload.volleyTicks();
         f.formation = BlockDominionBrain.FormationKind.byOrdinal(payload.formationKind());
         f.threatPrimary = new Vec3(payload.threat1X(), payload.threat1Y(), payload.threat1Z());
@@ -469,6 +478,31 @@ public final class BlockDominionRenderer {
                 }
                 BlockDominionSounds.play(landPos, BlockDominionSounds.WING_FLAP, 0.95f, 0.68f);
                 BlockDominionSounds.play(landPos, BlockDominionSounds.IMPACT, 0.72f, 0.85f);
+            }
+            case BlockDominionRules.EVENT_CAGE_START -> {
+                Vec3 anchor = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
+                int targetId = payload.eventBlockId();
+                List<BlockState> cageBlocks = new ArrayList<>(BlockDominionRules.CAGE_BLOCK_COUNT);
+                for (int i = 0; i < BlockDominionRules.CAGE_BLOCK_COUNT; i++) {
+                    BlockState bs = f.blocks.isEmpty()
+                            ? Blocks.DEEPSLATE_BRICKS.defaultBlockState()
+                            : f.blocks.get(i % f.blocks.size()).state;
+                    cageBlocks.add(bs);
+                }
+                ACTIVE_CAGES.put(payload.playerId(), new ClientCage(payload.playerId(), targetId, anchor, cageBlocks, now, pal));
+                DominionParticles.spawnRingBurst(anchor, new Vec3(0, 1, 0), 1.45, 26, 0.24,
+                        pal.primaryR, pal.primaryG, pal.primaryB, DominionParticles.STYLE_SHARD);
+                if (isLocal) {
+                    DominionPostFx.triggerShockwave(0.42f, 9, pal);
+                }
+                BlockDominionSounds.play(anchor, BlockDominionSounds.SHIELD_LOCK, 0.92f, 0.82f);
+            }
+            case BlockDominionRules.EVENT_CAGE_END -> {
+                ClientCage old = ACTIVE_CAGES.remove(payload.playerId());
+                if (old != null) {
+                    DominionParticles.spawnRingBurst(old.anchor, new Vec3(0, 1, 0), 1.2, 16, 0.18,
+                            old.palette.primaryR, old.palette.primaryG, old.palette.primaryB, DominionParticles.STYLE_SHARD);
+                }
             }
             case BlockDominionRules.EVENT_FLIGHT_START -> {
                 f.leftWingTrail.clear();
@@ -665,6 +699,7 @@ public final class BlockDominionRenderer {
         PARRIES.removeIf(p -> now - p.startTick > 14);
         WAVES.removeIf(w -> now - w.startTick > w.duration);
         STEP_FLASHES.removeIf(s -> now - s.startTick > 16);
+        ACTIVE_CAGES.entrySet().removeIf(e -> now - e.getValue().startTick > BlockDominionRules.CAGE_DURATION_TICKS + 4);
 
         for (var entry : FORMATIONS.entrySet()) {
             Entity owner = world.getEntity(entry.getKey());
@@ -680,28 +715,29 @@ public final class BlockDominionRenderer {
             float unfoldProgress = Mth.clamp((now - f.unfoldStartTick) / (float) BlockDominionRules.UNFOLD_TICKS, 0f, 1f);
             float volleyProgress = Mth.clamp(f.volleyTicks / (float) BlockDominionRules.VOLLEY_CHARGE_TICKS, 0f, 1f);
 
-            // Maintain true world-space anchored stepping stones during Air-Step Stairs (ascending & descending!)
-            if (f.formation == BlockDominionBrain.FormationKind.AIR_STAIRS) {
+            // Maintain true world-space anchored stepping stones during Air-Step Stairs AND Liquid Stride!
+            if (f.formation.isStepping()) {
                 Vec3 horizFwd = new Vec3(look.x, 0, look.z);
                 horizFwd = horizFwd.lengthSqr() > 1e-4 ? horizFwd.normalize() : new Vec3(0, 0, 1);
                 Vec3 feet = owner.position();
-                double stepY = feet.y - 0.18 + (f.stairAscending ? 0.14 : -0.06);
+                boolean liquid = f.formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE;
+                double stepY = liquid ? (feet.y - 0.10) : (feet.y - 0.18 + (f.stairAscending ? 0.14 : -0.06));
                 Vec3 candidate = new Vec3(feet.x + horizFwd.x * 0.42, stepY, feet.z + horizFwd.z * 0.42);
                 Vec3 last = f.worldSteps.peekFirst();
                 if (last == null) {
-                    // Seed an initial 3-step lead staircase immediately under & ahead of the player!
-                    f.worldSteps.addFirst(new Vec3(feet.x - horizFwd.x * 0.65, feet.y - 0.18 + (f.stairAscending ? -0.26 : 0.24), feet.z - horizFwd.z * 0.65));
-                    f.worldSteps.addFirst(new Vec3(feet.x, feet.y - 0.18, feet.z));
+                    double leadBack = liquid ? 0.0 : (f.stairAscending ? -0.26 : 0.24);
+                    f.worldSteps.addFirst(new Vec3(feet.x - horizFwd.x * 0.65, feet.y - 0.14 + leadBack, feet.z - horizFwd.z * 0.65));
+                    f.worldSteps.addFirst(new Vec3(feet.x, feet.y - 0.12, feet.z));
                     f.worldSteps.addFirst(candidate);
                 } else {
                     double dx = feet.x - last.x, dz = feet.z - last.z;
                     double horizDist = Math.sqrt(dx * dx + dz * dz);
                     double dy = Math.abs(stepY - last.y);
-                    if (horizDist >= 0.72 || dy >= 0.34) {
+                    if (horizDist >= 0.72 || (!liquid && dy >= 0.34)) {
                         f.worldSteps.addFirst(candidate);
                         while (f.worldSteps.size() > 7) f.worldSteps.removeLast();
-                        DominionParticles.spawnSmoke(candidate.add(0, -0.08, 0), new Vec3(0, 0.015, 0),
-                                0.38f, 14, f.mr(), f.mg(), f.mb(), 110);
+                        DominionParticles.spawnSmoke(candidate.add(0, -0.06, 0), new Vec3(0, 0.015, 0),
+                                0.36f, 14, f.mr(), f.mg(), f.mb(), 78);
                     }
                 }
             } else {
@@ -717,10 +753,16 @@ public final class BlockDominionRenderer {
 
                 Vec3 target;
                 Vec3 targetScale;
-                if (f.formation == BlockDominionBrain.FormationKind.AIR_STAIRS && i < anchoredSteps.size()) {
-                    // World-anchored floating stone stair tread — stays locked in place while player walks over it!
+                if (f.formation.isStepping() && i < anchoredSteps.size()) {
+                    // World-anchored floating stone stair/liquid tread — stays locked in place while player walks over it!
                     target = anchoredSteps.get(i);
-                    targetScale = new Vec3(0.86, 0.28, 0.86);
+                    targetScale = f.formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE
+                            ? new Vec3(0.94, 0.20, 0.94)
+                            : new Vec3(0.86, 0.28, 0.86);
+                } else if (f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
+                    BlockDominionBrain.WingPose wp = BlockDominionBrain.sovereignPerchPose(i, count, now, look);
+                    target = chest.add(wp.offset());
+                    targetScale = wp.scale();
                 } else if (f.formation.isWings()) {
                     BlockDominionBrain.WingPose wp = BlockDominionBrain.wingPose(
                             i, count, now, look, f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST);
@@ -756,15 +798,15 @@ public final class BlockDominionRenderer {
                         vb.prevPos = target;
                         vb.vel = Vec3.ZERO;
                     } else {
-                        // World-anchored stairs stay pinned in world space (carry = 0); moving wings/shields carry smoothly!
-                        double carry = (f.formation == BlockDominionBrain.FormationKind.AIR_STAIRS && i < anchoredSteps.size()) ? 0.0
+                        // World-anchored stairs/liquid strides stay pinned in world space (carry = 0); moving wings/shields carry smoothly!
+                        double carry = (f.formation.isStepping() && i < anchoredSteps.size()) ? 0.0
                                 : f.formation.isMobility() ? 0.94
                                 : (f.formation.isShield() || f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING ? 0.88 : 0.65);
                         vb.pos = vb.pos.add(ownerDelta.scale(carry));
 
                         double stiffness;
                         double damping;
-                        if (f.formation == BlockDominionBrain.FormationKind.AIR_STAIRS && i < 7) {
+                        if (f.formation.isStepping() && i < 7) {
                             stiffness = 0.82;
                             damping = 0.78;
                         } else if (f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING && i < 5) {
@@ -1108,6 +1150,34 @@ public final class BlockDominionRenderer {
             matrices.popPose();
         }
 
+        // 2b. Render active Monolith Cages (12 sculpted stone prison monoliths rotating around sealed targets!)
+        for (ClientCage cage : ACTIVE_CAGES.values()) {
+            Entity target = world.getEntity(cage.targetId);
+            Vec3 center = target != null && target.isAlive()
+                    ? target.getPosition(tickDelta).add(0, target.getBbHeight() * 0.52, 0)
+                    : cage.anchor;
+            if (center.distanceToSqr(camPos) > 96.0 * 96.0) continue;
+            double age = Math.max(0.0, time - cage.startTick);
+            double snap = Math.min(1.0, age / 5.0);
+            double ease = 1.0 - (1.0 - snap) * (1.0 - snap) * (1.0 - snap);
+            double rBase = Mth.lerp(ease, 3.6, 1.38);
+            int n = cage.blocks.size();
+            int light = sampleLight(center, target != null ? target : client.player);
+            for (int i = 0; i < n; i++) {
+                boolean upper = i >= 6;
+                double ang = (Math.PI / 3.0) * (i % 6) + time * (upper ? -0.045 : 0.055) + (upper ? Math.PI / 6.0 : 0.0);
+                double yOff = upper ? 0.72 : -0.45;
+                Vec3 p = center.add(Math.cos(ang) * rBase, yOff, Math.sin(ang) * rBase);
+                matrices.pushPose();
+                matrices.translate(p.x - camPos.x, p.y - camPos.y, p.z - camPos.z);
+                matrices.mulPose(Axis.YP.rotationDegrees((float) (-Math.toDegrees(ang) + 90.0)));
+                matrices.scale(0.36f, 0.92f, 0.24f);
+                matrices.translate(-0.5, -0.5, -0.5);
+                blockRenderer.renderSingleBlock(cage.blocks.get(i), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
+                matrices.popPose();
+            }
+        }
+
         bufferSource.endBatch();
 
         // 3. Purple-grade TWO-PASS Volumetric GLSL VFX tinted by live Material Resonance!
@@ -1240,11 +1310,19 @@ public final class BlockDominionRenderer {
         } else if (f.formation.isVolley() || (f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING && index < 5)) {
             matrices.mulPose(faceDirection(look));
             matrices.mulPose(Axis.ZP.rotationDegrees(spinPhase * 28f));
-        } else if (f.formation == BlockDominionBrain.FormationKind.AIR_STAIRS && index < 7) {
+        } else if (f.formation.isStepping() && index < 7) {
             float yaw = (float) (Mth.atan2(-look.x, look.z) * (180.0 / Math.PI));
             matrices.mulPose(Axis.YP.rotationDegrees(-yaw));
         } else if (f.formation == BlockDominionBrain.FormationKind.RAIN_UMBRELLA && index < 7) {
             matrices.mulPose(Axis.YP.rotationDegrees((float) (time * 1.4 + index * 60f)));
+        } else if (f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
+            BlockDominionBrain.WingPose wp = BlockDominionBrain.sovereignPerchPose(index, count, time, look);
+            Matrix3f basisMat = new Matrix3f(
+                    (float) wp.axisX().x, (float) wp.axisX().y, (float) wp.axisX().z,
+                    (float) wp.axisY().x, (float) wp.axisY().y, (float) wp.axisY().z,
+                    (float) wp.axisZ().x, (float) wp.axisZ().y, (float) wp.axisZ().z
+            );
+            matrices.mulPose(new Quaternionf().setFromNormalized(basisMat));
         } else if (f.formation.isWings()) {
             BlockDominionBrain.WingPose wp = BlockDominionBrain.wingPose(
                     index, count, time, look, f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST);
@@ -1341,12 +1419,18 @@ public final class BlockDominionRenderer {
                     } else if (f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING) {
                         emitRailgunVfx(buffer, mat, f, chest, look, camRight, camUp, time, tickDelta, camPos, bodyPass);
                         emitted = true;
-                    } else if (f.formation == BlockDominionBrain.FormationKind.AIR_STAIRS) {
+                    } else if (f.formation.isStepping()) {
                         emitAirStairsVfx(buffer, mat, f, camRight, camUp, time, tickDelta, camPos, bodyPass);
                         emitted = true;
                     } else if (f.formation == BlockDominionBrain.FormationKind.RAIN_UMBRELLA) {
                         emitUmbrellaVfx(buffer, mat, f, chest, time, bodyPass);
                         emitted = true;
+                    } else if (f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
+                        if (!bodyPass) {
+                            DominionShader.emitGroundPool(buffer, mat, chest.add(0, -1.24, 0), 1.65, 61,
+                                    f.pr(), f.pg(), f.pb(), firstPerson ? 55 : 115);
+                            emitted = true;
+                        }
                     } else if (f.formation.isWings()) {
                         emitWingsVfx(buffer, mat, f, owner, chest, look, forward, camRight, camUp, time, camPos, firstPerson, bodyPass);
                         emitted = true;
@@ -1417,6 +1501,21 @@ public final class BlockDominionRenderer {
                                 1.8 + ease * 2.4, 0.75 + ease * w.maxRadius * 0.55, 18, 6,
                                 (int) (w.seed % 97), w.pR, w.pG, w.pB, a);
                     }
+                    emitted = true;
+                }
+            }
+
+            // Monolith Cage 3D Fresnel containment domes around sealed targets
+            if (!bodyPass) {
+                for (ClientCage cage : ACTIVE_CAGES.values()) {
+                    Entity target = world.getEntity(cage.targetId);
+                    Vec3 center = target != null && target.isAlive()
+                            ? target.getPosition(tickDelta).add(0, target.getBbHeight() * 0.52, 0).subtract(camPos)
+                            : cage.anchor.subtract(camPos);
+                    if (center.lengthSqr() > 96.0 * 96.0) continue;
+                    DominionShader.emitFresnelDome(buffer, mat, center, new Vec3(0, 1, 0), 1.62, Math.PI * 0.92,
+                            18, 8, DominionShader.FX_HEX_MIST, 64,
+                            cage.palette.primaryR, cage.palette.primaryG, cage.palette.primaryB, 145);
                     emitted = true;
                 }
             }
