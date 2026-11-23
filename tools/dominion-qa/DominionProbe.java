@@ -60,6 +60,7 @@ public final class DominionProbe implements ClientModInitializer {
     private int pickupCursor = 0;
     private final List<UUID> spawnedMobs = new ArrayList<>();
     private final List<String> checks = new ArrayList<>();
+    private double stairAscendStartY = 0.0;
     private Path framesDir;
     private Path keyframesDir;
 
@@ -190,7 +191,7 @@ public final class DominionProbe implements ClientModInitializer {
         System.out.println("DOMINION_QA SETUP complete, groundY=" + groundY + " pickupQueue=" + pickupQueue.size());
     }
 
-    /** Stage 1 (90 ticks): Enable Manual, lift 48 blocks into massive 3-tier sovereign armada! */
+    /** Stage 1 (108 ticks): Enable Manual, lift 48 blocks into 3-tier armada, then preview crisp 1st-person view! */
     private void stagePickupAndTiers(Minecraft c, MinecraftServer server, int t) {
         if (t == 6) {
             server.submit(() -> BlockDominionManager.cycleMode(me(server, c))).join();
@@ -206,7 +207,15 @@ public final class DominionProbe implements ClientModInitializer {
             recordCheck("pickup_48_blocks", count >= 44, "count=" + count);
             saveKeyframe(c, "kf_03_orbit_halo.png");
         }
-        if (t >= 86) {
+        if (t == 82) {
+            // Switch to 1st-person view so owner can verify unobstructed aiming sightline with 48 blocks orbiting!
+            c.options.setCameraType(CameraType.FIRST_PERSON);
+        }
+        if (t == 96) {
+            saveKeyframe(c, "kf_03b_first_person_clear.png");
+        }
+        if (t >= 106) {
+            c.options.setCameraType(CameraType.THIRD_PERSON_BACK);
             stage = 2;
             stageStart = ticks;
         }
@@ -228,7 +237,14 @@ public final class DominionProbe implements ClientModInitializer {
         }
     }
 
-    /** Stage 3 (150 ticks): Survival Air-Step Block Stairs off a high tower -> Block Wings Hover -> Mach Boost -> Smooth Deceleration! */
+    /**
+     * Stage 3 (248 ticks):
+     * A) Slow walking descending world-anchored Block Stairs off high tower
+     * B) Walking ascending sky Block Stairs (W + Space)
+     * C) Wing Mode 1: HOVER free levitation + smooth deceleration
+     * D) Wing Mode 2: ELYTRA GLIDE + Jet Rocket Boost + 1st-person wing clarity check
+     * E) QoL Auto Rain Umbrella Canopy under open rain!
+     */
     private void stageAirStairsAndWingsFlight(Minecraft c, MinecraftServer server, int t) {
         final int S3X = OX - 50, S3Z = OZ + 20;
         if (t == 1) {
@@ -252,66 +268,113 @@ public final class DominionProbe implements ClientModInitializer {
                 p.connection.teleport(S3X + 0.5, groundY + 12.0, S3Z + 1.5, 0f, 18f);
             }).join();
         }
-        // Walk off the cliff edge (+Z) to trigger Air-Step Block Stairs!
-        if (t >= 6 && t < 44) {
+
+        // Part A: Walk calmly off the cliff edge (+Z) to trigger slow descending world-anchored Block Stairs!
+        if (t >= 6 && t < 46) {
             c.options.keyUp.setDown(true);
             c.options.keyShift.setDown(false);
+            c.options.keyJump.setDown(false);
         }
-        if (t == 22) saveKeyframe(c, "kf_05b_air_stairs_step.png");
-        if (t == 34) {
+        if (t == 32) {
             boolean stairsOn = server.submit(() -> BlockDominionManager.isAirStairsActive(me(server, c))).join();
             recordCheck("air_stairs_active_midair", stairsOn, "stairs=" + stairsOn);
             recordCheck("custom_glsl_shader_compiled", net.godwand.client.DominionShader.isAvailable(),
                     "available=" + net.godwand.client.DominionShader.isAvailable());
-            saveKeyframe(c, "kf_05c_air_stairs_descend.png");
-        }
-        if (t == 44) {
-            c.options.keyUp.setDown(false);
+            saveKeyframe(c, "kf_05b_stairs_down.png");
         }
 
-        // Engage Block Wings Free Flight right from midair and drive real WASD + Space + Sprint controls!
+        // Part B: Hold W + Space to smoothly walk UP ascending floating sky stairs!
         if (t == 48) {
+            stairAscendStartY = c.player.getY();
+            c.options.keyUp.setDown(true);
+            c.options.keyJump.setDown(true);
+        }
+        if (t == 78) {
+            saveKeyframe(c, "kf_05c_stairs_up.png");
+        }
+        if (t == 86) {
+            double climbed = c.player.getY() - stairAscendStartY;
+            recordCheck("air_stairs_ascend_rises", climbed >= 2.2,
+                    String.format(Locale.ROOT, "climbed=%.2f", climbed));
+            c.options.keyUp.setDown(false);
+            c.options.keyJump.setDown(false);
+        }
+
+        // Part C: Wing Mode 1 — HOVER (Free 3D Levitation + regal hover)
+        if (t == 92) {
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
-                p.connection.teleport(p.getX(), groundY + 14.0, p.getZ(), 0f, 4f);
+                p.connection.teleport(p.getX(), groundY + 16.0, p.getZ(), 0f, 4f);
+                BlockDominionManager.setFlightStyle(p, false);
                 boolean started = BlockDominionManager.setWingFlight(p, true);
                 recordCheck("wing_flight_engaged", started, "started=" + started);
             }).join();
-            c.options.keyJump.setDown(true);
         }
-        if (t == 60) {
-            // Release jump -> settle into regal midair hover with flapping seraphic block wings
-            c.options.keyJump.setDown(false);
-        }
-        if (t == 72) {
+        if (t == 112) {
             saveKeyframe(c, "kf_05d_wings_hover.png");
         }
-        // Accelerate into full Sprint Mach Boost (real W + Sprint keys!)
-        if (t == 78) {
-            c.options.keyUp.setDown(true);
+
+        // Part D: Wing Mode 2 — ELYTRA GLIDE + Jet Rocket Boost!
+        if (t == 118) {
+            server.submit(() -> {
+                ServerPlayer p = me(server, c);
+                BlockDominionManager.setFlightStyle(p, true);
+                p.connection.teleport(p.getX(), groundY + 20.0, p.getZ(), 0f, 12f);
+                recordCheck("wing_glide_mode_active", BlockDominionManager.isGlideMode(p),
+                        "glide=" + BlockDominionManager.isGlideMode(p));
+            }).join();
+        }
+        // Glide dive smoothly for 16 ticks, then pitch level & fire Jet Rocket Boost!
+        if (t == 134) {
+            server.submit(() -> {
+                ServerPlayer p = me(server, c);
+                p.connection.teleport(p.getX(), p.getY(), p.getZ(), 0f, -4f);
+            }).join();
             c.options.keySprint.setDown(true);
+            c.options.keyJump.setDown(true);
         }
-        if (t == 94) {
+        if (t == 152) {
             double spd = c.player.getDeltaMovement().length();
-            recordCheck("wing_flight_mach_boost", spd >= 1.15, String.format(Locale.ROOT, "speed=%.2f", spd));
-            saveKeyframe(c, "kf_05e_wings_mach_boost.png");
+            recordCheck("wing_glide_jet_boost", spd >= 1.30, String.format(Locale.ROOT, "speed=%.2f", spd));
+            saveKeyframe(c, "kf_05e_wings_glide_boost.png");
         }
-        // Release keys -> smooth aerodynamic deceleration back to regal hover!
-        if (t == 102) {
-            c.options.keyUp.setDown(false);
+        // Brief 1st-person wing glide preview so owner sees unobstructed sightline while flying!
+        if (t == 158) {
             c.options.keySprint.setDown(false);
+            c.options.keyJump.setDown(false);
+            c.options.setCameraType(CameraType.FIRST_PERSON);
         }
-        if (t == 132) {
-            double slowed = c.player.getDeltaMovement().length();
-            float hp = server.submit(() -> me(server, c).getHealth()).join();
-            recordCheck("wing_flight_decelerate_and_safe_hp", slowed < 0.15 && hp >= 19.9f,
-                    String.format(Locale.ROOT, "slowed=%.3f hp=%.1f", slowed, hp));
-            saveKeyframe(c, "kf_05f_wings_decel_hover.png");
+        if (t == 170) {
+            saveKeyframe(c, "kf_05f_wings_first_person.png");
         }
-        if (t == 138) {
-            server.submit(() -> BlockDominionManager.setWingFlight(me(server, c), false)).join();
+        if (t == 178) {
+            c.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+            server.submit(() -> {
+                ServerPlayer p = me(server, c);
+                BlockDominionManager.setWingFlight(p, false);
+                float hp = p.getHealth();
+                recordCheck("wing_flight_safe_hp", hp >= 19.9f, String.format(Locale.ROOT, "hp=%.1f", hp));
+            }).join();
         }
-        if (t >= 146) {
+
+        // Part E: QoL Auto Rain Umbrella Canopy under rain!
+        if (t == 186) {
+            server.submit(() -> {
+                ServerPlayer p = me(server, c);
+                ServerLevel level = p.serverLevel();
+                p.connection.teleport(S3X + 0.5, groundY, S3Z + 30.5, 0f, 6f);
+                level.setWeatherParameters(0, 200, true, false);
+            }).join();
+        }
+        if (t == 216) {
+            boolean umbrella = server.submit(() -> BlockDominionManager.isUmbrellaActive(me(server, c))).join();
+            recordCheck("rain_umbrella_active", umbrella, "umbrella=" + umbrella);
+            saveKeyframe(c, "kf_05g_rain_umbrella.png");
+        }
+        if (t == 228) {
+            server.submit(() -> me(server, c).serverLevel().setWeatherParameters(60000, 0, false, false)).join();
+        }
+        if (t >= 238) {
             stage = 4;
             stageStart = ticks;
         }
@@ -453,15 +516,78 @@ public final class DominionProbe implements ClientModInitializer {
             recordCheck("myriad_volley_empties_reserve", rem == 0, "remaining=" + rem);
             saveKeyframe(c, "kf_13_volley_impact.png");
         }
-        if (t >= 112) {
+        // Milestone 4 Showcase: Earthen Surge on Amethyst field -> Royal Violet Material Resonance -> Low-Alt Ground Wash Wings -> Aerial Orbital Meteor Barrage!
+        final int S4X = OX + 65;
+        if (t == 104) {
             server.submit(() -> {
-                ServerLevel level = me(server, c).serverLevel();
+                ServerPlayer p = me(server, c);
+                ServerLevel level = p.serverLevel();
                 for (UUID id : spawnedMobs) {
                     Entity e = level.getEntity(id);
                     if (e != null) e.discard();
                 }
                 spawnedMobs.clear();
+                // Lay an Amethyst + Purpur courtyard around (S4X, S4Z) so Earthen Surge triggers AMETHYST_ROYAL resonance!
+                for (int dx = -7; dx <= 7; dx++) {
+                    for (int dz = -7; dz <= 7; dz++) {
+                        int h2 = dx * dx + dz * dz;
+                        if (h2 < 4 || h2 > 49) continue;
+                        BlockState bs = ((dx + dz) & 1) == 0
+                                ? Blocks.AMETHYST_BLOCK.defaultBlockState()
+                                : Blocks.PURPUR_BLOCK.defaultBlockState();
+                        level.setBlock(new BlockPos(S4X + dx, groundY, S4Z + dz), bs, 3);
+                    }
+                }
+                // Target pillar at S4Z + 18 for Aerial Orbital Meteor Barrage
+                for (int dx = -4; dx <= 4; dx++) {
+                    for (int dy = 0; dy < 5; dy++) {
+                        level.setBlock(new BlockPos(S4X + dx, groundY + dy, S4Z + 18), Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState(), 3);
+                    }
+                }
+                p.connection.teleport(S4X + 0.5, groundY, S4Z + 0.5, 0f, 10f);
             }).join();
+        }
+        if (t == 112) {
+            int surged = server.submit(() -> BlockDominionManager.triggerEarthenSurge(me(server, c))).join();
+            recordCheck("earthen_surge_rips_blocks", surged >= 20, "surged=" + surged);
+        }
+        if (t == 122) saveKeyframe(c, "kf_13b_earthen_surge_amethyst.png");
+        if (t == 130) {
+            var pal = net.godwand.client.BlockDominionRenderer.localPalette();
+            recordCheck("material_resonance_amethyst", pal == net.godwand.skill.BlockDominionPalette.AMETHYST_ROYAL, "palette=" + pal);
+            // Low-altitude wing flight (3 blocks off ground) to showcase Royal Violet Wings + Ground Wash!
+            server.submit(() -> {
+                ServerPlayer p = me(server, c);
+                BlockDominionManager.setFlightStyle(p, false);
+                p.connection.teleport(S4X + 0.5, groundY + 3.2, S4Z + 0.5, 0f, 12f);
+                BlockDominionManager.setWingFlight(p, true);
+            }).join();
+        }
+        if (t == 146) saveKeyframe(c, "kf_13c_amethyst_wings_groundwash.png");
+        // Rise higher and unleash Aerial Orbital Meteor Barrage (Shift + Right-Click while wing-flying)!
+        if (t == 152) {
+            server.submit(() -> {
+                ServerPlayer p = me(server, c);
+                net.godwand.skill.SkillCooldowns.reset(p);
+                p.connection.teleport(S4X + 0.5, groundY + 12.0, S4Z + 0.5, 0f, 26f);
+            }).join();
+            c.options.keyShift.setDown(true);
+        }
+        if (t == 155) {
+            c.options.keyUse.setDown(true);
+        }
+        if (t == 174) {
+            boolean stillFlying = server.submit(() -> BlockDominionManager.isWingFlying(me(server, c))).join();
+            recordCheck("orbital_meteor_hovers_midair", stillFlying, "flying=" + stillFlying);
+            saveKeyframe(c, "kf_13d_orbital_meteor_charge.png");
+        }
+        if (t == 178) {
+            c.options.keyUse.setDown(false);
+            c.options.keyShift.setDown(false);
+        }
+        if (t == 180) saveKeyframe(c, "kf_13e_orbital_meteor_rain.png");
+        if (t >= 204) {
+            server.submit(() -> BlockDominionManager.setWingFlight(me(server, c), false)).join();
             stage = 6;
             stageStart = ticks;
         }

@@ -150,5 +150,33 @@ class BlockDominionBrainTest {
         Vec3 step1 = BlockDominionBrain.airStairsOffset(1, 16, 5.0, look);
         assertTrue(step0.y < -1.2 && step1.y < step0.y, "Stairs step downward in front of feet");
         assertTrue(step1.z > step0.z, "Next stair step lies ahead of player");
+
+        // Railgun ring during rapid fire places 5 accelerator blocks ahead along aim vector
+        assertEquals(BlockDominionBrain.FormationKind.RAILGUN_RING,
+                BlockDominionBrain.plan(List.of(), 12, false, false, false, false, false, true).kind());
+        for (int i = 0; i < 5; i++) {
+            Vec3 r = BlockDominionBrain.railgunRingOffset(i, 12, 4.0, look);
+            assertTrue(r.z > 1.5, "Railgun ring blocks sit ahead of player along aim line");
+        }
+
+        // Aerial orbital meteor crown when charging volley while in wing flight
+        assertEquals(BlockDominionBrain.FormationKind.ORBITAL_METEOR,
+                BlockDominionBrain.plan(List.of(), 24, false, true, true, false, false, false).kind());
+        for (int i = 0; i < 24; i++) {
+            Vec3 m = BlockDominionBrain.orbitalMeteorOffset(i, 24, 8.0, look, 1.0f);
+            assertTrue(m.y > 2.0, "Orbital meteor crown hovers high overhead");
+        }
+
+        // QoL Rain Umbrella Canopy activates when raining overhead with >= 5 blocks, yields to wings/stairs
+        assertEquals(BlockDominionBrain.FormationKind.RAIN_UMBRELLA,
+                BlockDominionBrain.plan(List.of(), 12, false, false, false, false, false, false, true).kind());
+        assertEquals(BlockDominionBrain.FormationKind.IDLE,
+                BlockDominionBrain.plan(List.of(), 4, false, false, false, false, false, false, true).kind());
+        assertEquals(BlockDominionBrain.FormationKind.WINGS_HOVER,
+                BlockDominionBrain.plan(List.of(), 16, false, false, true, false, false, false, true).kind());
+        for (int i = 0; i < 7; i++) {
+            Vec3 u = BlockDominionBrain.rainUmbrellaOffset(i, 12, 6.0, look);
+            assertTrue(u.y > 1.35, "Rain umbrella canopy blocks hover cleanly above player head");
+        }
     }
 }

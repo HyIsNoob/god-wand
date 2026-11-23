@@ -42,6 +42,22 @@ class BlockDominionPayloadTest {
         assertEquals(-1, flightSlow.flightVertical());
         assertFalse(flightSlow.flightBoost());
 
+        var surge = new BlockDominionInputPayload(BlockDominionInputPayload.ACTION_EARTHEN_SURGE, BlockPos.ZERO);
+        assertEquals(surge, roundTrip(BlockDominionInputPayload.CODEC, surge));
+
+        var toggleStyle = new BlockDominionInputPayload(BlockDominionInputPayload.ACTION_TOGGLE_FLIGHT_STYLE, BlockPos.ZERO);
+        assertEquals(toggleStyle, roundTrip(BlockDominionInputPayload.CODEC, toggleStyle));
+
+        var stairUp = BlockDominionInputPayload.stairIntent(true);
+        var stairUpRt = roundTrip(BlockDominionInputPayload.CODEC, stairUp);
+        assertEquals(stairUp, stairUpRt);
+        assertTrue(stairUpRt.stairAscending());
+
+        var stairDown = BlockDominionInputPayload.stairIntent(false);
+        var stairDownRt = roundTrip(BlockDominionInputPayload.CODEC, stairDown);
+        assertEquals(stairDown, stairDownRt);
+        assertFalse(stairDownRt.stairAscending());
+
         var state = new BlockDominionStatePayload(
                 42,
                 BlockDominionRules.Mode.MANUAL.ordinal(),
@@ -60,7 +76,7 @@ class BlockDominionPayloadTest {
 
     @Test
     void rejectsOutOfRangeActionsModesFormationsAndBlockCounts() {
-        assertThrows(IllegalArgumentException.class, () -> new BlockDominionInputPayload(4, BlockPos.ZERO));
+        assertThrows(IllegalArgumentException.class, () -> new BlockDominionInputPayload(7, BlockPos.ZERO));
         assertThrows(IllegalArgumentException.class, () -> new BlockDominionStatePayload(
                 1, 3, 0, 0, 0, 0, 0, 1, 0, 0, 0, new int[0], 0, 0, 0, 0, 0));
         assertThrows(IllegalArgumentException.class, () -> new BlockDominionStatePayload(

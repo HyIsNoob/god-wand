@@ -159,7 +159,7 @@ class BlockDominionRulesTest {
     }
 
     @Test
-    void airStepStairsCatchesFallHoldsStillAndHopsOnJump() {
+    void airStepStairsCatchesFallHoldsStillAndSupportsAscendingAndDescendingWalk() {
         Vec3 falling = new Vec3(0.2, -0.8, 0.0);
         Vec3 stepped = BlockDominionRules.stepAirStairsVelocity(falling, 0.2, false);
         assertTrue(stepped.y > falling.y && stepped.y >= BlockDominionRules.STAIR_DESCEND_VY - 0.3);
@@ -169,5 +169,48 @@ class BlockDominionRulesTest {
 
         Vec3 hopped = BlockDominionRules.stepAirStairsVelocity(new Vec3(0.1, -0.1, 0.1), 0.14, true);
         assertEquals(BlockDominionRules.STAIR_HOP_VY, hopped.y, 1e-6);
+
+        // Slow walking descent settles calmly toward STAIR_DESCEND_VY
+        Vec3 desc = new Vec3(0.18, -0.35, 0.0);
+        for (int t = 0; t < 10; t++) {
+            desc = BlockDominionRules.stepAirStairsVelocity(desc, 0.18, false, false);
+        }
+        assertEquals(BlockDominionRules.STAIR_DESCEND_VY, desc.y, 0.01);
+
+        // Ascending sky stairs climbs smoothly toward STAIR_ASCEND_VY while walking + holding Space
+        Vec3 asc = new Vec3(0.18, 0.0, 0.0);
+        for (int t = 0; t < 10; t++) {
+            asc = BlockDominionRules.stepAirStairsVelocity(asc, 0.18, true, true);
+        }
+        assertEquals(BlockDominionRules.STAIR_ASCEND_VY, asc.y, 0.01);
+        assertTrue(asc.y > 0.14, "Ascending stairs climbs smoothly upward");
+    }
+
+    @Test
+    void elytraGlideDivesToBuildSpeedClimbsSafelyAndJetBoosts() {
+        // Diving accelerates above minimum glide speed
+        Vec3 diveLook = new Vec3(0, -0.5, 0.866).normalize();
+        Vec3 vel = new Vec3(0, 0, BlockDominionRules.GLIDE_MIN_SPEED);
+        for (int t = 0; t < 15; t++) {
+            vel = BlockDominionRules.stepGlideVelocity(vel, diveLook, 0, false);
+        }
+        assertTrue(vel.length() > BlockDominionRules.GLIDE_MIN_SPEED + 0.18, "Diving must build airspeed");
+
+        // Pulling up trades speed for climb without stalling below GLIDE_MIN_SPEED
+        Vec3 climbLook = new Vec3(0, 0.55, 0.835).normalize();
+        Vec3 climbed = vel;
+        for (int t = 0; t < 25; t++) {
+            climbed = BlockDominionRules.stepGlideVelocity(climbed, climbLook, 0, false);
+        }
+        assertTrue(climbed.y > 0.15, "Pulling up converts glide into upward climb");
+        assertTrue(climbed.length() >= BlockDominionRules.GLIDE_MIN_SPEED - 0.05, "Glide never stalls below minimum speed");
+
+        // Rocket boost drives speed toward GLIDE_MAX_SPEED
+        Vec3 levelLook = new Vec3(0, 0.05, 1).normalize();
+        Vec3 jet = climbed;
+        for (int t = 0; t < 25; t++) {
+            jet = BlockDominionRules.stepGlideVelocity(jet, levelLook, 0, true);
+        }
+        assertEquals(BlockDominionRules.GLIDE_MAX_SPEED, jet.length(), 0.04);
     }
 }

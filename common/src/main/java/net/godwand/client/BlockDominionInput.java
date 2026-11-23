@@ -13,22 +13,22 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Client-side input & local movement prediction for Block Dominion (mode 9):
- * - Shift+LMB cycles mode; LMB/hold lifts blocks
- * - Double-tap Space toggles Block Wings 3D free flight (works in Survival & Creative)
- * - Synchronized local velocity prediction for silky Wing Flight (accelerate / boost / hover)
- *   and Air-Step Block Stairs ("stepping down creates stairs").
+ * Client-side input & synchronized local movement prediction for Block Dominion (mode 9):
+ * - Shift+LMB cycles mode; LMB/hold lifts blocks; LMB on open air triggers Earthen Surge
+ * - Double-tap Space toggles Block Wings flight; Shift+Space while flying switches Hover <-> Elytra Glide mode
+ * - Synchronized local prediction for Hover, Elytra Glide + Rocket Boost, and Ascending/Descending Block Stairs.
  */
 public final class BlockDominionInput {
     private static boolean suppressHoldUntilRelease;
     private static int holdCooldown;
 
-    // Double-tap Space detector for Block Wings toggle
     private static boolean prevJumpDown;
     private static int jumpTapWindow;
     private static int flightPacketCooldown;
+    private static int stairPacketCooldown;
     private static int lastSentFwd, lastSentStrafe, lastSentVert;
     private static boolean lastSentBoost;
+    private static boolean lastSentAscend;
     private static Vec3 localFlightVel = Vec3.ZERO;
     private static boolean wasLocalFlying;
 
@@ -56,22 +56,24 @@ public final class BlockDominionInput {
             holdCooldown = BlockDominionRules.HOLD_PICKUP_INTERVAL;
             Services.NETWORK.sendToServer(new BlockDominionInputPayload(
                     BlockDominionInputPayload.ACTION_PICKUP, bhr.getBlockPos()));
+        } else if (BlockDominionRenderer.isLocalManualActive()) {
+            suppressHoldUntilRelease = true;
+            Services.NETWORK.sendToServer(new BlockDominionInputPayload(
+                    BlockDominionInputPayload.ACTION_EARTHEN_SURGE, BlockPos.ZERO));
         }
     }
 
-    /** Per-client-tick handler for continuous pickup, double-tap Space wing toggle, and local flight/stairs prediction. */
+    /** Per-client-tick handler for continuous pickup, double-tap Space wing toggle, Hover/Glide flight & Air-Step stairs. */
     public static void tick(Minecraft client) {
         if (client == null || client.player == null || client.getConnection() == null) {
             reset();
             return;
         }
         LocalPlayer player = client.player;
-        boolean inGui = client.screen != null || !client.isWindowActive();
+        boolean inGui = client.screen != null;
 
-        // 1. Block Wings double-tap Space toggle & local 3D flight / air-step prediction
         tickMobility(client, player, inGui);
 
-        // 2. Continuous LMB hold pickup
         boolean attackDown = client.options.keyAttack.isDown() || BlueRedInput.attackHeld;
         if (!attackDown || inGui || !eligible(player)) {
             suppressHoldUntilRelease = false;
@@ -92,6 +94,7 @@ public final class BlockDominionInput {
 
     private static void tickMobility(Minecraft client, LocalPlayer player, boolean inGui) {
         boolean jumpDown = !inGui && client.options.keyJump.isDown();
+        boolean shiftDown = !inGui && client.options.keyShift.isDown();
         boolean freshJump = jumpDown && !prevJumpDown;
         prevJumpDown = jumpDown;
         if (jumpTapWindow > 0) jumpTapWindow--;
@@ -99,10 +102,19 @@ public final class BlockDominionInput {
         boolean localManual = BlockDominionRenderer.isLocalManualActive();
         int localBlocks = BlockDominionRenderer.localReserveCount();
         boolean localFlying = BlockDominionRenderer.isLocalWingFlying();
+        boolean localGlide = BlockDominionRenderer.isLocalGlideMode();
         boolean localStairs = BlockDominionRenderer.isLocalAirStairs();
 
-        // Detect double-tap Space to toggle Block Wings flight
-        if (freshJump && localManual && (localFlying || (localBlocks >= BlockDominionRules.MIN_FLIGHT_BLOCKS && !player.onGround()))) {
+        // While flying, Shift + Space cleanly toggles between Hover Mode and Elytra Glide Mode!
+        if (localFlying && freshJump && shiftDown) {
+            jumpTapWindow = 0;
+            Services.NETWORK.sendToServer(new BlockDominionInputPayload(
+                    BlockDominionInputPayload.ACTION_TOGGLE_FLIGHT_STYLE, BlockPos.ZERO));
+            return;
+        }
+
+        // Double-tap Space toggles Block Wings flight ON/OFF
+        if (freshJump && !shiftDown && localManual && (localFlying || (localBlocks >= BlockDominionRules.MIN_FLIGHT_BLOCKS && !player.onGround()))) {
             if (jumpTapWindow > 0) {
                 jumpTapWindow = 0;
                 Services.NETWORK.sendToServer(new BlockDominionInputPayload(
@@ -125,12 +137,25 @@ public final class BlockDominionInput {
             }
             int fwd = inGui ? 0 : (client.options.keyUp.isDown() ? 1 : 0) - (client.options.keyDown.isDown() ? 1 : 0);
             int strafe = inGui ? 0 : (client.options.keyRight.isDown() ? 1 : 0) - (client.options.keyLeft.isDown() ? 1 : 0);
-            int vert = inGui ? 0 : (client.options.keyJump.isDown() ? 1 : 0) - (client.options.keyShift.isDown() ? 1 : 0);
-            boolean boost = !inGui && (client.options.keySprint.isDown() || player.isSprinting())
-                    && (fwd != 0 || strafe != 0 || vert != 0);
+            boolean chargingOrbital = BlockDominionRenderer.isLocalVolleyCharging()
+                    || (!inGui && shiftDown && client.options.keyUse.isDown() && eligible(player));
+            int vert = inGui ? 0 : (jumpDown ? 1 : 0) - (shiftDown && !chargingOrbital ? 1 : 0);
+            boolean sprintDown = !inGui && (client.options.keySprint.isDown() || player.isSprinting());
+            boolean boost = !chargingOrbital && (localGlide
+                    ? (sprintDown || jumpDown)
+                    : (sprintDown && (fwd != 0 || strafe != 0 || vert != 0)));
 
-            localFlightVel = BlockDominionRules.stepFlightVelocity(
-                    localFlightVel, player.getViewVector(1.0f), fwd, strafe, vert, boost);
+            if (chargingOrbital) {
+                // Hold regal midair hover while charging Shift+RMB Orbital Meteor Barrage!
+                localFlightVel = BlockDominionRules.stepFlightVelocity(
+                        localFlightVel, player.getViewVector(1.0f), 0, 0, Math.max(0, vert), false);
+            } else if (localGlide) {
+                localFlightVel = BlockDominionRules.stepGlideVelocity(
+                        localFlightVel, player.getViewVector(1.0f), strafe, boost);
+            } else {
+                localFlightVel = BlockDominionRules.stepFlightVelocity(
+                        localFlightVel, player.getViewVector(1.0f), fwd, strafe, vert, boost);
+            }
             player.setNoGravity(true);
             player.fallDistance = 0.0f;
             player.setDeltaMovement(localFlightVel);
@@ -155,11 +180,27 @@ public final class BlockDominionInput {
             player.setNoGravity(false);
         }
 
-        // Local prediction for Air-Step Block Stairs so walking off ledges catches smoothly on the very first tick
-        if (localStairs && !player.onGround() && !player.isShiftKeyDown() && !player.getAbilities().flying) {
+        // Ascending & Descending Block Stairs:
+        // Hold Space while walking forward (and not sneaking) -> smoothly builds floating stairs UP into the sky!
+        boolean walkingHoriz = !inGui && (client.options.keyUp.isDown() || client.options.keyDown.isDown()
+                || client.options.keyLeft.isDown() || client.options.keyRight.isDown());
+        boolean wantAscend = localManual && !BlockDominionRenderer.isLocalStowed()
+                && localBlocks >= BlockDominionRules.MIN_STAIR_BLOCKS
+                && !shiftDown && jumpDown && walkingHoriz
+                && !player.getAbilities().flying && !player.isInWater() && !player.isInLava();
+
+        if (wantAscend != lastSentAscend || (wantAscend && stairPacketCooldown <= 0)) {
+            Services.NETWORK.sendToServer(BlockDominionInputPayload.stairIntent(wantAscend));
+            lastSentAscend = wantAscend;
+            stairPacketCooldown = 2;
+        } else if (stairPacketCooldown > 0) {
+            stairPacketCooldown--;
+        }
+
+        if ((localStairs || wantAscend) && !shiftDown && !player.getAbilities().flying) {
             Vec3 cur = player.getDeltaMovement();
             double horiz = Math.sqrt(cur.x * cur.x + cur.z * cur.z);
-            Vec3 next = BlockDominionRules.stepAirStairsVelocity(cur, horiz, freshJump);
+            Vec3 next = BlockDominionRules.stepAirStairsVelocity(cur, horiz, wantAscend, jumpDown);
             player.fallDistance = 0.0f;
             player.setDeltaMovement(next);
         }
@@ -171,8 +212,10 @@ public final class BlockDominionInput {
         prevJumpDown = false;
         jumpTapWindow = 0;
         flightPacketCooldown = 0;
+        stairPacketCooldown = 0;
         lastSentFwd = lastSentStrafe = lastSentVert = 0;
         lastSentBoost = false;
+        lastSentAscend = false;
         localFlightVel = Vec3.ZERO;
         wasLocalFlying = false;
     }

@@ -15,12 +15,24 @@ public record BlockDominionInputPayload(int action, BlockPos targetPos) implemen
     public static final int ACTION_PICKUP = 1;
     public static final int ACTION_TOGGLE_FLIGHT = 2;
     public static final int ACTION_FLIGHT_CONTROL = 3;
+    public static final int ACTION_EARTHEN_SURGE = 4;
+    public static final int ACTION_TOGGLE_FLIGHT_STYLE = 5;
+    public static final int ACTION_STAIR_INTENT = 6;
 
     public BlockDominionInputPayload {
-        if (action < ACTION_CYCLE_MODE || action > ACTION_FLIGHT_CONTROL) {
+        if (action < ACTION_CYCLE_MODE || action > ACTION_STAIR_INTENT) {
             throw new IllegalArgumentException("Invalid Block Dominion input action: " + action);
         }
         if (targetPos == null) targetPos = BlockPos.ZERO;
+    }
+
+    /** Sends stair climbing intent (ascending=true when holding Space while walking). */
+    public static BlockDominionInputPayload stairIntent(boolean ascending) {
+        return new BlockDominionInputPayload(ACTION_STAIR_INTENT, new BlockPos(0, ascending ? 1 : 0, 0));
+    }
+
+    public boolean stairAscending() {
+        return targetPos.getY() > 0;
     }
 
     /** Packs 3D wing-flight steering (-1..1 axes + boost flag) cleanly into targetPos. */

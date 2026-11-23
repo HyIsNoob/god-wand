@@ -26,7 +26,10 @@ public final class BlockDominionBrain {
         VOLLEY_FAN,
         AIR_STAIRS,
         WINGS_HOVER,
-        WINGS_BOOST;
+        WINGS_BOOST,
+        RAILGUN_RING,
+        ORBITAL_METEOR,
+        RAIN_UMBRELLA;
 
         public boolean isShield() {
             return this == SHIELD_SINGLE || this == SHIELD_MULTI || this == SHIELD_DOME;
@@ -38,6 +41,10 @@ public final class BlockDominionBrain {
 
         public boolean isMobility() {
             return isWings() || this == AIR_STAIRS;
+        }
+
+        public boolean isVolley() {
+            return this == VOLLEY_FAN || this == ORBITAL_METEOR;
         }
 
         public static FormationKind byOrdinal(int ordinal) {
@@ -56,9 +63,12 @@ public final class BlockDominionBrain {
         public static final BrainPlan IDLE_PLAN = new BrainPlan(FormationKind.IDLE, new Vec3(0, 0, 1), Vec3.ZERO);
         public static final BrainPlan STOWED_PLAN = new BrainPlan(FormationKind.STOWED, new Vec3(0, 0, 1), Vec3.ZERO);
         public static final BrainPlan VOLLEY_PLAN = new BrainPlan(FormationKind.VOLLEY_FAN, new Vec3(0, 0, 1), Vec3.ZERO);
+        public static final BrainPlan ORBITAL_METEOR_PLAN = new BrainPlan(FormationKind.ORBITAL_METEOR, new Vec3(0, 0, 1), Vec3.ZERO);
+        public static final BrainPlan RAILGUN_RING_PLAN = new BrainPlan(FormationKind.RAILGUN_RING, new Vec3(0, 0, 1), Vec3.ZERO);
         public static final BrainPlan AIR_STAIRS_PLAN = new BrainPlan(FormationKind.AIR_STAIRS, new Vec3(0, 0, 1), Vec3.ZERO);
         public static final BrainPlan WINGS_HOVER_PLAN = new BrainPlan(FormationKind.WINGS_HOVER, new Vec3(0, 0, 1), Vec3.ZERO);
         public static final BrainPlan WINGS_BOOST_PLAN = new BrainPlan(FormationKind.WINGS_BOOST, new Vec3(0, 0, 1), Vec3.ZERO);
+        public static final BrainPlan RAIN_UMBRELLA_PLAN = new BrainPlan(FormationKind.RAIN_UMBRELLA, new Vec3(0, 0, 1), Vec3.ZERO);
     }
 
     /**
@@ -91,13 +101,27 @@ public final class BlockDominionBrain {
         return plan(threats, blockCount, stowed, volleyCharging, false, false, false);
     }
 
-    /**
-     * Full formation planner including mobility modes (Block Wings free flight, Mach boost chevron,
-     * and Air-Step floating block stairs). Immediate threats still raise defensive shields.
-     */
     public static BrainPlan plan(List<ThreatSample> threats, int blockCount, boolean stowed, boolean volleyCharging,
                                  boolean flying, boolean boosting, boolean airStairs) {
-        if (volleyCharging && !stowed) return BrainPlan.VOLLEY_PLAN;
+        return plan(threats, blockCount, stowed, volleyCharging, flying, boosting, airStairs, false);
+    }
+
+    public static BrainPlan plan(List<ThreatSample> threats, int blockCount, boolean stowed, boolean volleyCharging,
+                                 boolean flying, boolean boosting, boolean airStairs, boolean rapidFiring) {
+        return plan(threats, blockCount, stowed, volleyCharging, flying, boosting, airStairs, rapidFiring, false);
+    }
+
+    /**
+     * Full formation planner including mobility (Block Wings, Mach Boost, Air Stairs),
+     * offensive formations (Floating Railgun Ring, Aerial Orbital Meteor Crown),
+     * QoL auto rain umbrella canopy, and automatic threat-reactive shields.
+     */
+    public static BrainPlan plan(List<ThreatSample> threats, int blockCount, boolean stowed, boolean volleyCharging,
+                                 boolean flying, boolean boosting, boolean airStairs, boolean rapidFiring,
+                                 boolean rainingOverhead) {
+        if (volleyCharging && !stowed) {
+            return flying ? BrainPlan.ORBITAL_METEOR_PLAN : BrainPlan.VOLLEY_PLAN;
+        }
 
         boolean hasThreats = blockCount > 0 && threats != null && !threats.isEmpty();
         if (hasThreats) {
@@ -125,7 +149,6 @@ public final class BlockDominionBrain {
                 return new BrainPlan(FormationKind.SHIELD_DOME, clusters.get(0),
                         clusters.size() > 1 ? clusters.get(1) : Vec3.ZERO);
             }
-            // During supersonic wing boost, keep wings locked unless an explosive or incoming projectile demands a shield
             if (!boosting || sorted.get(0).urgency() >= 14.0) {
                 if (clusters.size() >= 2 && blockCount >= 4) {
                     return new BrainPlan(FormationKind.SHIELD_MULTI, clusters.get(0), clusters.get(1));
@@ -134,11 +157,17 @@ public final class BlockDominionBrain {
             }
         }
 
+        if (rapidFiring && !stowed && !flying && blockCount >= 5) {
+            return BrainPlan.RAILGUN_RING_PLAN;
+        }
         if (flying && blockCount >= BlockDominionRules.MIN_FLIGHT_BLOCKS) {
             return boosting ? BrainPlan.WINGS_BOOST_PLAN : BrainPlan.WINGS_HOVER_PLAN;
         }
         if (airStairs && !stowed && blockCount >= BlockDominionRules.MIN_STAIR_BLOCKS) {
             return BrainPlan.AIR_STAIRS_PLAN;
+        }
+        if (rainingOverhead && !stowed && blockCount >= 5) {
+            return BrainPlan.RAIN_UMBRELLA_PLAN;
         }
         return stowed ? BrainPlan.STOWED_PLAN : BrainPlan.IDLE_PLAN;
     }
@@ -164,7 +193,71 @@ public final class BlockDominionBrain {
             case AIR_STAIRS -> airStairsOffset(index, count, time, lookDir);
             case WINGS_HOVER -> wingsOffset(index, count, time, lookDir, false);
             case WINGS_BOOST -> wingsOffset(index, count, time, lookDir, true);
+            case RAILGUN_RING -> railgunRingOffset(index, count, time, lookDir);
+            case ORBITAL_METEOR -> orbitalMeteorOffset(index, count, time, lookDir, volleyProgress);
+            case RAIN_UMBRELLA -> rainUmbrellaOffset(index, count, time, lookDir);
         };
+    }
+
+    /**
+     * QoL Rain Umbrella Canopy: 7 reserve blocks float 2.45 blocks above the player's head in a rotating
+     * hexagonal stone canopy to shelter the sovereign from rain/snow while the rest orbit majestically!
+     */
+    public static Vec3 rainUmbrellaOffset(int index, int count, double time, Vec3 lookDir) {
+        int canopySlots = Math.min(7, count);
+        if (index < canopySlots) {
+            double yBase = 1.55; // chest is y+1.25 -> 1.25 + 1.55 = 2.80 blocks above feet (clear overhead!)
+            if (index == 0) {
+                return new Vec3(0, yBase + 0.12 + Math.sin(time * 0.08) * 0.03, 0);
+            }
+            double ang = (Math.PI / 3.0) * (index - 1) + time * 0.025;
+            double r = 0.86;
+            return new Vec3(Math.cos(ang) * r, yBase + Math.sin(time * 0.08 + index) * 0.02, Math.sin(ang) * r);
+        }
+        return BlockDominionRules.formationOffset(index - canopySlots, Math.max(1, count - canopySlots),
+                time, lookDir, false, 1f, false, 0f);
+    }
+
+    /**
+     * Floating Stone Railgun Ring during rapid fire: first 5 blocks snap into a fast-spinning hexagonal
+     * accelerator ring directly in front of the player's aim vector while remaining blocks orbit behind.
+     */
+    public static Vec3 railgunRingOffset(int index, int count, double time, Vec3 lookDir) {
+        Vec3 aim = lookDir == null || lookDir.lengthSqr() < 1e-4 ? new Vec3(0, 0, 1) : lookDir.normalize();
+        Vec3 side = aim.cross(Math.abs(aim.y) < 0.94 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0)).normalize();
+        Vec3 up = side.cross(aim).normalize();
+        int barrelBlocks = Math.min(5, count);
+        if (index < barrelBlocks) {
+            double ang = (Math.PI * 2.0 * index / barrelBlocks) + time * 0.34;
+            double r = 0.78;
+            return aim.scale(1.85).add(side.scale(Math.cos(ang) * r)).add(up.scale(Math.sin(ang) * r));
+        }
+        return BlockDominionRules.formationOffset(index - barrelBlocks, Math.max(1, count - barrelBlocks),
+                time, lookDir, false, 1f, false, 0f);
+    }
+
+    /**
+     * Aerial Orbital Meteor Crown when charging Myriad Volley during Block Wings flight:
+     * breaks the wings high overhead into a colossal slanted sky-blotting ring poised to rain down as meteors!
+     */
+    public static Vec3 orbitalMeteorOffset(int index, int count, double time, Vec3 lookDir, float progress) {
+        Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
+        if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
+        else forward = forward.normalize();
+        Vec3 right = new Vec3(-forward.z, 0, forward.x);
+        Vec3 up = new Vec3(0, 1, 0);
+
+        float p = Mth.clamp(progress, 0f, 1f);
+        int ring = index % 3; // 3 grand concentric overhead meteor tiers
+        int ringIdx = index / 3;
+        int ringCount = Math.max(1, (count + 2 - ring) / 3);
+        double ang = (Math.PI * 2.0 * ringIdx / ringCount) + time * (ring == 1 ? -0.05 : 0.04);
+        double r = (2.15 + ring * 1.45) * (0.72 + 0.28 * p);
+        double lift = 2.6 + ring * 0.85 + Math.sin(ang * 2.0 + time * 0.1) * 0.22;
+        double tremor = p > 0.65f ? Math.sin(time * 1.6 + index * 2.3) * 0.06 : 0.0;
+        return right.scale(Math.cos(ang) * r + tremor)
+                .add(forward.scale(Math.sin(ang) * r * 0.72 + 0.55))
+                .add(up.scale(lift));
     }
 
     /**

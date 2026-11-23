@@ -51,6 +51,10 @@ public final class BlockDominionRules {
     public static final int FLAG_FLYING = 8;
     public static final int FLAG_BOOSTING = 16;
     public static final int FLAG_AIR_STAIRS = 32;
+    public static final int FLAG_RAPID_FIRING = 64;
+    public static final int FLAG_UMBRELLA = 128;
+    public static final int FLAG_GLIDE_MODE = 256;
+    public static final int FLAG_STAIR_ASCEND = 512;
 
     public static final int EVENT_SYNC = 0;
     public static final int EVENT_PICKUP = 1;
@@ -63,7 +67,13 @@ public final class BlockDominionRules {
     public static final int EVENT_FLIGHT_END = 8;
     public static final int EVENT_FLIGHT_BOOST = 9;
     public static final int EVENT_AIR_STEP = 10;
-    public static final int MAX_EVENT = EVENT_AIR_STEP;
+    public static final int EVENT_SURGE = 11;
+    public static final int EVENT_ORBITAL_BARRAGE = 12;
+    public static final int MAX_EVENT = EVENT_ORBITAL_BARRAGE;
+
+    public static final int SURGE_RADIUS = 8;
+    public static final int SURGE_MAX_BLOCKS = 24;
+    public static final int SURGE_COOLDOWN_TICKS = 30;
 
     public static final int MIN_FLIGHT_BLOCKS = 6;
     public static final int MIN_STAIR_BLOCKS = 4;
@@ -72,7 +82,11 @@ public final class BlockDominionRules {
     public static final double FLIGHT_ACCEL = 0.115;
     public static final double FLIGHT_BOOST_ACCEL = 0.195;
     public static final double FLIGHT_DRAG = 0.82;
-    public static final double STAIR_DESCEND_VY = -0.14;
+    public static final double GLIDE_MIN_SPEED = 0.44;
+    public static final double GLIDE_MAX_SPEED = 1.92;
+    public static final double GLIDE_BOOST_ACCEL = 0.17;
+    public static final double STAIR_DESCEND_VY = -0.085;
+    public static final double STAIR_ASCEND_VY = 0.165;
     public static final double STAIR_HOP_VY = 0.44;
 
     private BlockDominionRules() {}
@@ -260,16 +274,76 @@ public final class BlockDominionRules {
     }
 
     /**
-     * Pure per-tick vertical velocity controller for Air-Step Block Stairs ("stepping down creates stairs").
-     * Gently steps downward when walking forward, holds level when standing still, and allows a crisp stair-hop.
+     * Elytra-style aerodynamic gliding physics with firework-like rocket boost (Mode 2 of Block Wings).
+     * Diving pitches trade gravity into high speed; pulling up converts airspeed into graceful climb lift;
+     * holding boost (Sprint / Space) delivers sustained jet propulsion along {@code lookDir}.
+     */
+    public static Vec3 stepGlideVelocity(Vec3 currentVel, Vec3 lookDir, int strafeInput, boolean boost) {
+        Vec3 cur = currentVel == null ? Vec3.ZERO : currentVel;
+        Vec3 look = lookDir == null || lookDir.lengthSqr() < 1e-6 ? new Vec3(0, 0, 1) : lookDir.normalize();
+        Vec3 horizLook = new Vec3(look.x, 0, look.z);
+        double horizLookLen = horizLook.length();
+        Vec3 right = horizLookLen > 1e-4
+                ? new Vec3(-horizLook.z / horizLookLen, 0, horizLook.x / horizLookLen)
+                : new Vec3(1, 0, 0);
+
+        double curSpeed = cur.length();
+        double baseSpeed = Math.max(GLIDE_MIN_SPEED, curSpeed);
+
+        // Energy exchange: diving accelerates, climbing trades speed for altitude
+        double pitchEnergy = -look.y * 0.085;
+        double speed = baseSpeed + pitchEnergy;
+        if (boost) {
+            speed += GLIDE_BOOST_ACCEL;
+        } else {
+            // Gentle aerodynamic drag above cruise glide speed
+            speed *= 0.985;
+        }
+        speed = Mth.clamp(speed, GLIDE_MIN_SPEED, GLIDE_MAX_SPEED);
+
+        // Blend velocity direction smoothly toward 3D look vector + optional horizontal banking from A/D
+        Vec3 desiredDir = look;
+        if (strafeInput != 0) {
+            desiredDir = desiredDir.add(right.scale(Mth.clamp(strafeInput, -1, 1) * 0.42)).normalize();
+        }
+        Vec3 curDir = curSpeed > 0.05 ? cur.scale(1.0 / curSpeed) : desiredDir;
+        double steerRate = boost ? 0.34 : 0.22;
+        Vec3 newDir = curDir.lerp(desiredDir, steerRate);
+        newDir = newDir.lengthSqr() > 1e-5 ? newDir.normalize() : desiredDir;
+
+        Vec3 next = newDir.scale(speed);
+        // Gentle natural glide sink when unboosted and flying level
+        if (!boost && look.y > -0.15 && look.y < 0.25) {
+            next = next.add(0, -0.022, 0);
+        }
+        return next;
+    }
+
+    /**
+     * Pure per-tick vertical velocity controller for Air-Step Block Stairs (ascending AND descending).
+     * Backward-compatible 3-arg overload delegates to the full ascending/descending controller.
      */
     public static Vec3 stepAirStairsVelocity(Vec3 currentVel, double horizSpeed, boolean jumpPressed) {
-        Vec3 cur = currentVel == null ? Vec3.ZERO : currentVel;
         if (jumpPressed) {
+            Vec3 cur = currentVel == null ? Vec3.ZERO : currentVel;
             return new Vec3(cur.x, STAIR_HOP_VY, cur.z);
         }
-        double targetVy = horizSpeed > 0.035 ? STAIR_DESCEND_VY : 0.0;
-        double vy = cur.y < targetVy ? Mth.lerp(0.65, cur.y, targetVy) : Math.min(cur.y, 0.28);
+        return stepAirStairsVelocity(currentVel, horizSpeed, false, false);
+    }
+
+    /**
+     * Smooth step-by-step walking staircase controller:
+     * - {@code ascending=true}: walks gracefully upward step-by-step when moving (or lifts gently when holding Space)
+     * - {@code ascending=false}: walks slowly & regally downward step-by-step when moving, holds dead level when still.
+     */
+    public static Vec3 stepAirStairsVelocity(Vec3 currentVel, double horizSpeed, boolean ascending, boolean holdingJump) {
+        Vec3 cur = currentVel == null ? Vec3.ZERO : currentVel;
+        if (ascending) {
+            double targetVy = horizSpeed > 0.025 ? STAIR_ASCEND_VY : (holdingJump ? 0.13 : 0.0);
+            return new Vec3(cur.x, Mth.lerp(0.60, cur.y, targetVy), cur.z);
+        }
+        double targetVy = horizSpeed > 0.025 ? STAIR_DESCEND_VY : 0.0;
+        double vy = cur.y < targetVy ? Mth.lerp(0.68, cur.y, targetVy) : Math.min(cur.y, 0.26);
         return new Vec3(cur.x, vy, cur.z);
     }
 

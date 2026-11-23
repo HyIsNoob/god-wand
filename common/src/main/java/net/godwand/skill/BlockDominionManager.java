@@ -57,7 +57,7 @@ public final class BlockDominionManager {
 
     private record DroppedBlock(BlockPos pos, BlockState state) {}
     private record RecallSnapshot(ResourceKey<Level> dimension, long deactivatedAtTick, boolean died, List<DroppedBlock> blocks) {}
-    private record QueuedShot(BlockState state, double sideOffset, double upOffset, int delayTicks) {}
+    private record QueuedShot(BlockState state, double sideOffset, double upOffset, double fwdOffset, int delayTicks) {}
 
     private static final class PlayerState {
         BlockDominionRules.Mode mode = BlockDominionRules.Mode.OFF;
@@ -66,6 +66,7 @@ public final class BlockDominionManager {
         boolean hiddenInCutscene;
         boolean volleyCharging;
         int volleyChargeTicks;
+        boolean volleyAerial;
         boolean rapidFiring;
         int rapidShotsFired;
         int nextRapidFireTick;
@@ -77,7 +78,11 @@ public final class BlockDominionManager {
         Vec3 threatSecondary = Vec3.ZERO;
         boolean wingFlying;
         boolean wingBoosting;
+        boolean wingGlideMode;
         boolean airStairsActive;
+        boolean stairAscending;
+        boolean rainingOverhead;
+        long stairAscendUntil = -1000;
         int flightForward;
         int flightStrafe;
         int flightVertical;
@@ -85,6 +90,8 @@ public final class BlockDominionManager {
         long lastFlightPacketTick = -1000;
         long lastStepEventTick = -1000;
         long lastPickupTick = -1000;
+        long lastSurgeTick = -1000;
+        long safeFallUntil = -1;
         Vec3 flightVel = Vec3.ZERO;
         final ArrayDeque<QueuedShot> volleyQueue = new ArrayDeque<>();
         RecallSnapshot recall;
@@ -125,6 +132,40 @@ public final class BlockDominionManager {
         if (player == null) return false;
         PlayerState state = STATES.get(player.getUUID());
         return state != null && state.airStairsActive;
+    }
+
+    public static boolean isGlideMode(Player player) {
+        if (player == null) return false;
+        PlayerState state = STATES.get(player.getUUID());
+        return state != null && state.wingGlideMode;
+    }
+
+    public static boolean isUmbrellaActive(Player player) {
+        if (player == null) return false;
+        PlayerState state = STATES.get(player.getUUID());
+        return state != null && state.formation == BlockDominionBrain.FormationKind.RAIN_UMBRELLA;
+    }
+
+    /** Switches Block Wings between Hover (free 3D levitation) and Glide (Elytra aerodynamic gliding + rocket boost). */
+    public static void setFlightStyle(ServerPlayer player, boolean glide) {
+        if (player == null) return;
+        PlayerState st = stateOf(player.getUUID());
+        st.wingGlideMode = glide;
+        if (st.wingFlying && glide && st.flightVel.lengthSqr() < 0.25) {
+            st.flightVel = player.getViewVector(1.0f).normalize().scale(0.65);
+            player.setDeltaMovement(st.flightVel);
+            player.hurtMarked = true;
+        }
+        player.displayClientMessage(Component.translatable(
+                glide ? "message.godwand.dominion_wings_glide" : "message.godwand.dominion_wings_hover"), true);
+        if (st.mode != BlockDominionRules.Mode.OFF) {
+            sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.25, player.getZ(), 0);
+        }
+    }
+
+    public static void toggleFlightStyle(ServerPlayer player) {
+        if (player == null) return;
+        setFlightStyle(player, !isGlideMode(player));
     }
 
     /** Programmatically engages or disengages Block Wings free flight (also used by double-tap Space and QA). */
@@ -244,12 +285,121 @@ public final class BlockDominionManager {
                     payload.flightVertical(), payload.flightBoost(), true);
             return;
         }
+        if (payload.action() == BlockDominionInputPayload.ACTION_TOGGLE_FLIGHT_STYLE) {
+            toggleFlightStyle(player);
+            return;
+        }
+        if (payload.action() == BlockDominionInputPayload.ACTION_STAIR_INTENT) {
+            PlayerState st = STATES.get(player.getUUID());
+            if (st != null && st.mode == BlockDominionRules.Mode.MANUAL && !st.wingFlying) {
+                st.stairAscending = payload.stairAscending();
+                if (payload.stairAscending()) {
+                    st.stairAscendUntil = world.getGameTime() + 6;
+                }
+            }
+            return;
+        }
         if (!holdsBlockDominion(player)) return;
         if (payload.action() == BlockDominionInputPayload.ACTION_CYCLE_MODE) {
             cycleMode(player);
         } else if (payload.action() == BlockDominionInputPayload.ACTION_PICKUP) {
             tryPickUpBlock(player, payload.targetPos());
+        } else if (payload.action() == BlockDominionInputPayload.ACTION_EARTHEN_SURGE) {
+            triggerEarthenSurge(player);
         }
+    }
+
+    /**
+     * Earthen Surge ("Hút Lốc Địa Hình"): rips up to 24 surface blocks in an 8-block radius spiral
+     * around the player straight into the orbiting armada in one seismic tectonic pulse!
+     */
+    public static int triggerEarthenSurge(ServerPlayer player) {
+        if (player == null || !player.isAlive() || player.isSpectator()) return 0;
+        PlayerState st = stateOf(player.getUUID());
+        if (st.mode == BlockDominionRules.Mode.OFF) {
+            player.displayClientMessage(Component.translatable("message.godwand.dominion_hint_off"), true);
+            return 0;
+        }
+        if (st.mode != BlockDominionRules.Mode.MANUAL || st.volleyCharging || !st.volleyQueue.isEmpty()) {
+            return 0;
+        }
+        ServerLevel world = player.serverLevel();
+        long now = world.getGameTime();
+        if (now - st.lastSurgeTick < BlockDominionRules.SURGE_COOLDOWN_TICKS) {
+            return 0;
+        }
+        int capacity = BlockDominionRules.clampCapacity(GodWandConfig.SERVER.blockDominionCapacity);
+        int room = capacity - st.reserve.size();
+        if (room <= 0) {
+            player.displayClientMessage(Component.translatable("message.godwand.dominion_full", st.reserve.size(), capacity), true);
+            return 0;
+        }
+
+        int wanted = Math.min(room, BlockDominionRules.SURGE_MAX_BLOCKS);
+        BlockPos feet = player.blockPosition();
+        BlockPos under1 = feet.below();
+        BlockPos under2 = under1.below();
+        int r = BlockDominionRules.SURGE_RADIUS;
+        List<BlockPos> candidates = new ArrayList<>();
+        int minY = Math.max(world.getMinBuildHeight(), feet.getY() - 5);
+        int maxY = Math.min(world.getMaxBuildHeight() - 1, feet.getY() + 3);
+
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                int h2 = dx * dx + dz * dz;
+                if (h2 < 4 || h2 > r * r) continue; // keep a 2-block safe footing island right under the player
+                int bx = feet.getX() + dx;
+                int bz = feet.getZ() + dz;
+                if (!world.getChunkSource().hasChunk(bx >> 4, bz >> 4)) continue;
+                for (int y = maxY; y >= minY; y--) {
+                    BlockPos pos = new BlockPos(bx, y, bz);
+                    if (pos.equals(under1) || pos.equals(under2)) continue;
+                    if (!canPickUpWorldBlock(world, pos)) continue;
+                    if (world.getBlockState(pos.above()).isAir()) {
+                        candidates.add(pos);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (candidates.isEmpty()) {
+            player.displayClientMessage(Component.translatable("message.godwand.dominion_no_nearby"), true);
+            return 0;
+        }
+
+        // Sort outward in a dramatic spiral wave (near -> far)
+        candidates.sort(Comparator.comparingDouble(p -> p.distSqr(feet)));
+        int lifted = 0;
+        BlockState lastState = Blocks.STONE.defaultBlockState();
+        for (BlockPos pos : candidates) {
+            if (lifted >= wanted) break;
+            BlockState bs = world.getBlockState(pos);
+            if (world.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS)) {
+                st.reserve.add(bs);
+                lastState = bs;
+                lifted++;
+                if (lifted % 2 == 0) {
+                    world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, bs),
+                            pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 6, 0.25, 0.25, 0.25, 0.14);
+                }
+            }
+        }
+        if (lifted == 0) return 0;
+
+        st.lastSurgeTick = now;
+        GodWandAdvancements.award(player, "use_9");
+        world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.0f, 0.65f);
+        world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 0.85f, 0.85f);
+        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.36f, 10));
+        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.07f, 8));
+        player.displayClientMessage(Component.translatable("message.godwand.dominion_surge", lifted, st.reserve.size(), capacity), true);
+        sync(player, st, BlockDominionRules.EVENT_SURGE, player.getX(), player.getY(), player.getZ(), Block.getId(lastState));
+        return lifted;
     }
 
     /** Shift + Left Click: cycles OFF -> MANUAL -> AUTO -> OFF. */
@@ -398,13 +548,15 @@ public final class BlockDominionManager {
         }
         // MANUAL mode
         if (st.reserve.isEmpty()) {
-            player.displayClientMessage(Component.translatable("message.godwand.dominion_empty"), true);
+            // Instant Earthen Surge when right-clicking with an empty reserve!
+            triggerEarthenSurge(player);
             return false;
         }
         if (player.isShiftKeyDown()) {
             if (!SkillCooldowns.ready(player, GodWandItem.MODE_BLOCK_DOMINION)) return false;
             st.volleyCharging = true;
             st.volleyChargeTicks = 0;
+            st.volleyAerial = st.wingFlying;
             st.rapidFiring = false;
             ServerLevel world = player.serverLevel();
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
@@ -414,7 +566,7 @@ public final class BlockDominionManager {
             sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.2, player.getZ(), 0);
             return true;
         }
-        // Normal right-click: fire 1 block immediately, and enter rapid-fire hold
+        // Normal right-click: fire 1 block immediately, and enter rapid-fire hold (raises Floating Railgun Ring!)
         st.volleyCharging = false;
         st.rapidFiring = true;
         st.rapidShotsFired = 0;
@@ -481,12 +633,20 @@ public final class BlockDominionManager {
     public static void releaseRightClick(ServerPlayer player) {
         PlayerState st = STATES.get(player.getUUID());
         if (st == null) return;
+        boolean wasRapid = st.rapidFiring;
         st.rapidFiring = false;
-        if (!st.volleyCharging) return;
+        if (!st.volleyCharging) {
+            if (wasRapid) {
+                sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.2, player.getZ(), 0);
+            }
+            return;
+        }
 
         int charged = st.volleyChargeTicks;
+        boolean aerial = st.volleyAerial || st.wingFlying;
         st.volleyCharging = false;
         st.volleyChargeTicks = 0;
+        st.volleyAerial = false;
 
         if (charged < BlockDominionRules.VOLLEY_MIN_CHARGE_TICKS || st.reserve.isEmpty()) {
             ServerLevel world = player.serverLevel();
@@ -496,7 +656,7 @@ public final class BlockDominionManager {
             return;
         }
 
-        // Launch Myriad Volley in center-out wave after a brief cinematic hush
+        // Launch Myriad Volley (ground fan) or Aerial Orbital Meteor Barrage (when soaring on Block Wings!)
         int count = st.reserve.size();
         int[] order = BlockDominionRules.volleyReleaseOrder(count);
         List<BlockState> snapshot = new ArrayList<>(st.reserve);
@@ -504,29 +664,48 @@ public final class BlockDominionManager {
         st.volleyQueue.clear();
         st.volleySilenceLeft = BlockDominionRules.VOLLEY_SILENCE_TICKS;
 
-        int rows = count > 16 ? 2 : 1;
-        for (int i = 0; i < order.length; i++) {
-            int slot = order[i];
-            int row = rows == 2 ? (slot % 2) : 0;
-            int col = rows == 2 ? (slot / 2) : slot;
-            int colCount = rows == 2 ? (row == 0 ? (count + 1) / 2 : count / 2) : count;
-            double u = colCount <= 1 ? 0.0 : (col / (double) (colCount - 1)) * 2.0 - 1.0;
-            double theta = u * (Math.PI * 0.39);
-            double r = row == 0 ? 2.6 : 3.4;
-            st.volleyQueue.add(new QueuedShot(snapshot.get(slot), Math.sin(theta) * r, Math.cos(theta) * r * 0.7 + 0.35, i / 2));
+        if (aerial) {
+            for (int i = 0; i < order.length; i++) {
+                int slot = order[i];
+                int ring = slot % 3;
+                int ringIdx = slot / 3;
+                int ringCount = Math.max(1, (count + 2 - ring) / 3);
+                double ang = (Math.PI * 2.0 * ringIdx / ringCount);
+                double r = 2.15 + ring * 1.45;
+                double sideOff = Math.cos(ang) * r;
+                double fwdOff = Math.sin(ang) * r * 0.72 + 0.55;
+                double upOff = 2.6 + ring * 0.85;
+                st.volleyQueue.add(new QueuedShot(snapshot.get(slot), sideOff, upOff, fwdOff, i / 2));
+            }
+            // Safe landing cushion for 4 seconds after expending Block Wings into an Orbital Meteor Barrage
+            st.safeFallUntil = player.serverLevel().getGameTime() + 80;
+        } else {
+            int rows = count > 16 ? 2 : 1;
+            for (int i = 0; i < order.length; i++) {
+                int slot = order[i];
+                int row = rows == 2 ? (slot % 2) : 0;
+                int col = rows == 2 ? (slot / 2) : slot;
+                int colCount = rows == 2 ? (row == 0 ? (count + 1) / 2 : count / 2) : count;
+                double u = colCount <= 1 ? 0.0 : (col / (double) (colCount - 1)) * 2.0 - 1.0;
+                double theta = u * (Math.PI * 0.39);
+                double r = row == 0 ? 2.6 : 3.4;
+                st.volleyQueue.add(new QueuedShot(snapshot.get(slot), Math.sin(theta) * r, Math.cos(theta) * r * 0.7 + 0.35, 0.8, i / 2));
+            }
         }
 
         SkillCooldowns.start(player, GodWandItem.MODE_BLOCK_DOMINION,
                 GodWandConfig.skillCooldownTicks(GodWandItem.MODE_BLOCK_DOMINION, 1));
         ServerLevel world = player.serverLevel();
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.12f, 12));
+                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), aerial ? 1.16f : 1.12f, 12));
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.55f, 16));
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), aerial ? 0.65f : 0.55f, 16));
         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.05f, 1.25f);
-        player.displayClientMessage(Component.translatable("message.godwand.dominion_volley", count), true);
-        sync(player, st, BlockDominionRules.EVENT_VOLLEY, player.getX(), player.getY() + 1.2, player.getZ(), 0);
+                SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.05f, aerial ? 1.05f : 1.25f);
+        player.displayClientMessage(Component.translatable(
+                aerial ? "message.godwand.dominion_orbital" : "message.godwand.dominion_volley", count), true);
+        sync(player, st, aerial ? BlockDominionRules.EVENT_ORBITAL_BARRAGE : BlockDominionRules.EVENT_VOLLEY,
+                player.getX(), player.getY() + 1.2, player.getZ(), 0);
     }
 
     public static void cancelCharge(ServerPlayer player) {
@@ -831,10 +1010,10 @@ public final class BlockDominionManager {
                 Vec3 camUp = side.cross(aimDir).normalize();
                 Vec3 chest = player.position().add(0, 1.25, 0);
 
-                // Launch up to 2 shots per tick for a sweeping wave feel
-                for (int launched = 0; launched < 2 && !st.volleyQueue.isEmpty(); launched++) {
+                // Launch up to 3 shots per tick for a sweeping meteor-storm feel
+                for (int launched = 0; launched < 3 && !st.volleyQueue.isEmpty(); launched++) {
                     QueuedShot shot = st.volleyQueue.poll();
-                    Vec3 origin = chest.add(side.scale(shot.sideOffset())).add(camUp.scale(shot.upOffset())).add(aimDir.scale(0.8));
+                    Vec3 origin = chest.add(side.scale(shot.sideOffset())).add(camUp.scale(shot.upOffset())).add(aimDir.scale(shot.fwdOffset()));
                     Vec3 dir = convergeTarget.subtract(origin);
                     if (dir.lengthSqr() < 1e-4) dir = aimDir;
                     launchProjectile(player, shot.state(), origin, dir.normalize(), true);
@@ -884,10 +1063,22 @@ public final class BlockDominionManager {
                 player.setNoGravity(true);
                 player.fallDistance = 0.0f;
                 boolean wasBoosting = st.wingBoosting;
-                st.flightVel = BlockDominionRules.stepFlightVelocity(
-                        st.flightVel, player.getViewVector(1.0f),
-                        st.flightForward, st.flightStrafe, st.flightVertical, st.flightBoostInput);
-                st.wingBoosting = st.flightBoostInput && st.flightVel.lengthSqr() > 0.55 * 0.55;
+                if (st.volleyCharging) {
+                    // Lock into regal midair hover while charging Aerial Orbital Meteor Barrage
+                    st.flightVel = BlockDominionRules.stepFlightVelocity(
+                            st.flightVel, player.getViewVector(1.0f), 0, 0, Math.max(0, st.flightVertical), false);
+                    st.wingBoosting = false;
+                } else if (st.wingGlideMode) {
+                    boolean glideBoost = st.flightBoostInput || st.flightVertical > 0;
+                    st.flightVel = BlockDominionRules.stepGlideVelocity(
+                            st.flightVel, player.getViewVector(1.0f), st.flightStrafe, glideBoost);
+                    st.wingBoosting = glideBoost && st.flightVel.lengthSqr() > 0.65 * 0.65;
+                } else {
+                    st.flightVel = BlockDominionRules.stepFlightVelocity(
+                            st.flightVel, player.getViewVector(1.0f),
+                            st.flightForward, st.flightStrafe, st.flightVertical, st.flightBoostInput);
+                    st.wingBoosting = st.flightBoostInput && st.flightVel.lengthSqr() > 0.55 * 0.55;
+                }
                 player.setDeltaMovement(st.flightVel);
                 // Only force-push velocity to client when not driven by client's own synchronized prediction
                 if (now - st.lastFlightPacketTick > 4) {
@@ -906,17 +1097,21 @@ public final class BlockDominionManager {
             }
         }
 
-        // Air-Step Block Stairs ("bước xuống tạo thang"): spawns floating steps beneath feet when stepping off ledges
+        // Air-Step Block Stairs (both slow regal descending stairs AND ascending sky stairs!)
+        boolean ascendIntent = st.stairAscending && now <= st.stairAscendUntil;
         boolean canStair = st.mode == BlockDominionRules.Mode.MANUAL && !st.stowed && !st.wingFlying
                 && !st.volleyCharging && !st.hiddenInCutscene
                 && st.reserve.size() >= BlockDominionRules.MIN_STAIR_BLOCKS
-                && !player.onGround() && !player.isShiftKeyDown()
+                && !player.isShiftKeyDown()
                 && !player.isInWater() && !player.isInLava() && !player.onClimbable()
                 && !player.isPassenger() && !player.getAbilities().flying;
-        boolean wantStair = canStair && (st.airStairsActive
-                || (player.getDeltaMovement().y < 0.04 && hasDropBelow(world, player)));
+        boolean wantStair = canStair && (
+                ascendIntent
+                || (!player.onGround() && (st.airStairsActive || (player.getDeltaMovement().y < 0.04 && hasDropBelow(world, player))))
+        );
         if (wantStair != st.airStairsActive) {
             st.airStairsActive = wantStair;
+            if (!wantStair) st.stairAscending = false;
             mobilityChanged = true;
             if (wantStair) {
                 mobilityEvent = BlockDominionRules.EVENT_AIR_STEP;
@@ -928,11 +1123,11 @@ public final class BlockDominionManager {
             player.fallDistance = 0.0f;
             Vec3 cur = player.getDeltaMovement();
             double horiz = Math.sqrt(cur.x * cur.x + cur.z * cur.z);
-            Vec3 nextVel = BlockDominionRules.stepAirStairsVelocity(cur, horiz, false);
-            if (cur.y < nextVel.y - 0.04) {
+            Vec3 nextVel = BlockDominionRules.stepAirStairsVelocity(cur, horiz, ascendIntent, ascendIntent);
+            if (ascendIntent || cur.y < nextVel.y - 0.03) {
                 player.setDeltaMovement(nextVel);
             }
-            if (horiz > 0.03 && now - st.lastStepEventTick >= 6) {
+            if ((horiz > 0.025 || ascendIntent) && now - st.lastStepEventTick >= 6) {
                 st.lastStepEventTick = now;
                 mobilityChanged = true;
                 mobilityEvent = BlockDominionRules.EVENT_AIR_STEP;
@@ -940,7 +1135,21 @@ public final class BlockDominionManager {
             }
         }
 
-        // Milestone 2+3 Block Brain: scan threats every 2 ticks and update defensive/mobility formation
+        // QoL Rain Umbrella check every 4 ticks (shelters player when standing under open rain/snow!)
+        if ((now + player.getId()) % 4 == 0) {
+            BlockPos headAbove = player.blockPosition().above(2);
+            boolean rainNow = world.isRaining() && world.canSeeSky(headAbove);
+            if (rainNow != st.rainingOverhead) {
+                st.rainingOverhead = rainNow;
+                mobilityChanged = true;
+            }
+        }
+
+        if (st.safeFallUntil >= now) {
+            player.fallDistance = 0.0f;
+        }
+
+        // Milestone 2+3+4 Block Brain: scan threats every 2 ticks and update defensive/mobility/offensive/QoL formation
         boolean brainChanged = false;
         if (st.mode == BlockDominionRules.Mode.MANUAL && !st.hiddenInCutscene
                 && ((now + player.getId()) % 2 == 0 || stateChanged || mobilityChanged)) {
@@ -948,7 +1157,7 @@ public final class BlockDominionManager {
                     ? List.of() : scanThreats(world, player);
             BlockDominionBrain.BrainPlan plan = BlockDominionBrain.plan(
                     threats, st.reserve.size(), st.stowed, st.volleyCharging,
-                    st.wingFlying, st.wingBoosting, st.airStairsActive);
+                    st.wingFlying, st.wingBoosting, st.airStairsActive, st.rapidFiring, st.rainingOverhead);
             if (plan.kind() != st.formation
                     || (plan.kind().isShield() && (BlockDominionBrain.directionChangedSignificantly(plan.primaryDir(), st.threatPrimary)
                     || BlockDominionBrain.directionChangedSignificantly(plan.secondaryDir(), st.threatSecondary)))) {
@@ -1215,11 +1424,15 @@ public final class BlockDominionManager {
                 | (st.hiddenInCutscene ? BlockDominionRules.FLAG_HIDDEN : 0)
                 | (st.wingFlying ? BlockDominionRules.FLAG_FLYING : 0)
                 | (st.wingBoosting ? BlockDominionRules.FLAG_BOOSTING : 0)
-                | (st.airStairsActive ? BlockDominionRules.FLAG_AIR_STAIRS : 0);
+                | (st.airStairsActive ? BlockDominionRules.FLAG_AIR_STAIRS : 0)
+                | (st.rapidFiring ? BlockDominionRules.FLAG_RAPID_FIRING : 0)
+                | (st.rainingOverhead ? BlockDominionRules.FLAG_UMBRELLA : 0)
+                | (st.wingGlideMode ? BlockDominionRules.FLAG_GLIDE_MODE : 0)
+                | (st.stairAscending ? BlockDominionRules.FLAG_STAIR_ASCEND : 0);
         int[] ids = new int[st.reserve.size()];
         for (int i = 0; i < ids.length; i++) ids[i] = Block.getId(st.reserve.get(i));
         BlockDominionBrain.FormationKind form = st.volleyCharging && !st.stowed
-                ? BlockDominionBrain.FormationKind.VOLLEY_FAN
+                ? (st.wingFlying ? BlockDominionBrain.FormationKind.ORBITAL_METEOR : BlockDominionBrain.FormationKind.VOLLEY_FAN)
                 : (st.mode == BlockDominionRules.Mode.MANUAL ? st.formation : BlockDominionBrain.FormationKind.IDLE);
         BlockDominionStatePayload payload = new BlockDominionStatePayload(
                 player.getId(), st.mode.ordinal(), flags, st.volleyChargeTicks,
