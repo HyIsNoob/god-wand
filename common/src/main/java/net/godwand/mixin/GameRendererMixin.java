@@ -19,6 +19,7 @@ public abstract class GameRendererMixin {
     private void godwand$afterWorldComposite(CallbackInfo ci) {
         net.godwand.client.GodWandPostFxManager.renderAfterWorld();
         net.godwand.client.AtomicPostFx.renderAfterWorld();
+        net.godwand.client.DominionPostFx.renderAfterWorld();
     }
 
     /**
@@ -28,6 +29,10 @@ public abstract class GameRendererMixin {
     private void godwand$applyScreenShake(PoseStack matrices, float tickDelta, CallbackInfo ci) {
         GodWandCinematicEngine.applyScreenShake(matrices, tickDelta);
         net.godwand.client.AtomicCinematic.applyShake(matrices, tickDelta);
+        float domRoll = net.godwand.client.BlockDominionRenderer.cameraRollDegrees(tickDelta);
+        if (Math.abs(domRoll) > 0.01f) {
+            matrices.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(domRoll));
+        }
         float fugaShake=net.godwand.client.FugaCinematic.shake(tickDelta);
         if(fugaShake>0) {
             float time=(net.minecraft.client.Minecraft.getInstance().level==null?0:net.minecraft.client.Minecraft.getInstance().level.getGameTime())+tickDelta;
@@ -42,7 +47,8 @@ public abstract class GameRendererMixin {
     @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
     private void godwand$applyDynamicFov(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Double> cir) {
         double current = cir.getReturnValue();
-        double multiplier = GodWandCinematicEngine.getFovMultiplier(tickDelta);
+        double multiplier = GodWandCinematicEngine.getFovMultiplier(tickDelta)
+                * net.godwand.client.BlockDominionRenderer.fovMultiplier(tickDelta);
         double adjusted = net.godwand.client.PurpleCinematic.fov(net.godwand.client.FugaCinematic.fov(net.godwand.client.AtomicCinematic.fov(current * multiplier, tickDelta), tickDelta), tickDelta);
         if (changingFov) net.godwand.client.FugaCinematic.recordFov(adjusted);
         if (adjusted != current) cir.setReturnValue(adjusted);

@@ -15,11 +15,11 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 /**
- * Custom GLSL core shader & organic procedural geometry helpers for Block Dominion
+ * Custom GLSL core shader & TRUE 3D volumetric mesh emitters for Block Dominion
  * (assets/minecraft/shaders/core/godwand_dominion.*).
- * Mirrors BlueRedDraw/Purple's two-pass (BODY alpha + GLOW additive) volumetric language:
- * billowing self-shaded smoke, curved multi-point plasma/brush ribbons, crackling live lightning,
- * soft radial volumetric glows, dissolving hex mist, custom GPU 3D particles, and ink-gold impact frames.
+ * Builds real 3D Fresnel shells (Mach cones, curved kinetic domes), world-space ground light pools,
+ * seam-free aerodynamic contrail ribbons, fine electric filaments, and atmospheric micro-particles —
+ * zero flat PNG stickers or rigid 2D floating rings.
  */
 public final class DominionShader {
     public static final int FX_SMOKE = 0;
@@ -30,6 +30,8 @@ public final class DominionShader {
     public static final int FX_GLOW = 5;
     public static final int FX_HEX_MIST = 6;
     public static final int FX_IMPACT_FRAME = 7;
+    public static final int FX_SHELL = 8;
+    public static final int FX_GROUND_POOL = 9;
 
     private static ShaderInstance shader;
     private static boolean failed;
@@ -61,7 +63,6 @@ public final class DominionShader {
         RenderSystem.setShader(() -> shader);
     }
 
-    /** Compiles and warms up the shader program on world join to eliminate first-cast stutter. */
     public static void prewarm() {
         bind(0f);
         if (shader == null) return;
@@ -81,7 +82,7 @@ public final class DominionShader {
         }
     }
 
-    // ---- Deterministic smooth noise (matches BlueRedDraw so nothing jitters per frame) ----
+    // ---- Deterministic smooth noise ----
 
     public static double hash(long n) {
         n = (n ^ (n >>> 33)) * 0xff51afd7ed558ccdL;
@@ -113,9 +114,8 @@ public final class DominionShader {
         return new Vec3[]{side, up};
     }
 
-    // ---- Primitive emitters ----
+    // ---- Primitive & True 3D Volumetric Emitters ----
 
-    /** Emits a single oriented quad mapped to procedural effect {@code effectId} with {@code seed}. */
     public static void emitQuad(VertexConsumer v, Matrix4f m, Vec3 center, Vec3 right, Vec3 up,
                                 double halfW, double halfH, int effectId, int seed,
                                 int r, int g, int b, int a) {
@@ -134,29 +134,154 @@ public final class DominionShader {
         v.addVertex(m, (float) p3.x, (float) p3.y, (float) p3.z).setUv(u0, v1).setColor(r, g, b, a);
     }
 
-    /** Emits a camera-facing rotated billboard sprite (used for smoke puffs, soft glows, particles). */
     public static void emitBillboard(VertexConsumer v, Matrix4f m, Vec3 center, Vec3 camRight, Vec3 camUp,
                                      double radius, double rotRad, int effectId, int seed,
                                      int r, int g, int b, int a) {
-        if (a <= 2 || radius <= 0.005) return;
+        if (a <= 2 || radius <= 0.004) return;
         double c = Math.cos(rotRad), s = Math.sin(rotRad);
         Vec3 rx = camRight.scale(c).add(camUp.scale(s));
         Vec3 uy = camUp.scale(c).subtract(camRight.scale(s));
         emitQuad(v, m, center, rx, uy, radius, radius, effectId, seed, r, g, b, a);
     }
 
-    /** Emits a planar quad centered at {@code center} facing {@code normal}. */
-    public static void emitDisc(VertexConsumer v, Matrix4f m, Vec3 center, Vec3 normal,
-                                double radius, int effectId, int seed,
-                                int r, int g, int b, int a) {
-        if (a <= 2 || radius <= 0.01) return;
-        Vec3[] uw = basis(normal);
-        emitQuad(v, m, center, uw[0], uw[1], radius, radius, effectId, seed, r, g, b, a);
+    /** Emits a velocity-aligned thin aerodynamic needle/spark streak in 3D space (camera-relative coords). */
+    public static void emitVelocityStreak(VertexConsumer v, Matrix4f m, Vec3 center, Vec3 velocity,
+                                          double halfLen, double halfWidth, int seed,
+                                          int r, int g, int b, int a) {
+        if (a <= 2 || halfLen <= 0.01) return;
+        Vec3 dir = velocity.lengthSqr() > 1e-6 ? velocity.normalize() : new Vec3(0, 1, 0);
+        Vec3 toCam = center.lengthSqr() > 1e-6 ? center.scale(-1.0).normalize() : new Vec3(0, 1, 0);
+        Vec3 side = dir.cross(toCam);
+        if (side.lengthSqr() < 1e-5) side = dir.cross(new Vec3(0, 1, 0));
+        if (side.lengthSqr() < 1e-5) side = new Vec3(1, 0, 0);
+        else side = side.normalize();
+        emitQuad(v, m, center, dir, side, halfLen, halfWidth, FX_SPARK, (seed * 4) + 1, r, g, b, a);
     }
 
     /**
-     * Emits a continuous, seam-free camera-facing curved ribbon with per-vertex averaged normals
-     * (Purple/BlueRedDraw style — zero quad-joint seams even on tight curves!).
+     * Projects a soft, noise-dappled ground light pool directly onto the terrain surface (like BlueRedDraw.mapLight),
+     * tinting real grass/stone beneath low-flying wings, Earthen Surge, Air Stairs, or Auto Mode.
+     */
+    public static void emitGroundPool(VertexConsumer v, Matrix4f m, Vec3 groundCenter, double radius,
+                                      int seed, int r, int g, int b, int a) {
+        if (a <= 2 || radius <= 0.05) return;
+        emitQuad(v, m, groundCenter, new Vec3(1, 0, 0), new Vec3(0, 0, 1),
+                radius, radius, FX_GROUND_POOL, seed, r, g, b, a);
+    }
+
+    /**
+     * True 3D Volumetric Aerodynamic Mach Cone / Slipstream Shell (camera-relative coords).
+     * Builds a real multi-ring curved 3D paraboloid open behind {@code nose} along {@code -axis},
+     * shading every vertex with true 3D view-angle Fresnel so the center stays clear while the curved
+     * 3D air-compression silhouette shimmers authentically from every angle!
+     */
+    public static void emitFresnelCone(VertexConsumer v, Matrix4f m, Vec3 nose, Vec3 axis,
+                                       double length, double maxRadius, int slices, int rings,
+                                       int seed, int r, int g, int b, int masterAlpha) {
+        if (masterAlpha <= 2 || length <= 0.05 || maxRadius <= 0.05) return;
+        Vec3 fwd = axis.lengthSqr() > 1e-5 ? axis.normalize() : new Vec3(0, 0, 1);
+        Vec3[] uw = basis(fwd);
+        Vec3 right = uw[0], up = uw[1];
+
+        Vec3[][] pos = new Vec3[rings + 1][slices + 1];
+        int[][] alphas = new int[rings + 1][slices + 1];
+
+        for (int j = 0; j <= rings; j++) {
+            double vT = j / (double) rings; // 0 = nose, 1 = trailing rim
+            double rad = maxRadius * Math.pow(vT, 0.62);
+            double zOff = -vT * length;
+            double endEnv = Math.sin(Math.PI * Math.min(1.0, vT * 0.92 + 0.06));
+            // Outward slope of paraboloid normal
+            double drdv = 0.62 * maxRadius * Math.pow(Math.max(0.04, vT), -0.38);
+            for (int i = 0; i <= slices; i++) {
+                double uT = i / (double) slices;
+                double ang = uT * Math.PI * 2.0;
+                double ca = Math.cos(ang), sa = Math.sin(ang);
+                Vec3 radial = right.scale(ca).add(up.scale(sa));
+                Vec3 p = nose.add(fwd.scale(zOff)).add(radial.scale(rad));
+                pos[j][i] = p;
+
+                Vec3 surfNormal = radial.scale(length).add(fwd.scale(drdv)).normalize();
+                Vec3 viewDir = p.lengthSqr() > 1e-6 ? p.scale(-1.0).normalize() : fwd;
+                double ndotv = Math.abs(surfNormal.dot(viewDir));
+                double fresnel = Math.pow(1.0 - Mth.clamp(ndotv, 0.0, 1.0), 1.85);
+                double wAlpha = (0.14 + 0.86 * fresnel) * endEnv;
+                alphas[j][i] = Mth.clamp((int) (masterAlpha * wAlpha), 0, 255);
+            }
+        }
+
+        int fxBase = FX_SHELL + 2;
+        for (int j = 0; j < rings; j++) {
+            float v0 = fxBase + 0.002f + (j / (float) rings) * 0.994f;
+            float v1 = fxBase + 0.002f + ((j + 1) / (float) rings) * 0.994f;
+            for (int i = 0; i < slices; i++) {
+                float u0 = seed + 0.002f + (i / (float) slices) * 0.994f;
+                float u1 = seed + 0.002f + ((i + 1) / (float) slices) * 0.994f;
+                Vec3 p00 = pos[j][i], p10 = pos[j][i + 1], p11 = pos[j + 1][i + 1], p01 = pos[j + 1][i];
+                v.addVertex(m, (float) p00.x, (float) p00.y, (float) p00.z).setUv(u0, v0).setColor(r, g, b, alphas[j][i]);
+                v.addVertex(m, (float) p10.x, (float) p10.y, (float) p10.z).setUv(u1, v0).setColor(r, g, b, alphas[j][i + 1]);
+                v.addVertex(m, (float) p11.x, (float) p11.y, (float) p11.z).setUv(u1, v1).setColor(r, g, b, alphas[j + 1][i + 1]);
+                v.addVertex(m, (float) p01.x, (float) p01.y, (float) p01.z).setUv(u0, v1).setColor(r, g, b, alphas[j + 1][i]);
+            }
+        }
+    }
+
+    /**
+     * True 3D Curved Spherical-Cap / Dome Shell with per-vertex 3D Fresnel shading (camera-relative coords).
+     * Used for directional shields ({@code maxPhiRad ~ 0.65}), Rain Umbrella canopy ({@code maxPhiRad ~ 0.55}),
+     * and full 360 protective domes ({@code maxPhiRad ~ PI}) — looks genuinely 3D, never a pasted flat disc!
+     */
+    public static void emitFresnelDome(VertexConsumer v, Matrix4f m, Vec3 center, Vec3 poleDir,
+                                       double radius, double maxPhiRad, int slices, int rings,
+                                       int effectId, int seed, int r, int g, int b, int masterAlpha) {
+        if (masterAlpha <= 2 || radius <= 0.05) return;
+        Vec3 pole = poleDir.lengthSqr() > 1e-5 ? poleDir.normalize() : new Vec3(0, 1, 0);
+        Vec3[] uw = basis(pole);
+        Vec3 right = uw[0], up = uw[1];
+
+        Vec3[][] pos = new Vec3[rings + 1][slices + 1];
+        int[][] alphas = new int[rings + 1][slices + 1];
+
+        for (int j = 0; j <= rings; j++) {
+            double vT = j / (double) rings;
+            double phi = vT * maxPhiRad;
+            double sinPhi = Math.sin(phi), cosPhi = Math.cos(phi);
+            double rimFade = maxPhiRad < Math.PI * 0.95 ? (1.0 - Math.pow(vT, 3.0)) : 1.0;
+            for (int i = 0; i <= slices; i++) {
+                double uT = i / (double) slices;
+                double theta = uT * Math.PI * 2.0;
+                Vec3 surfNormal = right.scale(Math.cos(theta) * sinPhi)
+                        .add(up.scale(Math.sin(theta) * sinPhi))
+                        .add(pole.scale(cosPhi));
+                Vec3 p = center.add(surfNormal.scale(radius));
+                pos[j][i] = p;
+
+                Vec3 viewDir = p.lengthSqr() > 1e-6 ? p.scale(-1.0).normalize() : pole;
+                double ndotv = Math.abs(surfNormal.dot(viewDir));
+                double fresnel = Math.pow(1.0 - Mth.clamp(ndotv, 0.0, 1.0), 2.1);
+                double wAlpha = (0.10 + 0.90 * fresnel) * rimFade;
+                alphas[j][i] = Mth.clamp((int) (masterAlpha * wAlpha), 0, 255);
+            }
+        }
+
+        int fxBase = effectId + 2;
+        for (int j = 0; j < rings; j++) {
+            float v0 = fxBase + 0.002f + (j / (float) rings) * 0.994f;
+            float v1 = fxBase + 0.002f + ((j + 1) / (float) rings) * 0.994f;
+            for (int i = 0; i < slices; i++) {
+                float u0 = seed + 0.002f + (i / (float) slices) * 0.994f;
+                float u1 = seed + 0.002f + ((i + 1) / (float) slices) * 0.994f;
+                Vec3 p00 = pos[j][i], p10 = pos[j][i + 1], p11 = pos[j + 1][i + 1], p01 = pos[j + 1][i];
+                v.addVertex(m, (float) p00.x, (float) p00.y, (float) p00.z).setUv(u0, v0).setColor(r, g, b, alphas[j][i]);
+                v.addVertex(m, (float) p10.x, (float) p10.y, (float) p10.z).setUv(u1, v0).setColor(r, g, b, alphas[j][i + 1]);
+                v.addVertex(m, (float) p11.x, (float) p11.y, (float) p11.z).setUv(u1, v1).setColor(r, g, b, alphas[j + 1][i + 1]);
+                v.addVertex(m, (float) p01.x, (float) p01.y, (float) p01.z).setUv(u0, v1).setColor(r, g, b, alphas[j + 1][i]);
+            }
+        }
+    }
+
+    /**
+     * Emits a continuous, seam-free camera-facing curved ribbon with per-vertex averaged normals.
      */
     public static void emitCurvedRibbon(VertexConsumer v, Matrix4f m, Vec3[] points, double[] halfWidths,
                                         double[] alphaWeights, int effectId, int seed,
@@ -178,7 +303,6 @@ public final class DominionShader {
             if (side.lengthSqr() < 1e-6) side = tang.cross(new Vec3(0, 1, 0));
             if (side.lengthSqr() < 1e-6) side = prevSide;
             else side = side.normalize();
-            // Keep consistent ribbon winding along the whole curve (no sudden 180-deg twist)
             if (i > 0 && side.dot(prevSide) < 0) side = side.scale(-1.0);
             prevSide = side;
 
@@ -202,7 +326,7 @@ public final class DominionShader {
         }
     }
 
-    /** Emits a jagged crackling live energy bolt between {@code from} and {@code to} (camera-relative coords). */
+    /** Emits a delicate, fine crackling live electric filament between {@code from} and {@code to}. */
     public static void emitLiveBolt(VertexConsumer v, Matrix4f m, Vec3 from, Vec3 to,
                                     int segments, double jitter, double halfWidth,
                                     long seed, double time, int r, int g, int b, int alpha) {
@@ -213,69 +337,19 @@ public final class DominionShader {
         Vec3[] uw = basis(span);
         Vec3[] pts = new Vec3[segments + 1];
         double[] ws = new double[segments + 1];
-        double snap = Math.floor(time * 0.75);
+        double snap = Math.floor(time * 0.85);
         for (int i = 0; i <= segments; i++) {
             double t = i / (double) segments;
             double env = Math.sin(Math.PI * t);
-            double jx = snoise(seed + i * 19L, snap * 0.9 + t * 3.0) * jitter * env;
-            double jy = snoise(seed + i * 31L + 7, snap * 0.9 + t * 3.0) * jitter * env;
+            double jx = snoise(seed + i * 19L, snap * 0.9 + t * 3.4) * jitter * env;
+            double jy = snoise(seed + i * 31L + 7, snap * 0.9 + t * 3.4) * jitter * env;
             pts[i] = from.lerp(to, t).add(uw[0].scale(jx)).add(uw[1].scale(jy));
-            ws[i] = halfWidth * (0.45 + 0.65 * env);
+            ws[i] = halfWidth * (0.35 + 0.65 * env);
         }
         emitCurvedRibbon(v, m, pts, ws, null, FX_BOLT, (int) (Math.abs(seed) % 97), r, g, b, alpha);
     }
 
-    /**
-     * Emits a ragged, organic broken pressure wave around {@code center} with normal {@code normal}
-     * (Purple/Red style — noise-wobbled radius and variable width with torn gaps, never a stiff flat circle!).
-     */
-    public static void emitOrganicWave(VertexConsumer v, Matrix4f m, Vec3 center, Vec3 normal,
-                                       double radius, double halfWidth, double time, long seed,
-                                       int effectId, int r, int g, int b, int alpha) {
-        if (alpha <= 2 || radius <= 0.05) return;
-        Vec3[] uw = basis(normal);
-        int segs = 28;
-        Vec3[] pts = new Vec3[segs + 1];
-        double[] ws = new double[segs + 1];
-        double[] als = new double[segs + 1];
-        double baseAng = hash(seed) * Math.PI * 2.0 + time * 0.04;
-        for (int i = 0; i <= segs; i++) {
-            double t = i / (double) segs;
-            double ang = baseAng + t * Math.PI * 2.0;
-            double wob = 1.0 + 0.14 * snoise(seed + 1, t * 5.0 + time * 0.14);
-            double rr = radius * wob;
-            double lift = radius * 0.06 * snoise(seed + 4, t * 4.0 - time * 0.12);
-            pts[i] = center.add(uw[0].scale(Math.cos(ang) * rr))
-                    .add(uw[1].scale(Math.sin(ang) * rr))
-                    .add(normal.normalize().scale(lift));
-            double gap = Mth.clamp((vnoise(seed + 2, t * 6.0 + time * 0.10) - 0.20) / 0.25, 0.0, 1.0);
-            ws[i] = halfWidth * (0.40 + 0.85 * vnoise(seed + 3, t * 7.0 - time * 0.18)) * gap;
-            als[i] = gap;
-        }
-        emitCurvedRibbon(v, m, pts, ws, als, effectId, (int) (Math.abs(seed) % 97), r, g, b, alpha);
-    }
-
-    /** Emits a crossed-plane energy ribbon from {@code from} (tail) to {@code to} (head). */
-    public static void emitBeam(VertexConsumer v, Matrix4f m, Vec3 from, Vec3 to, double halfWidth,
-                                int seed, int r, int g, int b, int a) {
-        if (a <= 2) return;
-        Vec3 axis = to.subtract(from);
-        if (axis.lengthSqr() < 1e-5) return;
-        Vec3 dir = axis.normalize();
-        Vec3 s1 = dir.cross(Math.abs(dir.y) < 0.92 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0)).normalize().scale(halfWidth);
-        Vec3 s2 = dir.cross(s1).normalize().scale(halfWidth);
-        float u0 = seed + 0.002f, u1 = seed + 0.998f;
-        float v0 = (FX_PLASMA + 2) + 0.002f, v1 = (FX_PLASMA + 2) + 0.998f;
-        for (Vec3 s : new Vec3[]{s1, s2}) {
-            Vec3 p0 = from.subtract(s), p1 = to.subtract(s), p2 = to.add(s), p3 = from.add(s);
-            v.addVertex(m, (float) p0.x, (float) p0.y, (float) p0.z).setUv(u0, v0).setColor(r, g, b, a);
-            v.addVertex(m, (float) p1.x, (float) p1.y, (float) p1.z).setUv(u1, v0).setColor(r, g, b, a);
-            v.addVertex(m, (float) p2.x, (float) p2.y, (float) p2.z).setUv(u1, v1).setColor(r, g, b, a);
-            v.addVertex(m, (float) p3.x, (float) p3.y, (float) p3.z).setUv(u0, v1).setColor(r, g, b, a);
-        }
-    }
-
-    /** Emits a tapering camera-facing trail ribbon along {@code points} (0=tail -> last=head). */
+    /** Emits a tapering camera-facing slipstream ribbon along {@code points} (0=tail -> last=head). */
     public static void emitTrail(VertexConsumer v, Matrix4f m, Vec3[] points, double headWidth,
                                  int effectId, int seed, int r, int g, int b, int a) {
         if (points == null || points.length < 2 || a <= 2) return;
@@ -284,8 +358,8 @@ public final class DominionShader {
         double[] als = new double[n];
         for (int i = 0; i < n; i++) {
             double t = i / (double) (n - 1);
-            ws[i] = headWidth * (0.12 + 0.88 * Math.pow(t, 0.7));
-            als[i] = t * t;
+            ws[i] = headWidth * (0.08 + 0.92 * Math.pow(t, 0.75));
+            als[i] = t * t * Math.sin(Math.PI * Math.min(1.0, t * 0.96 + 0.04));
         }
         emitCurvedRibbon(v, m, points, ws, als, effectId, seed, r, g, b, a);
     }

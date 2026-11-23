@@ -280,6 +280,8 @@ public final class DominionProbe implements ClientModInitializer {
             recordCheck("air_stairs_active_midair", stairsOn, "stairs=" + stairsOn);
             recordCheck("custom_glsl_shader_compiled", net.godwand.client.DominionShader.isAvailable(),
                     "available=" + net.godwand.client.DominionShader.isAvailable());
+            recordCheck("cinematic_postfx_ready", net.godwand.client.DominionPostFx.ready(),
+                    "ready=" + net.godwand.client.DominionPostFx.ready());
             saveKeyframe(c, "kf_05b_stairs_down.png");
         }
 
@@ -333,6 +335,10 @@ public final class DominionProbe implements ClientModInitializer {
             c.options.keySprint.setDown(true);
             c.options.keyJump.setDown(true);
         }
+        if (t == 144) {
+            // Subtle aerodynamic bank right to showcase Glide camera roll + radial speed blur!
+            c.options.keyRight.setDown(true);
+        }
         if (t == 152) {
             double spd = c.player.getDeltaMovement().length();
             recordCheck("wing_glide_jet_boost", spd >= 1.30, String.format(Locale.ROOT, "speed=%.2f", spd));
@@ -340,6 +346,7 @@ public final class DominionProbe implements ClientModInitializer {
         }
         // Brief 1st-person wing glide preview so owner sees unobstructed sightline while flying!
         if (t == 158) {
+            c.options.keyRight.setDown(false);
             c.options.keySprint.setDown(false);
             c.options.keyJump.setDown(false);
             c.options.setCameraType(CameraType.FIRST_PERSON);

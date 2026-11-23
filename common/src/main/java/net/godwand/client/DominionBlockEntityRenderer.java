@@ -9,6 +9,7 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Axis;
 import net.godwand.entity.DominionBlockProjectileEntity;
+import net.godwand.skill.BlockDominionPalette;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -19,8 +20,10 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 /**
- * Renders DominionBlockProjectileEntity as a spinning full block with Purple-grade
- * two-pass smoky dark-gold wake, liquid plasma comet ribbon, and crackling lightning.
+ * Cinematic 3D renderer for DominionBlockProjectileEntity:
+ * - Main tumbling 3D block + trailing 3D motion-smear block echoes along velocity
+ * - True 3D Fresnel aerodynamic Mach cone wrapping the speeding meteor (colored by its Material Resonance!)
+ * - Gossamer vapor contrail ribbon (zero flat floating rings or stiff black sticks!).
  */
 public class DominionBlockEntityRenderer extends EntityRenderer<DominionBlockProjectileEntity> {
     public DominionBlockEntityRenderer(EntityRendererProvider.Context context) {
@@ -37,46 +40,67 @@ public class DominionBlockEntityRenderer extends EntityRenderer<DominionBlockPro
                        MultiBufferSource vertexConsumers, int light) {
         float time = entity.tickCount + tickDelta;
         float scale = entity.isVolley() ? 0.88f : 0.78f;
+        var blockRenderer = Minecraft.getInstance().getBlockRenderer();
+        var state = entity.getBlockState();
+        BlockDominionPalette pal = BlockDominionPalette.resolveStates(java.util.List.of(state));
 
+        // 1. Main spinning 3D block
         matrices.pushPose();
         matrices.mulPose(Axis.YP.rotationDegrees(time * 38f));
         matrices.mulPose(Axis.XP.rotationDegrees(time * 27f));
         matrices.scale(scale, scale, scale);
         matrices.translate(-0.5, -0.5, -0.5);
-        Minecraft.getInstance().getBlockRenderer().renderSingleBlock(
-                entity.getBlockState(), matrices, vertexConsumers, light, OverlayTexture.NO_OVERLAY);
+        blockRenderer.renderSingleBlock(state, matrices, vertexConsumers, light, OverlayTexture.NO_OVERLAY);
         matrices.popPose();
 
         Vec3 vel = entity.getDeltaMovement();
         if (vel.lengthSqr() > 0.01) {
             Vec3 dir = vel.normalize();
-            double length = entity.isVolley() ? 4.8 : 3.4;
+
+            // 2. 3D Block Motion-Smear Echoes trailing behind the speeding block (pure 3D physical weight!)
+            for (int echo = 1; echo <= 2; echo++) {
+                double lag = echo * (entity.isVolley() ? 0.68 : 0.52);
+                float echoScale = scale * (1.0f - echo * 0.24f);
+                matrices.pushPose();
+                matrices.translate(-dir.x * lag, -dir.y * lag, -dir.z * lag);
+                matrices.mulPose(Axis.YP.rotationDegrees((time - echo * 1.4f) * 38f));
+                matrices.mulPose(Axis.XP.rotationDegrees((time - echo * 1.4f) * 27f));
+                matrices.scale(echoScale, echoScale, echoScale);
+                matrices.translate(-0.5, -0.5, -0.5);
+                blockRenderer.renderSingleBlock(state, matrices, vertexConsumers, light, OverlayTexture.NO_OVERLAY);
+                matrices.popPose();
+            }
+
+            // 3. True 3D Volumetric Fresnel Mach Cone + Gossamer Vapor Wake (Material-Resonant!)
+            double length = entity.isVolley() ? 4.4 : 3.0;
             Matrix4f mat = matrices.last().pose();
-            Vec3 tail = dir.scale(-length);
-            Vec3 head = dir.scale(0.35);
+            Vec3[] wakePts = new Vec3[6];
+            for (int i = 0; i < 6; i++) {
+                double u = i / 5.0; // 0 = tail, 1 = block
+                wakePts[i] = dir.scale(-length * (1.0 - u) + 0.15 * u);
+            }
 
             RenderSystem.enableBlend();
             RenderSystem.disableCull();
             RenderSystem.depthMask(false);
             DominionShader.bind(time / 20.0f);
             try {
-                // Pass 1 (BODY): dark obsidian-gold brush wake
+                // Pass 1 (BODY): soft dark-resonant dust slipstream
                 RenderSystem.defaultBlendFunc();
                 var bodyBuf = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-                DominionShader.emitLiveBolt(bodyBuf, mat, tail, head, 6, 0.22, entity.isVolley() ? 0.36 : 0.26,
-                        entity.getId() * 19L, time, 26, 18, 12, 165);
+                DominionShader.emitTrail(bodyBuf, mat, wakePts, entity.isVolley() ? 0.42 : 0.28,
+                        DominionShader.FX_BRUSH, entity.getId() & 63, pal.darkR, pal.darkG, pal.darkB, 92);
                 var bodyMesh = bodyBuf.build();
                 if (bodyMesh != null) BufferUploader.drawWithShader(bodyMesh);
 
-                // Pass 2 (GLOW): blazing liquid plasma comet + ragged shock collar + lightning spine
+                // Pass 2 (GLOW): 3D Fresnel aerodynamic Mach cone + soft resonant vapor trail
                 RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
                 var glowBuf = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-                DominionShader.emitBeam(glowBuf, mat, tail, head, entity.isVolley() ? 0.34 : 0.24,
-                        entity.getId() & 31, 255, entity.isVolley() ? 224 : 210, entity.isVolley() ? 120 : 136, 215);
-                DominionShader.emitLiveBolt(glowBuf, mat, tail.scale(0.85), head, 6, 0.18, 0.055,
-                        entity.getId() * 19L + 7, time, 255, 242, 186, 210);
-                DominionShader.emitOrganicWave(glowBuf, mat, dir.scale(0.1), dir, entity.isVolley() ? 0.95 : 0.72,
-                        0.16, time, entity.getId() * 31L, DominionShader.FX_PLASMA, 255, 236, 156, 175);
+                DominionShader.emitFresnelCone(glowBuf, mat, dir.scale(0.58), dir,
+                        entity.isVolley() ? 2.8 : 2.0, entity.isVolley() ? 0.92 : 0.68,
+                        16, 6, entity.getId() & 31, pal.primaryR, pal.primaryG, pal.primaryB, 175);
+                DominionShader.emitTrail(glowBuf, mat, wakePts, entity.isVolley() ? 0.28 : 0.18,
+                        DominionShader.FX_PLASMA, (entity.getId() + 17) & 63, pal.hotR, pal.hotG, pal.hotB, 165);
                 var glowMesh = glowBuf.build();
                 if (glowMesh != null) BufferUploader.drawWithShader(glowMesh);
             } finally {

@@ -35,7 +35,10 @@ public final class GodWandPrewarm {
                     BlueRedShader.prewarm();
                     DominionShader.prewarm();
                 }
-                case 2 -> GatePostFx.process(0, 0, .5f, .5f, 0, 0, 0);
+                case 2 -> {
+                    GatePostFx.process(0, 0, .5f, .5f, 0, 0, 0);
+                    DominionPostFx.prewarm();
+                }
                 case 3 -> AtomicPostFx.prewarm();
                 case 4, 5, 6 -> dryRun(step - 5);
                 default -> step = -1;
