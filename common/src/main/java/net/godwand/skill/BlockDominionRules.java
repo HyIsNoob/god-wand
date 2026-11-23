@@ -69,7 +69,8 @@ public final class BlockDominionRules {
     public static final int EVENT_AIR_STEP = 10;
     public static final int EVENT_SURGE = 11;
     public static final int EVENT_ORBITAL_BARRAGE = 12;
-    public static final int MAX_EVENT = EVENT_ORBITAL_BARRAGE;
+    public static final int EVENT_HERO_LAND = 13;
+    public static final int MAX_EVENT = EVENT_HERO_LAND;
 
     public static final int SURGE_RADIUS = 8;
     public static final int SURGE_MAX_BLOCKS = 24;

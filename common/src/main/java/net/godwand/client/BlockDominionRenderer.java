@@ -217,6 +217,7 @@ public final class BlockDominionRenderer {
         STEP_FLASHES.clear();
         DominionParticles.clear();
         DominionPostFx.reset();
+        BlockDominionPose.reset();
         impactFrameTicks = 0;
         camRollDeg = prevCamRollDeg = 0f;
         camFovMul = prevCamFovMul = 1.0f;
@@ -273,6 +274,12 @@ public final class BlockDominionRenderer {
     public static BlockDominionPalette localPalette() {
         ClientFormation f = localFormation();
         return f == null ? BlockDominionPalette.SOVEREIGN_GOLD : f.palette;
+    }
+
+    public static BlockDominionBrain.FormationKind formationOf(int entityId) {
+        ClientFormation f = FORMATIONS.get(entityId);
+        return (f == null || f.mode != BlockDominionRules.Mode.MANUAL || f.hiddenInCutscene)
+                ? BlockDominionBrain.FormationKind.IDLE : f.formation;
     }
 
     private static ClientFormation localFormation() {
@@ -445,10 +452,23 @@ public final class BlockDominionRenderer {
                 DominionParticles.spawnRingBurst(impactPt, threatDir, 0.90, 22, 0.28,
                         pal.hotR, pal.hotG, pal.hotB, DominionParticles.STYLE_SHARD);
                 BlockDominionSounds.play(ownerPos, BlockDominionSounds.PARRY, 0.95f, 1.02f);
+                // No sakuga impact frame on shields (owner preference: clean defense without screen flash!)
                 if (isLocal) {
-                    DominionPostFx.triggerShockwave(0.68f, 10, pal);
-                    triggerImpactFrame(3, 0.88f, (int) ((now + 17) & 63), pal);
+                    DominionPostFx.triggerShockwave(0.42f, 8, pal);
                 }
+            }
+            case BlockDominionRules.EVENT_HERO_LAND -> {
+                f.leftWingTrail.clear();
+                f.rightWingTrail.clear();
+                Vec3 landPos = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
+                addWave(payload.playerId(), new Vec3(0, 1, 0), 5.6, 14, now, pal);
+                DominionParticles.spawnRingBurst(landPos.add(0, 0.15, 0), new Vec3(0, 1, 0), 2.2, 34, 0.30,
+                        pal.primaryR, pal.primaryG, pal.primaryB, DominionParticles.STYLE_SHARD);
+                if (isLocal) {
+                    DominionPostFx.triggerShockwave(0.56f, 11, pal);
+                }
+                BlockDominionSounds.play(landPos, BlockDominionSounds.WING_FLAP, 0.95f, 0.68f);
+                BlockDominionSounds.play(landPos, BlockDominionSounds.IMPACT, 0.72f, 0.85f);
             }
             case BlockDominionRules.EVENT_FLIGHT_START -> {
                 f.leftWingTrail.clear();
@@ -775,8 +795,12 @@ public final class BlockDominionRenderer {
                 vb.spinPhase += f.stowed ? 0.08f : (f.volleyCharging ? 0.14f : 0.045f);
             }
 
+            if (owner instanceof net.minecraft.world.entity.LivingEntity living) {
+                BlockDominionPose.tickEntity(living, f.flying, f.glideMode, f.boosting, f.volleyCharging, now);
+            }
             emitTickParticles(f, owner, chest, look, now);
         }
+        BlockDominionPose.prune(now);
     }
 
     /** Drives smooth aerodynamic camera roll (Glide/Hover banking), dynamic speed/charge FOV, and DominionPostFx uniforms. */
@@ -798,7 +822,8 @@ public final class BlockDominionRenderer {
         float targetRoll = 0f;
         float targetFov = 1.0f;
         float targetBlur = 0f;
-        float targetBloom = local.mode == BlockDominionRules.Mode.AUTO ? 0.14f : 0.10f;
+        // Performance: 0% PostChain overhead when standing/walking normally; only activate for cinematic bursts/flight!
+        float targetBloom = 0.0f;
 
         if (local.flying) {
             float yaw = player.getYRot();
@@ -812,7 +837,7 @@ public final class BlockDominionRenderer {
             float speedFrac = Mth.clamp((float) ((speed - 0.65) / 1.30), 0f, 1f);
             targetBlur = local.boosting ? Math.max(0.45f, speedFrac * 0.92f) : speedFrac * 0.42f;
             targetFov = 1.0f + speedFrac * (local.boosting ? 0.12f : 0.06f);
-            targetBloom = local.boosting ? 0.34f : 0.18f;
+            targetBloom = local.boosting ? 0.34f : (speedFrac > 0.25f ? 0.14f : 0.0f);
         } else {
             lastPlayerYaw = player.getYRot();
         }
@@ -820,9 +845,9 @@ public final class BlockDominionRenderer {
         if (local.volleyCharging) {
             float vp = Mth.clamp(local.volleyTicks / (float) BlockDominionRules.VOLLEY_CHARGE_TICKS, 0f, 1f);
             targetFov = 1.0f - vp * 0.045f;
-            targetBloom = Math.max(targetBloom, 0.18f + vp * 0.28f);
+            targetBloom = Math.max(targetBloom, 0.16f + vp * 0.28f);
         } else if (local.formation == BlockDominionBrain.FormationKind.RAILGUN_RING) {
-            targetBloom = Math.max(targetBloom, 0.24f);
+            targetBloom = Math.max(targetBloom, 0.20f);
         }
 
         camRollDeg = Mth.lerp(0.22f, camRollDeg, targetRoll);
@@ -1120,11 +1145,16 @@ public final class BlockDominionRenderer {
     private static void renderSatelliteStoneSwarm(PoseStack matrices, MultiBufferSource.BufferSource bufferSource,
                                                   BlockRenderDispatcher blockRenderer, ClientFormation f,
                                                   Entity owner, Vec3 camPos, Vec3 camLook, double time, float tickDelta, boolean firstPerson) {
+        // Multiplayer Distance LOD: full detail nearby, 50% shards at 20..48 blocks, skip tiny shards beyond 48 blocks!
+        double distSq = owner.distanceToSqr(camPos);
+        if (distSq > 48.0 * 48.0) return;
+        int lodStep = distSq > 20.0 * 20.0 ? 2 : 1;
+
         int count = f.blocks.size();
         int shardsPerBlock = f.formation.isWings() ? 1 : 2;
-        int maxShards = f.formation.isWings() ? 36 : 84;
+        int maxShards = (f.formation.isWings() ? 36 : 84) / lodStep;
         int emitted = 0;
-        for (int i = 0; i < count && emitted < maxShards; i++) {
+        for (int i = 0; i < count && emitted < maxShards; i += lodStep) {
             VisualBlock vb = f.blocks.get(i);
             Vec3 host = vb.prevPos.lerp(vb.pos, tickDelta);
             for (int k = 0; k < shardsPerBlock && emitted < maxShards; k++) {

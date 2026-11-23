@@ -1049,12 +1049,27 @@ public final class BlockDominionManager {
         boolean mobilityChanged = false;
 
         if (st.wingFlying) {
+            boolean landingFromFlight = player.onGround() && !st.volleyCharging
+                    && ((st.wingGlideMode && st.flightVel.y <= 0.08) || (st.flightVertical < 0 && st.flightVel.y <= 0.02));
             if (st.mode != BlockDominionRules.Mode.MANUAL || st.hiddenInCutscene
                     || st.reserve.size() < BlockDominionRules.MIN_FLIGHT_BLOCKS
-                    || (player.onGround() && st.flightVertical < 0 && st.flightVel.y <= 0.02)) {
+                    || landingFromFlight) {
+                boolean heroLand = landingFromFlight
+                        && (st.flightVel.lengthSqr() > 0.62 * 0.62 || st.flightVel.y < -0.18);
+                Vec3 landVel = st.flightVel;
                 stopWingFlightInternal(player, st, false);
+                if (heroLand) {
+                    // Superhero touchdown: damp horizontal slide, zero fall damage, shockwave + trauma!
+                    player.setDeltaMovement(landVel.x * 0.25, 0.0, landVel.z * 0.25);
+                    player.hurtMarked = true;
+                    Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                            CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.24f, 8));
+                    mobilityEvent = BlockDominionRules.EVENT_HERO_LAND;
+                    mobEy = player.getY() + 0.1;
+                } else {
+                    mobilityEvent = BlockDominionRules.EVENT_FLIGHT_END;
+                }
                 mobilityChanged = true;
-                mobilityEvent = BlockDominionRules.EVENT_FLIGHT_END;
             } else {
                 if (player.getAbilities().flying) {
                     player.getAbilities().flying = false;
@@ -1147,6 +1162,11 @@ public final class BlockDominionManager {
 
         if (st.safeFallUntil >= now) {
             player.fallDistance = 0.0f;
+        }
+
+        // Prevent dedicated Survival servers (allow-flight=false) from kicking players using Block Wings or Air Stairs!
+        if ((st.wingFlying || st.airStairsActive || st.safeFallUntil >= now) && player.connection != null) {
+            ((net.godwand.mixin.ServerGamePacketListenerAccessor) player.connection).godwand$setAboveGroundTickCount(0);
         }
 
         // Milestone 2+3+4 Block Brain: scan threats every 2 ticks and update defensive/mobility/offensive/QoL formation

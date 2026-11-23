@@ -8,11 +8,14 @@
     "FlowableFluidMixin",
     "AtomicMovementMixin",
     "DisplayLifecycleMixin",
-    "ExperienceOrbAccessor"
+    "ExperienceOrbAccessor",
+    "ServerGamePacketListenerAccessor"
   ],
   "client": [
     "AtomicCameraMixin",
     "AtomicPoseMixin",
+    "BlockDominionFlightRenderMixin",
+    "BlockDominionPoseMixin",
     "GatePoseMixin",
     "CastPoseLastMixin",
     "AtomicFacingMixin",
