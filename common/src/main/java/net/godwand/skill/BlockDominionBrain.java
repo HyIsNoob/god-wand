@@ -388,6 +388,63 @@ public final class BlockDominionBrain {
     }
 
     /**
+     * Rotates any upright wing pose or world-relative point from the upright Hover body frame
+     * into the horizontal 3D Glide/Jet body frame (pitching head forward by {@code pitchDeg} and
+     * banking by {@code bankRollDeg} around the flight spine axis).
+     */
+    public static Vec3 rotateWingVec(Vec3 v, Vec3 lookDir, float pitchDeg, float bankRollDeg) {
+        if (Math.abs(pitchDeg) < 0.05f && Math.abs(bankRollDeg) < 0.05f) return v;
+        Vec3 fwd = new Vec3(lookDir.x, 0, lookDir.z);
+        if (fwd.lengthSqr() < 1e-4) fwd = new Vec3(0, 0, 1);
+        else fwd = fwd.normalize();
+        Vec3 right = new Vec3(-fwd.z, 0, fwd.x);
+        Vec3 up = new Vec3(0, 1, 0);
+
+        // Express v in upright (right, up, fwd) basis
+        double cR = v.dot(right);
+        double cU = v.dot(up);
+        double cF = v.dot(fwd);
+
+        // Pitch forward around right axis: +up tilts toward +fwd, -fwd (back) tilts toward +up!
+        double pRad = Math.toRadians(pitchDeg);
+        double cp = Math.cos(pRad), sp = Math.sin(pRad);
+        Vec3 pUp = up.scale(cp).add(fwd.scale(sp));
+        Vec3 pFwd = fwd.scale(cp).subtract(up.scale(sp));
+
+        // Bank roll around the pitched spine axis (pUp)
+        double rRad = Math.toRadians(bankRollDeg);
+        double cr = Math.cos(rRad), sr = Math.sin(rRad);
+        Vec3 bRight = right.scale(cr).add(pFwd.scale(sr));
+        Vec3 bFwd = pFwd.scale(cr).subtract(right.scale(sr));
+
+        return bRight.scale(cR).add(pUp.scale(cU)).add(bFwd.scale(cF));
+    }
+
+    /** Full sculpted 3D wing anatomy aligned to the player's live body pitch & bank roll (upright Hover <-> horizontal Glide!). */
+    public static WingPose wingPose(int index, int count, double time, Vec3 lookDir, boolean boosted,
+                                    float bodyPitchDeg, float bankRollDeg) {
+        float horizFrac = Mth.clamp(bodyPitchDeg / 76.0f, 0f, 1f);
+        WingPose base = wingPoseInternal(index, count, time, lookDir, boosted, horizFrac);
+        if (Math.abs(bodyPitchDeg) < 0.05f && Math.abs(bankRollDeg) < 0.05f) return base;
+        // Slight vertical lift when pitched horizontal so the sleek flat wings sit cleanly across the shoulder blades
+        Vec3 off = rotateWingVec(base.offset(), lookDir, bodyPitchDeg, bankRollDeg)
+                .add(0, horizFrac * 0.08, 0);
+        Vec3 xA = rotateWingVec(base.axisX(), lookDir, bodyPitchDeg, bankRollDeg).normalize();
+        Vec3 yA = rotateWingVec(base.axisY(), lookDir, bodyPitchDeg, bankRollDeg).normalize();
+        Vec3 zA = xA.cross(yA).normalize();
+        return new WingPose(off, base.scale(), xA, yA, zA, base.tier());
+    }
+
+    /** Wingtip offset aligned to live body pitch & bank roll so contrails stream straight off horizontal Glide wingtips! */
+    public static Vec3 wingTipOffset(boolean left, double time, Vec3 lookDir, boolean boosted,
+                                     float bodyPitchDeg, float bankRollDeg) {
+        float horizFrac = Mth.clamp(bodyPitchDeg / 76.0f, 0f, 1f);
+        Vec3 tip = wingFeatherTip(left, 1.0, time, lookDir, boosted, horizFrac);
+        if (Math.abs(bodyPitchDeg) < 0.05f && Math.abs(bankRollDeg) < 0.05f) return tip;
+        return rotateWingVec(tip, lookDir, bodyPitchDeg, bankRollDeg).add(0, horizFrac * 0.08, 0);
+    }
+
+    /**
      * Computes full sculpted 3D wing anatomy for block {@code index} of {@code count}:
      * - Tier 0: Armored spine / scapula mount between shoulder blades
      * - Tier 1: Continuous curved upper wing arch / bone spar tapering smoothly to the wrist & tip
@@ -395,6 +452,10 @@ public final class BlockDominionBrain {
      * - Tier 3: Layered secondary coverts filling the inner wing membrane for a dense, majestic silhouette.
      */
     public static WingPose wingPose(int index, int count, double time, Vec3 lookDir, boolean boosted) {
+        return wingPoseInternal(index, count, time, lookDir, boosted, 0f);
+    }
+
+    private static WingPose wingPoseInternal(int index, int count, double time, Vec3 lookDir, boolean boosted, float horizFrac) {
         Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
         if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
         else forward = forward.normalize();
@@ -404,7 +465,7 @@ public final class BlockDominionBrain {
         int spineCount = count >= 12 ? 2 : 0;
         if (index < spineCount) {
             double yOff = index == 0 ? 0.24 : -0.22;
-            double back = boosted ? -0.52 : -0.44;
+            double back = Mth.lerp(horizFrac, boosted ? -0.52 : -0.44, -0.34);
             Vec3 pos = forward.scale(back).add(up.scale(yOff + Math.sin(time * 0.14 + index) * 0.025));
             Vec3 sc = index == 0 ? new Vec3(0.42, 0.64, 0.24) : new Vec3(0.32, 0.46, 0.20);
             Vec3 yA = up;
@@ -429,25 +490,21 @@ public final class BlockDominionBrain {
         if (localIdx < archCount) {
             // Tier 1: Continuous curved upper wing arch (long axisX runs right along the curve tangent!)
             double u = archCount <= 1 ? 0.4 : (localIdx / (double) (archCount - 1));
-            Vec3 pos = wingArchPoint(side < 0, u, time, lookDir, boosted);
-            Vec3 next = wingArchPoint(side < 0, Math.min(1.0, u + 0.08), time, lookDir, boosted);
-            Vec3 prev = wingArchPoint(side < 0, Math.max(0.0, u - 0.08), time, lookDir, boosted);
+            Vec3 pos = wingArchPoint(side < 0, u, time, lookDir, boosted, horizFrac);
+            Vec3 next = wingArchPoint(side < 0, Math.min(1.0, u + 0.08), time, lookDir, boosted, horizFrac);
+            Vec3 prev = wingArchPoint(side < 0, Math.max(0.0, u - 0.08), time, lookDir, boosted, horizFrac);
             Vec3 xA = next.subtract(prev);
             xA = xA.lengthSqr() > 1e-6 ? xA.normalize() : right.scale(side);
-            // Make sure yA points generally upward perpendicular to arch tangent
-            Vec3 zA = xA.cross(up);
-            if (zA.lengthSqr() < 1e-5) zA = forward;
-            else zA = zA.normalize();
-            if (zA.dot(forward) < 0) zA = zA.scale(-1.0);
-            Vec3 yA = zA.cross(xA).normalize();
-            if (yA.y < 0) {
-                yA = yA.scale(-1.0);
-                zA = xA.cross(yA).normalize();
-            }
+            // Keep zA aligned with wing thickness normal (forward in body frame) so horizontal wings stay razor-flat!
+            Vec3 yA = forward.cross(xA);
+            if (yA.lengthSqr() < 1e-5) yA = up;
+            else yA = yA.normalize();
+            if (yA.y < 0) yA = yA.scale(-1.0);
+            Vec3 zA = xA.cross(yA).normalize();
 
             double sx = Mth.lerp(u, 0.62, 0.34);
             double sy = Mth.lerp(u, 0.28, 0.16);
-            double sz = Mth.lerp(u, 0.28, 0.18);
+            double sz = Mth.lerp(u, 0.24, 0.14);
             return new WingPose(pos, new Vec3(sx, sy, sz), xA, yA, zA, 1);
         }
 
@@ -456,8 +513,8 @@ public final class BlockDominionBrain {
             int fi = localIdx - archCount;
             double u = primaryCount <= 1 ? 0.6 : (fi / (double) (primaryCount - 1));
             double archU = 0.14 + u * 0.86;
-            Vec3 root = wingArchPoint(side < 0, archU, time, lookDir, boosted);
-            Vec3 tip = wingFeatherTip(side < 0, u, time, lookDir, boosted);
+            Vec3 root = wingArchPoint(side < 0, archU, time, lookDir, boosted, horizFrac);
+            Vec3 tip = wingFeatherTip(side < 0, u, time, lookDir, boosted, horizFrac);
             Vec3 center = root.lerp(tip, 0.50);
 
             double featherLen = Math.max(0.75, root.distanceTo(tip));
@@ -466,8 +523,9 @@ public final class BlockDominionBrain {
             double sz = 0.11;
 
             Vec3 yA = tip.subtract(root).normalize();
-            // Thin feather face aligns with wing plane (normal ~ forward, slightly angled for graceful overlapping depth)
-            Vec3 planeRef = forward.add(right.scale(side * (boosted ? 0.28 : 0.14))).normalize();
+            // Thin feather face aligns with wing plane (normal ~ forward in body frame -> becomes world +Y when horizontal!)
+            double cant = Mth.lerp(horizFrac, boosted ? 0.28 : 0.14, 0.06);
+            Vec3 planeRef = forward.add(right.scale(side * cant)).normalize();
             Vec3 xA = yA.cross(planeRef);
             if (xA.lengthSqr() < 1e-5) xA = right;
             else xA = xA.normalize();
@@ -479,12 +537,13 @@ public final class BlockDominionBrain {
         int ci = localIdx - archCount - primaryCount;
         double u = covertCount <= 1 ? 0.5 : (ci / (double) (covertCount - 1));
         double archU = 0.08 + u * 0.72;
-        Vec3 root = wingArchPoint(side < 0, archU, time, lookDir, boosted);
-        Vec3 tip = wingFeatherTip(side < 0, u * 0.82, time, lookDir, boosted);
-        Vec3 center = root.lerp(tip, 0.34).add(forward.scale(boosted ? -0.14 : -0.10));
+        Vec3 root = wingArchPoint(side < 0, archU, time, lookDir, boosted, horizFrac);
+        Vec3 tip = wingFeatherTip(side < 0, u * 0.82, time, lookDir, boosted, horizFrac);
+        double covertDepth = Mth.lerp(horizFrac, boosted ? -0.14 : -0.10, -0.05);
+        Vec3 center = root.lerp(tip, 0.34).add(forward.scale(covertDepth));
         double sx = Mth.lerp(u, 0.30, 0.22);
         double sy = Mth.lerp(u, 0.54, 0.80);
-        double sz = 0.13;
+        double sz = 0.12;
         Vec3 yA = tip.subtract(root).normalize();
         Vec3 xA = yA.cross(forward);
         if (xA.lengthSqr() < 1e-5) xA = right;
@@ -495,6 +554,14 @@ public final class BlockDominionBrain {
 
     /** Point along the sculpted curved leading-edge wing arch ({@code u} = 0 at shoulder -> 1 at outer wingtip). */
     public static Vec3 wingArchPoint(boolean left, double u, double time, Vec3 lookDir, boolean boosted) {
+        return wingArchPoint(left, u, time, lookDir, boosted, 0f);
+    }
+
+    /**
+     * Leading-edge wing arch with smooth morph from upright Hover ({@code horizFrac = 0})
+     * to flat swept-back aerodynamic Glide/Jet wings ({@code horizFrac = 1}).
+     */
+    public static Vec3 wingArchPoint(boolean left, double u, double time, Vec3 lookDir, boolean boosted, float horizFrac) {
         Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
         if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
         else forward = forward.normalize();
@@ -502,27 +569,46 @@ public final class BlockDominionBrain {
         Vec3 up = new Vec3(0, 1, 0);
         int side = left ? -1 : 1;
 
+        double upSpan, upArchY, upSweepBack;
         if (boosted) {
-            // Swept-back supersonic chevron arch (kept clearly visible in 3rd-person back view!)
-            double span = 0.42 + u * 2.55;
-            double archY = 0.24 + Math.sin(u * Math.PI * 0.76) * 1.02 + u * 0.22;
-            double sweepBack = -0.44 - u * 1.12;
-            double vibe = Math.sin(time * 1.35 + u * 6.0) * 0.022 * u;
-            return right.scale(side * span).add(forward.scale(sweepBack)).add(up.scale(archY + vibe));
+            upSpan = 0.42 + u * 2.55;
+            upArchY = 0.24 + Math.sin(u * Math.PI * 0.76) * 1.02 + u * 0.22
+                    + Math.sin(time * 1.35 + u * 6.0) * 0.022 * u;
+            upSweepBack = -0.44 - u * 1.12;
+        } else {
+            double flapPhase = time * 0.22 - u * 1.15;
+            double flapY = Math.sin(flapPhase) * (0.12 + u * 0.48);
+            double flapBack = -Math.cos(flapPhase) * (0.08 + u * 0.18);
+            upSpan = 0.44 + u * 2.78;
+            upArchY = 0.24 + Math.sin(Math.pow(u, 0.78) * Math.PI * 0.86) * 1.48 + u * 0.18 + flapY;
+            upSweepBack = -0.44 - u * 0.60 + flapBack;
         }
 
-        // Majestic eagle/seraphic arch: rises sharply to high wrist at u~0.42, then sweeps gracefully outward
-        double flapPhase = time * 0.22 - u * 1.15;
-        double flapY = Math.sin(flapPhase) * (0.12 + u * 0.48);
-        double flapBack = -Math.cos(flapPhase) * (0.08 + u * 0.18);
-        double span = 0.44 + u * 2.78;
-        double archY = 0.24 + Math.sin(Math.pow(u, 0.78) * Math.PI * 0.86) * 1.48 + u * 0.18;
-        double sweepBack = -0.44 - u * 0.60 + flapBack;
-        return right.scale(side * span).add(forward.scale(sweepBack)).add(up.scale(archY + flapY));
+        if (horizFrac <= 0.001f) {
+            return right.scale(side * upSpan).add(forward.scale(upSweepBack)).add(up.scale(upArchY));
+        }
+
+        // Horizontal Glide / Mach Jet wing geometry in body frame (before 80 deg pitch!):
+        // - spine axis (up) becomes world forward/backward -> sweep smoothly BACKWARD like falcon/fighter wings!
+        // - back depth (-forward) becomes height above back -> stay RAZOR-FLAT with subtle 8-deg dihedral!
+        double vibe = boosted ? Math.sin(time * 1.35 + u * 6.0) * 0.018 * u
+                : Math.sin(time * 0.16 - u * 1.1) * (0.03 + u * 0.08);
+        double hSpan = 0.38 + u * (boosted ? 3.10 : 2.90);
+        double hSpine = 0.34 + Math.sin(u * Math.PI * 0.55) * 0.16 - u * (boosted ? 1.55 : 1.15);
+        double hBack = -0.32 - Math.sin(u * Math.PI * 0.65) * 0.14 - u * (boosted ? 0.18 : 0.12) + vibe;
+
+        double span = Mth.lerp(horizFrac, upSpan, hSpan);
+        double archY = Mth.lerp(horizFrac, upArchY, hSpine);
+        double sweepBack = Mth.lerp(horizFrac, upSweepBack, hBack);
+        return right.scale(side * span).add(forward.scale(sweepBack)).add(up.scale(archY));
     }
 
     /** Trailing feather-tip position corresponding to primary feather {@code u} (0=inner -> 1=outermost pinion). */
     public static Vec3 wingFeatherTip(boolean left, double u, double time, Vec3 lookDir, boolean boosted) {
+        return wingFeatherTip(left, u, time, lookDir, boosted, 0f);
+    }
+
+    public static Vec3 wingFeatherTip(boolean left, double u, double time, Vec3 lookDir, boolean boosted, float horizFrac) {
         Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
         if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
         else forward = forward.normalize();
@@ -531,14 +617,19 @@ public final class BlockDominionBrain {
         int side = left ? -1 : 1;
 
         double archU = 0.16 + u * 0.84;
-        Vec3 root = wingArchPoint(left, archU, time, lookDir, boosted);
+        Vec3 root = wingArchPoint(left, archU, time, lookDir, boosted, horizFrac);
         double len = (boosted ? 0.92 : 0.96) + Math.sin(u * Math.PI * 0.88) * (boosted ? 0.56 : 0.72);
-        // Splay angle sweeps smoothly from downward-outward (inner feathers) to wide horizontal-outward (wingtip pinions!)
-        double splayRad = Mth.lerp(u, Math.toRadians(-72.0), Math.toRadians(boosted ? -8.0 : -14.0));
+        // Upright splay sweeps downward-outward; horizontal Glide splay streams straight backward (-spine) along the flat wing plane!
+        double uprightSplay = Mth.lerp(u, Math.toRadians(-72.0), Math.toRadians(boosted ? -8.0 : -14.0));
+        double horizSplay = Mth.lerp(u, Math.toRadians(-82.0), Math.toRadians(boosted ? -42.0 : -34.0));
+        double splayRad = Mth.lerp(horizFrac, uprightSplay, horizSplay);
         double outX = Math.cos(splayRad) * len;
         double outY = Math.sin(splayRad) * len;
-        double trailBack = boosted ? (-0.52 - u * 0.45) : (-0.24 - u * 0.28);
-        double waveTip = boosted ? 0.0 : Math.sin(time * 0.22 - archU * 1.25 - 0.55) * (0.14 + u * 0.22);
+        double upTrailBack = boosted ? (-0.52 - u * 0.45) : (-0.24 - u * 0.28);
+        double horizTrailBack = -0.04 - u * 0.04;
+        double trailBack = Mth.lerp(horizFrac, upTrailBack, horizTrailBack);
+        double waveAmp = Mth.lerp(horizFrac, boosted ? 0.0 : 1.0, boosted ? 0.0 : 0.25);
+        double waveTip = waveAmp * Math.sin(time * 0.22 - archU * 1.25 - 0.55) * (0.14 + u * 0.22);
         return root.add(right.scale(side * outX))
                 .add(up.scale(outY + waveTip))
                 .add(forward.scale(trailBack));

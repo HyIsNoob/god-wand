@@ -96,6 +96,18 @@ public final class BlockDominionPose {
         STATES.entrySet().removeIf(e -> nowTick - e.getValue().lastTick > 40);
     }
 
+    /** Returns the smooth interpolated forward body pitch in degrees (0 upright -> ~74..85 horizontal Glide). */
+    public static float bodyPitchDegrees(int entityId, float partialTick) {
+        PoseState st = STATES.get(entityId);
+        return st == null ? 0f : Mth.lerp(partialTick, st.prevPitchDeg, st.pitchDeg);
+    }
+
+    /** Returns the smooth interpolated turn bank roll in degrees for syncing horizontal wings with the player body. */
+    public static float bodyRollDegrees(int entityId, float partialTick) {
+        PoseState st = STATES.get(entityId);
+        return st == null ? 0f : Mth.lerp(partialTick, st.prevRollDeg, st.rollDeg);
+    }
+
     /**
      * Rotates the entire player body in LivingEntityRenderer.setupRotations (smoothly horizontal during Glide/Jet/Mach,
      * with subtle aerodynamic turn banking and weightless hover bob).

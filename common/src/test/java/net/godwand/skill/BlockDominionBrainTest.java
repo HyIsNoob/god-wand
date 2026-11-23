@@ -190,5 +190,19 @@ class BlockDominionBrainTest {
         }
         Vec3 stride0 = BlockDominionBrain.liquidStrideOffset(0, 12, 5.0, look);
         assertTrue(stride0.y < -1.2, "Liquid Stride slabs skim level beneath boots");
+
+        // Horizontal 3D Glide wings pitch flat across the horizontal back (wide X span, compact vertical Y thickness!)
+        double uprightMinY = Double.MAX_VALUE, uprightMaxY = -Double.MAX_VALUE;
+        double glideMinY = Double.MAX_VALUE, glideMaxY = -Double.MAX_VALUE;
+        for (int i = 2; i < 40; i++) {
+            Vec3 upW = BlockDominionBrain.wingPose(i, 40, 10.0, look, true, 0f, 0f).offset();
+            Vec3 glW = BlockDominionBrain.wingPose(i, 40, 10.0, look, true, 80f, 0f).offset();
+            uprightMinY = Math.min(uprightMinY, upW.y);
+            uprightMaxY = Math.max(uprightMaxY, upW.y);
+            glideMinY = Math.min(glideMinY, glW.y);
+            glideMaxY = Math.max(glideMaxY, glW.y);
+        }
+        assertTrue((glideMaxY - glideMinY) < (uprightMaxY - uprightMinY) * 0.72,
+                "Horizontal Glide wings flatten sleekly along the horizontal back");
     }
 }

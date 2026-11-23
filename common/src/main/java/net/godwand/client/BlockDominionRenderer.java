@@ -56,6 +56,9 @@ public final class BlockDominionRenderer {
         Vec3 scale;
         Vec3 prevScale;
         float spinPhase;
+        final Quaternionf rot = new Quaternionf();
+        final Quaternionf prevRot = new Quaternionf();
+        boolean rotInit;
         Vec3 pickupOrigin;
         long pickupStartTick = -1000;
 
@@ -160,8 +163,12 @@ public final class BlockDominionRenderer {
         final List<VisualBlock> blocks = new ArrayList<>();
         final ArrayDeque<Vec3> leftWingTrail = new ArrayDeque<>(WING_TRAIL_LEN);
         final ArrayDeque<Vec3> rightWingTrail = new ArrayDeque<>(WING_TRAIL_LEN);
-        // World-anchored stepping stones that stay pinned in world space as the player walks up/down!
-        final ArrayDeque<Vec3> worldSteps = new ArrayDeque<>(7);
+        // Fixed 7-slot ring buffer for world-anchored stepping stones so ONLY the oldest tail block recycles forward
+        // while the other 6 steps stay 100% motionless under the player's boots (zero block-shifting jitter!).
+        final Vec3[] stepSlots = new Vec3[7];
+        int stepCount;
+        int stepCursor;
+        Vec3 lastStepAnchor;
 
         int pr() { return Mth.clamp(Math.round(pR), 0, 255); }
         int pg() { return Mth.clamp(Math.round(pG), 0, 255); }
@@ -364,20 +371,41 @@ public final class BlockDominionRenderer {
         int[] ids = payload.blockStateIds();
         int oldSize = f.blocks.size();
 
-        while (f.blocks.size() > ids.length) {
-            f.blocks.remove(f.blocks.size() - 1);
+        // State-preserving multiset sync: keeps existing VisualBlocks in their EXACT physical slots & textures
+        // even after reassignNearestSlots() reorders f.blocks (eliminates block swapping & material flicker!).
+        Map<Integer, Integer> targetCounts = new HashMap<>();
+        for (int id : ids) targetCounts.merge(id, 1, Integer::sum);
+
+        Map<Integer, Integer> keptCounts = new HashMap<>();
+        for (int i = f.blocks.size() - 1; i >= 0; i--) {
+            int curId = Block.getId(f.blocks.get(i).state);
+            int want = targetCounts.getOrDefault(curId, 0);
+            int have = keptCounts.getOrDefault(curId, 0);
+            if (have < want) {
+                keptCounts.put(curId, have + 1);
+            } else {
+                f.blocks.remove(i);
+            }
         }
-        for (int i = 0; i < f.blocks.size(); i++) {
-            f.blocks.get(i).state = decodeState(ids[i]);
+
+        List<BlockState> toAdd = new ArrayList<>();
+        Map<Integer, Integer> addedSoFar = new HashMap<>(keptCounts);
+        for (int id : ids) {
+            int have = addedSoFar.getOrDefault(id, 0);
+            int want = targetCounts.getOrDefault(id, 0);
+            if (have < want) {
+                addedSoFar.put(id, have + 1);
+                toAdd.add(decodeState(id));
+            }
         }
+
         boolean isSurgeEvent = payload.eventKind() == BlockDominionRules.EVENT_SURGE;
-        int addedCount = Math.max(1, ids.length - oldSize);
-        for (int i = f.blocks.size(); i < ids.length; i++) {
-            BlockState st = decodeState(ids[i]);
-            boolean isPickup = (payload.eventKind() == BlockDominionRules.EVENT_PICKUP || isSurgeEvent) && i >= oldSize;
+        int addedCount = Math.max(1, toAdd.size());
+        for (int idx = 0; idx < toAdd.size(); idx++) {
+            BlockState st = toAdd.get(idx);
+            boolean isPickup = (payload.eventKind() == BlockDominionRules.EVENT_PICKUP || isSurgeEvent);
             Vec3 spawnPos;
-            if (isSurgeEvent && i >= oldSize) {
-                int idx = i - oldSize;
+            if (isSurgeEvent) {
                 double ang = (Math.PI * 2.0 * idx / addedCount) + (now * 0.17);
                 double rad = 2.6 + (idx % 4) * 1.4;
                 spawnPos = new Vec3(payload.eventX() + Math.cos(ang) * rad, payload.eventY() - 0.2, payload.eventZ() + Math.sin(ang) * rad);
@@ -385,7 +413,7 @@ public final class BlockDominionRenderer {
                 spawnPos = isPickup ? new Vec3(payload.eventX(), payload.eventY(), payload.eventZ()) : ownerPos;
             }
             float startScale = isPickup ? 0.94f : 0.25f;
-            VisualBlock vb = new VisualBlock(st, spawnPos, startScale, (i * 1.37f) % 6.283f);
+            VisualBlock vb = new VisualBlock(st, spawnPos, startScale, ((f.blocks.size() + idx) * 1.37f) % 6.283f);
             if (isPickup) {
                 vb.pickupOrigin = spawnPos;
                 vb.pickupStartTick = now;
@@ -655,12 +683,21 @@ public final class BlockDominionRenderer {
         float unfold = Mth.clamp((now - f.unfoldStartTick) / (float) BlockDominionRules.UNFOLD_TICKS, 0f, 1f);
         float volley = Mth.clamp(f.volleyTicks / (float) BlockDominionRules.VOLLEY_CHARGE_TICKS, 0f, 1f);
 
+        float wingPitchDeg = f.formation.isWings() ? BlockDominionPose.bodyPitchDegrees(owner.getId(), 1.0f) : 0f;
+        float wingRollDeg = f.formation.isWings() ? BlockDominionPose.bodyRollDegrees(owner.getId(), 1.0f) : 0f;
+
         List<Vec3> current = new ArrayList<>(n);
         List<Vec3> targets = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
             current.add(f.blocks.get(i).pos);
-            targets.add(chest.add(BlockDominionBrain.slotOffset(
-                    f.formation, i, n, now, look, f.threatPrimary, f.threatSecondary, unfold, volley)));
+            if (f.formation.isWings()) {
+                targets.add(chest.add(BlockDominionBrain.wingPose(
+                        i, n, now, look, f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST,
+                        wingPitchDeg, wingRollDeg).offset()));
+            } else {
+                targets.add(chest.add(BlockDominionBrain.slotOffset(
+                        f.formation, i, n, now, look, f.threatPrimary, f.threatSecondary, unfold, volley)));
+            }
         }
         int[] perm = BlockDominionBrain.assignNearestSlots(current, targets);
         List<VisualBlock> reordered = new ArrayList<>(n);
@@ -715,7 +752,8 @@ public final class BlockDominionRenderer {
             float unfoldProgress = Mth.clamp((now - f.unfoldStartTick) / (float) BlockDominionRules.UNFOLD_TICKS, 0f, 1f);
             float volleyProgress = Mth.clamp(f.volleyTicks / (float) BlockDominionRules.VOLLEY_CHARGE_TICKS, 0f, 1f);
 
-            // Maintain true world-space anchored stepping stones during Air-Step Stairs AND Liquid Stride!
+            // Ring-buffer world-space stepping stones during Air-Step Stairs AND Liquid Stride:
+            // ONLY the single oldest tail stone recycles ahead; the other 6 stones stay 100% motionless under boots!
             if (f.formation.isStepping()) {
                 Vec3 horizFwd = new Vec3(look.x, 0, look.z);
                 horizFwd = horizFwd.lengthSqr() > 1e-4 ? horizFwd.normalize() : new Vec3(0, 0, 1);
@@ -723,39 +761,54 @@ public final class BlockDominionRenderer {
                 boolean liquid = f.formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE;
                 double stepY = liquid ? (feet.y - 0.10) : (feet.y - 0.18 + (f.stairAscending ? 0.14 : -0.06));
                 Vec3 candidate = new Vec3(feet.x + horizFwd.x * 0.42, stepY, feet.z + horizFwd.z * 0.42);
-                Vec3 last = f.worldSteps.peekFirst();
-                if (last == null) {
+                if (f.stepCount == 0 || f.lastStepAnchor == null) {
                     double leadBack = liquid ? 0.0 : (f.stairAscending ? -0.26 : 0.24);
-                    f.worldSteps.addFirst(new Vec3(feet.x - horizFwd.x * 0.65, feet.y - 0.14 + leadBack, feet.z - horizFwd.z * 0.65));
-                    f.worldSteps.addFirst(new Vec3(feet.x, feet.y - 0.12, feet.z));
-                    f.worldSteps.addFirst(candidate);
+                    f.stepSlots[0] = new Vec3(feet.x - horizFwd.x * 0.65, feet.y - 0.14 + leadBack, feet.z - horizFwd.z * 0.65);
+                    f.stepSlots[1] = new Vec3(feet.x, feet.y - 0.12, feet.z);
+                    f.stepSlots[2] = candidate;
+                    f.stepCount = 3;
+                    f.stepCursor = 3;
+                    f.lastStepAnchor = candidate;
                 } else {
-                    double dx = feet.x - last.x, dz = feet.z - last.z;
+                    double dx = feet.x - f.lastStepAnchor.x, dz = feet.z - f.lastStepAnchor.z;
                     double horizDist = Math.sqrt(dx * dx + dz * dz);
-                    double dy = Math.abs(stepY - last.y);
+                    double dy = Math.abs(stepY - f.lastStepAnchor.y);
                     if (horizDist >= 0.72 || (!liquid && dy >= 0.34)) {
-                        f.worldSteps.addFirst(candidate);
-                        while (f.worldSteps.size() > 7) f.worldSteps.removeLast();
+                        f.stepSlots[f.stepCursor] = candidate;
+                        f.stepCursor = (f.stepCursor + 1) % 7;
+                        if (f.stepCount < 7) f.stepCount++;
+                        f.lastStepAnchor = candidate;
                         DominionParticles.spawnSmoke(candidate.add(0, -0.06, 0), new Vec3(0, 0.015, 0),
-                                0.36f, 14, f.mr(), f.mg(), f.mb(), 78);
+                                0.36f, 14, f.mr(), f.mg(), f.mb(), 72);
                     }
                 }
             } else {
-                f.worldSteps.clear();
+                f.stepCount = 0;
+                f.stepCursor = 0;
+                f.lastStepAnchor = null;
             }
 
-            List<Vec3> anchoredSteps = f.worldSteps.isEmpty() ? List.of() : new ArrayList<>(f.worldSteps);
+            // Tick character pose FIRST so wing pitch & bank roll stay locked to the body on the exact same tick!
+            if (owner instanceof net.minecraft.world.entity.LivingEntity living) {
+                BlockDominionPose.tickEntity(living, f.flying, f.glideMode, f.boosting, f.volleyCharging, now);
+            }
+            float wingPitchDeg = f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH
+                    ? 0f : BlockDominionPose.bodyPitchDegrees(owner.getId(), 1.0f);
+            float wingRollDeg = f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH
+                    ? 0f : BlockDominionPose.bodyRollDegrees(owner.getId(), 1.0f);
+
             int count = f.blocks.size();
             for (int i = 0; i < count; i++) {
                 VisualBlock vb = f.blocks.get(i);
                 vb.prevPos = vb.pos;
                 vb.prevScale = vb.scale;
+                vb.prevRot.set(vb.rot);
 
                 Vec3 target;
                 Vec3 targetScale;
-                if (f.formation.isStepping() && i < anchoredSteps.size()) {
-                    // World-anchored floating stone stair/liquid tread — stays locked in place while player walks over it!
-                    target = anchoredSteps.get(i);
+                boolean isAnchoredStep = f.formation.isStepping() && i < f.stepCount && f.stepSlots[i] != null;
+                if (isAnchoredStep) {
+                    target = f.stepSlots[i];
                     targetScale = f.formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE
                             ? new Vec3(0.94, 0.20, 0.94)
                             : new Vec3(0.86, 0.28, 0.86);
@@ -765,7 +818,8 @@ public final class BlockDominionRenderer {
                     targetScale = wp.scale();
                 } else if (f.formation.isWings()) {
                     BlockDominionBrain.WingPose wp = BlockDominionBrain.wingPose(
-                            i, count, now, look, f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST);
+                            i, count, now, look, f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST,
+                            wingPitchDeg, wingRollDeg);
                     target = chest.add(wp.offset());
                     targetScale = wp.scale();
                 } else {
@@ -798,49 +852,41 @@ public final class BlockDominionRenderer {
                         vb.prevPos = target;
                         vb.vel = Vec3.ZERO;
                     } else {
-                        // World-anchored stairs/liquid strides stay pinned in world space (carry = 0); moving wings/shields carry smoothly!
-                        double carry = (f.formation.isStepping() && i < anchoredSteps.size()) ? 0.0
-                                : f.formation.isMobility() ? 0.94
-                                : (f.formation.isShield() || f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING ? 0.88 : 0.65);
+                        // Critically-damped smooth exponential follow (silky glide, ZERO bouncy spring overshoot!)
+                        double carry = isAnchoredStep ? 0.0
+                                : f.formation.isWings() ? 0.96
+                                : (f.formation.isShield() || f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING ? 0.90 : 0.76);
                         vb.pos = vb.pos.add(ownerDelta.scale(carry));
 
-                        double stiffness;
-                        double damping;
-                        if (f.formation.isStepping() && i < 7) {
-                            stiffness = 0.82;
-                            damping = 0.78;
-                        } else if (f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING && i < 5) {
-                            stiffness = 0.72;
-                            damping = 0.72;
-                        } else if (f.formation.isShield()) {
-                            stiffness = 0.62;
-                            damping = 0.66;
-                        } else if (f.formation.isWings()) {
-                            stiffness = f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST ? 0.66 : 0.52;
-                            damping = 0.72;
-                        } else if (f.stowed) {
-                            stiffness = 0.48;
-                            damping = 0.70;
-                        } else if (f.volleyCharging) {
-                            stiffness = 0.44;
-                            damping = 0.68;
-                        } else {
-                            stiffness = 0.28;
-                            damping = 0.62;
-                        }
-                        Vec3 force = target.subtract(vb.pos).scale(stiffness);
-                        vb.vel = vb.vel.add(force).scale(1.0 - damping);
+                        double follow = isAnchoredStep ? 0.42
+                                : f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST ? 0.48
+                                : f.formation.isWings() ? 0.34
+                                : f.formation.isShield() ? 0.44
+                                : f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING ? 0.46
+                                : f.volleyCharging ? 0.30
+                                : f.stowed ? 0.34 : 0.24;
+                        Vec3 desiredVel = target.subtract(vb.pos).scale(follow);
+                        vb.vel = vb.vel.lerp(desiredVel, 0.62);
                         vb.pos = vb.pos.add(vb.vel);
                     }
                 }
-                vb.scale = vb.scale.lerp(targetScale, 0.34);
-                vb.spinPhase += f.stowed ? 0.08f : (f.volleyCharging ? 0.14f : 0.045f);
+                vb.scale = vb.scale.lerp(targetScale, 0.26);
+                vb.spinPhase += f.stowed ? 0.06f : (f.volleyCharging ? 0.11f : 0.036f);
+
+                // Smooth quaternion slerp for every block so formation changes never snap rotation in 1 frame!
+                Quaternionf targetRot = computeTargetOrientation(f, i, count, vb.pos, chest, look, now,
+                        vb.spinPhase, wingPitchDeg, wingRollDeg);
+                if (!vb.rotInit) {
+                    vb.rot.set(targetRot);
+                    vb.prevRot.set(targetRot);
+                    vb.rotInit = true;
+                } else {
+                    float rotRate = f.formation.isWings() || f.formation.isShield() ? 0.34f : 0.24f;
+                    vb.rot.slerp(targetRot, rotRate);
+                }
             }
 
-            if (owner instanceof net.minecraft.world.entity.LivingEntity living) {
-                BlockDominionPose.tickEntity(living, f.flying, f.glideMode, f.boosting, f.volleyCharging, now);
-            }
-            emitTickParticles(f, owner, chest, look, now);
+            emitTickParticles(f, owner, chest, look, now, wingPitchDeg, wingRollDeg);
         }
         BlockDominionPose.prune(now);
     }
@@ -897,7 +943,8 @@ public final class BlockDominionRenderer {
         DominionPostFx.setAmbientState(targetBlur, targetBloom, local.palette);
     }
 
-    private static void emitTickParticles(ClientFormation f, Entity owner, Vec3 chest, Vec3 look, long now) {
+    private static void emitTickParticles(ClientFormation f, Entity owner, Vec3 chest, Vec3 look, long now,
+                                          float wingPitchDeg, float wingRollDeg) {
         if (f.hiddenInCutscene) return;
         int count = f.blocks.size();
         int pr = f.pr(), pg = f.pg(), pb = f.pb();
@@ -906,18 +953,20 @@ public final class BlockDominionRenderer {
         int mr = f.mr(), mg = f.mg(), mb = f.mb();
 
         if (f.mode == BlockDominionRules.Mode.MANUAL && count > 0) {
-            if (f.formation.isWings()) {
+            if (f.formation.isWings() && f.formation != BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
                 boolean boosted = f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST;
-                Vec3 lTip = chest.add(BlockDominionBrain.wingTipOffset(true, now, look, boosted));
-                Vec3 rTip = chest.add(BlockDominionBrain.wingTipOffset(false, now, look, boosted));
+                Vec3 lTip = chest.add(BlockDominionBrain.wingTipOffset(true, now, look, boosted, wingPitchDeg, wingRollDeg));
+                Vec3 rTip = chest.add(BlockDominionBrain.wingTipOffset(false, now, look, boosted, wingPitchDeg, wingRollDeg));
                 pushTrail(f.leftWingTrail, lTip);
                 pushTrail(f.rightWingTrail, rTip);
 
                 Vec3 wake = owner.getDeltaMovement().scale(-0.32);
                 if (now % 2 == 0) {
                     double sampleU = 0.25 + ((now * 0.19) % 0.7);
-                    Vec3 lPt = chest.add(BlockDominionBrain.wingFeatherTip(true, sampleU, now, look, boosted));
-                    Vec3 rPt = chest.add(BlockDominionBrain.wingFeatherTip(false, sampleU, now, look, boosted));
+                    Vec3 lPt = chest.add(BlockDominionBrain.rotateWingVec(
+                            BlockDominionBrain.wingFeatherTip(true, sampleU, now, look, boosted), look, wingPitchDeg, wingRollDeg));
+                    Vec3 rPt = chest.add(BlockDominionBrain.rotateWingVec(
+                            BlockDominionBrain.wingFeatherTip(false, sampleU, now, look, boosted), look, wingPitchDeg, wingRollDeg));
                     boolean dark = (now % 4 == 0);
                     DominionParticles.spawnSmoke(lPt, wake.add(0, -0.02, 0), boosted ? 0.48f : 0.38f, 16,
                             dark ? dr : mr, dark ? dg : mg, dark ? db : mb, dark ? 120 : 95);
@@ -1111,9 +1160,10 @@ public final class BlockDominionRenderer {
                     if (firstPerson && isObstructingFirstPerson(renderWorld, camPos, camLook, f.formation, i)) continue;
 
                     int light = sampleLight(renderWorld, owner);
+                    Quaternionf renderRot = new Quaternionf(vb.prevRot).slerp(vb.rot, tickDelta);
                     matrices.pushPose();
                     matrices.translate(renderWorld.x - camPos.x, renderWorld.y - camPos.y, renderWorld.z - camPos.z);
-                    applySmartOrientation(matrices, f, i, count, renderWorld, chest, look, time, vb.spinPhase + tickDelta * 0.045f);
+                    matrices.mulPose(renderRot);
                     matrices.scale((float) sc.x, (float) sc.y, (float) sc.z);
                     matrices.translate(-0.5, -0.5, -0.5);
                     blockRenderer.renderSingleBlock(vb.state, matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
@@ -1297,24 +1347,24 @@ public final class BlockDominionRenderer {
         }
     }
 
-    private static void applySmartOrientation(PoseStack matrices, ClientFormation f, int index, int count,
-                                              Vec3 blockPos, Vec3 chest, Vec3 look, double time, float spinPhase) {
+    private static Quaternionf computeTargetOrientation(ClientFormation f, int index, int count,
+                                                        Vec3 blockPos, Vec3 chest, Vec3 look, double time, float spinPhase,
+                                                        float wingPitchDeg, float wingRollDeg) {
         if (f.formation == BlockDominionBrain.FormationKind.SHIELD_SINGLE) {
-            matrices.mulPose(faceDirection(f.threatPrimary));
+            return faceDirection(f.threatPrimary);
         } else if (f.formation == BlockDominionBrain.FormationKind.SHIELD_MULTI) {
             int half = (count + 1) / 2;
-            matrices.mulPose(faceDirection(index < half ? f.threatPrimary : f.threatSecondary));
+            return faceDirection(index < half ? f.threatPrimary : f.threatSecondary);
         } else if (f.formation == BlockDominionBrain.FormationKind.SHIELD_DOME) {
             Vec3 radial = blockPos.subtract(chest);
-            matrices.mulPose(faceDirection(radial.lengthSqr() > 1e-4 ? radial : look));
+            return faceDirection(radial.lengthSqr() > 1e-4 ? radial : look);
         } else if (f.formation.isVolley() || (f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING && index < 5)) {
-            matrices.mulPose(faceDirection(look));
-            matrices.mulPose(Axis.ZP.rotationDegrees(spinPhase * 28f));
+            return faceDirection(look).mul(Axis.ZP.rotationDegrees(spinPhase * 28f));
         } else if (f.formation.isStepping() && index < 7) {
             float yaw = (float) (Mth.atan2(-look.x, look.z) * (180.0 / Math.PI));
-            matrices.mulPose(Axis.YP.rotationDegrees(-yaw));
+            return Axis.YP.rotationDegrees(-yaw);
         } else if (f.formation == BlockDominionBrain.FormationKind.RAIN_UMBRELLA && index < 7) {
-            matrices.mulPose(Axis.YP.rotationDegrees((float) (time * 1.4 + index * 60f)));
+            return Axis.YP.rotationDegrees((float) (time * 1.4 + index * 60f));
         } else if (f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
             BlockDominionBrain.WingPose wp = BlockDominionBrain.sovereignPerchPose(index, count, time, look);
             Matrix3f basisMat = new Matrix3f(
@@ -1322,20 +1372,20 @@ public final class BlockDominionRenderer {
                     (float) wp.axisY().x, (float) wp.axisY().y, (float) wp.axisY().z,
                     (float) wp.axisZ().x, (float) wp.axisZ().y, (float) wp.axisZ().z
             );
-            matrices.mulPose(new Quaternionf().setFromNormalized(basisMat));
+            return new Quaternionf().setFromNormalized(basisMat);
         } else if (f.formation.isWings()) {
             BlockDominionBrain.WingPose wp = BlockDominionBrain.wingPose(
-                    index, count, time, look, f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST);
+                    index, count, time, look, f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST,
+                    wingPitchDeg, wingRollDeg);
             Matrix3f basisMat = new Matrix3f(
                     (float) wp.axisX().x, (float) wp.axisX().y, (float) wp.axisX().z,
                     (float) wp.axisY().x, (float) wp.axisY().y, (float) wp.axisY().z,
                     (float) wp.axisZ().x, (float) wp.axisZ().y, (float) wp.axisZ().z
             );
-            matrices.mulPose(new Quaternionf().setFromNormalized(basisMat));
+            return new Quaternionf().setFromNormalized(basisMat);
         } else {
             float spin = spinPhase * (180f / (float) Math.PI);
-            matrices.mulPose(Axis.YP.rotationDegrees(spin));
-            matrices.mulPose(Axis.XP.rotationDegrees(spin * 0.65f + index * 19f));
+            return Axis.YP.rotationDegrees(spin).mul(Axis.XP.rotationDegrees(spin * 0.65f + index * 19f));
         }
     }
 
@@ -1432,7 +1482,7 @@ public final class BlockDominionRenderer {
                             emitted = true;
                         }
                     } else if (f.formation.isWings()) {
-                        emitWingsVfx(buffer, mat, f, owner, chest, look, forward, camRight, camUp, time, camPos, firstPerson, bodyPass);
+                        emitWingsVfx(buffer, mat, f, owner, chest, look, forward, camRight, camUp, time, tickDelta, camPos, firstPerson, bodyPass);
                         emitted = true;
                     }
                 }
@@ -1598,17 +1648,21 @@ public final class BlockDominionRenderer {
      */
     private static void emitWingsVfx(VertexConsumer v, Matrix4f m, ClientFormation f, Entity owner, Vec3 chest,
                                      Vec3 look, Vec3 forward, Vec3 camRight, Vec3 camUp,
-                                     double time, Vec3 camPos, boolean firstPerson, boolean bodyPass) {
+                                     double time, float tickDelta, Vec3 camPos, boolean firstPerson, boolean bodyPass) {
         boolean boosted = f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST;
+        float wingPitchDeg = BlockDominionPose.bodyPitchDegrees(owner.getId(), tickDelta);
+        float wingRollDeg = BlockDominionPose.bodyRollDegrees(owner.getId(), tickDelta);
 
         if (bodyPass) {
-            // Subtle gossamer mist curling softly off the upper wing shoulders (alpha <= 58, never cardboard!)
+            // Subtle gossamer mist curling softly off the upper wing shoulders (rotated with horizontal Glide wings!)
+            float horizFrac = Mth.clamp(wingPitchDeg / 76.0f, 0f, 1f);
             for (int sideIdx = 0; sideIdx < 2; sideIdx++) {
                 boolean left = sideIdx == 0;
                 for (int k = 0; k < 3; k++) {
                     double u = 0.28 + k * 0.30;
-                    Vec3 pt = chest.add(BlockDominionBrain.wingArchPoint(left, u, time, look, boosted))
-                            .add(forward.scale(-0.24));
+                    Vec3 rawOffset = BlockDominionBrain.wingArchPoint(left, u, time, look, boosted, horizFrac)
+                            .add(forward.scale(Mth.lerp(horizFrac, -0.24, -0.06)));
+                    Vec3 pt = chest.add(BlockDominionBrain.rotateWingVec(rawOffset, look, wingPitchDeg, wingRollDeg));
                     DominionShader.emitBillboard(v, m, pt, camRight, camUp, boosted ? 0.62 : 0.54,
                             time * 0.03 * (left ? 1 : -1) + k, DominionShader.FX_SMOKE, 30 + sideIdx * 10 + k,
                             f.mr(), f.mg(), f.mb(), firstPerson ? 22 : 52);
