@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.3]
+
+### Fixed
+
+- With a shaderpack, Fuga and Silent Gate could lose parts of their effects (missing layers, Fuga's bridge gone) when the mod's post effects were switched off or failed to load.
+- OptiFine shaders are now detected like Iris/Oculus shaderpacks.
+
 ## [1.6.2]
 
 ### Added

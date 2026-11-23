@@ -303,7 +303,8 @@ public final class FugaRenderer {
     }
     /** Fuga's shaderpack test, shared with Silent Gate's own deferral. */
     static boolean shaderPackDefers() {
-        return AtomicPostFx.enabled() && (AtomicPostFx.shaderPackActive() || Boolean.getBoolean("godwand.fuga.qa.defer"));
+        // Not tied to the post effect: with it switched off or failed, the pack still repainted the mesh (lost layers, 2026-11-23).
+        return AtomicPostFx.shaderPackActive() || Boolean.getBoolean("godwand.fuga.qa.defer");
     }
     /** Binds the flame texture so other skills (Silent Gate) can fill geometry from its solid texel. */
     static void bindFlameTexture() { ensureFlameTexture(); RenderSystem.setShaderTexture(0,FLAME_TEXTURE); }
@@ -357,7 +358,7 @@ public final class FugaRenderer {
     /** With an Iris/Oculus shaderpack active the level pass repaints immediate geometry with the pack's programs (no
      *  blending, alpha cut), so the mesh is recorded here and drawn by flushDeferred after the level pass. */
     public static boolean deferForShaderPack(PoseStack pose, Camera camera, float partial) {
-        if (!AtomicPostFx.enabled() || !(AtomicPostFx.shaderPackActive() || Boolean.getBoolean("godwand.fuga.qa.defer"))) return false;
+        if (!shaderPackDefers()) return false;
         deferred = new Deferred(new Matrix4f(pose.last().pose()), new Matrix4f(RenderSystem.getModelViewMatrix()),
                 new Matrix4f(RenderSystem.getProjectionMatrix()), camera, partial);
         return true;
