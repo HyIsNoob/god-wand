@@ -84,7 +84,9 @@ public final class BlockDominionManager {
         boolean rainingOverhead;
         boolean liquidStrideActive;
         boolean sovereignPerchActive;
+        boolean meteorDiveActive;
         int hoverIdleTicks;
+        int meteorDiveTicks;
         long stairAscendUntil = -1000;
         int flightForward;
         int flightStrafe;
@@ -147,6 +149,12 @@ public final class BlockDominionManager {
         if (player == null) return false;
         PlayerState state = STATES.get(player.getUUID());
         return state != null && state.wingFlying;
+    }
+
+    public static boolean isMeteorDiving(Player player) {
+        if (player == null) return false;
+        PlayerState state = STATES.get(player.getUUID());
+        return state != null && state.wingFlying && state.meteorDiveActive;
     }
 
     public static boolean isAirStairsActive(Player player) {
@@ -258,10 +266,93 @@ public final class BlockDominionManager {
         }
     }
 
+    /**
+     * Meteor Strike Dive Impact: slams down like a falling meteorite with zero fall damage,
+     * dealing seismic AoE damage & radial knockback to nearby hostiles + optional shallow surface crater.
+     */
+    private static void detonateMeteorStrike(ServerLevel world, ServerPlayer player, PlayerState st, Vec3 landVel) {
+        player.setDeltaMovement(landVel.x * 0.14, 0.0, landVel.z * 0.14);
+        player.fallDistance = 0.0f;
+        player.hurtMarked = true;
+
+        Vec3 impactPos = player.position();
+        double diveSpeed = Math.abs(landVel.y);
+        float intensity = Mth.clamp((float) ((diveSpeed - 0.45) / 1.35 + st.reserve.size() / 96.0), 0.35f, 1.0f);
+        double radius = Mth.lerp(intensity, BlockDominionRules.METEOR_STRIKE_MIN_RADIUS, BlockDominionRules.METEOR_STRIKE_MAX_RADIUS);
+        var cfg = GodWandConfig.SERVER;
+        float baseDmg = Mth.lerp(intensity, 10.0f, 18.0f) * cfg.damageMultiplier;
+
+        UUID previousSelf = SELF_DAMAGE_CASTER.get();
+        SELF_DAMAGE_CASTER.set(player.getUUID());
+        int hitCount = 0;
+        try {
+            AABB aoe = new AABB(impactPos, impactPos).inflate(radius, 4.0, radius);
+            for (LivingEntity entity : world.getEntitiesOfClass(LivingEntity.class, aoe,
+                    e -> e.isAlive() && !SpellDamage.isCaster(e, player))) {
+                double dist = entity.position().distanceTo(impactPos);
+                if (dist <= radius && SpellDamage.affects(entity, player)) {
+                    double falloff = Math.max(0.35, 1.0 - dist / radius);
+                    float dmg = (float) (baseDmg * falloff) * (entity instanceof Mob ? 1.5f : 1.0f);
+                    SpellDamage.hurt(entity, world.damageSources().fallingBlock(player), dmg);
+                    if (intensity >= 0.65f) {
+                        entity.igniteForSeconds(2);
+                    }
+                    Vec3 out = entity.position().subtract(impactPos);
+                    Vec3 horiz = new Vec3(out.x, 0, out.z);
+                    Vec3 dir = horiz.lengthSqr() > 1e-4 ? horiz.normalize() : new Vec3(1, 0, 0);
+                    double push = (0.95 + intensity * 0.72) * falloff;
+                    entity.setDeltaMovement(entity.getDeltaMovement().add(dir.scale(push)).add(0, 0.50 + intensity * 0.36, 0));
+                    entity.hurtMarked = true;
+                    hitCount++;
+                }
+            }
+        } finally {
+            if (previousSelf == null) SELF_DAMAGE_CASTER.remove();
+            else SELF_DAMAGE_CASTER.set(previousSelf);
+        }
+
+        // Optional shallow tectonic impact crater (respects terrain-damage config & protected blocks!)
+        if (cfg.terrain(cfg.blockDominionTerrainDamage)) {
+            carveSmallCrater(world, impactPos.add(0, -0.45, 0), 2.1 + intensity * 0.85, player);
+        }
+
+        BlockState groundState = world.getBlockState(player.blockPosition().below());
+        if (groundState.isAir()) {
+            groundState = st.reserve.isEmpty() ? Blocks.DEEPSLATE.defaultBlockState() : st.reserve.get(0);
+        }
+        world.sendParticles(ParticleTypes.EXPLOSION_EMITTER, impactPos.x, impactPos.y + 0.4, impactPos.z, 1, 0, 0, 0, 0);
+        world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, groundState),
+                impactPos.x, impactPos.y + 0.25, impactPos.z, 48, 1.8, 0.4, 1.8, 0.34);
+        world.sendParticles(ParticleTypes.FLAME, impactPos.x, impactPos.y + 0.2, impactPos.z, 36, 1.5, 0.3, 1.5, 0.22);
+        world.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, impactPos.x, impactPos.y + 0.3, impactPos.z, 24, 1.6, 0.35, 1.6, 0.08);
+
+        Services.NETWORK.sendToNearby(world, impactPos, SYNC_RADIUS,
+                new CannonPressurePayload(impactPos.add(0, 0.2, 0), new Vec3(0, -1, 0), 2, new Vec3(0, 1, 0)));
+        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE, impactPos.x, impactPos.y, impactPos.z, 0.42f, 14));
+        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                CinematicFxPayload.EVENT_FOV_PUNCH, impactPos.x, impactPos.y, impactPos.z, 1.15f, 10));
+
+        world.playSound(null, impactPos.x, impactPos.y, impactPos.z,
+                SoundEvents.DRAGON_FIREBALL_EXPLODE, SoundSource.PLAYERS, 1.25f, 0.68f);
+        world.playSound(null, impactPos.x, impactPos.y, impactPos.z,
+                SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.85f, 0.55f);
+        world.playSound(null, impactPos.x, impactPos.y, impactPos.z,
+                SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.15f, 0.60f);
+        world.playSound(null, impactPos.x, impactPos.y, impactPos.z,
+                IMPACT_SFX, SoundSource.PLAYERS, 1.2f, 0.78f);
+
+        if (hitCount > 0) {
+            player.displayClientMessage(Component.translatable("message.godwand.dominion_meteor_strike", hitCount), true);
+        }
+    }
+
     private static void stopWingFlightInternal(ServerPlayer player, PlayerState st, boolean broadcast) {
         if (!st.wingFlying) return;
         st.wingFlying = false;
         st.wingBoosting = false;
+        st.meteorDiveActive = false;
+        st.meteorDiveTicks = 0;
         st.flightForward = 0;
         st.flightStrafe = 0;
         st.flightVertical = 0;
@@ -1172,16 +1263,26 @@ public final class BlockDominionManager {
         boolean mobilityChanged = false;
 
         if (st.wingFlying) {
-            boolean landingFromFlight = player.onGround() && !st.volleyCharging
-                    && ((st.wingGlideMode && st.flightVel.y <= 0.08) || (st.flightVertical < 0 && st.flightVel.y <= 0.02));
+            boolean grounded = player.onGround() || (st.meteorDiveActive && player.verticalCollisionBelow);
+            boolean landingFromFlight = grounded && !st.volleyCharging
+                    && (st.meteorDiveActive || (st.wingGlideMode && st.flightVel.y <= 0.08)
+                    || (st.flightVertical < 0 && st.flightVel.y <= 0.02));
             if (st.mode != BlockDominionRules.Mode.MANUAL || st.hiddenInCutscene
                     || st.reserve.size() < BlockDominionRules.MIN_FLIGHT_BLOCKS
                     || landingFromFlight) {
-                boolean heroLand = landingFromFlight
+                boolean meteorImpact = landingFromFlight
+                        && (st.meteorDiveActive || (st.meteorDiveTicks >= 4 && st.flightVel.y < -0.56));
+                boolean heroLand = landingFromFlight && !meteorImpact
                         && (st.flightVel.lengthSqr() > 0.62 * 0.62 || st.flightVel.y < -0.18);
                 Vec3 landVel = st.flightVel;
                 stopWingFlightInternal(player, st, false);
-                if (heroLand) {
+                if (meteorImpact) {
+                    // Meteor Strike Dive detonation: blazing seismic AoE shockwave + zero fall damage!
+                    st.safeFallUntil = now + 20;
+                    detonateMeteorStrike(world, player, st, landVel);
+                    mobilityEvent = BlockDominionRules.EVENT_METEOR_STRIKE;
+                    mobEy = player.getY() + 0.15;
+                } else if (heroLand) {
                     // Superhero touchdown: damp horizontal slide, zero fall damage, shockwave + trauma!
                     player.setDeltaMovement(landVel.x * 0.25, 0.0, landVel.z * 0.25);
                     player.hurtMarked = true;
@@ -1201,6 +1302,7 @@ public final class BlockDominionManager {
                 player.setNoGravity(true);
                 player.fallDistance = 0.0f;
                 boolean wasBoosting = st.wingBoosting;
+                boolean wasMeteorDiving = st.meteorDiveActive;
                 if (st.volleyCharging) {
                     // Lock into regal midair hover while charging Aerial Orbital Meteor Barrage
                     st.flightVel = BlockDominionRules.stepFlightVelocity(
@@ -1218,8 +1320,34 @@ public final class BlockDominionManager {
                     st.wingBoosting = st.flightBoostInput && st.flightVel.lengthSqr() > 0.55 * 0.55;
                 }
                 player.setDeltaMovement(st.flightVel);
+
+                // Meteor Strike Dive detection: steep head-first plunge ignites atmospheric re-entry aura!
+                boolean divingNow = !st.volleyCharging
+                        && BlockDominionRules.isSteepMeteorDive(player.getViewVector(1.0f), st.flightVel, st.wingGlideMode);
+                if (divingNow) {
+                    st.meteorDiveTicks = Math.min(80, st.meteorDiveTicks + 1);
+                } else {
+                    st.meteorDiveTicks = Math.max(0, st.meteorDiveTicks - 2);
+                }
+                st.meteorDiveActive = st.meteorDiveTicks >= BlockDominionRules.METEOR_DIVE_TRIGGER_TICKS;
+                if (st.meteorDiveActive && !wasMeteorDiving) {
+                    mobilityChanged = true;
+                    Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                            CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.12f, 8));
+                    world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                            SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 0.85f, 0.72f);
+                } else if (!st.meteorDiveActive && wasMeteorDiving) {
+                    mobilityChanged = true;
+                }
+                if (st.meteorDiveActive && (now % 2 == 0)) {
+                    world.sendParticles(ParticleTypes.FLAME,
+                            player.getX(), player.getY() + 0.85, player.getZ(), 4, 0.32, 0.32, 0.32, 0.04);
+                    world.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
+                            player.getX(), player.getY() + 1.15, player.getZ(), 2, 0.24, 0.24, 0.24, 0.02);
+                }
+
                 // Sovereign Perch: calm idle Hover for ~1.7s -> materialize floating stone pedestal & fold guardian wings!
-                boolean idleHover = !st.wingGlideMode && !st.volleyCharging && !st.wingBoosting
+                boolean idleHover = !st.wingGlideMode && !st.volleyCharging && !st.wingBoosting && !st.meteorDiveActive
                         && st.flightForward == 0 && st.flightStrafe == 0 && st.flightVertical == 0
                         && st.flightVel.lengthSqr() < 0.015;
                 if (idleHover) {
@@ -1249,8 +1377,10 @@ public final class BlockDominionManager {
             }
         } else {
             st.hoverIdleTicks = 0;
-            if (st.sovereignPerchActive) {
+            st.meteorDiveTicks = 0;
+            if (st.sovereignPerchActive || st.meteorDiveActive) {
                 st.sovereignPerchActive = false;
+                st.meteorDiveActive = false;
                 mobilityChanged = true;
             }
         }
@@ -1382,7 +1512,7 @@ public final class BlockDominionManager {
             BlockDominionBrain.BrainPlan plan = BlockDominionBrain.plan(
                     threats, st.reserve.size(), st.stowed, st.volleyCharging,
                     st.wingFlying, st.wingBoosting, st.airStairsActive, st.rapidFiring, st.rainingOverhead,
-                    st.liquidStrideActive, st.sovereignPerchActive);
+                    st.liquidStrideActive, st.sovereignPerchActive, st.meteorDiveActive);
             if (plan.kind() != st.formation
                     || (plan.kind().isShield() && (BlockDominionBrain.directionChangedSignificantly(plan.primaryDir(), st.threatPrimary)
                     || BlockDominionBrain.directionChangedSignificantly(plan.secondaryDir(), st.threatSecondary)))) {
@@ -1731,7 +1861,8 @@ public final class BlockDominionManager {
                 | (st.wingGlideMode ? BlockDominionRules.FLAG_GLIDE_MODE : 0)
                 | (st.stairAscending ? BlockDominionRules.FLAG_STAIR_ASCEND : 0)
                 | (st.liquidStrideActive ? BlockDominionRules.FLAG_LIQUID_STRIDE : 0)
-                | (st.sovereignPerchActive ? BlockDominionRules.FLAG_PERCH : 0);
+                | (st.sovereignPerchActive ? BlockDominionRules.FLAG_PERCH : 0)
+                | (st.meteorDiveActive ? BlockDominionRules.FLAG_METEOR_DIVE : 0);
         int[] ids = new int[st.reserve.size()];
         for (int i = 0; i < ids.length; i++) ids[i] = Block.getId(st.reserve.get(i));
         BlockDominionBrain.FormationKind form = st.volleyCharging && !st.stowed

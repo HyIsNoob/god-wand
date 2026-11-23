@@ -70,7 +70,8 @@ public final class BlockDominionHud {
         String tag;
         if (mode == BlockDominionRules.Mode.AUTO) {
             tag = "AUTO";
-        } else if (formation == BlockDominionBrain.FormationKind.ORBITAL_METEOR) {
+        } else if (formation == BlockDominionBrain.FormationKind.METEOR_DIVE
+                || formation == BlockDominionBrain.FormationKind.ORBITAL_METEOR) {
             tag = "METEOR";
         } else if (formation == BlockDominionBrain.FormationKind.VOLLEY_FAN) {
             tag = "VOLLEY";
@@ -94,7 +95,7 @@ public final class BlockDominionHud {
             tag = "DOMINION";
         }
 
-        int tagColor = (boosting || formation.isVolley()) ? hot : accent;
+        int tagColor = (boosting || formation.isVolley() || formation.isMeteorDive()) ? hot : accent;
         g.drawString(font, tag, x + 6, y + 4, tagColor, false);
 
         if (mode == BlockDominionRules.Mode.MANUAL) {

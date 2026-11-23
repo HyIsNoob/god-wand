@@ -39,6 +39,11 @@ public final class BlockDominionPose {
     /** Called once per client tick from BlockDominionRenderer for every visible player using Block Dominion. */
     public static void tickEntity(LivingEntity entity, boolean flying, boolean glideMode, boolean boosting,
                                   boolean volleyCharging, long nowTick) {
+        tickEntity(entity, flying, glideMode, boosting, volleyCharging, false, nowTick);
+    }
+
+    public static void tickEntity(LivingEntity entity, boolean flying, boolean glideMode, boolean boosting,
+                                  boolean volleyCharging, boolean meteorDive, long nowTick) {
         if (entity == null) return;
         PoseState st = STATES.computeIfAbsent(entity.getId(), k -> new PoseState());
         st.prevPitchDeg = st.pitchDeg;
@@ -66,15 +71,25 @@ public final class BlockDominionPose {
                 targetHover = 0.5f;
                 targetPitch = 0f;
                 targetRoll = 0f;
-            } else if (glideMode || (boosting && speed > 0.65)) {
-                // Aerodynamic horizontal flight along 3D velocity vector (62..88 deg pitch forward like Elytra!)
+            } else if (meteorDive) {
+                // Head-first Meteor Strike plunge along 3D dive vector (128..166 deg nose-down comet silhouette!)
                 targetGlide = 1.0f;
-                float velPitchDeg = speed > 0.12
-                        ? (float) Math.toDegrees(Math.atan2(-vel.y, Math.max(0.18, horizSpeed)))
-                        : 0f;
-                targetPitch = Mth.clamp(74.0f + velPitchDeg * 0.62f, 44.0f, 108.0f);
-                // Natural fighter-jet bank roll into turns
-                targetRoll = Mth.clamp(yawDelta * 2.1f, -24.0f, 24.0f);
+                Vec3 dir = speed > 0.14 ? vel.normalize() : entity.getViewVector(1.0f);
+                double dh = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
+                float divePitchDeg = (float) Math.toDegrees(Math.atan2(-dir.y, Math.max(0.01, dh)));
+                targetPitch = Mth.clamp(86.0f + divePitchDeg * 0.86f, 128.0f, 166.0f);
+                targetRoll = Mth.clamp(yawDelta * 1.2f, -16.0f, 16.0f);
+            } else if (glideMode || (boosting && speed > 0.65)) {
+                // Full-range 3D aerodynamic flight along velocity/look:
+                // 10 deg (straight-up rocket climb) <-> 82 deg (flat horizontal glide) <-> 160 deg (steep dive)!
+                targetGlide = 1.0f;
+                Vec3 dir = speed > 0.14 ? vel.normalize() : entity.getViewVector(1.0f);
+                double dh = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
+                float flightPitchDeg = (float) Math.toDegrees(Math.atan2(-dir.y, Math.max(0.02, dh)));
+                targetPitch = Mth.clamp(82.0f + flightPitchDeg * 0.86f, 10.0f, 160.0f);
+                // Natural fighter-jet bank roll into horizontal turns, suppressed during near-vertical climbs/dives
+                float horizFactor = Mth.clamp((float) Math.sin(Math.toRadians(targetPitch)), 0.15f, 1.0f);
+                targetRoll = Mth.clamp(yawDelta * 2.1f * horizFactor, -24.0f, 24.0f);
             } else {
                 // Regal midair hover: leans gracefully with horizontal velocity, stays upright when hovering still
                 targetHover = 1.0f;
@@ -96,7 +111,7 @@ public final class BlockDominionPose {
         STATES.entrySet().removeIf(e -> nowTick - e.getValue().lastTick > 40);
     }
 
-    /** Returns the smooth interpolated forward body pitch in degrees (0 upright -> ~74..85 horizontal Glide). */
+    /** Returns the smooth interpolated forward body pitch in degrees (10 rocket climb -> 82 horizontal Glide -> 162 Meteor Dive). */
     public static float bodyPitchDegrees(int entityId, float partialTick) {
         PoseState st = STATES.get(entityId);
         return st == null ? 0f : Mth.lerp(partialTick, st.prevPitchDeg, st.pitchDeg);
@@ -106,6 +121,12 @@ public final class BlockDominionPose {
     public static float bodyRollDegrees(int entityId, float partialTick) {
         PoseState st = STATES.get(entityId);
         return st == null ? 0f : Mth.lerp(partialTick, st.prevRollDeg, st.rollDeg);
+    }
+
+    /** Returns smooth aerodynamic Glide/Climb/Dive blend (0 = upright Hover arch, 1 = sleek aerodynamic swept wings). */
+    public static float glideWeight(int entityId, float partialTick) {
+        PoseState st = STATES.get(entityId);
+        return st == null ? 0f : Mth.clamp(Mth.lerp(partialTick, st.prevGlideWeight, st.glideWeight), 0f, 1f);
     }
 
     /**
@@ -205,15 +226,20 @@ public final class BlockDominionPose {
         if (glide >= hover) {
             float w = Mth.clamp(glide, 0f, 1f);
             float flutter = (float) Math.sin(t * 0.45f) * 0.035f;
-            // Look ahead along flight path instead of staring down at terrain
-            head.xRot = Mth.lerp(w, head.xRot, -0.78f);
-            // Aerodynamic swept-back arms (jet/falcon silhouette)
-            rightArm.xRot = Mth.lerp(w, rightArm.xRot, 0.56f + flutter);
+            float pitch = Mth.lerp(partialTick, st.prevPitchDeg, st.pitchDeg);
+            boolean diving = form == BlockDominionBrain.FormationKind.METEOR_DIVE;
+            // Smooth head pitch: looks up smoothly during steep climb, ahead during level flight, down during Meteor Dive
+            float targetHead = diving ? -0.82f : Mth.lerp(Mth.clamp((pitch - 12f) / 68f, 0f, 1f), -0.42f, -0.78f);
+            head.xRot = Mth.lerp(w, head.xRot, targetHead);
+            // Aerodynamic swept-back arms (ultra-tight bullet tuck during Meteor Dive!)
+            float armBack = diving ? 0.74f : 0.56f;
+            float armSpread = diving ? 0.16f : 0.32f;
+            rightArm.xRot = Mth.lerp(w, rightArm.xRot, armBack + flutter);
             rightArm.yRot = Mth.lerp(w, rightArm.yRot, -0.18f);
-            rightArm.zRot = Mth.lerp(w, rightArm.zRot, 0.32f);
-            leftArm.xRot = Mth.lerp(w, leftArm.xRot, 0.56f - flutter);
+            rightArm.zRot = Mth.lerp(w, rightArm.zRot, armSpread);
+            leftArm.xRot = Mth.lerp(w, leftArm.xRot, armBack - flutter);
             leftArm.yRot = Mth.lerp(w, leftArm.yRot, 0.18f);
-            leftArm.zRot = Mth.lerp(w, leftArm.zRot, -0.32f);
+            leftArm.zRot = Mth.lerp(w, leftArm.zRot, -armSpread);
             // Legs extended straight behind with zero walking swing!
             rightLeg.xRot = Mth.lerp(w, rightLeg.xRot, 0.16f + flutter * 0.6f);
             rightLeg.zRot = Mth.lerp(w, rightLeg.zRot, 0.05f);

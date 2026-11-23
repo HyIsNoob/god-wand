@@ -57,6 +57,7 @@ public final class BlockDominionRules {
     public static final int FLAG_STAIR_ASCEND = 512;
     public static final int FLAG_LIQUID_STRIDE = 1024;
     public static final int FLAG_PERCH = 2048;
+    public static final int FLAG_METEOR_DIVE = 4096;
 
     public static final int EVENT_SYNC = 0;
     public static final int EVENT_PICKUP = 1;
@@ -74,7 +75,14 @@ public final class BlockDominionRules {
     public static final int EVENT_HERO_LAND = 13;
     public static final int EVENT_CAGE_START = 14;
     public static final int EVENT_CAGE_END = 15;
-    public static final int MAX_EVENT = EVENT_CAGE_END;
+    public static final int EVENT_METEOR_STRIKE = 16;
+    public static final int MAX_EVENT = EVENT_METEOR_STRIKE;
+
+    public static final int METEOR_DIVE_TRIGGER_TICKS = 5;
+    public static final double METEOR_DIVE_MIN_LOOK_Y = -0.55;
+    public static final double METEOR_DIVE_MIN_VY = -0.50;
+    public static final double METEOR_STRIKE_MIN_RADIUS = 5.5;
+    public static final double METEOR_STRIKE_MAX_RADIUS = 8.5;
 
     public static final int SURGE_RADIUS = 8;
     public static final int SURGE_MAX_BLOCKS = 24;
@@ -301,8 +309,8 @@ public final class BlockDominionRules {
         double curSpeed = cur.length();
         double baseSpeed = Math.max(GLIDE_MIN_SPEED, curSpeed);
 
-        // Energy exchange: diving accelerates, climbing trades speed for altitude
-        double pitchEnergy = -look.y * 0.085;
+        // Energy exchange: steep diving accelerates like a falling comet; climbing trades speed for altitude
+        double pitchEnergy = look.y < -0.55 ? (-look.y * 0.115) : (-look.y * 0.085);
         double speed = baseSpeed + pitchEnergy;
         if (boost) {
             speed += GLIDE_BOOST_ACCEL;
@@ -310,7 +318,8 @@ public final class BlockDominionRules {
             // Gentle aerodynamic drag above cruise glide speed
             speed *= 0.985;
         }
-        speed = Mth.clamp(speed, GLIDE_MIN_SPEED, GLIDE_MAX_SPEED);
+        double maxSpeed = look.y < -0.55 ? 2.08 : GLIDE_MAX_SPEED;
+        speed = Mth.clamp(speed, GLIDE_MIN_SPEED, maxSpeed);
 
         // Blend velocity direction smoothly toward 3D look vector + optional horizontal banking from A/D
         Vec3 desiredDir = look;
@@ -328,6 +337,14 @@ public final class BlockDominionRules {
             next = next.add(0, -0.022, 0);
         }
         return next;
+    }
+
+    /** True when the airborne player is plunging steeply enough to ignite Meteor Strike Dive. */
+    public static boolean isSteepMeteorDive(Vec3 lookDir, Vec3 vel, boolean glideMode) {
+        if (lookDir == null || vel == null) return false;
+        if (vel.y > METEOR_DIVE_MIN_VY) return false;
+        if (lookDir.y <= METEOR_DIVE_MIN_LOOK_Y) return true;
+        return glideMode && vel.y <= -0.78 && lookDir.y <= -0.42;
     }
 
     /**

@@ -154,6 +154,7 @@ public final class BlockDominionRenderer {
         boolean rapidFiring;
         boolean liquidStride;
         boolean sovereignPerch;
+        boolean meteorDiving;
         int volleyTicks;
         long unfoldStartTick = -1000;
         long shieldStartTick = -1000;
@@ -357,6 +358,7 @@ public final class BlockDominionRenderer {
         f.rapidFiring = (payload.flags() & BlockDominionRules.FLAG_RAPID_FIRING) != 0;
         f.liquidStride = (payload.flags() & BlockDominionRules.FLAG_LIQUID_STRIDE) != 0;
         f.sovereignPerch = (payload.flags() & BlockDominionRules.FLAG_PERCH) != 0;
+        f.meteorDiving = (payload.flags() & BlockDominionRules.FLAG_METEOR_DIVE) != 0;
         f.volleyTicks = payload.volleyTicks();
         f.formation = BlockDominionBrain.FormationKind.byOrdinal(payload.formationKind());
         f.threatPrimary = new Vec3(payload.threat1X(), payload.threat1Y(), payload.threat1Z());
@@ -506,6 +508,30 @@ public final class BlockDominionRenderer {
                 }
                 BlockDominionSounds.play(landPos, BlockDominionSounds.WING_FLAP, 0.95f, 0.68f);
                 BlockDominionSounds.play(landPos, BlockDominionSounds.IMPACT, 0.72f, 0.85f);
+            }
+            case BlockDominionRules.EVENT_METEOR_STRIKE -> {
+                f.leftWingTrail.clear();
+                f.rightWingTrail.clear();
+                Vec3 impactPos = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
+                // Radially kick orbiting stone blocks outward in a dramatic seismic ground-slam burst!
+                for (VisualBlock vb : f.blocks) {
+                    Vec3 out = vb.pos.subtract(impactPos);
+                    Vec3 horiz = new Vec3(out.x, 0, out.z);
+                    Vec3 dir = horiz.lengthSqr() > 1e-4 ? horiz.normalize() : new Vec3(1, 0, 0);
+                    vb.vel = dir.scale(0.68).add(0, 0.24, 0);
+                }
+                addWave(payload.playerId(), new Vec3(0, 1, 0), 9.4, 20, now, BlockDominionPalette.INFERNO_OBSIDIAN);
+                addWave(payload.playerId(), new Vec3(0, 1, 0), 5.8, 14, now, pal);
+                DominionParticles.spawnRingBurst(impactPos.add(0, 0.22, 0), new Vec3(0, 1, 0), 3.4, 40, 0.42,
+                        255, 138, 36, DominionParticles.STYLE_EMBER);
+                DominionParticles.spawnRingBurst(impactPos.add(0, 0.18, 0), new Vec3(0, 1, 0), 2.6, 30, 0.36,
+                        pal.hotR, pal.hotG, pal.hotB, DominionParticles.STYLE_SHARD);
+                if (isLocal) {
+                    DominionPostFx.triggerShockwave(1.0f, 18, BlockDominionPalette.INFERNO_OBSIDIAN);
+                    triggerImpactFrame(3, 1.0f, (int) (now & 63), BlockDominionPalette.INFERNO_OBSIDIAN);
+                }
+                BlockDominionSounds.play(impactPos, BlockDominionSounds.IMPACT, 1.25f, 0.72f);
+                BlockDominionSounds.play(impactPos, BlockDominionSounds.VOLLEY_RELEASE, 1.0f, 0.78f);
             }
             case BlockDominionRules.EVENT_CAGE_START -> {
                 Vec3 anchor = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
@@ -676,24 +702,36 @@ public final class BlockDominionRenderer {
         }
     }
 
+    /** Gimbal-lock-free horizontal facing vector from entity yaw (never flips even when looking straight up/down!). */
+    private static Vec3 yawForward(Entity owner) {
+        float yawRad = (float) Math.toRadians(owner.getYRot());
+        return new Vec3(-Mth.sin(yawRad), 0.0, Mth.cos(yawRad));
+    }
+
     private static void reassignNearestSlots(ClientFormation f, Entity owner, long now) {
         int n = f.blocks.size();
         Vec3 chest = owner.position().add(0, 1.25, 0);
         Vec3 look = owner.getViewVector(1.0f);
+        Vec3 yawFwd = yawForward(owner);
         float unfold = Mth.clamp((now - f.unfoldStartTick) / (float) BlockDominionRules.UNFOLD_TICKS, 0f, 1f);
         float volley = Mth.clamp(f.volleyTicks / (float) BlockDominionRules.VOLLEY_CHARGE_TICKS, 0f, 1f);
 
         float wingPitchDeg = f.formation.isWings() ? BlockDominionPose.bodyPitchDegrees(owner.getId(), 1.0f) : 0f;
         float wingRollDeg = f.formation.isWings() ? BlockDominionPose.bodyRollDegrees(owner.getId(), 1.0f) : 0f;
+        float wingAeroFrac = f.formation.isWings() ? BlockDominionPose.glideWeight(owner.getId(), 1.0f) : 0f;
+        Vec3 wingAnchor = owner.position().add(0, Mth.lerp(wingAeroFrac, 1.25, 0.95), 0);
 
         List<Vec3> current = new ArrayList<>(n);
         List<Vec3> targets = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
             current.add(f.blocks.get(i).pos);
-            if (f.formation.isWings()) {
-                targets.add(chest.add(BlockDominionBrain.wingPose(
-                        i, n, now, look, f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST,
-                        wingPitchDeg, wingRollDeg).offset()));
+            if (f.formation == BlockDominionBrain.FormationKind.METEOR_DIVE) {
+                targets.add(wingAnchor.add(BlockDominionBrain.meteorDivePose(
+                        i, n, now, yawFwd, wingPitchDeg, wingRollDeg).offset()));
+            } else if (f.formation.isWings() && f.formation != BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
+                targets.add(wingAnchor.add(BlockDominionBrain.wingPose(
+                        i, n, now, yawFwd, f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST,
+                        wingPitchDeg, wingRollDeg, wingAeroFrac).offset()));
             } else {
                 targets.add(chest.add(BlockDominionBrain.slotOffset(
                         f.formation, i, n, now, look, f.threatPrimary, f.threatSecondary, unfold, volley)));
@@ -788,14 +826,17 @@ public final class BlockDominionRenderer {
                 f.lastStepAnchor = null;
             }
 
-            // Tick character pose FIRST so wing pitch & bank roll stay locked to the body on the exact same tick!
+            // Tick character pose FIRST so wing pitch, bank roll & aerodynamic glide weight stay locked to the body!
             if (owner instanceof net.minecraft.world.entity.LivingEntity living) {
-                BlockDominionPose.tickEntity(living, f.flying, f.glideMode, f.boosting, f.volleyCharging, now);
+                BlockDominionPose.tickEntity(living, f.flying, f.glideMode, f.boosting, f.volleyCharging,
+                        f.meteorDiving || f.formation.isMeteorDive(), now);
             }
-            float wingPitchDeg = f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH
-                    ? 0f : BlockDominionPose.bodyPitchDegrees(owner.getId(), 1.0f);
-            float wingRollDeg = f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH
-                    ? 0f : BlockDominionPose.bodyRollDegrees(owner.getId(), 1.0f);
+            Vec3 yawFwd = yawForward(owner);
+            boolean perch = f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH;
+            float wingPitchDeg = perch ? 0f : BlockDominionPose.bodyPitchDegrees(owner.getId(), 1.0f);
+            float wingRollDeg = perch ? 0f : BlockDominionPose.bodyRollDegrees(owner.getId(), 1.0f);
+            float wingAeroFrac = perch ? 0f : BlockDominionPose.glideWeight(owner.getId(), 1.0f);
+            Vec3 wingAnchor = owner.position().add(0, Mth.lerp(wingAeroFrac, 1.25, 0.95), 0);
 
             int count = f.blocks.size();
             for (int i = 0; i < count; i++) {
@@ -812,15 +853,20 @@ public final class BlockDominionRenderer {
                     targetScale = f.formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE
                             ? new Vec3(0.94, 0.20, 0.94)
                             : new Vec3(0.86, 0.28, 0.86);
-                } else if (f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
-                    BlockDominionBrain.WingPose wp = BlockDominionBrain.sovereignPerchPose(i, count, now, look);
+                } else if (perch) {
+                    BlockDominionBrain.WingPose wp = BlockDominionBrain.sovereignPerchPose(i, count, now, yawFwd);
                     target = chest.add(wp.offset());
+                    targetScale = wp.scale();
+                } else if (f.formation.isMeteorDive()) {
+                    BlockDominionBrain.WingPose wp = BlockDominionBrain.meteorDivePose(
+                            i, count, now, yawFwd, wingPitchDeg, wingRollDeg);
+                    target = wingAnchor.add(wp.offset());
                     targetScale = wp.scale();
                 } else if (f.formation.isWings()) {
                     BlockDominionBrain.WingPose wp = BlockDominionBrain.wingPose(
-                            i, count, now, look, f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST,
-                            wingPitchDeg, wingRollDeg);
-                    target = chest.add(wp.offset());
+                            i, count, now, yawFwd, f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST,
+                            wingPitchDeg, wingRollDeg, wingAeroFrac);
+                    target = wingAnchor.add(wp.offset());
                     targetScale = wp.scale();
                 } else {
                     Vec3 offset = BlockDominionBrain.slotOffset(
@@ -859,8 +905,8 @@ public final class BlockDominionRenderer {
                         vb.pos = vb.pos.add(ownerDelta.scale(carry));
 
                         double follow = isAnchoredStep ? 0.42
-                                : f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST ? 0.48
-                                : f.formation.isWings() ? 0.34
+                                : (f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST || f.formation.isMeteorDive()) ? 0.50
+                                : f.formation.isWings() ? 0.36
                                 : f.formation.isShield() ? 0.44
                                 : f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING ? 0.46
                                 : f.volleyCharging ? 0.30
@@ -874,19 +920,19 @@ public final class BlockDominionRenderer {
                 vb.spinPhase += f.stowed ? 0.06f : (f.volleyCharging ? 0.11f : 0.036f);
 
                 // Smooth quaternion slerp for every block so formation changes never snap rotation in 1 frame!
-                Quaternionf targetRot = computeTargetOrientation(f, i, count, vb.pos, chest, look, now,
-                        vb.spinPhase, wingPitchDeg, wingRollDeg);
+                Quaternionf targetRot = computeTargetOrientation(f, i, count, vb.pos, chest, look, yawFwd, now,
+                        vb.spinPhase, wingPitchDeg, wingRollDeg, wingAeroFrac);
                 if (!vb.rotInit) {
                     vb.rot.set(targetRot);
                     vb.prevRot.set(targetRot);
                     vb.rotInit = true;
                 } else {
-                    float rotRate = f.formation.isWings() || f.formation.isShield() ? 0.34f : 0.24f;
+                    float rotRate = f.formation.isWings() || f.formation.isShield() ? 0.36f : 0.24f;
                     vb.rot.slerp(targetRot, rotRate);
                 }
             }
 
-            emitTickParticles(f, owner, chest, look, now, wingPitchDeg, wingRollDeg);
+            emitTickParticles(f, owner, wingAnchor, yawFwd, now, wingPitchDeg, wingRollDeg, wingAeroFrac);
         }
         BlockDominionPose.prune(now);
     }
@@ -923,9 +969,11 @@ public final class BlockDominionRenderer {
             targetRoll = Mth.clamp((strafe * 4.2f + yawDelta * 0.42f) * bankGain * speedScale, -6.5f, 6.5f);
 
             float speedFrac = Mth.clamp((float) ((speed - 0.65) / 1.30), 0f, 1f);
-            targetBlur = local.boosting ? Math.max(0.45f, speedFrac * 0.92f) : speedFrac * 0.42f;
-            targetFov = 1.0f + speedFrac * (local.boosting ? 0.12f : 0.06f);
-            targetBloom = local.boosting ? 0.34f : (speedFrac > 0.25f ? 0.14f : 0.0f);
+            boolean meteor = local.meteorDiving || local.formation.isMeteorDive();
+            targetBlur = meteor ? Math.max(0.68f, speedFrac * 0.98f)
+                    : (local.boosting ? Math.max(0.45f, speedFrac * 0.92f) : speedFrac * 0.42f);
+            targetFov = 1.0f + speedFrac * (meteor ? 0.15f : (local.boosting ? 0.12f : 0.06f));
+            targetBloom = meteor ? 0.44f : (local.boosting ? 0.34f : (speedFrac > 0.25f ? 0.14f : 0.0f));
         } else {
             lastPlayerYaw = player.getYRot();
         }
@@ -943,8 +991,8 @@ public final class BlockDominionRenderer {
         DominionPostFx.setAmbientState(targetBlur, targetBloom, local.palette);
     }
 
-    private static void emitTickParticles(ClientFormation f, Entity owner, Vec3 chest, Vec3 look, long now,
-                                          float wingPitchDeg, float wingRollDeg) {
+    private static void emitTickParticles(ClientFormation f, Entity owner, Vec3 wingAnchor, Vec3 yawFwd, long now,
+                                          float wingPitchDeg, float wingRollDeg, float wingAeroFrac) {
         if (f.hiddenInCutscene) return;
         int count = f.blocks.size();
         int pr = f.pr(), pg = f.pg(), pb = f.pb();
@@ -954,35 +1002,46 @@ public final class BlockDominionRenderer {
 
         if (f.mode == BlockDominionRules.Mode.MANUAL && count > 0) {
             if (f.formation.isWings() && f.formation != BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
-                boolean boosted = f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST;
-                Vec3 lTip = chest.add(BlockDominionBrain.wingTipOffset(true, now, look, boosted, wingPitchDeg, wingRollDeg));
-                Vec3 rTip = chest.add(BlockDominionBrain.wingTipOffset(false, now, look, boosted, wingPitchDeg, wingRollDeg));
+                boolean meteor = f.formation.isMeteorDive();
+                boolean boosted = f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST || meteor;
+                Vec3 lTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(true, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
+                Vec3 rTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(false, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
                 pushTrail(f.leftWingTrail, lTip);
                 pushTrail(f.rightWingTrail, rTip);
 
                 Vec3 wake = owner.getDeltaMovement().scale(-0.32);
                 if (now % 2 == 0) {
                     double sampleU = 0.25 + ((now * 0.19) % 0.7);
-                    Vec3 lPt = chest.add(BlockDominionBrain.rotateWingVec(
-                            BlockDominionBrain.wingFeatherTip(true, sampleU, now, look, boosted), look, wingPitchDeg, wingRollDeg));
-                    Vec3 rPt = chest.add(BlockDominionBrain.rotateWingVec(
-                            BlockDominionBrain.wingFeatherTip(false, sampleU, now, look, boosted), look, wingPitchDeg, wingRollDeg));
+                    Vec3 lPt = wingAnchor.add(BlockDominionBrain.rotateWingVec(
+                            BlockDominionBrain.wingFeatherTip(true, sampleU, now, yawFwd, boosted, wingAeroFrac), yawFwd, wingPitchDeg, wingRollDeg));
+                    Vec3 rPt = wingAnchor.add(BlockDominionBrain.rotateWingVec(
+                            BlockDominionBrain.wingFeatherTip(false, sampleU, now, yawFwd, boosted, wingAeroFrac), yawFwd, wingPitchDeg, wingRollDeg));
                     boolean dark = (now % 4 == 0);
                     DominionParticles.spawnSmoke(lPt, wake.add(0, -0.02, 0), boosted ? 0.48f : 0.38f, 16,
-                            dark ? dr : mr, dark ? dg : mg, dark ? db : mb, dark ? 120 : 95);
+                            meteor ? 255 : (dark ? dr : mr), meteor ? 115 : (dark ? dg : mg), meteor ? 32 : (dark ? db : mb), dark ? 120 : 95);
                     DominionParticles.spawnSmoke(rPt, wake.add(0, -0.02, 0), boosted ? 0.48f : 0.38f, 16,
-                            dark ? dr : mr, dark ? dg : mg, dark ? db : mb, dark ? 120 : 95);
+                            meteor ? 255 : (dark ? dr : mr), meteor ? 115 : (dark ? dg : mg), meteor ? 32 : (dark ? db : mb), dark ? 120 : 95);
                 }
-                int emitCount = boosted ? 3 : 2;
+                int emitCount = meteor ? 4 : (boosted ? 3 : 2);
                 for (int k = 0; k < emitCount; k++) {
+                    int er = meteor ? (k == 0 ? 255 : 255) : (boosted ? hr : pr);
+                    int eg = meteor ? (k == 0 ? 240 : 128) : (boosted ? hg : pg);
+                    int eb = meteor ? (k == 0 ? 175 : 32) : (boosted ? hb : pb);
                     DominionParticles.spawn(lTip, wake.add((Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06),
-                            boosted ? 0.20f : 0.14f, boosted ? 12 : 16, 0.90, 0.0,
-                            boosted ? hr : pr, boosted ? hg : pg, boosted ? hb : pb,
-                            (k == 0) ? DominionParticles.STYLE_STAR : DominionParticles.STYLE_EMBER);
+                            meteor ? 0.24f : (boosted ? 0.20f : 0.14f), boosted ? 12 : 16, 0.90, 0.0,
+                            er, eg, eb, (k == 0) ? DominionParticles.STYLE_STAR : DominionParticles.STYLE_EMBER);
                     DominionParticles.spawn(rTip, wake.add((Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06),
-                            boosted ? 0.20f : 0.14f, boosted ? 12 : 16, 0.90, 0.0,
-                            boosted ? hr : pr, boosted ? hg : pg, boosted ? hb : pb,
-                            (k == 0) ? DominionParticles.STYLE_STAR : DominionParticles.STYLE_EMBER);
+                            meteor ? 0.24f : (boosted ? 0.20f : 0.14f), boosted ? 12 : 16, 0.90, 0.0,
+                            er, eg, eb, (k == 0) ? DominionParticles.STYLE_STAR : DominionParticles.STYLE_EMBER);
+                }
+                if (meteor) {
+                    // Blazing atmospheric re-entry ember sparks ripping straight past the diving meteor nosecone!
+                    for (int k = 0; k < 5; k++) {
+                        Vec3 sparkPos = wingAnchor.add((Math.random() - 0.5) * 1.4, (Math.random() - 0.5) * 0.9, (Math.random() - 0.5) * 1.4);
+                        DominionParticles.spawn(sparkPos, wake.scale(1.15).add((Math.random() - 0.5) * 0.14, 0.08, (Math.random() - 0.5) * 0.14),
+                                0.22f + (float) Math.random() * 0.12f, 11, 0.88, 0.0,
+                                255, k < 2 ? 235 : 124, k < 2 ? 150 : 28, DominionParticles.STYLE_EMBER);
+                    }
                 }
 
                 // Low-Altitude Ground Wash: blowing radial smoke clouds & stone dust off the earth when skimming low!
@@ -1008,7 +1067,7 @@ public final class BlockDominionRenderer {
 
                 if (!boosted && now - f.lastFlapSoundTick >= 29) {
                     f.lastFlapSoundTick = now;
-                    BlockDominionSounds.play(chest, BlockDominionSounds.WING_FLAP, 0.32f, 0.88f + (float) (Math.random() * 0.12));
+                    BlockDominionSounds.play(wingAnchor, BlockDominionSounds.WING_FLAP, 0.32f, 0.88f + (float) (Math.random() * 0.12));
                 }
             } else {
                 f.leftWingTrail.clear();
@@ -1348,8 +1407,8 @@ public final class BlockDominionRenderer {
     }
 
     private static Quaternionf computeTargetOrientation(ClientFormation f, int index, int count,
-                                                        Vec3 blockPos, Vec3 chest, Vec3 look, double time, float spinPhase,
-                                                        float wingPitchDeg, float wingRollDeg) {
+                                                        Vec3 blockPos, Vec3 chest, Vec3 look, Vec3 yawFwd, double time, float spinPhase,
+                                                        float wingPitchDeg, float wingRollDeg, float wingAeroFrac) {
         if (f.formation == BlockDominionBrain.FormationKind.SHIELD_SINGLE) {
             return faceDirection(f.threatPrimary);
         } else if (f.formation == BlockDominionBrain.FormationKind.SHIELD_MULTI) {
@@ -1361,12 +1420,21 @@ public final class BlockDominionRenderer {
         } else if (f.formation.isVolley() || (f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING && index < 5)) {
             return faceDirection(look).mul(Axis.ZP.rotationDegrees(spinPhase * 28f));
         } else if (f.formation.isStepping() && index < 7) {
-            float yaw = (float) (Mth.atan2(-look.x, look.z) * (180.0 / Math.PI));
+            float yaw = (float) (Mth.atan2(-yawFwd.x, yawFwd.z) * (180.0 / Math.PI));
             return Axis.YP.rotationDegrees(-yaw);
         } else if (f.formation == BlockDominionBrain.FormationKind.RAIN_UMBRELLA && index < 7) {
             return Axis.YP.rotationDegrees((float) (time * 1.4 + index * 60f));
         } else if (f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
-            BlockDominionBrain.WingPose wp = BlockDominionBrain.sovereignPerchPose(index, count, time, look);
+            BlockDominionBrain.WingPose wp = BlockDominionBrain.sovereignPerchPose(index, count, time, yawFwd);
+            Matrix3f basisMat = new Matrix3f(
+                    (float) wp.axisX().x, (float) wp.axisX().y, (float) wp.axisX().z,
+                    (float) wp.axisY().x, (float) wp.axisY().y, (float) wp.axisY().z,
+                    (float) wp.axisZ().x, (float) wp.axisZ().y, (float) wp.axisZ().z
+            );
+            return new Quaternionf().setFromNormalized(basisMat);
+        } else if (f.formation.isMeteorDive()) {
+            BlockDominionBrain.WingPose wp = BlockDominionBrain.meteorDivePose(
+                    index, count, time, yawFwd, wingPitchDeg, wingRollDeg);
             Matrix3f basisMat = new Matrix3f(
                     (float) wp.axisX().x, (float) wp.axisX().y, (float) wp.axisX().z,
                     (float) wp.axisY().x, (float) wp.axisY().y, (float) wp.axisY().z,
@@ -1375,8 +1443,8 @@ public final class BlockDominionRenderer {
             return new Quaternionf().setFromNormalized(basisMat);
         } else if (f.formation.isWings()) {
             BlockDominionBrain.WingPose wp = BlockDominionBrain.wingPose(
-                    index, count, time, look, f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST,
-                    wingPitchDeg, wingRollDeg);
+                    index, count, time, yawFwd, f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST,
+                    wingPitchDeg, wingRollDeg, wingAeroFrac);
             Matrix3f basisMat = new Matrix3f(
                     (float) wp.axisX().x, (float) wp.axisX().y, (float) wp.axisX().z,
                     (float) wp.axisY().x, (float) wp.axisY().y, (float) wp.axisY().z,
@@ -1649,49 +1717,61 @@ public final class BlockDominionRenderer {
     private static void emitWingsVfx(VertexConsumer v, Matrix4f m, ClientFormation f, Entity owner, Vec3 chest,
                                      Vec3 look, Vec3 forward, Vec3 camRight, Vec3 camUp,
                                      double time, float tickDelta, Vec3 camPos, boolean firstPerson, boolean bodyPass) {
-        boolean boosted = f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST;
+        boolean meteor = f.formation.isMeteorDive();
+        boolean boosted = f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST || meteor;
         float wingPitchDeg = BlockDominionPose.bodyPitchDegrees(owner.getId(), tickDelta);
         float wingRollDeg = BlockDominionPose.bodyRollDegrees(owner.getId(), tickDelta);
+        float wingAeroFrac = BlockDominionPose.glideWeight(owner.getId(), tickDelta);
+        Vec3 yawFwd = yawForward(owner);
+        Vec3 wingAnchor = chest.add(0, Mth.lerp(wingAeroFrac, 0.0, -0.30), 0);
 
         if (bodyPass) {
-            // Subtle gossamer mist curling softly off the upper wing shoulders (rotated with horizontal Glide wings!)
-            float horizFrac = Mth.clamp(wingPitchDeg / 76.0f, 0f, 1f);
+            // Subtle gossamer mist curling softly off the upper wing shoulders (gimbal-free across climb, level, and dive!)
             for (int sideIdx = 0; sideIdx < 2; sideIdx++) {
                 boolean left = sideIdx == 0;
                 for (int k = 0; k < 3; k++) {
                     double u = 0.28 + k * 0.30;
-                    Vec3 rawOffset = BlockDominionBrain.wingArchPoint(left, u, time, look, boosted, horizFrac)
-                            .add(forward.scale(Mth.lerp(horizFrac, -0.24, -0.06)));
-                    Vec3 pt = chest.add(BlockDominionBrain.rotateWingVec(rawOffset, look, wingPitchDeg, wingRollDeg));
-                    DominionShader.emitBillboard(v, m, pt, camRight, camUp, boosted ? 0.62 : 0.54,
+                    Vec3 rawOffset = BlockDominionBrain.wingArchPoint(left, u, time, yawFwd, boosted, wingAeroFrac)
+                            .add(yawFwd.scale(Mth.lerp(wingAeroFrac, -0.24, -0.06)));
+                    Vec3 pt = wingAnchor.add(BlockDominionBrain.rotateWingVec(rawOffset, yawFwd, wingPitchDeg, wingRollDeg));
+                    DominionShader.emitBillboard(v, m, pt, camRight, camUp, meteor ? 0.72 : (boosted ? 0.62 : 0.54),
                             time * 0.03 * (left ? 1 : -1) + k, DominionShader.FX_SMOKE, 30 + sideIdx * 10 + k,
-                            f.mr(), f.mg(), f.mb(), firstPerson ? 22 : 52);
+                            meteor ? 255 : f.mr(), meteor ? 112 : f.mg(), meteor ? 32 : f.mb(), firstPerson ? 24 : (meteor ? 72 : 52));
                 }
             }
         } else {
-            // Sleek gossamer wingtip contrails (curved 3D ribbons in world space!)
-            emitWingTrail(v, m, f, f.leftWingTrail, camPos, boosted ? 0.24 : 0.12, 41, boosted);
-            emitWingTrail(v, m, f, f.rightWingTrail, camPos, boosted ? 0.24 : 0.12, 42, boosted);
+            // Sleek gossamer wingtip contrails (blazing molten magma streaks during Meteor Strike Dive!)
+            emitWingTrail(v, m, f, f.leftWingTrail, camPos, meteor ? 0.34 : (boosted ? 0.24 : 0.12), 41, boosted, meteor);
+            emitWingTrail(v, m, f, f.rightWingTrail, camPos, meteor ? 0.34 : (boosted ? 0.24 : 0.12), 42, boosted, meteor);
 
-            // True 3D Volumetric Fresnel Aerodynamic Slipstream / Mach Cone around the caster during Jet/Mach Boost!
-            if (boosted) {
+            // True 3D Volumetric Fresnel Atmospheric Re-entry Plasma Cone (Meteor Dive!) or Mach Slipstream Cone (Boost!)
+            if (meteor) {
                 Vec3 vel = owner.getDeltaMovement();
                 Vec3 axis = vel.lengthSqr() > 0.04 ? vel.normalize() : look.normalize();
-                DominionShader.emitFresnelCone(v, m, chest.add(axis.scale(1.35)), axis,
+                DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(2.15)), axis,
+                        5.4, 2.85, 24, 8, 45, 255, 112, 24, firstPerson ? 95 : 220);
+                DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.55)), axis,
+                        3.6, 1.65, 20, 7, 48, 255, 238, 168, firstPerson ? 75 : 200);
+            } else if (boosted) {
+                Vec3 vel = owner.getDeltaMovement();
+                Vec3 axis = vel.lengthSqr() > 0.04 ? vel.normalize() : look.normalize();
+                DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.35)), axis,
                         3.4, 2.05, 22, 7, 45, f.pr(), f.pg(), f.pb(), firstPerson ? 65 : 155);
-                DominionShader.emitFresnelCone(v, m, chest.add(axis.scale(0.85)), axis,
+                DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(0.85)), axis,
                         2.3, 1.35, 18, 6, 48, f.hr(), f.hg(), f.hb(), firstPerson ? 48 : 118);
             }
         }
 
-        // Low-Altitude Ground Wash: true World-Space Ground Light Pool dyeing grass/stone beneath low-flying wings!
+        // Low-Altitude Ground Wash & Meteor Strike Target Scorch Pool directly beneath the diving meteor!
         double alt = altitudeAboveTerrain(owner);
-        if (!bodyPass && alt >= 0.2 && alt <= 6.8) {
-            double kWash = 1.0 - alt / 6.8;
+        double maxWashAlt = meteor ? 18.0 : 6.8;
+        if (!bodyPass && alt >= 0.2 && alt <= maxWashAlt) {
+            double kWash = 1.0 - alt / maxWashAlt;
             Vec3 groundPos = chest.add(0, -1.25 - alt + 0.08, 0);
-            double poolR = 3.2 + (1.0 - kWash) * 2.2 + (boosted ? 1.4 : 0.0);
-            int aWash = Mth.clamp((int) (kWash * (boosted ? 155 : 105)), 0, 175);
-            DominionShader.emitGroundPool(v, m, groundPos, poolR, 49, f.pr(), f.pg(), f.pb(), aWash);
+            double poolR = meteor ? (2.6 + kWash * 4.8) : (3.2 + (1.0 - kWash) * 2.2 + (boosted ? 1.4 : 0.0));
+            int aWash = Mth.clamp((int) (kWash * (meteor ? 195 : (boosted ? 155 : 105))), 0, 205);
+            DominionShader.emitGroundPool(v, m, groundPos, poolR, 49,
+                    meteor ? 255 : f.pr(), meteor ? 116 : f.pg(), meteor ? 28 : f.pb(), aWash);
         }
     }
 
@@ -1799,12 +1879,15 @@ public final class BlockDominionRenderer {
     }
 
     private static void emitWingTrail(VertexConsumer v, Matrix4f m, ClientFormation f, ArrayDeque<Vec3> trail, Vec3 camPos,
-                                      double width, int seed, boolean boosted) {
+                                      double width, int seed, boolean boosted, boolean meteor) {
         if (trail.size() < 2) return;
         Vec3[] pts = new Vec3[trail.size()];
         int i = 0;
         for (Vec3 p : trail) pts[i++] = p.subtract(camPos);
+        int r = meteor ? 255 : (boosted ? f.hr() : f.pr());
+        int g = meteor ? 128 : (boosted ? f.hg() : f.pg());
+        int b = meteor ? 28 : (boosted ? f.hb() : f.pb());
         DominionShader.emitTrail(v, m, pts, width, DominionShader.FX_PLASMA, seed,
-                boosted ? f.hr() : f.pr(), boosted ? f.hg() : f.pg(), boosted ? f.hb() : f.pb(), boosted ? 175 : 115);
+                r, g, b, meteor ? 215 : (boosted ? 175 : 115));
     }
 }

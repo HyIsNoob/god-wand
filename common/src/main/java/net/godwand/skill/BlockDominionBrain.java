@@ -31,14 +31,19 @@ public final class BlockDominionBrain {
         ORBITAL_METEOR,
         RAIN_UMBRELLA,
         LIQUID_STRIDE,
-        SOVEREIGN_PERCH;
+        SOVEREIGN_PERCH,
+        METEOR_DIVE;
 
         public boolean isShield() {
             return this == SHIELD_SINGLE || this == SHIELD_MULTI || this == SHIELD_DOME;
         }
 
         public boolean isWings() {
-            return this == WINGS_HOVER || this == WINGS_BOOST || this == SOVEREIGN_PERCH;
+            return this == WINGS_HOVER || this == WINGS_BOOST || this == SOVEREIGN_PERCH || this == METEOR_DIVE;
+        }
+
+        public boolean isMeteorDive() {
+            return this == METEOR_DIVE;
         }
 
         public boolean isMobility() {
@@ -77,6 +82,7 @@ public final class BlockDominionBrain {
         public static final BrainPlan RAIN_UMBRELLA_PLAN = new BrainPlan(FormationKind.RAIN_UMBRELLA, new Vec3(0, 0, 1), Vec3.ZERO);
         public static final BrainPlan LIQUID_STRIDE_PLAN = new BrainPlan(FormationKind.LIQUID_STRIDE, new Vec3(0, 0, 1), Vec3.ZERO);
         public static final BrainPlan SOVEREIGN_PERCH_PLAN = new BrainPlan(FormationKind.SOVEREIGN_PERCH, new Vec3(0, 0, 1), Vec3.ZERO);
+        public static final BrainPlan METEOR_DIVE_PLAN = new BrainPlan(FormationKind.METEOR_DIVE, new Vec3(0, 0, 1), Vec3.ZERO);
     }
 
     /**
@@ -126,14 +132,22 @@ public final class BlockDominionBrain {
                 rapidFiring, rainingOverhead, false, false);
     }
 
+    public static BrainPlan plan(List<ThreatSample> threats, int blockCount, boolean stowed, boolean volleyCharging,
+                                 boolean flying, boolean boosting, boolean airStairs, boolean rapidFiring,
+                                 boolean rainingOverhead, boolean liquidStride, boolean sovereignPerch) {
+        return plan(threats, blockCount, stowed, volleyCharging, flying, boosting, airStairs,
+                rapidFiring, rainingOverhead, liquidStride, sovereignPerch, false);
+    }
+
     /**
-     * Full formation planner including mobility (Block Wings, Mach Boost, Sovereign Perch, Air Stairs, Liquid Stride),
-     * offensive formations (Floating Railgun Ring, Aerial Orbital Meteor Crown),
+     * Full formation planner including mobility (Block Wings, Mach Boost, Meteor Strike Dive, Sovereign Perch,
+     * Air Stairs, Liquid Stride), offensive formations (Floating Railgun Ring, Aerial Orbital Meteor Crown),
      * QoL auto rain umbrella canopy, and automatic threat-reactive shields.
      */
     public static BrainPlan plan(List<ThreatSample> threats, int blockCount, boolean stowed, boolean volleyCharging,
                                  boolean flying, boolean boosting, boolean airStairs, boolean rapidFiring,
-                                 boolean rainingOverhead, boolean liquidStride, boolean sovereignPerch) {
+                                 boolean rainingOverhead, boolean liquidStride, boolean sovereignPerch,
+                                 boolean meteorDive) {
         if (volleyCharging && !stowed) {
             return flying ? BrainPlan.ORBITAL_METEOR_PLAN : BrainPlan.VOLLEY_PLAN;
         }
@@ -164,7 +178,7 @@ public final class BlockDominionBrain {
                 return new BrainPlan(FormationKind.SHIELD_DOME, clusters.get(0),
                         clusters.size() > 1 ? clusters.get(1) : Vec3.ZERO);
             }
-            if (!boosting || sorted.get(0).urgency() >= 14.0) {
+            if (!(boosting || meteorDive) || sorted.get(0).urgency() >= 14.0) {
                 if (clusters.size() >= 2 && blockCount >= 4) {
                     return new BrainPlan(FormationKind.SHIELD_MULTI, clusters.get(0), clusters.get(1));
                 }
@@ -176,6 +190,7 @@ public final class BlockDominionBrain {
             return BrainPlan.RAILGUN_RING_PLAN;
         }
         if (flying && blockCount >= BlockDominionRules.MIN_FLIGHT_BLOCKS) {
+            if (meteorDive) return BrainPlan.METEOR_DIVE_PLAN;
             if (boosting) return BrainPlan.WINGS_BOOST_PLAN;
             if (sovereignPerch && blockCount >= 10) return BrainPlan.SOVEREIGN_PERCH_PLAN;
             return BrainPlan.WINGS_HOVER_PLAN;
@@ -215,6 +230,7 @@ public final class BlockDominionBrain {
             case WINGS_HOVER -> wingsOffset(index, count, time, lookDir, false);
             case WINGS_BOOST -> wingsOffset(index, count, time, lookDir, true);
             case SOVEREIGN_PERCH -> sovereignPerchPose(index, count, time, lookDir).offset();
+            case METEOR_DIVE -> meteorDivePose(index, count, time, lookDir, 158f, 0f).offset();
             case RAILGUN_RING -> railgunRingOffset(index, count, time, lookDir);
             case ORBITAL_METEOR -> orbitalMeteorOffset(index, count, time, lookDir, volleyProgress);
             case RAIN_UMBRELLA -> rainUmbrellaOffset(index, count, time, lookDir);
@@ -423,25 +439,93 @@ public final class BlockDominionBrain {
     /** Full sculpted 3D wing anatomy aligned to the player's live body pitch & bank roll (upright Hover <-> horizontal Glide!). */
     public static WingPose wingPose(int index, int count, double time, Vec3 lookDir, boolean boosted,
                                     float bodyPitchDeg, float bankRollDeg) {
-        float horizFrac = Mth.clamp(bodyPitchDeg / 76.0f, 0f, 1f);
-        WingPose base = wingPoseInternal(index, count, time, lookDir, boosted, horizFrac);
+        return wingPose(index, count, time, lookDir, boosted, bodyPitchDeg, bankRollDeg,
+                Mth.clamp(bodyPitchDeg / 76.0f, 0f, 1f));
+    }
+
+    /**
+     * Full sculpted 3D wing anatomy with independent {@code aeroFrac} (0 = upright Hover arch, 1 = sleek aerodynamic
+     * Glide/Climb/Dive wings) so climbing straight UP stays sleek behind the back without morphing or clipping!
+     */
+    public static WingPose wingPose(int index, int count, double time, Vec3 lookDir, boolean boosted,
+                                    float bodyPitchDeg, float bankRollDeg, float aeroFrac) {
+        float af = Mth.clamp(aeroFrac, 0f, 1f);
+        WingPose base = wingPoseInternal(index, count, time, lookDir, boosted, af);
         if (Math.abs(bodyPitchDeg) < 0.05f && Math.abs(bankRollDeg) < 0.05f) return base;
-        // Slight vertical lift when pitched horizontal so the sleek flat wings sit cleanly across the shoulder blades
-        Vec3 off = rotateWingVec(base.offset(), lookDir, bodyPitchDeg, bankRollDeg)
-                .add(0, horizFrac * 0.08, 0);
+        double horizLift = Math.max(0.0, Math.sin(Math.toRadians(bodyPitchDeg))) * af * 0.08;
+        Vec3 off = rotateWingVec(base.offset(), lookDir, bodyPitchDeg, bankRollDeg).add(0, horizLift, 0);
         Vec3 xA = rotateWingVec(base.axisX(), lookDir, bodyPitchDeg, bankRollDeg).normalize();
         Vec3 yA = rotateWingVec(base.axisY(), lookDir, bodyPitchDeg, bankRollDeg).normalize();
         Vec3 zA = xA.cross(yA).normalize();
         return new WingPose(off, base.scale(), xA, yA, zA, base.tier());
     }
 
+    /**
+     * Meteor Strike Dive formation: vanguard stone ring spirals tightly around the diving comet nose
+     * while the remaining blocks tuck into razor-swept peregrine/arrowhead delta wings aligned along the plunge!
+     */
+    public static WingPose meteorDivePose(int index, int count, double time, Vec3 lookDir,
+                                          float bodyPitchDeg, float bankRollDeg) {
+        Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
+        if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
+        else forward = forward.normalize();
+        Vec3 right = new Vec3(-forward.z, 0, forward.x);
+        Vec3 up = new Vec3(0, 1, 0);
+
+        int noseCount = count >= 16 ? 6 : 0;
+        if (index < noseCount) {
+            // Fast-spinning hexagonal re-entry stone crown swirling around the diving torso/head!
+            double ang = (Math.PI * 2.0 * index / noseCount) + time * 0.34;
+            double rad = 1.02 + Math.sin(time * 0.55 + index) * 0.08;
+            double spinePos = 0.42 - (index % 2) * 0.24;
+            Vec3 localPos = right.scale(Math.cos(ang) * rad)
+                    .add(forward.scale(Math.sin(ang) * rad))
+                    .add(up.scale(spinePos));
+            Vec3 tangent = right.scale(-Math.sin(ang)).add(forward.scale(Math.cos(ang))).normalize();
+            Vec3 radial = right.scale(Math.cos(ang)).add(forward.scale(Math.sin(ang))).normalize();
+            Vec3 yA = up.scale(0.85).add(radial.scale(-0.52)).normalize();
+            Vec3 xA = tangent;
+            Vec3 zA = xA.cross(yA).normalize();
+
+            Vec3 off = rotateWingVec(localPos, forward, bodyPitchDeg, bankRollDeg);
+            Vec3 rx = rotateWingVec(xA, forward, bodyPitchDeg, bankRollDeg).normalize();
+            Vec3 ry = rotateWingVec(yA, forward, bodyPitchDeg, bankRollDeg).normalize();
+            Vec3 rz = rx.cross(ry).normalize();
+            return new WingPose(off, new Vec3(0.30, 0.72, 0.20), rx, ry, rz, 0);
+        }
+
+        // Remaining blocks tuck tightly into a sharp swept-back arrowhead delta wing behind the diving comet
+        int wingIdx = index - noseCount;
+        int wingTotal = Math.max(1, count - noseCount);
+        WingPose base = wingPoseInternal(wingIdx, wingTotal, time, forward, true, 1.0f);
+        // Compress lateral wingspan slightly (0.76x) and sweep sharply backward along -spine for high-speed dive silhouette!
+        double cR = base.offset().dot(right);
+        double cU = base.offset().dot(up);
+        double cF = base.offset().dot(forward);
+        Vec3 tucked = right.scale(cR * 0.76)
+                .add(up.scale(cU * 1.12 - 0.28 - Math.abs(cR) * 0.24))
+                .add(forward.scale(cF * 0.82));
+        Vec3 off = rotateWingVec(tucked, forward, bodyPitchDeg, bankRollDeg);
+        Vec3 rx = rotateWingVec(base.axisX(), forward, bodyPitchDeg, bankRollDeg).normalize();
+        Vec3 ry = rotateWingVec(base.axisY(), forward, bodyPitchDeg, bankRollDeg).normalize();
+        Vec3 rz = rx.cross(ry).normalize();
+        return new WingPose(off, base.scale(), rx, ry, rz, base.tier());
+    }
+
     /** Wingtip offset aligned to live body pitch & bank roll so contrails stream straight off horizontal Glide wingtips! */
     public static Vec3 wingTipOffset(boolean left, double time, Vec3 lookDir, boolean boosted,
                                      float bodyPitchDeg, float bankRollDeg) {
-        float horizFrac = Mth.clamp(bodyPitchDeg / 76.0f, 0f, 1f);
-        Vec3 tip = wingFeatherTip(left, 1.0, time, lookDir, boosted, horizFrac);
+        return wingTipOffset(left, time, lookDir, boosted, bodyPitchDeg, bankRollDeg,
+                Mth.clamp(bodyPitchDeg / 76.0f, 0f, 1f));
+    }
+
+    public static Vec3 wingTipOffset(boolean left, double time, Vec3 lookDir, boolean boosted,
+                                     float bodyPitchDeg, float bankRollDeg, float aeroFrac) {
+        float af = Mth.clamp(aeroFrac, 0f, 1f);
+        Vec3 tip = wingFeatherTip(left, 1.0, time, lookDir, boosted, af);
         if (Math.abs(bodyPitchDeg) < 0.05f && Math.abs(bankRollDeg) < 0.05f) return tip;
-        return rotateWingVec(tip, lookDir, bodyPitchDeg, bankRollDeg).add(0, horizFrac * 0.08, 0);
+        double horizLift = Math.max(0.0, Math.sin(Math.toRadians(bodyPitchDeg))) * af * 0.08;
+        return rotateWingVec(tip, lookDir, bodyPitchDeg, bankRollDeg).add(0, horizLift, 0);
     }
 
     /**

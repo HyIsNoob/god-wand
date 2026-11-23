@@ -204,5 +204,24 @@ class BlockDominionBrainTest {
         }
         assertTrue((glideMaxY - glideMinY) < (uprightMaxY - uprightMinY) * 0.72,
                 "Horizontal Glide wings flatten sleekly along the horizontal back");
+
+        // Steep vertical climb (bodyPitchDeg=12, aeroFrac=1.0) stays cleanly behind back without flipping or clipping ahead
+        for (int i = 2; i < 40; i++) {
+            Vec3 climbW = BlockDominionBrain.wingPose(i, 40, 10.0, look, true, 12f, 0f, 1.0f).offset();
+            assertTrue(climbW.z < 0.35, "Steep vertical climb wings stay cleanly behind torso (z=" + climbW.z + ")");
+        }
+
+        // Meteor Strike Dive rules, planner selection, and dive arrowhead geometry
+        assertTrue(BlockDominionRules.isSteepMeteorDive(new Vec3(0, -0.85, 0.52).normalize(), new Vec3(0, -1.2, 0.4), true));
+        assertFalse(BlockDominionRules.isSteepMeteorDive(new Vec3(0, 0.85, 0.52).normalize(), new Vec3(0, 1.1, 0.4), true));
+        assertEquals(BlockDominionBrain.FormationKind.METEOR_DIVE,
+                BlockDominionBrain.plan(List.of(), 24, false, false, true, true, false, false, false, false, false, true).kind());
+        for (int i = 0; i < 24; i++) {
+            var mp = BlockDominionBrain.meteorDivePose(i, 24, 15.0, look, 158f, 0f);
+            assertTrue(Double.isFinite(mp.offset().x) && Double.isFinite(mp.offset().y) && Double.isFinite(mp.offset().z));
+            assertEquals(1.0, mp.axisX().length(), 0.01);
+            assertEquals(1.0, mp.axisY().length(), 0.01);
+            assertEquals(1.0, mp.axisZ().length(), 0.01);
+        }
     }
 }

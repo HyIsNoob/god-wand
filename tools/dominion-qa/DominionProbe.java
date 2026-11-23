@@ -61,6 +61,7 @@ public final class DominionProbe implements ClientModInitializer {
     private final List<UUID> spawnedMobs = new ArrayList<>();
     private final List<String> checks = new ArrayList<>();
     private double stairAscendStartY = 0.0;
+    private int meteorLandedTick = -1;
     private UUID deflectedArrowId = null;
     private Path framesDir;
     private Path keyframesDir;
@@ -350,17 +351,98 @@ public final class DominionProbe implements ClientModInitializer {
             recordCheck("wing_glide_jet_boost", spd >= 1.30, String.format(Locale.ROOT, "speed=%.2f", spd));
             saveKeyframe(c, "kf_05e_wings_glide_boost.png");
         }
-        // Brief 1st-person wing glide preview so owner sees unobstructed sightline while flying!
+        // Part D2: Steep Vertical Climb UP (verify gimbal-free aerodynamic wings behind climbing back!)
         if (t == 192) {
             c.options.keyRight.setDown(false);
+            c.options.keySprint.setDown(true);
+            c.options.keyJump.setDown(true);
+            server.submit(() -> {
+                ServerPlayer p = me(server, c);
+                p.connection.teleport(p.getX(), groundY + 14.0, p.getZ(), 0f, -72f);
+            }).join();
+        }
+        if (t == 206) {
+            saveKeyframe(c, "kf_05e2_wings_climb_up.png");
+        }
+
+        // Part D3: Meteor Strike Dive straight down into isolated ground target cluster!
+        if (t == 212) {
+            meteorLandedTick = -1;
+            net.godwand.client.BlockDominionInput.reset();
+            c.options.keySprint.setDown(true);
+            c.options.keyJump.setDown(true);
+            server.submit(() -> {
+                ServerPlayer p = me(server, c);
+                ServerLevel level = p.serverLevel();
+                double mx = S3X - 26.5, mz = S3Z + 10.5;
+                BlockDominionManager.setWingFlight(p, false);
+                p.setDeltaMovement(Vec3.ZERO);
+                p.connection.teleport(mx, groundY + 30.0, mz, 0f, 82f);
+                BlockDominionManager.setFlightStyle(p, true);
+                BlockDominionManager.setWingFlight(p, true);
+                for (int k = -1; k <= 1; k++) {
+                    Mob h = EntityType.HUSK.create(level);
+                    if (h != null) {
+                        h.setPos(mx + k * 2.0, groundY, mz + 15.5);
+                        h.setNoAi(true);
+                        level.addFreshEntity(h);
+                    }
+                }
+            }).join();
+        }
+        if (t == 224) {
+            boolean diving = server.submit(() -> BlockDominionManager.isMeteorDiving(me(server, c))).join();
+            recordCheck("meteor_dive_ignited", diving, "diving=" + diving);
+            saveKeyframe(c, "kf_05e3_meteor_dive.png");
+        }
+        if (meteorLandedTick < 0 && t >= 225 && t <= 247) {
+            boolean landedNow = server.submit(() -> !BlockDominionManager.isWingFlying(me(server, c))).join();
+            if (landedNow) {
+                meteorLandedTick = t;
+            }
+        }
+        if (meteorLandedTick >= 0 && t == meteorLandedTick + 2) {
+            saveKeyframe(c, "kf_05e4_meteor_strike_impact.png");
+        }
+        if (t == 248) {
             c.options.keySprint.setDown(false);
             c.options.keyJump.setDown(false);
+            if (meteorLandedTick < 0) {
+                saveKeyframe(c, "kf_05e4_meteor_strike_impact.png");
+            }
+            server.submit(() -> {
+                ServerPlayer p = me(server, c);
+                boolean landed = !BlockDominionManager.isWingFlying(p);
+                float hp = p.getHealth();
+                recordCheck("meteor_strike_safe_hp", landed && hp >= 19.9f,
+                        String.format(Locale.ROOT, "landed=%s hp=%.1f", landed, hp));
+                // Clean up test husks so Rain Umbrella scene stays completely threat-free!
+                var box = new net.minecraft.world.phys.AABB(S3X - 42, groundY - 4, S3Z + 4, S3X - 10, groundY + 14, S3Z + 42);
+                int fullHpSurvivors = 0;
+                for (Mob mob : p.serverLevel().getEntitiesOfClass(Mob.class, box)) {
+                    if (mob.isAlive() && mob.getHealth() >= mob.getMaxHealth() - 0.1f) fullHpSurvivors++;
+                    mob.discard();
+                }
+                int affected = Math.max(0, 3 - fullHpSurvivors);
+                recordCheck("meteor_strike_aoe_hits", affected >= 1,
+                        String.format(Locale.ROOT, "affected=%d landZ=%.1f targetZ=%.1f", affected, p.getZ(), S3Z + 26.0));
+            }).join();
+        }
+
+        // Brief 1st-person wing glide preview so owner sees unobstructed sightline while flying!
+        if (t == 250) {
+            server.submit(() -> {
+                ServerPlayer p = me(server, c);
+                p.connection.teleport(S3X + 0.5, groundY + 18.0, S3Z + 22.5, 0f, 0f);
+                BlockDominionManager.setFlightStyle(p, true);
+                BlockDominionManager.setWingFlight(p, true);
+            }).join();
             c.options.setCameraType(CameraType.FIRST_PERSON);
         }
-        if (t == 204) {
+        if (t == 260) {
             saveKeyframe(c, "kf_05f_wings_first_person.png");
         }
-        if (t == 212) {
+        if (t == 266) {
             c.options.setCameraType(CameraType.THIRD_PERSON_BACK);
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
@@ -370,8 +452,8 @@ public final class DominionProbe implements ClientModInitializer {
             }).join();
         }
 
-        // Part E: QoL Auto Rain Umbrella Canopy under rain!
-        if (t == 220) {
+        // Part E: QoL Auto Rain Umbrella Canopy under rain (30 ticks so rainLevel > 0.20 deterministically)!
+        if (t == 268) {
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
                 ServerLevel level = p.serverLevel();
@@ -379,12 +461,12 @@ public final class DominionProbe implements ClientModInitializer {
                 level.setWeatherParameters(0, 200, true, false);
             }).join();
         }
-        if (t == 246) {
+        if (t == 298) {
             boolean umbrella = server.submit(() -> BlockDominionManager.isUmbrellaActive(me(server, c))).join();
             recordCheck("rain_umbrella_active", umbrella, "umbrella=" + umbrella);
             saveKeyframe(c, "kf_05g_rain_umbrella.png");
         }
-        if (t == 254) {
+        if (t == 304) {
             // Part F: QoL Liquid Stride across glowing Lava Pool in Survival!
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
@@ -401,17 +483,17 @@ public final class DominionProbe implements ClientModInitializer {
             c.options.keyUp.setDown(true);
             c.options.keyShift.setDown(false);
         }
-        if (t == 276) {
+        if (t == 326) {
             boolean stride = server.submit(() -> BlockDominionManager.isLiquidStrideActive(me(server, c))).join();
             float hp = server.submit(() -> me(server, c).getHealth()).join();
             recordCheck("liquid_stride_lava_safe", stride && hp >= 19.9f,
                     String.format(Locale.ROOT, "stride=%s hp=%.1f", stride, hp));
             saveKeyframe(c, "kf_05h_liquid_stride_lava.png");
         }
-        if (t == 284) {
+        if (t == 334) {
             c.options.keyUp.setDown(false);
         }
-        if (t >= 290) {
+        if (t >= 340) {
             stage = 4;
             stageStart = ticks;
         }
