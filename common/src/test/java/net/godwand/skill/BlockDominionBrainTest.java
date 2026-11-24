@@ -135,7 +135,7 @@ class BlockDominionBrainTest {
             assertTrue(w.z < -0.15, "Wings stay behind back");
             if (w.x < -1.8) hasLeft = true;
             if (w.x > 1.8) hasRight = true;
-            if (pose.tier() == 2 && pose.scale().y > 1.0 && pose.scale().x < 0.35) {
+            if (pose.tier() == 2 && pose.scale().y > 1.0 && pose.scale().y > pose.scale().x * 1.8 && pose.scale().z < 0.20) {
                 hasElongatedFeather = true;
             }
             hoverMinZ = Math.min(hoverMinZ, w.z);

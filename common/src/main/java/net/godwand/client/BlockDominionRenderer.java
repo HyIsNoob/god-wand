@@ -2039,7 +2039,9 @@ public final class BlockDominionRenderer {
                 }
             }
 
-            // Monolith Cage 3D Fresnel containment domes, bar tension veins, spear targeting lasers & exit shock cones!
+            // Monolith Cage crisp handcrafted VFX (ZERO plastic hologram dome, ZERO blurry floor blobs, ZERO giant foggy cones!):
+            // - Phase 2: Razor-thin dead-straight hairline sightlines locking onto target heart during cock-back anticipation
+            // - Phase 3: Crisp kinetic supersonic pierce slash-streaks shooting cleanly along each spear's exit path!
             if (!bodyPass) {
                 for (ClientCage cage : ACTIVE_CAGES.values()) {
                     Entity target = world.getEntity(cage.targetId);
@@ -2049,73 +2051,49 @@ public final class BlockDominionRenderer {
                     Vec3 center = worldCenter.subtract(camPos);
                     if (center.lengthSqr() > 96.0 * 96.0) continue;
                     double age = Math.max(0.0, time - cage.startTick);
-                    double pulse = 0.85 + 0.15 * Math.sin(time * 0.35);
-                    // Telekinetic launch filaments pushing the 8 stones out from the caster toward the cage!
-                    if (age < 8.5) {
-                        Entity caster = world.getEntity(cage.casterId);
-                        if (caster != null) {
-                            Vec3 castHand = caster.getPosition(tickDelta).add(0, 1.25, 0).subtract(camPos);
-                            int ta = (int) (185 * (1.0 - age / 8.5));
-                            for (int b = 0; b < 4; b++) {
-                                double ang = time * 0.026 + cage.yawOffset + (Math.PI * 0.5) * b;
-                                Vec3 dst = center.add(Math.cos(ang) * 1.35, (b % 2 == 0 ? 0.35 : -0.35), Math.sin(ang) * 1.35);
-                                DominionShader.emitLiveBolt(buffer, mat, castHand, dst, 7, 0.18, 0.028,
-                                        6200L + b * 19L, time, cage.palette.hotR, cage.palette.hotG, cage.palette.hotB, ta);
-                            }
-                        }
-                    }
-                    DominionShader.emitFresnelDome(buffer, mat, center, new Vec3(0, 1, 0), 1.54, Math.PI * 0.92,
-                            18, 8, DominionShader.FX_HEX_MIST, 64,
-                            cage.palette.primaryR, cage.palette.primaryG, cage.palette.primaryB, (int) (145 * pulse));
-                    DominionShader.emitGroundPool(buffer, mat, center.add(0, -1.08, 0), 1.95, 65,
-                            cage.palette.primaryR, cage.palette.primaryG, cage.palette.primaryB, 115);
 
-                    // 6-Spear convergence targeting lasers (Phase 2 -> bright cock-back lock!) & exit piercing shock cones (Phase 3)!
                     if (age >= BlockDominionRules.CAGE_SPEAR_FORM_TICK || cage.impaled) {
                         Vec3[] dirs = BlockDominionBrain.cageSpearDirections(BlockDominionRules.CAGE_SPEAR_COUNT, cage.yawOffset);
                         if (cage.impaled && cage.impaleTick >= 0) {
                             double impAge = time - cage.impaleTick;
-                            if (impAge >= 0 && impAge < 14) {
-                                double it = impAge / 14.0;
-                                int ia = (int) (225 * (1.0 - it) * (1.0 - it));
+                            if (impAge >= 0 && impAge < 6) {
+                                double it = impAge / 6.0;
+                                int ia = (int) (220 * (1.0 - it) * (1.0 - it));
                                 for (int s = 0; s < dirs.length; s++) {
                                     Vec3 d = dirs[s];
-                                    DominionShader.emitFresnelCone(buffer, mat, center.add(d.scale(1.25 + it * 1.85)), d,
-                                            2.1 + it * 1.8, 0.80 + it * 0.72, 16, 5, 70 + s,
-                                            cage.palette.hotR, cage.palette.hotG, cage.palette.hotB, ia);
+                                    // Razor-sharp kinetic pierce slash shooting straight through the target!
+                                    DominionShader.emitVelocityStreak(buffer, mat,
+                                            center.add(d.scale(0.85 + it * 2.2)), d,
+                                            1.45 + it * 1.1, 0.048 * (1.0 - it * 0.65),
+                                            70 + s, 255, 244, 210, ia);
                                 }
+                                emitted = true;
                             }
                         } else {
                             double charge = Mth.clamp((age - BlockDominionRules.CAGE_SPEAR_FORM_TICK)
                                     / (double) Math.max(1, BlockDominionRules.CAGE_IMPALE_TICK - BlockDominionRules.CAGE_SPEAR_FORM_TICK), 0.0, 1.0);
                             boolean cocking = charge > 0.66;
-                            int la = (int) (75 + charge * 155);
-                            for (int s = 0; s < dirs.length; s++) {
-                                Vec3 from = center.subtract(dirs[s].scale(cocking ? 4.2 : 3.4));
-                                DominionShader.emitLiveBolt(buffer, mat, from, center, 5, cocking ? 0.03 : 0.05,
-                                        0.018 + charge * 0.018,
-                                        7100L + s * 23L, time,
-                                        cocking ? 255 : cage.palette.hotR,
-                                        cocking ? 235 : cage.palette.hotG,
-                                        cocking ? 185 : cage.palette.hotB, la);
+                            if (charge > 0.25) {
+                                int la = (int) (cocking ? (115 + (charge - 0.66) * 280) : (charge * 70));
+                                for (int s = 0; s < dirs.length; s++) {
+                                    Vec3 tipPos = center.subtract(dirs[s].scale(cocking ? 3.55 : 2.65));
+                                    // Dead-straight razor-thin sightline (zero messy zig-zag lightning!)
+                                    DominionShader.emitLiveBolt(buffer, mat, tipPos, center, 2, 0.0,
+                                            cocking ? 0.011 : 0.007, 7100L + s * 23L, time,
+                                            cocking ? 255 : cage.palette.hotR,
+                                            cocking ? 242 : cage.palette.hotG,
+                                            cocking ? 205 : cage.palette.hotB, Mth.clamp(la, 0, 210));
+                                    if (cocking) {
+                                        // Crisp glint star right on the spear tip during cock-back anticipation!
+                                        DominionShader.emitBillboard(buffer, mat, tipPos, camRight, camUp,
+                                                0.22 + (charge - 0.66) * 0.45, time * 0.15 + s,
+                                                DominionShader.FX_SPARK, 90 + s, 255, 246, 215, 195);
+                                    }
+                                }
+                                emitted = true;
                             }
                         }
                     }
-                    emitted = true;
-                }
-
-                // Impaled Corpse Monument glowing ground seal pool!
-                for (ImpaledMonument mon : IMPALED_MONUMENTS) {
-                    Vec3 p = mon.pinPos.subtract(camPos);
-                    if (p.lengthSqr() > 96.0 * 96.0) continue;
-                    double age = Math.max(0.0, time - mon.startTick);
-                    double fade = age > BlockDominionRules.CAGE_MONUMENT_TICKS - 14
-                            ? Mth.clamp((BlockDominionRules.CAGE_MONUMENT_TICKS - age) / 14.0, 0.0, 1.0)
-                            : 1.0;
-                    int a = (int) (135 * fade);
-                    DominionShader.emitGroundPool(buffer, mat, p.add(0, -0.34, 0), 2.15, 69,
-                            mon.palette.primaryR, mon.palette.primaryG, mon.palette.primaryB, a);
-                    emitted = true;
                 }
 
                 // Sleek forward rail tracer streak (starts cleanly ahead of the camera — zero ugly starburst/cone in 1st person!)
@@ -2354,24 +2332,19 @@ public final class BlockDominionRenderer {
         }
     }
 
-    /** Volley & Aerial Orbital Meteor Charge: 3D Fresnel convergence shell + delicate resonant filaments! */
+    /** Volley & Aerial Orbital Meteor Charge: crisp sparse convergence glints (zero foggy glowing sphere!). */
     private static void emitVolleyVfx(VertexConsumer v, Matrix4f m, ClientFormation f, Vec3 chest, Vec3 look,
                                       Vec3 camRight, Vec3 camUp, double time, float tickDelta, Vec3 camPos, boolean bodyPass) {
+        if (bodyPass) return;
         float vp = Mth.clamp(f.volleyTicks / (float) BlockDominionRules.VOLLEY_CHARGE_TICKS, 0f, 1f);
         boolean orbital = f.formation == BlockDominionBrain.FormationKind.ORBITAL_METEOR;
-        Vec3 focal = orbital ? chest.add(0, 3.0, 0) : chest.add(look.normalize().scale(2.05));
+        Vec3 focal = orbital ? chest.add(0, 3.0, 0) : chest.add(look.normalize().scale(2.15));
         int count = f.blocks.size();
-        int step = Math.max(1, count / 6); // Keep filaments delicate & sparse (never cluttered white cobwebs!)
-
-        if (!bodyPass) {
-            DominionShader.emitFresnelDome(v, m, focal, orbital ? new Vec3(0, -1, 0) : look,
-                    (orbital ? 1.8 : 0.72) + (1.0 - vp) * 0.95, Math.PI * 0.85, 18, 7,
-                    DominionShader.FX_SHELL, 22, f.pr(), f.pg(), f.pb(), (int) (135 * vp + 35));
-            for (int i = 0; i < count; i += step) {
-                Vec3 bp = f.blocks.get(i).prevPos.lerp(f.blocks.get(i).pos, tickDelta).subtract(camPos);
-                DominionShader.emitLiveBolt(v, m, bp, focal, 7, 0.16, 0.022 + vp * 0.012,
-                        2900L + i * 13L, time, f.hr(), f.hg(), f.hb(), (int) (145 * vp + 30));
-            }
+        int step = Math.max(1, count / 5);
+        for (int i = 0; i < count; i += step) {
+            Vec3 bp = f.blocks.get(i).prevPos.lerp(f.blocks.get(i).pos, tickDelta).subtract(camPos);
+            DominionShader.emitLiveBolt(v, m, bp, focal, 4, 0.05, 0.012 + vp * 0.008,
+                    2900L + i * 13L, time, f.hr(), f.hg(), f.hb(), (int) (95 * vp + 25));
         }
     }
 
@@ -2390,10 +2363,22 @@ public final class BlockDominionRenderer {
         Vec3[] pts = new Vec3[trail.size()];
         int i = 0;
         for (Vec3 p : trail) pts[i++] = p.subtract(camPos);
+        // 2x Chaikin corner-cutting subdivision -> silky curved aerodynamic contrail with ZERO polygonal kinks!
+        for (int pass = 0; pass < 2 && pts.length >= 3; pass++) {
+            Vec3[] next = new Vec3[(pts.length - 1) * 2];
+            next[0] = pts[0];
+            int w = 1;
+            for (int j = 0; j < pts.length - 2; j++) {
+                next[w++] = pts[j].lerp(pts[j + 1], 0.75);
+                next[w++] = pts[j + 1].lerp(pts[j + 2], 0.25);
+            }
+            next[w] = pts[pts.length - 1];
+            pts = next;
+        }
         int r = meteor ? 255 : (boosted ? f.hr() : f.pr());
         int g = meteor ? 128 : (boosted ? f.hg() : f.pg());
         int b = meteor ? 28 : (boosted ? f.hb() : f.pb());
         DominionShader.emitTrail(v, m, pts, width, DominionShader.FX_PLASMA, seed,
-                r, g, b, meteor ? 215 : (boosted ? 175 : 115));
+                r, g, b, meteor ? 200 : (boosted ? 125 : 75));
     }
 }

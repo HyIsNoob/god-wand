@@ -572,7 +572,7 @@ public final class BlockDominionBrain {
         int covertCount = Math.max(0, perWing - archCount - primaryCount);
 
         if (localIdx < archCount) {
-            // Tier 1: Continuous curved upper wing arch (long axisX runs right along the curve tangent!)
+            // Tier 1: Continuous overlapping leading-edge wing arch spar (zero gaps at any block count!)
             double u = archCount <= 1 ? 0.4 : (localIdx / (double) (archCount - 1));
             Vec3 pos = wingArchPoint(side < 0, u, time, lookDir, boosted, horizFrac);
             Vec3 next = wingArchPoint(side < 0, Math.min(1.0, u + 0.08), time, lookDir, boosted, horizFrac);
@@ -586,48 +586,52 @@ public final class BlockDominionBrain {
             if (yA.y < 0) yA = yA.scale(-1.0);
             Vec3 zA = xA.cross(yA).normalize();
 
-            double sx = Mth.lerp(u, 0.62, 0.34);
-            double sy = Mth.lerp(u, 0.28, 0.16);
-            double sz = Mth.lerp(u, 0.24, 0.14);
+            double sparSpacing = (boosted ? 3.15 : 2.95) / Math.max(2, archCount);
+            double sx = Mth.clamp(sparSpacing * Mth.lerp(u, 1.48, 1.24), 0.56, 1.08);
+            double sy = Mth.lerp(u, 0.34, 0.20);
+            double sz = Mth.lerp(u, 0.26, 0.16);
             return new WingPose(pos, new Vec3(sx, sy, sz), xA, yA, zA, 1);
         }
 
         if (localIdx < archCount + primaryCount) {
-            // Tier 2: Long slender splayed primary flight feathers — axisY points EXACTLY from arch root -> feather tip!
+            // Tier 2: Shingled overlapping primary flight feathers — adaptive chord width eliminates comb gaps at ANY block count!
             int fi = localIdx - archCount;
             double u = primaryCount <= 1 ? 0.6 : (fi / (double) (primaryCount - 1));
-            double archU = 0.14 + u * 0.86;
+            double archU = 0.08 + u * 0.92;
             Vec3 root = wingArchPoint(side < 0, archU, time, lookDir, boosted, horizFrac);
             Vec3 tip = wingFeatherTip(side < 0, u, time, lookDir, boosted, horizFrac);
-            Vec3 center = root.lerp(tip, 0.50);
 
-            double featherLen = Math.max(0.75, root.distanceTo(tip));
-            double sx = Mth.lerp(u, 0.26, 0.17);
-            double sy = featherLen * (boosted ? 1.06 : 1.02);
-            double sz = 0.11;
+            double featherLen = Math.max(0.85, root.distanceTo(tip));
+            double featherSpacing = (boosted ? 3.05 : 2.85) / Math.max(2, primaryCount);
+            double sx = Mth.clamp(featherSpacing * Mth.lerp(u, 1.52, 1.18), 0.36, 0.74);
+            double sy = featherLen * (boosted ? 1.10 : 1.06);
+            double sz = 0.12;
 
             Vec3 yA = tip.subtract(root).normalize();
-            // Thin feather face aligns with wing plane (normal ~ forward in body frame -> becomes world +Y when horizontal!)
-            double cant = Mth.lerp(horizFrac, boosted ? 0.28 : 0.14, 0.06);
+            // Thin feather face aligns with wing plane + slight alternating shingle layer so neighbors overlap cleanly with zero Z-fighting!
+            double cant = Mth.lerp(horizFrac, boosted ? 0.24 : 0.12, 0.05);
             Vec3 planeRef = forward.add(right.scale(side * cant)).normalize();
             Vec3 xA = yA.cross(planeRef);
             if (xA.lengthSqr() < 1e-5) xA = right;
             else xA = xA.normalize();
             Vec3 zA = xA.cross(yA).normalize();
+            double shingle = ((fi & 1) == 0 ? 0.032 : -0.032);
+            Vec3 center = root.lerp(tip, 0.50).add(zA.scale(shingle));
             return new WingPose(center, new Vec3(sx, sy, sz), xA, yA, zA, 2);
         }
 
-        // Tier 3: Layered secondary coverts tucked along the inner wing hollow aligned cleanly with the feather fan
+        // Tier 3: Broad layered secondary coverts sealing the inner 78% wing membrane cleanly over the primaries!
         int ci = localIdx - archCount - primaryCount;
         double u = covertCount <= 1 ? 0.5 : (ci / (double) (covertCount - 1));
-        double archU = 0.08 + u * 0.72;
+        double archU = 0.04 + u * 0.76;
         Vec3 root = wingArchPoint(side < 0, archU, time, lookDir, boosted, horizFrac);
-        Vec3 tip = wingFeatherTip(side < 0, u * 0.82, time, lookDir, boosted, horizFrac);
-        double covertDepth = Mth.lerp(horizFrac, boosted ? -0.14 : -0.10, -0.05);
-        Vec3 center = root.lerp(tip, 0.34).add(forward.scale(covertDepth));
-        double sx = Mth.lerp(u, 0.30, 0.22);
-        double sy = Mth.lerp(u, 0.54, 0.80);
-        double sz = 0.12;
+        Vec3 tip = wingFeatherTip(side < 0, u * 0.84, time, lookDir, boosted, horizFrac);
+        double covertDepth = Mth.lerp(horizFrac, boosted ? -0.13 : -0.10, -0.07);
+        Vec3 center = root.lerp(tip, 0.36).add(forward.scale(covertDepth));
+        double covertSpacing = 2.45 / Math.max(1, covertCount);
+        double sx = Mth.clamp(covertSpacing * 1.40, 0.40, 0.80);
+        double sy = Mth.lerp(u, 0.72, 1.08);
+        double sz = 0.13;
         Vec3 yA = tip.subtract(root).normalize();
         Vec3 xA = yA.cross(forward);
         if (xA.lengthSqr() < 1e-5) xA = right;
