@@ -10,12 +10,12 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.Mth;
 
 /**
- * Sleek minimal HUD for Block Dominion (respects GodWandConfig.CLIENT.skillHud):
- * - Compact resonant-accent badge to the right of the hotbar showing active mode
- *   (MANUAL / AUTO / WINGS / MACH / STAIRS / RAILGUN), block reserve bar (e.g. 48/48),
- *   and live flight speed bar while airborne with Block Wings.
- * - Thin clockwise crosshair charge arc (matching BlueRedHud) while charging Myriad Volley
- *   or Aerial Orbital Meteor Barrage.
+ * Minimalist arcane HUD for Block Dominion (respects GodWandConfig.CLIENT.skillHud):
+ * - Frameless feathered backdrop (no heavy industrial rectangle box!)
+ * - Sculpted pixel-diamond rune emblem tinted by active Material Resonance
+ * - Clean ivory block counter, delicate 2px arcane hairline gauge, subtle flight speed hairline,
+ *   and tiny diamond pips when Monolith Cages (up to 3) are active.
+ * - Thin clockwise crosshair charge arc while charging Myriad Volley / Orbital Barrage.
  */
 public final class BlockDominionHud {
     private BlockDominionHud() {}
@@ -25,13 +25,21 @@ public final class BlockDominionHud {
                               boolean stairAscending, boolean volleyCharging, float volleyProgress,
                               BlockDominionPalette palette, double speedBlocksPerTick) {
         render(g, mode, formation, count, capacity, flying, glideMode, boosting,
-                stairAscending, volleyCharging, volleyProgress, palette, speedBlocksPerTick, 0);
+                stairAscending, volleyCharging, volleyProgress, palette, speedBlocksPerTick, 0, 0);
     }
 
     public static void render(GuiGraphics g, BlockDominionRules.Mode mode, BlockDominionBrain.FormationKind formation,
                               int count, int capacity, boolean flying, boolean glideMode, boolean boosting,
                               boolean stairAscending, boolean volleyCharging, float volleyProgress,
                               BlockDominionPalette palette, double speedBlocksPerTick, int meteorTier) {
+        render(g, mode, formation, count, capacity, flying, glideMode, boosting,
+                stairAscending, volleyCharging, volleyProgress, palette, speedBlocksPerTick, meteorTier, 0);
+    }
+
+    public static void render(GuiGraphics g, BlockDominionRules.Mode mode, BlockDominionBrain.FormationKind formation,
+                              int count, int capacity, boolean flying, boolean glideMode, boolean boosting,
+                              boolean stairAscending, boolean volleyCharging, float volleyProgress,
+                              BlockDominionPalette palette, double speedBlocksPerTick, int meteorTier, int activeCages) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || !GodWandConfig.CLIENT.skillHud
                 || mc.options.hideGui || mc.screen != null) {
@@ -41,113 +49,121 @@ public final class BlockDominionHud {
                 || SilentGateCinematic.active() || PurpleCinematic.active()) {
             return;
         }
-        if (mode == BlockDominionRules.Mode.OFF) return;
+        if (mode != BlockDominionRules.Mode.MANUAL) return;
 
         int accent = 0xFF000000 | palette.hexAccent;
-        int accentSoft = 0x55000000 | palette.hexAccent;
+        int accentDim = 0x55000000 | palette.hexAccent;
         int hot = 0xFF000000 | ((palette.hotR << 16) | (palette.hotG << 8) | palette.hotB);
-        if (formation == BlockDominionBrain.FormationKind.METEOR_DIVE && meteorTier >= 2) {
-            int flameHex = meteorTier >= 3 ? 0xFF3E18 : 0xFF7A1F;
+        if (formation == BlockDominionBrain.FormationKind.METEOR_DIVE && meteorTier >= 1) {
+            int flameHex = meteorTier >= 3 ? 0xFF451A : (meteorTier == 2 ? 0xFF8224 : 0xFFAE36);
             accent = 0xFF000000 | flameHex;
-            accentSoft = 0x77000000 | flameHex;
-            hot = meteorTier >= 3 ? 0xFFFFF2B0 : 0xFFFFC86A;
+            accentDim = 0x66000000 | flameHex;
+            hot = meteorTier >= 3 ? 0xFFFFF4BC : 0xFFFFD074;
         }
 
-        // 1. Crosshair clockwise charge ring while charging Volley / Orbital Meteor Barrage
+        // 1. Delicate clockwise crosshair charge ring while charging Myriad Volley / Orbital Barrage
         if (volleyCharging) {
             int cx = g.guiWidth() / 2;
             int cy = g.guiHeight() / 2;
             float p = Mth.clamp(volleyProgress, 0f, 1f);
             int ringCol = p >= 0.98f ? hot : accent;
-            drawRing(g, cx, cy, 11, 48, p, ringCol, accentSoft);
+            drawRing(g, cx, cy, 11, 48, p, ringCol, accentDim);
             if (p >= 0.98f) {
-                drawRing(g, cx, cy, 14, 56, 1.0f, 0x90000000 | palette.hexAccent, 0);
+                drawRing(g, cx, cy, 14, 56, 1.0f, 0x88000000 | palette.hexAccent, 0);
             }
         }
 
-        String tag;
-        if (mode == BlockDominionRules.Mode.AUTO) {
-            tag = "AUTO";
-        } else if (formation == BlockDominionBrain.FormationKind.METEOR_DIVE) {
-            tag = meteorTier >= 3 ? "CATACLYSM" : (meteorTier == 2 ? "METEOR II" : "METEOR I");
+        // Only surface a refined Title-Case state whisper for meaningful modes (no noisy ALL-CAPS idle/railgun labels!)
+        String stateLabel = null;
+        if (formation == BlockDominionBrain.FormationKind.METEOR_DIVE) {
+            stateLabel = meteorTier >= 3 ? "Cataclysm" : (meteorTier == 2 ? "Meteor II" : "Meteor I");
         } else if (formation == BlockDominionBrain.FormationKind.ORBITAL_METEOR) {
-            tag = "METEOR";
+            stateLabel = "Orbital";
         } else if (formation == BlockDominionBrain.FormationKind.VOLLEY_FAN) {
-            tag = "VOLLEY";
+            stateLabel = "Volley";
         } else if (formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
-            tag = "PERCH";
+            stateLabel = "Perch";
         } else if (boosting) {
-            tag = glideMode ? "JET" : "MACH";
+            stateLabel = glideMode ? "Jet" : "Mach";
         } else if (flying) {
-            tag = glideMode ? "GLIDE" : "HOVER";
-        } else if (formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE) {
-            tag = "STRIDE";
-        } else if (formation == BlockDominionBrain.FormationKind.AIR_STAIRS) {
-            tag = stairAscending ? "STAIR ▲" : "STAIR ▼";
-        } else if (formation == BlockDominionBrain.FormationKind.RAIN_UMBRELLA) {
-            tag = "CANOPY";
-        } else if (formation == BlockDominionBrain.FormationKind.RAILGUN_RING) {
-            tag = "RAILGUN";
+            stateLabel = glideMode ? "Glide" : "Hover";
         } else if (formation.isShield()) {
-            tag = "SHIELD";
-        } else {
-            tag = "DOMINION";
+            stateLabel = "Aegis";
+        } else if (formation == BlockDominionBrain.FormationKind.RAIN_UMBRELLA) {
+            stateLabel = "Canopy";
         }
 
-        // 2. Compact status badge tucked cleanly beside the right edge of the hotbar (auto-expands for wide tags like CATACLYSM!)
         Font font = mc.font;
-        String rightLabel = mode == BlockDominionRules.Mode.MANUAL ? (count + "/" + capacity) : "FIELD";
+        String countText = count + " / " + capacity;
         int sw = g.guiWidth();
         int sh = g.guiHeight();
-        int panelW = Math.max(86, font.width(tag) + font.width(rightLabel) + 18);
-        int panelH = flying ? 32 : 24;
-        int x = Math.min(sw - panelW - 6, sw / 2 + 98);
-        int y = sh - panelH - 4;
+        int labelW = stateLabel != null ? font.width(stateLabel) + 8 : 0;
+        int barW = Math.max(72, Math.max(font.width(countText) + 14 + labelW, 84));
+        int x = Math.min(sw - barW - 10, sw / 2 + 100);
+        int baseY = sh - (flying ? 26 : 21);
 
-        // Translucent dark obsidian card + resonant left accent stripe & 1px frame
-        g.fill(x, y, x + panelW, y + panelH, 0xA8101016);
-        g.fill(x, y, x + 2, y + panelH, accent);
-        g.fill(x, y, x + panelW, y + 1, accentSoft);
-        g.fill(x, y + panelH - 1, x + panelW, y + panelH, accentSoft);
-        g.fill(x + panelW - 1, y, x + panelW, y + panelH, accentSoft);
+        // Soft frameless feathered dark gradient behind text & hairline (zero hard industrial rectangle!)
+        g.fillGradient(x - 6, baseY - 4, x + barW + 6, baseY + (flying ? 21 : 16), 0x00090910, 0x62090910);
 
-        int tagColor = (boosting || formation.isVolley() || formation.isMeteorDive()) ? hot : accent;
-        g.drawString(font, tag, x + 6, y + 4, tagColor, false);
+        // Sculpted 5x5 pixel-diamond arcane gem emblem on the left
+        drawDiamond(g, x + 2, baseY + 3, accent, hot);
 
-        if (mode == BlockDominionRules.Mode.MANUAL) {
-            int numW = font.width(rightLabel);
-            g.drawString(font, rightLabel, x + panelW - numW - 4, y + 4, 0xFFEFECE6, false);
+        // Clean warm-ivory block count with crisp shadow
+        g.drawString(font, countText, x + 10, baseY, 0xFFF5F1E6, true);
 
-            // Reserve fill bar
-            int barX = x + 6;
-            int barY = y + 15;
-            int barW = panelW - 10;
-            g.fill(barX, barY, barX + barW, barY + 4, 0x661C1C24);
-            float fill = capacity > 0 ? Mth.clamp(count / (float) capacity, 0f, 1f) : 0f;
-            int fillW = Math.round(barW * fill);
-            if (fillW > 0) {
-                g.fill(barX, barY, barX + fillW, barY + 4, accent);
-                g.fill(barX, barY, barX + fillW, barY + 1, hot);
-            }
-
-            // Live speed / Mach bar while Wing Flight is active (normalized to full-48 peak speed so 24 vs 48 depth is visible!)
-            if (flying) {
-                int spY = y + 23;
-                g.fill(barX, spY, barX + barW, spY + 3, 0x661C1C24);
-                double refMax = glideMode ? BlockDominionRules.GLIDE_MAX_SPEED : BlockDominionRules.FLIGHT_BOOST_SPEED;
-                float spFill = Mth.clamp((float) (speedBlocksPerTick / refMax), 0f, 1f);
-                int spW = Math.round(barW * spFill);
-                if (spW > 0) {
-                    g.fill(barX, spY, barX + spW, spY + 3, boosting ? hot : accent);
-                }
-            }
-        } else {
-            g.drawString(font, "FIELD", x + panelW - font.width("FIELD") - 4, y + 4, 0xFFDAD4C4, false);
-            int barX = x + 6;
-            int barY = y + 15;
-            int barW = panelW - 10;
-            g.fill(barX, barY, barX + barW, barY + 4, accentSoft);
+        // Subtle state whisper on the right (only when flying / shielding / volley / meteor)
+        if (stateLabel != null) {
+            int stW = font.width(stateLabel);
+            int stColor = (boosting || formation.isVolley() || formation.isMeteorDive()) ? hot : accent;
+            g.drawString(font, stateLabel, x + barW - stW, baseY, stColor, true);
         }
+
+        // Delicate 2px arcane filigree reserve gauge with subtle 1px end-cap pins
+        int barY = baseY + 11;
+        g.fill(x, barY, x + barW, barY + 2, 0x4814141D);
+        g.fill(x - 1, barY - 1, x, barY + 3, accentDim);
+        g.fill(x + barW, barY - 1, x + barW + 1, barY + 3, accentDim);
+        float fill = capacity > 0 ? Mth.clamp(count / (float) capacity, 0f, 1f) : 0f;
+        int fillW = Math.round(barW * fill);
+        if (fillW > 0) {
+            g.fill(x, barY, x + fillW, barY + 2, accent);
+            g.fill(x, barY, x + fillW, barY + 1, hot);
+            // Bright glowing tip spark at the live fill edge
+            g.fill(x + fillW - 1, barY - 1, x + fillW + 1, barY + 3, hot);
+        }
+
+        // Sleek 1px speed hairline only while airborne with Block Wings
+        if (flying) {
+            int spY = barY + 5;
+            g.fill(x, spY, x + barW, spY + 1, 0x3A14141D);
+            double refMax = glideMode ? BlockDominionRules.GLIDE_MAX_SPEED : BlockDominionRules.FLIGHT_BOOST_SPEED;
+            float spFill = Mth.clamp((float) (speedBlocksPerTick / refMax), 0f, 1f);
+            int spW = Math.round(barW * spFill);
+            if (spW > 0) {
+                g.fill(x, spY, x + spW, spY + 1, boosting ? hot : accent);
+            }
+        }
+
+        // Tiny glowing diamond pips above the hairline ONLY when Monolith Cages are active (1..3)
+        if (activeCages > 0) {
+            int pipY = baseY - 7;
+            for (int c = 0; c < BlockDominionRules.CAGE_MAX_ACTIVE; c++) {
+                boolean lit = c < activeCages;
+                drawSmallDiamond(g, x + 2 + c * 8, pipY, lit ? hot : 0x44888898);
+            }
+        }
+    }
+
+    private static void drawDiamond(GuiGraphics g, int cx, int cy, int rim, int core) {
+        g.fill(cx, cy - 2, cx + 1, cy + 3, rim);
+        g.fill(cx - 2, cy, cx + 3, cy + 1, rim);
+        g.fill(cx - 1, cy - 1, cx + 2, cy + 2, rim);
+        g.fill(cx, cy, cx + 1, cy + 1, core);
+    }
+
+    private static void drawSmallDiamond(GuiGraphics g, int cx, int cy, int col) {
+        g.fill(cx, cy - 1, cx + 1, cy + 2, col);
+        g.fill(cx - 1, cy, cx + 2, cy + 1, col);
     }
 
     private static void drawRing(GuiGraphics g, int cx, int cy, int radius, int steps, float fill, int onColor, int offColor) {

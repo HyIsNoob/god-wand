@@ -9,11 +9,7 @@ public final class BlockDominionRules {
         OFF, MANUAL, AUTO;
 
         public Mode next() {
-            return switch (this) {
-                case OFF -> MANUAL;
-                case MANUAL -> AUTO;
-                case AUTO -> OFF;
-            };
+            return this == OFF ? MANUAL : OFF;
         }
 
         public static Mode byOrdinal(int ordinal) {

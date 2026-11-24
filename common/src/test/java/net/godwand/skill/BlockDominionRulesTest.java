@@ -11,9 +11,9 @@ import static org.junit.jupiter.api.Assertions.*;
 class BlockDominionRulesTest {
 
     @Test
-    void modeCyclesOffManualAutoOff() {
+    void modeTogglesOffAndManual() {
         assertEquals(BlockDominionRules.Mode.MANUAL, BlockDominionRules.Mode.OFF.next());
-        assertEquals(BlockDominionRules.Mode.AUTO, BlockDominionRules.Mode.MANUAL.next());
+        assertEquals(BlockDominionRules.Mode.OFF, BlockDominionRules.Mode.MANUAL.next());
         assertEquals(BlockDominionRules.Mode.OFF, BlockDominionRules.Mode.AUTO.next());
         assertEquals(BlockDominionRules.Mode.OFF, BlockDominionRules.Mode.byOrdinal(-1));
         assertEquals(BlockDominionRules.Mode.OFF, BlockDominionRules.Mode.byOrdinal(99));

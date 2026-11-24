@@ -65,7 +65,7 @@
   "message.godwand.path_enabled": "空间之径已开启。",
   "message.godwand.cannon_fired": "已发射。",
   "message.godwand.dominion_off": "方块支配：关闭",
-  "message.godwand.dominion_manual": "方块支配：手动",
+  "message.godwand.dominion_manual": "方块支配：开启",
   "message.godwand.dominion_manual_recall": "方块支配：手动（召回 %s 个方块）",
   "message.godwand.dominion_auto": "方块支配：自动",
   "message.godwand.dominion_hint_off": "方块支配已关闭（潜行 + 左键开启）",

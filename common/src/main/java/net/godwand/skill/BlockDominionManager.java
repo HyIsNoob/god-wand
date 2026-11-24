@@ -392,6 +392,14 @@ public final class BlockDominionManager {
                 CinematicFxPayload.EVENT_FOV_PUNCH, impactPos.x, impactPos.y, impactPos.z,
                 t == 3 ? 1.12f : (t == 2 ? 1.08f : 1.05f), t == 3 ? 10 : 8));
 
+        // Thunderous earth-shattering ground detonation layered with client Cataclysm explosion!
+        world.playSound(null, impactPos.x, impactPos.y, impactPos.z,
+                SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.45f + t * 0.50f, 0.68f - t * 0.06f);
+        if (t >= 2) {
+            world.playSound(null, impactPos.x, impactPos.y, impactPos.z,
+                    SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 1.55f + t * 0.45f, 0.72f - t * 0.06f);
+        }
+
         if (hitCount > 0) {
             player.displayClientMessage(Component.translatable(
                     t == 3 ? "message.godwand.dominion_meteor_cataclysm" : "message.godwand.dominion_meteor_strike",
@@ -532,13 +540,6 @@ public final class BlockDominionManager {
             return;
         }
         if (payload.action() == BlockDominionInputPayload.ACTION_STAIR_INTENT) {
-            PlayerState st = STATES.get(player.getUUID());
-            if (st != null && st.mode == BlockDominionRules.Mode.MANUAL && !st.wingFlying) {
-                st.stairAscending = payload.stairAscending();
-                if (payload.stairAscending()) {
-                    st.stairAscendUntil = world.getGameTime() + 6;
-                }
-            }
             return;
         }
         if (!holdsBlockDominion(player)) return;
@@ -787,7 +788,7 @@ public final class BlockDominionManager {
         return lifted;
     }
 
-    /** Shift + Left Click: cycles OFF -> MANUAL -> AUTO -> OFF. */
+    /** Shift + Left Click: cleanly toggles Block Dominion OFF <-> ON (no Auto mode, no auto-recall of old blocks). */
     public static void cycleMode(ServerPlayer player) {
         ServerLevel world = player.serverLevel();
         PlayerState st = stateOf(player.getUUID());
@@ -803,6 +804,7 @@ public final class BlockDominionManager {
         st.hoverIdleTicks = 0;
         st.rapidFiring = false;
         st.volleyQueue.clear();
+        st.recall = null;
 
         if (previous == BlockDominionRules.Mode.MANUAL && next != BlockDominionRules.Mode.MANUAL) {
             dropReserveSpiral(player, st, false);
@@ -812,27 +814,13 @@ public final class BlockDominionManager {
         st.stowed = !holdsBlockDominion(player);
         st.hiddenInCutscene = inCutscene(player);
 
-        switch (next) {
-            case MANUAL -> {
-                int recalled = tryRecallBlocks(player, st);
-                if (recalled > 0) {
-                    player.displayClientMessage(Component.translatable("message.godwand.dominion_manual_recall", recalled), true);
-                } else {
-                    player.displayClientMessage(Component.translatable("message.godwand.dominion_manual"), true);
-                }
-                GodWandAdvancements.award(player, "use_9");
-            }
-            case AUTO -> {
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        UNFOLD_SFX, SoundSource.PLAYERS, 0.80f, 1.24f);
-                player.displayClientMessage(Component.translatable("message.godwand.dominion_auto"), true);
-                GodWandAdvancements.award(player, "use_9");
-            }
-            case OFF -> {
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        UNFOLD_SFX, SoundSource.PLAYERS, 0.65f, 0.68f);
-                player.displayClientMessage(Component.translatable("message.godwand.dominion_off"), true);
-            }
+        if (next == BlockDominionRules.Mode.MANUAL) {
+            player.displayClientMessage(Component.translatable("message.godwand.dominion_manual"), true);
+            GodWandAdvancements.award(player, "use_9");
+        } else {
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    UNFOLD_SFX, SoundSource.PLAYERS, 0.58f, 0.68f);
+            player.displayClientMessage(Component.translatable("message.godwand.dominion_off"), true);
         }
         sync(player, st, next == BlockDominionRules.Mode.MANUAL ? BlockDominionRules.EVENT_UNFOLD : BlockDominionRules.EVENT_SYNC,
                 player.getX(), player.getY() + 1.2, player.getZ(), 0);
@@ -1102,12 +1090,18 @@ public final class BlockDominionManager {
     private static void fireManualShot(ServerPlayer player, PlayerState st, int burstIndex) {
         if (st.reserve.isEmpty()) return;
         BlockState block = st.reserve.remove(st.reserve.size() - 1);
+        Vec3 eye = player.getEyePosition();
         Vec3 look = player.getViewVector(1.0f).normalize();
-        Vec3 spawnPos = player.getEyePosition().add(look.scale(1.45));
-        launchProjectile(player, block, spawnPos, look, false);
+        Vec3 right = look.cross(Math.abs(look.y) < 0.95 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0)).normalize();
+        Vec3 up = right.cross(look).normalize();
+        // Launch smoothly from wand-side offset converging onto the crosshair aim point (clean 1st-person sightline!)
+        Vec3 spawnPos = eye.add(look.scale(1.85)).add(right.scale(0.38)).add(up.scale(-0.20));
+        Vec3 aimTarget = eye.add(look.scale(28.0));
+        Vec3 shotDir = aimTarget.subtract(spawnPos).normalize();
+        launchProjectile(player, block, spawnPos, shotDir, false);
 
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.12f, 4));
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.08f, 3));
         sync(player, st, BlockDominionRules.EVENT_FIRE, spawnPos.x, spawnPos.y, spawnPos.z, Block.getId(block));
     }
 
@@ -1489,44 +1483,33 @@ public final class BlockDominionManager {
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                                 CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.04f, 6));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.78f, 1.15f);
-                        world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 0.75f, 0.78f);
+                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.36f, 1.15f);
                     } else if (nextTier == 2 && prevMeteorTier < 2) {
                         player.displayClientMessage(Component.translatable("message.godwand.dominion_meteor_tier2"), true);
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                                 CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.05f, 7));
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.14f, 5));
+                                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.12f, 5));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 1.0f, 0.94f);
-                        world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.72f, 1.15f);
+                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.48f, 0.96f);
                     } else if (nextTier == 3 && prevMeteorTier < 3) {
                         player.displayClientMessage(Component.translatable("message.godwand.dominion_meteor_tier3"), true);
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                                 CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.06f, 8));
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.18f, 6));
+                                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.16f, 6));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 1.30f, 0.74f);
-                        world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.05f, 0.85f);
+                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.60f, 0.80f);
                     }
                 }
-                // Rhythmic crackling atmospheric boom-pops while plunging down like a burning meteor!
+                // Subtle rhythmic atmospheric fire-crackle pops while plunging (kept comfortable; big boom saved for impact!)
                 if (nextTier >= 1) {
-                    int boomInterval = nextTier == 3 ? 4 : (nextTier == 2 ? 6 : 8);
+                    int boomInterval = nextTier == 3 ? 5 : (nextTier == 2 ? 7 : 9);
                     if (now % boomInterval == 0) {
                         float pitchJitter = (float) ((now * 17 % 7) * 0.04);
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                                 SoundEvents.FIREWORK_ROCKET_BLAST, SoundSource.PLAYERS,
-                                0.52f + nextTier * 0.18f, 0.82f - nextTier * 0.08f + pitchJitter);
-                        if (nextTier >= 2 && (now % (boomInterval * 2) == 0)) {
-                            world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                    SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS,
-                                    nextTier == 3 ? 0.68f : 0.44f, (nextTier == 3 ? 0.92f : 1.15f) + pitchJitter);
-                        }
+                                0.24f + nextTier * 0.08f, 0.85f - nextTier * 0.06f + pitchJitter);
                     }
                 }
                 // Keep camera rock-steady during plunge (zero jerky periodic camera shake, zero lens-blocking sprites!)
@@ -1603,80 +1586,10 @@ public final class BlockDominionManager {
             }
         }
 
-        // QoL Liquid Stride: automatically lay flat stone stepping slabs over water & lava surfaces!
-        double liquidSurface = findLiquidStrideSurface(world, player);
-        boolean wantLiquidStride = st.mode == BlockDominionRules.Mode.MANUAL && !st.stowed && !st.wingFlying
-                && !st.volleyCharging && !st.hiddenInCutscene
-                && st.reserve.size() >= BlockDominionRules.MIN_STAIR_BLOCKS
-                && !player.isShiftKeyDown() && !player.isUnderWater()
-                && !player.isPassenger() && !player.getAbilities().flying
-                && !Double.isNaN(liquidSurface);
-        if (wantLiquidStride != st.liquidStrideActive) {
-            st.liquidStrideActive = wantLiquidStride;
-            mobilityChanged = true;
-            if (wantLiquidStride) {
-                mobilityEvent = BlockDominionRules.EVENT_AIR_STEP;
-                mobEy = liquidSurface;
-                st.lastStepEventTick = now;
-            }
-        }
-        if (st.liquidStrideActive) {
-            player.fallDistance = 0.0f;
-            if (player.isOnFire() || !world.getFluidState(player.blockPosition().below()).isEmpty()) {
-                player.clearFire();
-            }
-            Vec3 cur = player.getDeltaMovement();
-            Vec3 nextVel = BlockDominionRules.stepLiquidStrideVelocity(cur, player.getY(), liquidSurface, false);
-            if (cur.y < nextVel.y - 0.02 || player.getY() < liquidSurface - 0.05) {
-                player.setDeltaMovement(nextVel);
-            }
-            double horiz = Math.sqrt(cur.x * cur.x + cur.z * cur.z);
-            if (horiz > 0.03 && now - st.lastStepEventTick >= 6) {
-                st.lastStepEventTick = now;
-                mobilityChanged = true;
-                mobilityEvent = BlockDominionRules.EVENT_AIR_STEP;
-                mobEy = liquidSurface;
-            }
-        }
-
-        // Air-Step Block Stairs (both slow regal descending stairs AND ascending sky stairs!)
-        boolean ascendIntent = st.stairAscending && now <= st.stairAscendUntil;
-        boolean canStair = st.mode == BlockDominionRules.Mode.MANUAL && !st.stowed && !st.wingFlying
-                && !st.liquidStrideActive
-                && !st.volleyCharging && !st.hiddenInCutscene
-                && st.reserve.size() >= BlockDominionRules.MIN_STAIR_BLOCKS
-                && !player.isShiftKeyDown()
-                && !player.isInWater() && !player.isInLava() && !player.onClimbable()
-                && !player.isPassenger() && !player.getAbilities().flying;
-        boolean wantStair = canStair && (
-                ascendIntent
-                || (!player.onGround() && (st.airStairsActive || (player.getDeltaMovement().y < 0.04 && hasDropBelow(world, player))))
-        );
-        if (wantStair != st.airStairsActive) {
-            st.airStairsActive = wantStair;
-            if (!wantStair) st.stairAscending = false;
-            mobilityChanged = true;
-            if (wantStair) {
-                mobilityEvent = BlockDominionRules.EVENT_AIR_STEP;
-                mobEy = player.getY() - 0.15;
-                st.lastStepEventTick = now;
-            }
-        }
-        if (st.airStairsActive) {
-            player.fallDistance = 0.0f;
-            Vec3 cur = player.getDeltaMovement();
-            double horiz = Math.sqrt(cur.x * cur.x + cur.z * cur.z);
-            Vec3 nextVel = BlockDominionRules.stepAirStairsVelocity(cur, horiz, ascendIntent, ascendIntent);
-            if (ascendIntent || cur.y < nextVel.y - 0.03) {
-                player.setDeltaMovement(nextVel);
-            }
-            if ((horiz > 0.025 || ascendIntent) && now - st.lastStepEventTick >= 6) {
-                st.lastStepEventTick = now;
-                mobilityChanged = true;
-                mobilityEvent = BlockDominionRules.EVENT_AIR_STEP;
-                mobEy = player.getY() - 0.15;
-            }
-        }
+        // Liquid Stride and Air-Step Stairs disabled — focus strictly on Defense, Offense, and Wing Flight
+        st.liquidStrideActive = false;
+        st.airStairsActive = false;
+        st.stairAscending = false;
 
         // QoL Rain Umbrella check every 4 ticks (shelters player when standing under open rain/snow!)
         if ((now + player.getId()) % 4 == 0) {

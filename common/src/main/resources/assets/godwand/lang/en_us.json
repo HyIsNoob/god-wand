@@ -65,7 +65,7 @@
   "message.godwand.path_enabled": "Path enabled.",
   "message.godwand.cannon_fired": "Fired.",
   "message.godwand.dominion_off": "Block Dominion: Off",
-  "message.godwand.dominion_manual": "Block Dominion: Manual",
+  "message.godwand.dominion_manual": "Block Dominion: Active",
   "message.godwand.dominion_manual_recall": "Block Dominion: Manual (%s recalled)",
   "message.godwand.dominion_auto": "Block Dominion: Auto",
   "message.godwand.dominion_hint_off": "Block Dominion is off (Shift + Left Click to enable)",

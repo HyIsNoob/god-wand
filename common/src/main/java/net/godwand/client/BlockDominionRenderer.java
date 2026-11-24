@@ -312,13 +312,18 @@ public final class BlockDominionRenderer {
     }
 
     public static boolean hasLocalActiveCage() {
+        return localActiveCageCount() > 0;
+    }
+
+    public static int localActiveCageCount() {
         Minecraft mc = Minecraft.getInstance();
-        if (mc == null || mc.player == null) return false;
+        if (mc == null || mc.player == null) return 0;
         int myId = mc.player.getId();
+        int n = 0;
         for (ClientCage c : ACTIVE_CAGES.values()) {
-            if (c.casterId == myId) return true;
+            if (c.casterId == myId) n++;
         }
-        return false;
+        return n;
     }
 
     public static boolean isLocalWingFlying() {
@@ -536,9 +541,7 @@ public final class BlockDominionRenderer {
                 Vec3 aim = owner != null ? owner.getViewVector(1.0f).normalize() : new Vec3(0, 0, 1);
                 if (MUZZLE_TRACERS.size() >= 16) MUZZLE_TRACERS.remove(0);
                 MUZZLE_TRACERS.add(new MuzzleTracer(muzzle, aim, now, pal));
-                DominionParticles.spawnRingBurst(muzzle, aim, 0.55, 10, 0.22,
-                        pal.hotR, pal.hotG, pal.hotB, DominionParticles.STYLE_EMBER);
-                BlockDominionSounds.play(muzzle, BlockDominionSounds.FIRE, 0.86f, 0.94f + (float) ((now % 5) * 0.04));
+                BlockDominionSounds.play(muzzle, BlockDominionSounds.FIRE, 0.84f, 0.94f + (float) ((now % 5) * 0.04));
             }
             case BlockDominionRules.EVENT_UNFOLD -> {
                 f.unfoldStartTick = now;
@@ -628,7 +631,9 @@ public final class BlockDominionRenderer {
                     triggerImpactFrame(2 + tier, 1.0f, (int) (now & 63), BlockDominionPalette.INFERNO_OBSIDIAN);
                 }
                 BlockDominionSounds.play(impactPos, BlockDominionSounds.METEOR_CATACLYSM,
-                        0.95f + tier * 0.30f, 1.16f - tier * 0.14f);
+                        1.45f + tier * 0.45f, 1.06f - tier * 0.12f);
+                BlockDominionSounds.play(impactPos, BlockDominionSounds.IMPACT,
+                        1.20f + tier * 0.25f, 0.74f - tier * 0.06f);
             }
             case BlockDominionRules.EVENT_CAGE_START -> {
                 Vec3 anchor = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
@@ -780,6 +785,7 @@ public final class BlockDominionRenderer {
     }
 
     private static void updateAmbientLoop(int pid, BlockDominionRules.Mode mode, ClientFormation f) {
+        // Only play clean vanilla Elytra flight wind while airborne (ZERO constant humming drone while orbiting!)
         if (mode == BlockDominionRules.Mode.MANUAL && f.flying && !f.blocks.isEmpty()) {
             BlockDominionSounds.ensureLoop(pid, BlockDominionSounds.FLIGHT_LOOP,
                     () -> {
@@ -805,45 +811,6 @@ public final class BlockDominionRenderer {
                         double spd = e == null ? 0.0 : e.getDeltaMovement().length();
                         return Mth.clamp(0.84 + spd * 0.24 + (cf.boosting ? 0.14 : 0.0), 0.82, 1.38);
                     });
-        } else if (mode == BlockDominionRules.Mode.MANUAL && !f.blocks.isEmpty()) {
-            BlockDominionSounds.ensureLoop(pid, BlockDominionSounds.ORBIT_LOOP,
-                    () -> {
-                        if (world == null) return null;
-                        Entity e = world.getEntity(pid);
-                        return e == null ? null : e.position().add(0, 1.25, 0);
-                    },
-                    () -> {
-                        ClientFormation cf = FORMATIONS.get(pid);
-                        return cf != null && cf.mode == BlockDominionRules.Mode.MANUAL && !cf.flying && !cf.blocks.isEmpty() && !cf.hiddenInCutscene;
-                    },
-                    () -> {
-                        ClientFormation cf = FORMATIONS.get(pid);
-                        if (cf == null || cf.blocks.isEmpty() || cf.hiddenInCutscene) return 0.0;
-                        double base = 0.14 + Math.min(1.0, cf.blocks.size() / 48.0) * 0.30;
-                        return cf.stowed ? base * 0.35 : (cf.formation.isShield() ? base * 1.25 : base);
-                    },
-                    () -> {
-                        ClientFormation cf = FORMATIONS.get(pid);
-                        if (cf == null) return 1.0;
-                        double countFrac = Math.min(1.0, cf.blocks.size() / 48.0);
-                        return 0.78 + countFrac * 0.56 + (cf.formation.isShield() ? 0.12 : 0.0);
-                    });
-        } else if (mode == BlockDominionRules.Mode.AUTO) {
-            BlockDominionSounds.ensureLoop(pid, BlockDominionSounds.AUTO_LOOP,
-                    () -> {
-                        if (world == null) return null;
-                        Entity e = world.getEntity(pid);
-                        return e == null ? null : e.position().add(0, 1.0, 0);
-                    },
-                    () -> {
-                        ClientFormation cf = FORMATIONS.get(pid);
-                        return cf != null && cf.mode == BlockDominionRules.Mode.AUTO && !cf.hiddenInCutscene;
-                    },
-                    () -> {
-                        ClientFormation cf = FORMATIONS.get(pid);
-                        return cf != null && !cf.hiddenInCutscene ? 0.28 : 0.0;
-                    },
-                    () -> 1.0);
         } else {
             BlockDominionSounds.stopLoop(pid);
         }
@@ -1409,7 +1376,7 @@ public final class BlockDominionRenderer {
             BlockDominionHud.render(graphics, local.mode, local.formation, local.blocks.size(), cap,
                     local.flying, local.glideMode, local.boosting, local.stairAscending,
                     local.volleyCharging, vp, local.palette,
-                    mc.player.getDeltaMovement().length(), local.meteorTier);
+                    mc.player.getDeltaMovement().length(), local.meteorTier, localActiveCageCount());
         }
 
         if (impactFrameTicks <= 0 || !GodWandConfig.CLIENT.impactFrames || DominionPostFx.ready()) return;
@@ -1505,8 +1472,6 @@ public final class BlockDominionRenderer {
                 if (!f.stowed && count > 0) {
                     renderSatelliteStoneSwarm(matrices, bufferSource, blockRenderer, f, owner, camPos, camLook, time, tickDelta, firstPerson);
                 }
-            } else if (f.mode == BlockDominionRules.Mode.AUTO) {
-                renderAutoGravitySwarm(matrices, bufferSource, blockRenderer, owner, camPos, time, tickDelta, firstPerson);
             }
         }
 
@@ -1926,11 +1891,7 @@ public final class BlockDominionRenderer {
                 Vec3 forward = new Vec3(look.x, 0, look.z);
                 forward = forward.lengthSqr() < 1e-4 ? new Vec3(0, 0, 1) : forward.normalize();
 
-                if (f.mode == BlockDominionRules.Mode.AUTO) {
-                    emitAutoFieldVfx(buffer, mat, f, owner.getPosition(tickDelta).add(0, 0.14, 0).subtract(camPos),
-                            camRight, camUp, time, bodyPass);
-                    emitted = true;
-                } else if (f.mode == BlockDominionRules.Mode.MANUAL && !f.blocks.isEmpty()) {
+                if (f.mode == BlockDominionRules.Mode.MANUAL && !f.blocks.isEmpty()) {
                     int count = f.blocks.size();
 
                     // Pickup / Earthen Surge crackling lightning tethers from ground up to rising blocks
@@ -1962,8 +1923,10 @@ public final class BlockDominionRenderer {
                         emitVolleyVfx(buffer, mat, f, chest, look, camRight, camUp, time, tickDelta, camPos, bodyPass);
                         emitted = true;
                     } else if (f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING) {
-                        emitRailgunVfx(buffer, mat, f, chest, look, camRight, camUp, time, tickDelta, camPos, bodyPass);
-                        emitted = true;
+                        if (!firstPerson) {
+                            emitRailgunVfx(buffer, mat, f, chest, look, camRight, camUp, time, tickDelta, camPos, bodyPass);
+                            emitted = true;
+                        }
                     } else if (f.formation.isStepping()) {
                         emitAirStairsVfx(buffer, mat, f, camRight, camUp, time, tickDelta, camPos, bodyPass);
                         emitted = true;
@@ -2104,20 +2067,20 @@ public final class BlockDominionRenderer {
                     emitted = true;
                 }
 
-                // Floating Railgun Ring crisp muzzle blast cone & electromagnetic rail tracer beam!
+                // Sleek forward rail tracer streak (starts cleanly ahead of the camera — zero ugly starburst/cone in 1st person!)
+                boolean camFirstPerson = !camera.isDetached();
                 for (MuzzleTracer tr : MUZZLE_TRACERS) {
                     double age = time - tr.startTick;
-                    if (age < 0 || age >= 7) continue;
-                    double t = age / 7.0;
+                    if (age < 0 || age >= 5) continue;
+                    double t = age / 5.0;
                     Vec3 orig = tr.origin.subtract(camPos);
                     if (orig.lengthSqr() > 96.0 * 96.0) continue;
-                    int a = (int) (195 * (1.0 - t) * (1.0 - t));
-                    DominionShader.emitFresnelCone(buffer, mat, orig.add(tr.dir.scale(0.85)), tr.dir,
-                            1.5 + t * 1.2, 0.42 + t * 0.36, 14, 4, 83,
+                    int a = (int) ((camFirstPerson ? 115 : 155) * (1.0 - t) * (1.0 - t));
+                    Vec3 start = orig.add(tr.dir.scale(camFirstPerson ? (2.4 + t * 5.0) : (0.6 + t * 3.5)));
+                    Vec3 end = start.add(tr.dir.scale(4.5 + t * 5.0));
+                    DominionShader.emitLiveBolt(buffer, mat, start, end,
+                            3, 0.02, 0.022 * (1.0 - t * 0.65), tr.startTick * 17L, time,
                             tr.palette.hotR, tr.palette.hotG, tr.palette.hotB, a);
-                    DominionShader.emitLiveBolt(buffer, mat, orig, orig.add(tr.dir.scale(9.0 + t * 8.0)),
-                            5, 0.04, 0.036 * (1.0 - t * 0.7), tr.startTick * 17L, time,
-                            tr.palette.hotR, tr.palette.hotG, tr.palette.hotB, (int) (a * 0.85));
                     emitted = true;
                 }
 
@@ -2183,21 +2146,16 @@ public final class BlockDominionRenderer {
         // Keep Idle orbit razor-clean: let the real Minecraft blocks shine without hazy smoke clouds or glowing floor blobs!
     }
 
-    /** Floating Stone Railgun Ring VFX: true 3D Fresnel barrel cone + fine crackling accelerator filaments! */
+    /** Floating Stone Railgun Ring VFX (3rd-person only): subtle thin accelerator sparks linking the 5 spinning blocks. */
     private static void emitRailgunVfx(VertexConsumer v, Matrix4f m, ClientFormation f, Vec3 chest, Vec3 look,
                                        Vec3 camRight, Vec3 camUp, double time, float tickDelta, Vec3 camPos, boolean bodyPass) {
-        Vec3 aim = look.lengthSqr() > 1e-4 ? look.normalize() : new Vec3(0, 0, 1);
-        Vec3 muzzle = chest.add(aim.scale(2.35));
         int barrelBlocks = Math.min(5, f.blocks.size());
-
         if (!bodyPass) {
-            DominionShader.emitFresnelCone(v, m, muzzle, aim, 1.55, 0.85, 16, 5, 47,
-                    f.pr(), f.pg(), f.pb(), 145);
             for (int i = 0; i < barrelBlocks; i++) {
                 Vec3 p1 = f.blocks.get(i).prevPos.lerp(f.blocks.get(i).pos, tickDelta).subtract(camPos);
                 Vec3 p2 = f.blocks.get((i + 1) % barrelBlocks).prevPos.lerp(f.blocks.get((i + 1) % barrelBlocks).pos, tickDelta).subtract(camPos);
-                DominionShader.emitLiveBolt(v, m, p1, p2, 5, 0.06, 0.022, 4750L + i * 19L, time,
-                        f.hr(), f.hg(), f.hb(), 175);
+                DominionShader.emitLiveBolt(v, m, p1, p2, 4, 0.04, 0.016, 4750L + i * 19L, time,
+                        f.hr(), f.hg(), f.hb(), 125);
             }
         }
     }

@@ -62,7 +62,11 @@ public final class BlockDominionInput {
                 return;
             }
         }
-        if (client.hitResult instanceof BlockHitResult bhr && bhr.getType() == HitResult.Type.BLOCK) {
+        HitResult blockCheck = client.hitResult;
+        if (!(blockCheck instanceof BlockHitResult bhr0 && bhr0.getType() == HitResult.Type.BLOCK)) {
+            blockCheck = client.player.pick(7.0, 1.0f, false);
+        }
+        if (blockCheck instanceof BlockHitResult bhr && bhr.getType() == HitResult.Type.BLOCK) {
             holdCooldown = BlockDominionRules.HOLD_PICKUP_INTERVAL;
             Services.NETWORK.sendToServer(new BlockDominionInputPayload(
                     BlockDominionInputPayload.ACTION_PICKUP, bhr.getBlockPos()));
@@ -216,56 +220,6 @@ public final class BlockDominionInput {
             wasLocalFlying = false;
             localFlightVel = Vec3.ZERO;
             player.setNoGravity(false);
-        }
-
-        // QoL Liquid Stride: synchronized local client buoyancy over water & lava surfaces!
-        if (localManual && !BlockDominionRenderer.isLocalStowed()
-                && localBlocks >= BlockDominionRules.MIN_STAIR_BLOCKS
-                && !shiftDown && !player.isUnderWater() && !player.getAbilities().flying
-                && client.level != null) {
-            BlockPos feet = player.blockPosition();
-            double surfaceY = Double.NaN;
-            for (BlockPos probe : new BlockPos[]{feet, feet.below()}) {
-                if (!client.level.getFluidState(probe).isEmpty() && client.level.getFluidState(probe.above()).isEmpty()) {
-                    double sy = probe.getY() + 0.96;
-                    if (player.getY() <= sy + 0.55 && player.getY() >= probe.getY() - 0.15) {
-                        surfaceY = sy;
-                        break;
-                    }
-                }
-            }
-            if (!Double.isNaN(surfaceY)) {
-                Vec3 next = BlockDominionRules.stepLiquidStrideVelocity(
-                        player.getDeltaMovement(), player.getY(), surfaceY, jumpDown);
-                player.fallDistance = 0.0f;
-                player.setDeltaMovement(next);
-                return;
-            }
-        }
-
-        // Ascending & Descending Block Stairs:
-        // Hold Space while walking forward (and not sneaking) -> smoothly builds floating stairs UP into the sky!
-        boolean walkingHoriz = !inGui && (client.options.keyUp.isDown() || client.options.keyDown.isDown()
-                || client.options.keyLeft.isDown() || client.options.keyRight.isDown());
-        boolean wantAscend = localManual && !BlockDominionRenderer.isLocalStowed()
-                && localBlocks >= BlockDominionRules.MIN_STAIR_BLOCKS
-                && !shiftDown && jumpDown && walkingHoriz
-                && !player.getAbilities().flying && !player.isInWater() && !player.isInLava();
-
-        if (wantAscend != lastSentAscend || (wantAscend && stairPacketCooldown <= 0)) {
-            Services.NETWORK.sendToServer(BlockDominionInputPayload.stairIntent(wantAscend));
-            lastSentAscend = wantAscend;
-            stairPacketCooldown = 2;
-        } else if (stairPacketCooldown > 0) {
-            stairPacketCooldown--;
-        }
-
-        if ((localStairs || wantAscend) && !shiftDown && !player.getAbilities().flying) {
-            Vec3 cur = player.getDeltaMovement();
-            double horiz = Math.sqrt(cur.x * cur.x + cur.z * cur.z);
-            Vec3 next = BlockDominionRules.stepAirStairsVelocity(cur, horiz, wantAscend, jumpDown);
-            player.fallDistance = 0.0f;
-            player.setDeltaMovement(next);
         }
     }
 
