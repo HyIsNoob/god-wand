@@ -81,9 +81,9 @@ public final class BlockDominionRules {
     public static final int EVENT_CAGE_IMPALE = 17;
     public static final int MAX_EVENT = EVENT_CAGE_IMPALE;
 
-    public static final int METEOR_DIVE_TRIGGER_TICKS = 5;
-    public static final double METEOR_DIVE_MIN_LOOK_Y = -0.55;
-    public static final double METEOR_DIVE_MIN_VY = -0.50;
+    public static final int METEOR_DIVE_TRIGGER_TICKS = 14;
+    public static final double METEOR_DIVE_MIN_LOOK_Y = -0.74;
+    public static final double METEOR_DIVE_MIN_VY = -0.90;
     public static final double METEOR_STRIKE_MIN_RADIUS = 6.5;
     public static final double METEOR_STRIKE_MAX_RADIUS = 18.5;
 
@@ -380,37 +380,49 @@ public final class BlockDominionRules {
         return next;
     }
 
-    /** True when the airborne player is plunging steeply enough to ignite Meteor Strike Dive. */
+    /** True only when the airborne player is deliberately plunging steeply downward (>= ~48 deg) at high speed. */
     public static boolean isSteepMeteorDive(Vec3 lookDir, Vec3 vel, boolean glideMode) {
         if (lookDir == null || vel == null) return false;
         if (vel.y > METEOR_DIVE_MIN_VY) return false;
         if (lookDir.y <= METEOR_DIVE_MIN_LOOK_Y) return true;
-        return glideMode && vel.y <= -0.78 && lookDir.y <= -0.42;
+        return glideMode && vel.y <= -1.25 && lookDir.y <= -0.64;
     }
 
     /**
-     * Normalized 0..1 Meteor Dive charge from sustained plunge ticks, altitude dropped, and orbiting block reserve.
-     * Reaches full charge (~0.82..1.0) after ~1.3–1.6s of steep high-altitude diving with a strong block armada!
+     * Normalized 0..1 Meteor Dive charge from deliberate sustained steep plunge ticks, altitude dropped, and block reserve.
+     * Prevents accidental low-altitude landings from triggering Meteor Strike!
      */
     public static float meteorDiveCharge(int diveTicks, double dropBlocks, int blockCount) {
-        if (diveTicks < METEOR_DIVE_TRIGGER_TICKS) return 0f;
+        if (diveTicks < METEOR_DIVE_TRIGGER_TICKS || dropBlocks < 14.0) return 0f;
         double tickFrac = Mth.clamp((diveTicks - METEOR_DIVE_TRIGGER_TICKS) / 26.0, 0.0, 1.0);
-        double dropFrac = Mth.clamp((dropBlocks - 8.0) / 50.0, 0.0, 1.0);
+        double dropFrac = Mth.clamp((dropBlocks - 14.0) / 46.0, 0.0, 1.0);
         double blockFrac = Mth.clamp((blockCount - MIN_FLIGHT_BLOCKS) / (double) (DEFAULT_CAPACITY - MIN_FLIGHT_BLOCKS), 0.0, 1.0);
-        double raw = (tickFrac * 0.52 + dropFrac * 0.48) * (0.72 + 0.28 * blockFrac);
+        double raw = (tickFrac * 0.50 + dropFrac * 0.50) * (0.75 + 0.25 * blockFrac);
         return (float) Mth.clamp(raw, 0.0, 1.0);
     }
 
     /**
      * Discrete Meteor Strike Dive escalation tier:
-     * 0 = inactive, 1 = Meteor I (ignition), 2 = Meteor II (inferno comet), 3 = Tier III CATACLYSM (full-charge apocalypse!).
+     * 0 = inactive (normal landing), 1 = Meteor I (>=14 ticks & >=14m drop),
+     * 2 = Meteor II (>=26 ticks & >=32m drop), 3 = Tier III CATACLYSM (>=38 ticks & >=56m drop, full charge!).
      */
     public static int meteorDiveTier(int diveTicks, double dropBlocks, int blockCount) {
-        if (diveTicks < METEOR_DIVE_TRIGGER_TICKS) return 0;
+        if (diveTicks < METEOR_DIVE_TRIGGER_TICKS || dropBlocks < 14.0) return 0;
         float charge = meteorDiveCharge(diveTicks, dropBlocks, blockCount);
-        if ((charge >= 0.80f && blockCount >= 24) || charge >= 0.92f) return 3;
-        if (charge >= 0.38f && blockCount >= 12) return 2;
+        if (diveTicks >= 36 && dropBlocks >= 54.0 && ((charge >= 0.80f && blockCount >= 24) || charge >= 0.92f)) return 3;
+        if (diveTicks >= 24 && dropBlocks >= 30.0 && charge >= 0.38f && blockCount >= 14) return 2;
         return 1;
+    }
+
+    /**
+     * Number of orbiting reserve blocks consumed on Meteor Strike detonation:
+     * Tier 1 consumes ~25% (min 6), Tier 2 consumes ~55% (min 14), Tier 3 CATACLYSM sacrifices ALL blocks (100%)!
+     */
+    public static int meteorBlockCost(int tier, int currentReserve) {
+        if (currentReserve <= 0 || tier <= 0) return 0;
+        if (tier >= 3) return currentReserve;
+        if (tier == 2) return Math.min(currentReserve, Math.max(14, Math.round(currentReserve * 0.55f)));
+        return Math.min(currentReserve, Math.max(6, Math.round(currentReserve * 0.25f)));
     }
 
     /**

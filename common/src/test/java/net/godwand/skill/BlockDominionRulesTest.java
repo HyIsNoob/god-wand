@@ -234,12 +234,20 @@ class BlockDominionRulesTest {
                 "Full 48-block Hover Mach must outpace 24-block wings (" + hover48.length() + " vs " + hover24.length() + ")");
         assertTrue(glide48.length() > 2.10, "Peak 48-block Glide max speed exceeds 2.10 blocks/tick");
 
-        // Multi-tier Meteor Strike Dive escalation (Tier 0 -> Tier I -> Tier II -> Tier III CATACLYSM!)
-        assertEquals(0, BlockDominionRules.meteorDiveTier(2, 4.0, 48));
-        assertEquals(1, BlockDominionRules.meteorDiveTier(7, 12.0, 48));
-        assertEquals(2, BlockDominionRules.meteorDiveTier(19, 32.0, 48));
-        assertEquals(3, BlockDominionRules.meteorDiveTier(32, 60.0, 48));
-        assertTrue(BlockDominionRules.meteorDiveCharge(32, 60.0, 48) > BlockDominionRules.meteorDiveCharge(32, 60.0, 12));
+        // Deliberate multi-tier Meteor Strike Dive escalation (short/shallow dips NEVER accidentally ignite!)
+        assertEquals(0, BlockDominionRules.meteorDiveTier(8, 10.0, 48));
+        assertEquals(0, BlockDominionRules.meteorDiveTier(16, 10.0, 48));
+        assertEquals(1, BlockDominionRules.meteorDiveTier(16, 18.0, 48));
+        assertEquals(2, BlockDominionRules.meteorDiveTier(26, 36.0, 48));
+        assertEquals(3, BlockDominionRules.meteorDiveTier(40, 64.0, 48));
+        assertTrue(BlockDominionRules.meteorDiveCharge(40, 64.0, 48) > BlockDominionRules.meteorDiveCharge(40, 64.0, 12));
+
+        // Block consumption per Meteor Strike tier (Tier 3 CATACLYSM sacrifices 100% of reserve!)
+        assertEquals(12, BlockDominionRules.meteorBlockCost(1, 48));
+        assertEquals(26, BlockDominionRules.meteorBlockCost(2, 48));
+        assertEquals(48, BlockDominionRules.meteorBlockCost(3, 48));
+        assertTrue(BlockDominionRules.meteorBlockCost(1, 48) < BlockDominionRules.meteorBlockCost(2, 48));
+        assertTrue(BlockDominionRules.meteorBlockCost(2, 48) < BlockDominionRules.meteorBlockCost(3, 48));
     }
 
     @Test

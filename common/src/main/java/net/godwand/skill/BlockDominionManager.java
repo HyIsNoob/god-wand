@@ -292,7 +292,15 @@ public final class BlockDominionManager {
         player.hurtMarked = true;
 
         Vec3 impactPos = player.position();
-        double blockFrac = Mth.clamp(st.reserve.size() / (double) BlockDominionRules.DEFAULT_CAPACITY, 0.25, 1.15);
+        // Consume orbiting blocks scaled by Meteor Tier (Tier I ~25%, Tier II ~55%, Tier III CATACLYSM = 100% ALL blocks!)
+        int reserveBefore = st.reserve.size();
+        int blockCost = BlockDominionRules.meteorBlockCost(t, reserveBefore);
+        BlockState primaryMat = st.reserve.isEmpty() ? Blocks.DEEPSLATE.defaultBlockState() : st.reserve.get(st.reserve.size() - 1);
+        for (int c = 0; c < blockCost && !st.reserve.isEmpty(); c++) {
+            st.reserve.remove(st.reserve.size() - 1);
+        }
+
+        double blockFrac = Mth.clamp(reserveBefore / (double) BlockDominionRules.DEFAULT_CAPACITY, 0.25, 1.15);
         double radius = switch (t) {
             case 3 -> Mth.lerp(charge, 16.5, BlockDominionRules.METEOR_STRIKE_MAX_RADIUS);
             case 2 -> Mth.lerp(charge, 11.2, 13.8);
@@ -300,8 +308,8 @@ public final class BlockDominionManager {
         };
         var cfg = GodWandConfig.SERVER;
         float rawDmg = switch (t) {
-            case 3 -> (float) (Mth.lerp(charge, 92.0f, 132.0f) * (0.85 + 0.15 * blockFrac));
-            case 2 -> (float) (Mth.lerp(charge, 42.0f, 58.0f) * (0.85 + 0.15 * blockFrac));
+            case 3 -> (float) (Mth.lerp(charge, 95.0f, 138.0f) * (0.75 + 0.25 * blockFrac));
+            case 2 -> (float) (Mth.lerp(charge, 42.0f, 58.0f) * (0.80 + 0.20 * blockFrac));
             default -> (float) (Mth.lerp(charge, 18.0f, 26.0f) * (0.85 + 0.15 * blockFrac));
         };
         float baseDmg = rawDmg * cfg.damageMultiplier;
@@ -347,36 +355,26 @@ public final class BlockDominionManager {
 
         BlockState groundState = world.getBlockState(player.blockPosition().below());
         if (groundState.isAir()) {
-            groundState = st.reserve.isEmpty() ? Blocks.DEEPSLATE.defaultBlockState() : st.reserve.get(0);
+            groundState = primaryMat;
         }
-        world.sendParticles(ParticleTypes.EXPLOSION_EMITTER, impactPos.x, impactPos.y + 0.5, impactPos.z, 1, 0, 0, 0, 0);
-        if (t >= 2) {
-            int ringExplosions = t == 3 ? 6 : 3;
-            double ringR = t == 3 ? 4.8 : 2.6;
-            for (int k = 0; k < ringExplosions; k++) {
-                double ang = (Math.PI * 2.0 * k) / ringExplosions;
-                world.sendParticles(ParticleTypes.EXPLOSION_EMITTER,
-                        impactPos.x + Math.cos(ang) * ringR, impactPos.y + 0.6, impactPos.z + Math.sin(ang) * ringR,
-                        1, 0, 0, 0, 0);
-            }
-        }
+        // Clean radial debris & fiery ember ring (zero boxy multi-square vanilla explosion clouds!)
         world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, groundState),
-                impactPos.x, impactPos.y + 0.3, impactPos.z, 45 * t, 1.6 * t, 0.5 * t, 1.6 * t, 0.36 + t * 0.08);
+                impactPos.x, impactPos.y + 0.3, impactPos.z, 40 * t, 1.4 * t, 0.45 * t, 1.4 * t, 0.36 + t * 0.08);
         world.sendParticles(ParticleTypes.FLAME, impactPos.x, impactPos.y + 0.3, impactPos.z,
-                38 * t, 1.4 * t, 0.45 * t, 1.4 * t, 0.24 + t * 0.09);
+                34 * t, 1.3 * t, 0.4 * t, 1.3 * t, 0.22 + t * 0.08);
         world.sendParticles(ParticleTypes.LAVA, impactPos.x, impactPos.y + 0.4, impactPos.z,
                 16 * t, 1.2 * t, 0.35 * t, 1.2 * t, 0.12);
         world.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, impactPos.x, impactPos.y + 0.4, impactPos.z,
-                22 * t, 1.5 * t, 0.55 * t, 1.5 * t, 0.10 + t * 0.04);
+                18 * t, 1.4 * t, 0.45 * t, 1.4 * t, 0.08 + t * 0.03);
 
         Services.NETWORK.sendToNearby(world, impactPos, SYNC_RADIUS,
                 new CannonPressurePayload(impactPos.add(0, 0.2, 0), new Vec3(0, -1, 0), t >= 2 ? 3 : 2, new Vec3(0, 1, 0)));
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, impactPos.x, impactPos.y, impactPos.z,
-                t == 3 ? 0.78f : (t == 2 ? 0.56f : 0.40f), t == 3 ? 24 : (t == 2 ? 18 : 13)));
+                t == 3 ? 0.58f : (t == 2 ? 0.44f : 0.32f), t == 3 ? 18 : (t == 2 ? 14 : 10)));
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_FOV_PUNCH, impactPos.x, impactPos.y, impactPos.z,
-                t == 3 ? 1.24f : (t == 2 ? 1.18f : 1.14f), t == 3 ? 14 : 10));
+                t == 3 ? 1.12f : (t == 2 ? 1.08f : 1.05f), t == 3 ? 10 : 8));
 
         world.playSound(null, impactPos.x, impactPos.y, impactPos.z,
                 SoundEvents.DRAGON_FIREBALL_EXPLODE, SoundSource.PLAYERS, 1.1f + t * 0.35f, 0.78f - t * 0.10f);
@@ -399,12 +397,12 @@ public final class BlockDominionManager {
     }
 
     /**
-     * Carves an authentic wide volcanic asteroid bowl crater for Meteor Strike Dive, scorching exposed crater floor
-     * blocks into magma/basalt and scattering embers/fire on Tier II & Tier III Cataclysm impacts!
+     * Carves a clean, perfectly circular hemispherical volcanic asteroid crater (no blocky jagged corners!),
+     * scorching exposed crater floor blocks into magma/basalt and scattering embers/fire on Tier II & Tier III!
      */
     private static void carveVolcanicCrater(ServerLevel world, Vec3 center, double radius, int tier, Entity owner) {
         int r = Mth.ceil(radius);
-        int maxDepth = Mth.ceil(radius * 0.62);
+        int maxDepth = Mth.ceil(radius * 0.68);
         BlockPos origin = BlockPos.containing(center.x, center.y - 0.35, center.z);
         boolean removedDisplacement = false;
         java.util.Random rng = new java.util.Random(world.getGameTime() * 31L + origin.asLong());
@@ -412,36 +410,35 @@ public final class BlockDominionManager {
         for (int dx = -r; dx <= r; dx++) {
             for (int dz = -r; dz <= r; dz++) {
                 double hDist = Math.sqrt(dx * dx + dz * dz);
-                if (hDist > radius + 0.5) continue;
+                if (hDist > radius + 0.8) continue;
                 for (int dy = 2; dy >= -maxDepth; dy--) {
-                    // Wide flattened asteroid bowl profile (wider horizontally than vertically!)
-                    double ny = dy < 0 ? (dy / 0.62) : (dy * 0.85);
+                    // Clean true ellipsoid bowl (strictly circular in XZ, smoothly rounded bowl bottom!)
+                    double ny = dy < 0 ? (dy / 0.68) : (dy * 0.90);
                     double dist = Math.sqrt(dx * dx + ny * ny + dz * dz);
-                    double jitter = (rng.nextDouble() - 0.5) * 0.65;
                     BlockPos pos = origin.offset(dx, dy, dz);
                     if (!world.isInWorldBounds(pos) || !world.hasChunkAt(pos)) continue;
                     BlockState st = world.getBlockState(pos);
                     if (st.isAir() || st.getDestroySpeed(world, pos) < 0 || world.getBlockEntity(pos) != null) continue;
-                    if (dist <= radius - 0.4 + jitter) {
+                    if (dist <= radius) {
                         if (SpatialDisplacementManager.getActiveRecord(world.dimension(), pos) != null) {
                             SpatialDisplacementManager.removeActiveRecord(world.dimension(), pos);
                             removedDisplacement = true;
                         }
                         world.destroyBlock(pos, false, owner, 0);
-                    } else if (tier >= 2 && dist <= radius + 0.75 && dy <= 0 && st.getFluidState().isEmpty()) {
-                        // Scorch the exposed crater bowl crust into glowing Magma / Basalt on Tier II & Tier III!
+                    } else if (tier >= 2 && dist <= radius + 1.15 && dy <= 0 && st.getFluidState().isEmpty()) {
+                        // Scorch the circular crater bowl crust into glowing Magma / Basalt on Tier II & Tier III!
                         if (SpatialDisplacementManager.getActiveRecord(world.dimension(), pos) == null) {
                             double roll = rng.nextDouble();
-                            if (roll < (tier == 3 ? 0.24 : 0.14)) {
+                            if (roll < (tier == 3 ? 0.26 : 0.15)) {
                                 world.setBlock(pos, Blocks.MAGMA_BLOCK.defaultBlockState(), Block.UPDATE_CLIENTS);
-                            } else if (roll < (tier == 3 ? 0.44 : 0.26)) {
+                            } else if (roll < (tier == 3 ? 0.46 : 0.28)) {
                                 world.setBlock(pos, Blocks.BASALT.defaultBlockState(), Block.UPDATE_CLIENTS);
                             }
                         }
                     }
                 }
-                // Scatter roaring fire patches across the crater floor & rim on Tier II & Tier III!
-                if (tier >= 2 && rng.nextDouble() < (tier == 3 ? 0.24 : 0.12)) {
+                // Scatter burning fire pockets strictly inside the circular crater rim on Tier II & Tier III!
+                if (tier >= 2 && hDist <= radius - 0.5 && rng.nextDouble() < (tier == 3 ? 0.22 : 0.11)) {
                     for (int dy = 2; dy >= -maxDepth - 1; dy--) {
                         BlockPos firePos = origin.offset(dx, dy, dz);
                         BlockPos below = firePos.below();
@@ -1459,8 +1456,8 @@ public final class BlockDominionManager {
             if (st.mode != BlockDominionRules.Mode.MANUAL || st.hiddenInCutscene
                     || st.reserve.size() < BlockDominionRules.MIN_FLIGHT_BLOCKS
                     || landingFromFlight) {
-                boolean meteorImpact = landingFromFlight
-                        && (st.meteorDiveActive || (st.meteorDiveTicks >= 4 && st.flightVel.y < -0.56));
+                // Only trigger Meteor Strike if Tier I+ actually ignited during a deliberate steep plunge!
+                boolean meteorImpact = landingFromFlight && st.meteorDiveActive && st.meteorDiveTier >= 1;
                 boolean heroLand = landingFromFlight && !meteorImpact
                         && (st.flightVel.lengthSqr() > 0.62 * 0.62 || st.flightVel.y < -0.18);
                 Vec3 landVel = st.flightVel;
@@ -1535,45 +1532,35 @@ public final class BlockDominionManager {
                     mobilityChanged = true;
                     if (nextTier == 1 && prevMeteorTier == 0) {
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.12f, 8));
+                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.04f, 6));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                                 SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 0.90f, 0.72f);
                     } else if (nextTier == 2 && prevMeteorTier < 2) {
                         player.displayClientMessage(Component.translatable("message.godwand.dominion_meteor_tier2"), true);
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.17f, 10));
+                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.05f, 7));
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.24f, 7));
+                                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.14f, 5));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                                 SoundEvents.DRAGON_FIREBALL_EXPLODE, SoundSource.PLAYERS, 0.95f, 0.92f);
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                                 SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 1.1f, 0.56f);
-                        world.sendParticles(ParticleTypes.FLAME, player.getX(), player.getY() + 0.9, player.getZ(), 24, 0.8, 0.8, 0.8, 0.16);
                     } else if (nextTier == 3 && prevMeteorTier < 3) {
                         player.displayClientMessage(Component.translatable("message.godwand.dominion_meteor_tier3"), true);
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.23f, 12));
+                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.06f, 8));
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.36f, 10));
+                                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.18f, 6));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                                 SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 1.35f, 0.82f);
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                                 SoundEvents.DRAGON_FIREBALL_EXPLODE, SoundSource.PLAYERS, 1.25f, 0.72f);
-                        world.sendParticles(ParticleTypes.FLAME, player.getX(), player.getY() + 0.9, player.getZ(), 42, 1.2, 1.2, 1.2, 0.24);
-                        world.sendParticles(ParticleTypes.LAVA, player.getX(), player.getY() + 0.9, player.getZ(), 18, 0.9, 0.9, 0.9, 0.14);
                     }
                 }
-                // Keep server-side dive particles cleanly below the nosecone (no giant pixelated smoke sprites hitting camera lens!)
-                if (nextTier >= 3) {
-                    if (now % 2 == 0) {
-                        world.sendParticles(ParticleTypes.LAVA, player.getX(), player.getY() - 0.5, player.getZ(), 4, 0.55, 0.25, 0.55, 0.04);
-                    }
-                    if (now % 5 == 0) {
-                        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.09f, 4));
-                    }
-                } else if (nextTier == 2 && (now % 3 == 0)) {
-                    world.sendParticles(ParticleTypes.LAVA, player.getX(), player.getY() - 0.5, player.getZ(), 2, 0.40, 0.20, 0.40, 0.03);
+                // Keep camera rock-steady during plunge (zero jerky periodic camera shake, zero lens-blocking sprites!)
+                if (nextTier >= 2 && (now % 3 == 0)) {
+                    world.sendParticles(ParticleTypes.LAVA, player.getX(), player.getY() - 0.65, player.getZ(),
+                            nextTier == 3 ? 3 : 2, 0.45, 0.15, 0.45, 0.03);
                 }
 
                 // Sovereign Perch: calm idle Hover for ~1.7s -> materialize floating stone pedestal & fold guardian wings!

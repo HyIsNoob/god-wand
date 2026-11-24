@@ -81,13 +81,13 @@ void main() {
         scene = vec3(mix(scene.r, rC, 0.72), scene.g, mix(scene.b, bC, 0.72));
     }
 
-    // Subtle refraction glint on the shockwave crest + mild cinema vignette at Mach speed
+    // Subtle refraction glint on the shockwave crest + very light cinema vignette (never darkens night flight!)
     if (rimHighlight > 0.001) {
         scene += mix(AccentColor, vec3(1.0), 0.45) * rimHighlight;
     }
     if (SpeedBlur > 0.01) {
-        float vign = smoothstep(0.58, 1.18, screenDist) * SpeedBlur * 0.28;
-        scene = mix(scene, scene * (0.55 + 0.45 * AccentColor), vign);
+        float vign = smoothstep(0.68, 1.28, screenDist) * SpeedBlur * 0.12;
+        scene = mix(scene, scene * (0.76 + 0.24 * AccentColor), vign);
     }
 
     // 3. True Scene-Space Sakuga Impact Frame (Sobel contours on the real 3D world, zero fake 2D PNGs!)

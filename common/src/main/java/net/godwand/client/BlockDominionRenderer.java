@@ -478,6 +478,7 @@ public final class BlockDominionRenderer {
             f.palette = BlockDominionPalette.resolveStates(states);
         } else if (payload.eventKind() != BlockDominionRules.EVENT_VOLLEY
                 && payload.eventKind() != BlockDominionRules.EVENT_ORBITAL_BARRAGE
+                && payload.eventKind() != BlockDominionRules.EVENT_METEOR_STRIKE
                 && oldSize == 0) {
             f.palette = BlockDominionPalette.SOVEREIGN_GOLD;
         }
@@ -1099,13 +1100,14 @@ public final class BlockDominionRenderer {
             float speedScale = Mth.clamp((float) (speed / 0.85), 0.35f, 1.25f);
             targetRoll = Mth.clamp((strafe * 4.2f + yawDelta * 0.42f) * bankGain * speedScale, -6.5f, 6.5f);
 
-            float speedFrac = Mth.clamp((float) ((speed - 0.65) / 1.50), 0f, 1f);
+            float speedFrac = Mth.clamp((float) ((speed - 0.65) / 1.55), 0f, 1f);
             boolean meteor = local.meteorDiving || local.formation.isMeteorDive();
             int mTier = meteor ? Math.max(1, local.meteorTier) : 0;
-            targetBlur = meteor ? Math.min(1.0f, 0.56f + mTier * 0.16f)
-                    : (local.boosting ? Math.max(0.45f, speedFrac * 0.92f) : speedFrac * 0.42f);
-            targetFov = 1.0f + speedFrac * (meteor ? (0.12f + mTier * 0.04f) : (local.boosting ? 0.12f : 0.06f));
-            targetBloom = meteor ? (0.34f + mTier * 0.14f) : (local.boosting ? 0.34f : (speedFrac > 0.25f ? 0.14f : 0.0f));
+            // Comfortable cinema FOV (never fisheye-stretched!) and refined radial blur that keeps terrain crisp
+            targetBlur = meteor ? (0.20f + mTier * 0.10f)
+                    : (local.boosting ? Math.max(0.32f, speedFrac * 0.56f) : speedFrac * 0.28f);
+            targetFov = 1.0f + speedFrac * (meteor ? (0.055f + mTier * 0.015f) : (local.boosting ? 0.085f : 0.045f));
+            targetBloom = meteor ? (0.28f + mTier * 0.10f) : (local.boosting ? 0.30f : (speedFrac > 0.25f ? 0.12f : 0.0f));
         } else {
             lastPlayerYaw = player.getYRot();
         }
@@ -1136,13 +1138,18 @@ public final class BlockDominionRenderer {
             if (f.formation.isWings() && f.formation != BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
                 boolean meteor = f.formation.isMeteorDive();
                 boolean boosted = f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST || meteor;
-                Vec3 lTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(true, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
-                Vec3 rTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(false, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
-                pushTrail(f.leftWingTrail, lTip);
-                pushTrail(f.rightWingTrail, rTip);
+                if (meteor) {
+                    f.leftWingTrail.clear();
+                    f.rightWingTrail.clear();
+                } else {
+                    Vec3 lTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(true, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
+                    Vec3 rTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(false, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
+                    pushTrail(f.leftWingTrail, lTip);
+                    pushTrail(f.rightWingTrail, rTip);
+                }
 
                 Vec3 wake = owner.getDeltaMovement().scale(-0.32);
-                if (now % 2 == 0) {
+                if (!meteor && now % 2 == 0) {
                     double sampleU = 0.25 + ((now * 0.19) % 0.7);
                     Vec3 lPt = wingAnchor.add(BlockDominionBrain.rotateWingVec(
                             BlockDominionBrain.wingFeatherTip(true, sampleU, now, yawFwd, boosted, wingAeroFrac), yawFwd, wingPitchDeg, wingRollDeg));
@@ -1150,41 +1157,42 @@ public final class BlockDominionRenderer {
                             BlockDominionBrain.wingFeatherTip(false, sampleU, now, yawFwd, boosted, wingAeroFrac), yawFwd, wingPitchDeg, wingRollDeg));
                     boolean dark = (now % 4 == 0);
                     DominionParticles.spawnSmoke(lPt, wake.add(0, -0.02, 0), boosted ? 0.48f : 0.38f, 16,
-                            meteor ? 255 : (dark ? dr : mr), meteor ? 115 : (dark ? dg : mg), meteor ? 32 : (dark ? db : mb), dark ? 120 : 95);
+                            dark ? dr : mr, dark ? dg : mg, dark ? db : mb, dark ? 120 : 95);
                     DominionParticles.spawnSmoke(rPt, wake.add(0, -0.02, 0), boosted ? 0.48f : 0.38f, 16,
-                            meteor ? 255 : (dark ? dr : mr), meteor ? 115 : (dark ? dg : mg), meteor ? 32 : (dark ? db : mb), dark ? 120 : 95);
+                            dark ? dr : mr, dark ? dg : mg, dark ? db : mb, dark ? 120 : 95);
                 }
-                int emitCount = meteor ? 4 : (boosted ? 3 : 2);
-                for (int k = 0; k < emitCount; k++) {
-                    int er = meteor ? (k == 0 ? 255 : 255) : (boosted ? hr : pr);
-                    int eg = meteor ? (k == 0 ? 240 : 128) : (boosted ? hg : pg);
-                    int eb = meteor ? (k == 0 ? 175 : 32) : (boosted ? hb : pb);
-                    DominionParticles.spawn(lTip, wake.add((Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06),
-                            meteor ? 0.24f : (boosted ? 0.20f : 0.14f), boosted ? 12 : 16, 0.90, 0.0,
-                            er, eg, eb, (k == 0) ? DominionParticles.STYLE_STAR : DominionParticles.STYLE_EMBER);
-                    DominionParticles.spawn(rTip, wake.add((Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06),
-                            meteor ? 0.24f : (boosted ? 0.20f : 0.14f), boosted ? 12 : 16, 0.90, 0.0,
-                            er, eg, eb, (k == 0) ? DominionParticles.STYLE_STAR : DominionParticles.STYLE_EMBER);
-                }
-                if (meteor) {
-                    int mTier = Math.max(1, f.meteorTier);
-                    int sparkCount = mTier == 3 ? 14 : (mTier == 2 ? 9 : 5);
-                    double spread = 1.2 + mTier * 0.45;
-                    // Blazing atmospheric re-entry ember firestorm ripping straight past the diving meteor!
-                    for (int k = 0; k < sparkCount; k++) {
-                        Vec3 sparkPos = wingAnchor.add((Math.random() - 0.5) * spread, (Math.random() - 0.5) * 1.1, (Math.random() - 0.5) * spread);
-                        int eg = k < (mTier + 1) ? 242 : (mTier == 3 && k % 2 == 0 ? 74 : 126);
-                        int eb = k < (mTier + 1) ? 168 : 22;
-                        DominionParticles.spawn(sparkPos, wake.scale(1.15).add((Math.random() - 0.5) * 0.18, 0.10, (Math.random() - 0.5) * 0.18),
-                                (0.22f + mTier * 0.06f) + (float) Math.random() * 0.12f, 10 + mTier * 2, 0.88, 0.0,
-                                255, eg, eb, (mTier == 3 && k == 0) ? DominionParticles.STYLE_STAR : DominionParticles.STYLE_EMBER);
+                if (!meteor) {
+                    Vec3 lTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(true, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
+                    Vec3 rTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(false, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
+                    int emitCount = boosted ? 3 : 2;
+                    for (int k = 0; k < emitCount; k++) {
+                        DominionParticles.spawn(lTip, wake.add((Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06),
+                                boosted ? 0.20f : 0.14f, boosted ? 12 : 16, 0.90, 0.0,
+                                boosted ? hr : pr, boosted ? hg : pg, boosted ? hb : pb,
+                                (k == 0) ? DominionParticles.STYLE_STAR : DominionParticles.STYLE_EMBER);
+                        DominionParticles.spawn(rTip, wake.add((Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06),
+                                boosted ? 0.20f : 0.14f, boosted ? 12 : 16, 0.90, 0.0,
+                                boosted ? hr : pr, boosted ? hg : pg, boosted ? hb : pb,
+                                (k == 0) ? DominionParticles.STYLE_STAR : DominionParticles.STYLE_EMBER);
                     }
-                    if (mTier >= 2) {
-                        for (int s = 0; s < mTier; s++) {
-                            Vec3 smokePos = wingAnchor.add((Math.random() - 0.5) * spread * 0.8, 0.4, (Math.random() - 0.5) * spread * 0.8);
-                            DominionParticles.spawnSmoke(smokePos, wake.scale(0.85).add(0, 0.06, 0),
-                                    0.62f + mTier * 0.18f, 16, 255, mTier == 3 ? 72 : 112, 22, 135);
-                        }
+                } else {
+                    int mTier = Math.max(1, f.meteorTier);
+                    int sparkCount = mTier == 3 ? 8 : (mTier == 2 ? 5 : 3);
+                    double spread = 0.65 + mTier * 0.22;
+                    // Sleek tight fiery ember sparks hugging the diving comet (never flying through the 3rd-person camera!)
+                    for (int k = 0; k < sparkCount; k++) {
+                        Vec3 sparkPos = wingAnchor.add((Math.random() - 0.5) * spread, (Math.random() - 0.5) * 0.50, (Math.random() - 0.5) * spread);
+                        int eg = k < (mTier + 1) ? 236 : (mTier == 3 && k % 2 == 0 ? 78 : 128);
+                        int eb = k < (mTier + 1) ? 158 : 22;
+                        DominionParticles.spawn(sparkPos, wake.scale(0.38).add((Math.random() - 0.5) * 0.08, 0.04, (Math.random() - 0.5) * 0.08),
+                                (0.11f + mTier * 0.025f) + (float) Math.random() * 0.04f, 6 + mTier, 0.84, 0.0,
+                                255, eg, eb, DominionParticles.STYLE_EMBER);
+                    }
+                    if (mTier >= 2 && now % 2 == 0) {
+                        DominionParticles.spawnSmoke(
+                                wingAnchor.add((Math.random() - 0.5) * spread * 0.6, 0.25, (Math.random() - 0.5) * spread * 0.6),
+                                wake.scale(0.60).add(0, 0.04, 0),
+                                0.50f + mTier * 0.12f, 14, 255, mTier == 3 ? 78 : 114, 24, 115);
                     }
                 }
 
@@ -1962,9 +1970,9 @@ public final class BlockDominionRenderer {
                     emitted = true;
                 }
 
-                // Multi-Tier Meteor Strike Detonation: Nested Fiery Fresnel Blast Domes + Skyward Thermal Fire Pillar + Volcanic Scorch Pool!
+                // Multi-Tier Meteor Strike Detonation: Smooth High-Poly Round Spherical Fireball Domes (ZERO boxy/square shapes!)
                 for (MeteorBlast blast : METEOR_BLASTS) {
-                    double dur = 18.0 + blast.tier * 6.5;
+                    double dur = 20.0 + blast.tier * 7.0;
                     double age = time - blast.startTick;
                     if (age < 0 || age >= dur) continue;
                     Vec3 p = blast.pos.subtract(camPos);
@@ -1973,33 +1981,30 @@ public final class BlockDominionRenderer {
                     double ease = 1.0 - (1.0 - t) * (1.0 - t) * (1.0 - t);
                     double fade = (1.0 - t) * (1.0 - t);
                     int tier = blast.tier;
-                    double outerR = (tier == 3 ? 19.0 : (tier == 2 ? 13.0 : 7.5)) * (0.28 + 0.72 * ease);
+                    double outerR = (tier == 3 ? 17.5 : (tier == 2 ? 12.0 : 7.0)) * (0.22 + 0.78 * ease);
 
-                    // Blazing crimson-orange outer firestorm shock dome
-                    DominionShader.emitFresnelDome(buffer, mat, p.add(0, 0.2, 0), new Vec3(0, 1, 0),
-                            outerR, Math.PI * 0.62, 24, 9, DominionShader.FX_SHELL, 91,
-                            255, tier == 3 ? 68 : 112, tier == 3 ? 14 : 24, (int) (225 * fade));
-                    // Molten volcanic ground scorch pool across the entire impact crater
-                    DominionShader.emitGroundPool(buffer, mat, p.add(0, 0.12, 0), outerR * 0.92, 92,
-                            255, tier == 3 ? 84 : 118, 22, (int) (210 * (1.0 - t * 0.75)));
+                    // 1. Silky-smooth 36x16 round outer crimson-orange fireball hemisphere
+                    DominionShader.emitFresnelDome(buffer, mat, p.add(0, 0.15, 0), new Vec3(0, 1, 0),
+                            outerR, Math.PI * 0.54, 36, 16, DominionShader.FX_SHELL, 91,
+                            255, tier == 3 ? 64 : 110, tier == 3 ? 12 : 24, (int) (235 * fade));
+                    // 2. Smooth circular molten shockwave pool hugging the round crater rim
+                    DominionShader.emitGroundPool(buffer, mat, p.add(0, 0.10, 0), outerR * 0.96, 92,
+                            255, tier == 3 ? 82 : 118, 22, (int) (210 * (1.0 - t * 0.72)));
 
                     if (tier >= 2) {
-                        // Inner superheated solar-gold core dome
-                        DominionShader.emitFresnelDome(buffer, mat, p.add(0, 0.25, 0), new Vec3(0, 1, 0),
-                                outerR * 0.64, Math.PI * 0.66, 20, 8, DominionShader.FX_SHELL, 93,
-                                255, 196, 62, (int) (205 * fade));
-                        // Towering vertical volcanic thermal fire plume shooting straight into the sky!
-                        double plumeH = (tier == 3 ? 19.0 : 10.5) * (0.35 + 0.65 * ease);
-                        double plumeR = (tier == 3 ? 5.6 : 3.2) * (0.65 + 0.35 * t);
-                        DominionShader.emitFresnelCone(buffer, mat, p.add(0, plumeH, 0), new Vec3(0, 1, 0),
-                                plumeH, plumeR, 20, 8, 94,
-                                255, tier == 3 ? 98 : 132, 26, (int) (185 * fade));
+                        // 3. Smooth round mid solar-gold plasma sphere
+                        DominionShader.emitFresnelDome(buffer, mat, p.add(0, 0.20, 0), new Vec3(0, 1, 0),
+                                outerR * 0.68, Math.PI * 0.55, 32, 14, DominionShader.FX_SHELL, 93,
+                                255, 192, 54, (int) (220 * fade));
                     }
                     if (tier == 3) {
-                        // Blinding white-gold apocalyptic core plasma sphere during the first half of impact!
-                        DominionShader.emitFresnelDome(buffer, mat, p.add(0, 0.4, 0), new Vec3(0, 1, 0),
-                                outerR * 0.38, Math.PI * 0.75, 18, 7, DominionShader.FX_SHELL, 95,
-                                255, 248, 205, (int) (230 * fade * fade));
+                        // 4. Incandescent round white-gold inner core sphere + rising round fireball crown!
+                        DominionShader.emitFresnelDome(buffer, mat, p.add(0, 0.25, 0), new Vec3(0, 1, 0),
+                                outerR * 0.42, Math.PI * 0.58, 28, 12, DominionShader.FX_SHELL, 95,
+                                255, 248, 205, (int) (240 * fade * fade));
+                        DominionShader.emitFresnelDome(buffer, mat, p.add(0, outerR * 0.45 * ease, 0), new Vec3(0, 1, 0),
+                                outerR * 0.48, Math.PI * 0.95, 32, 14, DominionShader.FX_SHELL, 96,
+                                255, 118, 28, (int) (175 * fade));
                     }
                     emitted = true;
                 }
@@ -2110,49 +2115,45 @@ public final class BlockDominionRenderer {
                 }
             }
         } else {
-            // Sleek gossamer wingtip contrails (blazing molten magma streaks escalating with Meteor Dive Tier!)
-            double trailW = meteor ? (0.28 + mTier * 0.12) : (boosted ? 0.24 : 0.12);
-            emitWingTrail(v, m, f, f.leftWingTrail, camPos, trailW, 41, boosted, meteor);
-            emitWingTrail(v, m, f, f.rightWingTrail, camPos, trailW, 42, boosted, meteor);
+            // Sleek gossamer wingtip contrails (omitted during Meteor Dive so no horizontal laser bars smear across sky!)
+            if (!meteor) {
+                emitWingTrail(v, m, f, f.leftWingTrail, camPos, boosted ? 0.24 : 0.12, 41, boosted, false);
+                emitWingTrail(v, m, f, f.rightWingTrail, camPos, boosted ? 0.24 : 0.12, 42, boosted, false);
+            }
 
-            // True 3D Volumetric Fresnel Atmospheric Re-entry Firestorm Cones (escalates dramatically Tier I -> II -> III!)
+            // Tight camera-safe 3D Volumetric Fresnel Re-entry Fireball Shell locked directly to the diving body/wing spine!
             if (meteor) {
-                Vec3 vel = owner.getDeltaMovement();
-                Vec3 axis = vel.lengthSqr() > 0.04 ? vel.normalize() : look.normalize();
+                Vec3 bodyAxis = BlockDominionBrain.rotateWingVec(new Vec3(0, 1, 0), yawFwd, wingPitchDeg, wingRollDeg);
+                Vec3 axis = bodyAxis.lengthSqr() > 1e-4 ? bodyAxis.normalize() : look.normalize();
                 if (mTier == 3) {
-                    // TIER III CATACLYSM: colossal triple-layered extinction fireball shell!
-                    DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(3.15)), axis,
-                            9.0, 4.65, 28, 10, 44, 255, 58, 12, firstPerson ? 110 : 242);
-                    DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(2.35)), axis,
-                            6.5, 2.95, 24, 8, 45, 255, 152, 24, firstPerson ? 95 : 230);
                     DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.65)), axis,
-                            4.2, 1.62, 20, 7, 48, 255, 248, 210, firstPerson ? 85 : 225);
+                            3.4, 2.25, 28, 10, 44, 255, 58, 12, firstPerson ? 80 : 225);
+                    DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.38)), axis,
+                            2.7, 1.58, 24, 8, 45, 255, 152, 24, firstPerson ? 70 : 215);
+                    DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.12)), axis,
+                            2.0, 1.00, 20, 7, 48, 255, 248, 210, firstPerson ? 60 : 210);
                 } else if (mTier == 2) {
-                    // TIER II INFERNO COMET: blazing double-intensity crimson-gold plasma shell!
-                    DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(2.60)), axis,
-                            7.0, 3.60, 26, 9, 45, 255, 86, 18, firstPerson ? 100 : 230);
-                    DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.85)), axis,
-                            4.8, 2.15, 22, 7, 47, 255, 205, 85, firstPerson ? 85 : 215);
-                    DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.30)), axis,
-                            2.9, 1.15, 18, 6, 48, 255, 246, 195, firstPerson ? 70 : 195);
+                    DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.45)), axis,
+                            2.9, 1.88, 26, 9, 45, 255, 86, 18, firstPerson ? 75 : 210);
+                    DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.18)), axis,
+                            2.2, 1.20, 22, 7, 47, 255, 212, 92, firstPerson ? 65 : 195);
                 } else {
-                    // TIER I METEOR IGNITION: fiery re-entry shock cone!
-                    DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(2.15)), axis,
-                            5.4, 2.85, 24, 8, 45, 255, 112, 24, firstPerson ? 95 : 220);
-                    DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.55)), axis,
-                            3.6, 1.65, 20, 7, 48, 255, 238, 168, firstPerson ? 75 : 200);
+                    DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.25)), axis,
+                            2.5, 1.50, 24, 8, 45, 255, 118, 26, firstPerson ? 70 : 190);
+                    DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.02)), axis,
+                            1.7, 0.92, 20, 6, 48, 255, 238, 168, firstPerson ? 55 : 175);
                 }
-                // Crackling superheated plasma arcs jumping across the comet blocks at Tier II & Tier III!
+                // Crackling superheated plasma arcs tightly linking the diving comet blocks at Tier II & Tier III!
                 if (mTier >= 2 && f.blocks.size() >= 6) {
-                    int arcs = mTier == 3 ? 6 : 3;
+                    int arcs = mTier == 3 ? 5 : 3;
                     for (int a = 0; a < arcs; a++) {
                         int i1 = (a * 5 + (int) (time / 3)) % f.blocks.size();
                         int i2 = (i1 + 3) % f.blocks.size();
                         Vec3 p1 = f.blocks.get(i1).prevPos.lerp(f.blocks.get(i1).pos, tickDelta).subtract(camPos);
                         Vec3 p2 = f.blocks.get(i2).prevPos.lerp(f.blocks.get(i2).pos, tickDelta).subtract(camPos);
-                        if (p1.distanceToSqr(p2) < 12.0) {
-                            DominionShader.emitLiveBolt(v, m, p1, p2, 6, 0.14, mTier == 3 ? 0.034 : 0.024,
-                                    8800L + a * 23L, time, 255, mTier == 3 ? 236 : 165, mTier == 3 ? 150 : 48, 195);
+                        if (p1.distanceToSqr(p2) < 9.0) {
+                            DominionShader.emitLiveBolt(v, m, p1, p2, 6, 0.12, mTier == 3 ? 0.030 : 0.022,
+                                    8800L + a * 23L, time, 255, mTier == 3 ? 236 : 165, mTier == 3 ? 150 : 48, 185);
                         }
                     }
                 }
@@ -2166,17 +2167,36 @@ public final class BlockDominionRenderer {
             }
         }
 
-        // Low-Altitude Ground Wash & Blazing Meteor Doomsday Target Pool directly beneath the plunging asteroid!
-        double alt = altitudeAboveTerrain(owner);
-        double maxWashAlt = meteor ? (16.0 + mTier * 9.0) : 6.8;
-        if (!bodyPass && alt >= 0.2 && alt <= maxWashAlt) {
-            double kWash = 1.0 - alt / maxWashAlt;
-            Vec3 groundPos = chest.add(0, -1.25 - alt + 0.08, 0);
-            double poolR = meteor ? (2.6 + mTier * 1.4 + kWash * (3.6 + mTier * 2.1))
-                    : (3.2 + (1.0 - kWash) * 2.2 + (boosted ? 1.4 : 0.0));
-            int aWash = Mth.clamp((int) (kWash * (meteor ? (175 + mTier * 22) : (boosted ? 155 : 105))), 0, 235);
-            DominionShader.emitGroundPool(v, m, groundPos, poolR, 49,
-                    meteor ? 255 : f.pr(), meteor ? (mTier == 3 ? 68 : 112) : f.pg(), meteor ? (mTier == 3 ? 14 : 26) : f.pb(), aWash);
+        // Low-Altitude Ground Wash (wings) OR Exact Raycast-Grounded Meteor Target Pool directly on the dive impact point!
+        if (!bodyPass) {
+            if (meteor) {
+                Vec3 vel = owner.getDeltaMovement();
+                Vec3 axis = vel.lengthSqr() > 0.04 ? vel.normalize() : look.normalize();
+                double maxRay = 14.0 + mTier * 5.0;
+                Vec3 start = owner.getPosition(tickDelta).add(0, 0.8, 0);
+                var hit = world.clip(new net.minecraft.world.level.ClipContext(
+                        start, start.add(axis.scale(maxRay)),
+                        net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                        net.minecraft.world.level.ClipContext.Fluid.NONE, owner));
+                if (hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                    Vec3 hitPos = hit.getLocation();
+                    double dist = start.distanceTo(hitPos);
+                    double kProx = Mth.clamp(1.0 - dist / maxRay, 0.0, 1.0);
+                    double poolR = 2.2 + mTier * 1.4 + kProx * (2.4 + mTier * 1.6);
+                    int aWash = Mth.clamp((int) (kProx * (165 + mTier * 20)), 0, 215);
+                    DominionShader.emitGroundPool(v, m, hitPos.add(0, 0.08, 0).subtract(camPos), poolR, 49,
+                            255, mTier == 3 ? 68 : 112, mTier == 3 ? 14 : 26, aWash);
+                }
+            } else {
+                double alt = altitudeAboveTerrain(owner);
+                if (alt >= 0.2 && alt <= 6.8) {
+                    double kWash = 1.0 - alt / 6.8;
+                    Vec3 groundPos = chest.add(0, -1.25 - alt + 0.08, 0);
+                    double poolR = 3.2 + (1.0 - kWash) * 2.2 + (boosted ? 1.4 : 0.0);
+                    int aWash = Mth.clamp((int) (kWash * (boosted ? 155 : 105)), 0, 175);
+                    DominionShader.emitGroundPool(v, m, groundPos, poolR, 49, f.pr(), f.pg(), f.pb(), aWash);
+                }
+            }
         }
     }
 

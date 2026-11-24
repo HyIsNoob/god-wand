@@ -365,7 +365,7 @@ public final class DominionProbe implements ClientModInitializer {
             saveKeyframe(c, "kf_05e2_wings_climb_up.png");
         }
 
-        // Part D3: FULL-CHARGE TIER III CATACLYSM Meteor Strike Dive from high altitude (groundY + 72)!
+        // Part D3: FULL-CHARGE TIER III CATACLYSM Meteor Strike Dive from high altitude (groundY + 94)!
         if (t == 212) {
             meteorLandedTick = -1;
             net.godwand.client.BlockDominionInput.reset();
@@ -377,38 +377,38 @@ public final class DominionProbe implements ClientModInitializer {
                 double mx = S3X - 32.5, mz = S3Z + 4.5;
                 BlockDominionManager.setWingFlight(p, false);
                 p.setDeltaMovement(Vec3.ZERO);
-                p.connection.teleport(mx, groundY + 74.0, mz, 0f, 84f);
+                p.connection.teleport(mx, groundY + 94.0, mz, 0f, 85f);
                 BlockDominionManager.setFlightStyle(p, true);
                 BlockDominionManager.setWingFlight(p, true);
                 for (int k = -2; k <= 2; k++) {
                     Mob h = EntityType.HUSK.create(level);
                     if (h != null) {
-                        h.setPos(mx + k * 2.4, groundY, mz + 16.5);
+                        h.setPos(mx + k * 2.4, groundY, mz + 18.0);
                         h.setNoAi(true);
                         level.addFreshEntity(h);
                     }
                 }
             }).join();
         }
-        if (t == 246) {
+        if (t == 254) {
             int tier = server.submit(() -> BlockDominionManager.meteorDiveTier(me(server, c))).join();
             boolean diving = server.submit(() -> BlockDominionManager.isMeteorDiving(me(server, c))).join();
-            recordCheck("meteor_dive_ignited", diving && tier >= 2, "diving=" + diving + " tier=" + tier);
+            recordCheck("meteor_dive_ignited", diving && tier >= 3, "diving=" + diving + " tier=" + tier);
             saveKeyframe(c, "kf_05e3_meteor_dive.png");
         }
-        if (meteorLandedTick < 0 && t >= 230 && t <= 268) {
+        if (meteorLandedTick < 0 && t >= 235 && t <= 278) {
             boolean landedNow = server.submit(() -> !BlockDominionManager.isWingFlying(me(server, c))).join();
             if (landedNow) {
                 meteorLandedTick = t;
             }
         }
-        if (meteorLandedTick >= 0 && t == meteorLandedTick + 4) {
+        if (meteorLandedTick >= 0 && t == meteorLandedTick + 3) {
             saveKeyframe(c, "kf_05e4_meteor_strike_impact.png");
         }
         if (meteorLandedTick >= 0 && t == meteorLandedTick + 10) {
             saveKeyframe(c, "kf_05e5_meteor_crater_aftermath.png");
         }
-        if (t == 270) {
+        if (t == 280) {
             c.options.keySprint.setDown(false);
             c.options.keyJump.setDown(false);
             if (meteorLandedTick < 0) {
@@ -418,10 +418,12 @@ public final class DominionProbe implements ClientModInitializer {
                 ServerPlayer p = me(server, c);
                 boolean landed = !BlockDominionManager.isWingFlying(p);
                 float hp = p.getHealth();
+                int remBlocks = BlockDominionManager.reserveCount(p);
                 recordCheck("meteor_strike_safe_hp", landed && hp >= 19.9f,
                         String.format(Locale.ROOT, "landed=%s hp=%.1f", landed, hp));
+                recordCheck("meteor_strike_consumes_blocks", remBlocks == 0, "remaining=" + remBlocks);
                 // Clean up any surviving husks so Rain Umbrella scene stays completely threat-free!
-                var box = new net.minecraft.world.phys.AABB(S3X - 54, groundY - 8, S3Z - 6, S3X - 10, groundY + 18, S3Z + 44);
+                var box = new net.minecraft.world.phys.AABB(S3X - 54, groundY - 8, S3Z - 6, S3X - 10, groundY + 18, S3Z + 48);
                 int fullHpSurvivors = 0;
                 for (Mob mob : p.serverLevel().getEntitiesOfClass(Mob.class, box)) {
                     if (mob.isAlive() && mob.getHealth() >= mob.getMaxHealth() - 0.1f) fullHpSurvivors++;
@@ -429,12 +431,22 @@ public final class DominionProbe implements ClientModInitializer {
                 }
                 int affected = Math.max(0, 5 - fullHpSurvivors);
                 recordCheck("meteor_strike_aoe_hits", affected >= 3,
-                        String.format(Locale.ROOT, "affected=%d landZ=%.1f targetZ=%.1f", affected, p.getZ(), S3Z + 21.0));
+                        String.format(Locale.ROOT, "affected=%d landZ=%.1f targetZ=%.1f", affected, p.getZ(), S3Z + 22.5));
+                // Refill reserve cleanly after Tier III Cataclysm emptied all 48 blocks so subsequent QA stages run full!
+                ServerLevel level = p.serverLevel();
+                Block[] refill = {Blocks.DEEPSLATE_BRICKS, Blocks.GILDED_BLACKSTONE, Blocks.AMETHYST_BLOCK, Blocks.GOLD_BLOCK, Blocks.OBSIDIAN};
+                int rx = S3X + 20, rz = S3Z + 20;
+                p.connection.teleport(rx + 0.5, groundY, rz + 0.5, 0f, 0f);
+                for (int i = 0; i < 48; i++) {
+                    BlockPos bp = new BlockPos(rx - 3 + (i % 8), groundY + 1 + (i / 24), rz - 2 + ((i / 8) % 3));
+                    level.setBlock(bp, refill[i % refill.length].defaultBlockState(), 3);
+                    BlockDominionManager.tryPickUpBlock(p, bp);
+                }
             }).join();
         }
 
         // Brief 1st-person wing glide preview so owner sees unobstructed sightline while flying!
-        if (t == 276) {
+        if (t == 286) {
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
                 p.connection.teleport(S3X + 0.5, groundY + 18.0, S3Z + 22.5, 0f, 0f);
@@ -443,10 +455,10 @@ public final class DominionProbe implements ClientModInitializer {
             }).join();
             c.options.setCameraType(CameraType.FIRST_PERSON);
         }
-        if (t == 286) {
+        if (t == 296) {
             saveKeyframe(c, "kf_05f_wings_first_person.png");
         }
-        if (t == 292) {
+        if (t == 302) {
             c.options.setCameraType(CameraType.THIRD_PERSON_BACK);
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
@@ -457,7 +469,7 @@ public final class DominionProbe implements ClientModInitializer {
         }
 
         // Part E: QoL Auto Rain Umbrella Canopy under rain (30 ticks so rainLevel > 0.20 deterministically)!
-        if (t == 294) {
+        if (t == 304) {
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
                 ServerLevel level = p.serverLevel();
@@ -465,12 +477,12 @@ public final class DominionProbe implements ClientModInitializer {
                 level.setWeatherParameters(0, 200, true, false);
             }).join();
         }
-        if (t == 324) {
+        if (t == 334) {
             boolean umbrella = server.submit(() -> BlockDominionManager.isUmbrellaActive(me(server, c))).join();
             recordCheck("rain_umbrella_active", umbrella, "umbrella=" + umbrella);
             saveKeyframe(c, "kf_05g_rain_umbrella.png");
         }
-        if (t == 330) {
+        if (t == 340) {
             // Part F: QoL Liquid Stride across glowing Lava Pool in Survival!
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
@@ -487,17 +499,17 @@ public final class DominionProbe implements ClientModInitializer {
             c.options.keyUp.setDown(true);
             c.options.keyShift.setDown(false);
         }
-        if (t == 352) {
+        if (t == 362) {
             boolean stride = server.submit(() -> BlockDominionManager.isLiquidStrideActive(me(server, c))).join();
             float hp = server.submit(() -> me(server, c).getHealth()).join();
             recordCheck("liquid_stride_lava_safe", stride && hp >= 19.9f,
                     String.format(Locale.ROOT, "stride=%s hp=%.1f", stride, hp));
             saveKeyframe(c, "kf_05h_liquid_stride_lava.png");
         }
-        if (t == 360) {
+        if (t == 370) {
             c.options.keyUp.setDown(false);
         }
-        if (t >= 366) {
+        if (t >= 376) {
             stage = 4;
             stageStart = ticks;
         }
