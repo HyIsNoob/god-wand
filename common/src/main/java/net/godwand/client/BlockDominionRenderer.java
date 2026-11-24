@@ -629,11 +629,16 @@ public final class BlockDominionRenderer {
                 if (isLocal) {
                     DominionPostFx.triggerShockwave(1.0f, 16 + tier * 4, BlockDominionPalette.INFERNO_OBSIDIAN);
                     triggerImpactFrame(2 + tier, 1.0f, (int) (now & 63), BlockDominionPalette.INFERNO_OBSIDIAN);
+                    BlockDominionSounds.playLocalFull(BlockDominionSounds.METEOR_CATACLYSM,
+                            1.15f + tier * 0.25f, 1.04f - tier * 0.10f);
+                    BlockDominionSounds.playLocalFull(BlockDominionSounds.IMPACT,
+                            0.95f + tier * 0.20f, 0.72f - tier * 0.05f);
+                } else {
+                    BlockDominionSounds.play(impactPos, BlockDominionSounds.METEOR_CATACLYSM,
+                            1.50f + tier * 0.45f, 1.04f - tier * 0.10f);
+                    BlockDominionSounds.play(impactPos, BlockDominionSounds.IMPACT,
+                            1.20f + tier * 0.25f, 0.72f - tier * 0.05f);
                 }
-                BlockDominionSounds.play(impactPos, BlockDominionSounds.METEOR_CATACLYSM,
-                        1.45f + tier * 0.45f, 1.06f - tier * 0.12f);
-                BlockDominionSounds.play(impactPos, BlockDominionSounds.IMPACT,
-                        1.20f + tier * 0.25f, 0.74f - tier * 0.06f);
             }
             case BlockDominionRules.EVENT_CAGE_START -> {
                 Vec3 anchor = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
@@ -670,26 +675,27 @@ public final class BlockDominionRenderer {
                 int targetId = packed >>> 1;
                 boolean killed = (packed & 1) != 0;
                 ClientCage cage = ACTIVE_CAGES.get(cageKey(payload.playerId(), targetId));
-                Vec3[] dirs = BlockDominionBrain.cageSpearDirections(4, cage != null ? cage.yawOffset : 0.35);
+                Vec3[] dirs = BlockDominionBrain.cageSpearDirections(
+                        BlockDominionRules.CAGE_SPEAR_COUNT, cage != null ? cage.yawOffset : 0.35);
                 if (cage != null) {
                     cage.impaled = true;
                     cage.impaleTick = now;
                     cage.victimKilled = killed;
                 }
                 for (Vec3 d : dirs) {
-                    DominionParticles.spawnRingBurst(hitPos.add(d.scale(0.95)), d, 0.85, 10, 0.32,
+                    DominionParticles.spawnRingBurst(hitPos.add(d.scale(1.10)), d, 0.92, 12, 0.36,
                             pal.hotR, pal.hotG, pal.hotB, DominionParticles.STYLE_SHARD);
-                    DominionParticles.spawn(hitPos.add(d.scale(0.5)), d.scale(0.38), 0.24f, 14, 0.90, 0.0,
+                    DominionParticles.spawn(hitPos.add(d.scale(0.55)), d.scale(0.42), 0.24f, 14, 0.90, 0.0,
                             pal.primaryR, pal.primaryG, pal.primaryB, DominionParticles.STYLE_EMBER);
                 }
                 if (killed) {
-                    // Plant an Impaled Stone Lance Monument pinned straight through the fallen corpse into the ground!
+                    // Plant a dramatic 6-Lance Crossed Monument pinned straight through the fallen corpse into the ground!
                     int gx = Mth.floor(hitPos.x), gz = Mth.floor(hitPos.z);
                     double pinY = hitPos.y - 0.85;
                     if (world != null && world.getChunkSource().hasChunk(gx >> 4, gz >> 4)) {
                         int groundY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, gx, gz);
                         if (Math.abs(groundY - hitPos.y) <= 6.0) {
-                            pinY = groundY + 0.42;
+                            pinY = groundY + 0.44;
                         }
                     }
                     List<BlockState> mats = cage != null ? cage.blocks : List.of(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
@@ -697,10 +703,12 @@ public final class BlockDominionRenderer {
                     IMPALED_MONUMENTS.add(new ImpaledMonument(new Vec3(hitPos.x, pinY, hitPos.z), mats, dirs, now, pal));
                 }
                 if (isLocal) {
-                    DominionPostFx.triggerShockwave(0.76f, 13, pal);
-                    triggerImpactFrame(2, 0.92f, (int) (now & 63), pal);
+                    DominionPostFx.triggerShockwave(0.86f, 15, pal);
+                    triggerImpactFrame(2, 0.95f, (int) (now & 63), pal);
+                    BlockDominionSounds.playLocalFull(BlockDominionSounds.CAGE_IMPALE, 1.15f, 0.94f);
+                } else {
+                    BlockDominionSounds.play(hitPos, BlockDominionSounds.CAGE_IMPALE, 1.25f, 0.94f);
                 }
-                BlockDominionSounds.play(hitPos, BlockDominionSounds.CAGE_IMPALE, 1.15f, 0.96f);
             }
             case BlockDominionRules.EVENT_CAGE_END -> {
                 int targetId = payload.eventBlockId();
@@ -1497,7 +1505,7 @@ public final class BlockDominionRenderer {
             matrices.popPose();
         }
 
-        // 2b. Render active Monolith Cages: Telekinetic Block Launch -> Interlocking Hexagonal Jail -> 3-Piece Assembling Stone Lances!
+        // 2b. Render active Monolith Cages: Architectural Hexagonal Iron-Maiden Jail + 6 Converging 3-Piece Execution Lances!
         for (ClientCage cage : ACTIVE_CAGES.values()) {
             Entity target = world.getEntity(cage.targetId);
             Vec3 center = target != null && target.isAlive()
@@ -1509,97 +1517,135 @@ public final class BlockDominionRenderer {
             int originsN = Math.max(1, cage.launchOrigins.size());
             int light = sampleLight(center, target != null ? target : client.player);
 
-            // 6 tall slender vertical stone prison bars launched out from the player's actual orbiting blocks & clicking into place!
-            double barSpin = time * 0.026 + cage.yawOffset;
-            for (int i = 0; i < 6; i++) {
-                double ang = barSpin + (Math.PI / 3.0) * i;
-                Vec3 finalPos = center.add(Math.cos(ang) * 1.24, 0.0, Math.sin(ang) * 1.24);
-                double barAge = Math.max(0.0, age - i * 0.45);
-                double flyT = Mth.clamp(barAge / 6.5, 0.0, 1.0);
-                double flyEase = 1.0 - (1.0 - flyT) * (1.0 - flyT) * (1.0 - flyT);
-                double lockT = Mth.clamp((barAge - 5.2) / 2.8, 0.0, 1.0);
-                double lockEase = 1.0 - (1.0 - lockT) * (1.0 - lockT);
+            // Prison shatter burst outward the instant the 6 lances impale through!
+            double shatterT = (cage.impaled && cage.impaleTick >= 0)
+                    ? Mth.clamp((time - cage.impaleTick) / 10.0, 0.0, 1.0) : 0.0;
+            double shatterEase = 1.0 - (1.0 - shatterT) * (1.0 - shatterT);
+            float shatterScale = (float) Math.max(0.0, 1.0 - shatterT * 0.85);
 
-                Vec3 origin = cage.launchOrigins.get(i % originsN);
-                Vec3 preLockPos = center.add(Math.cos(ang) * 2.45, 0.0, Math.sin(ang) * 2.45);
-                Vec3 radialOut = new Vec3(Math.cos(ang), 0.0, Math.sin(ang));
-                Vec3 arcMid = origin.lerp(preLockPos, 0.48).add(radialOut.scale(1.35)).add(0, 0.85, 0);
-                Vec3 flightPos = origin.lerp(arcMid, flyEase).lerp(arcMid.lerp(preLockPos, flyEase), flyEase);
-                Vec3 p = flyT < 1.0 ? flightPos : preLockPos.lerp(finalPos, lockEase);
+            // Slow tightening compression during Phase 1 -> 2 for palpable dread tension!
+            double compressFrac = Mth.clamp((age - 8.0) / 28.0, 0.0, 1.0);
+            double lockRadius = Mth.lerp(compressFrac, 1.28, 1.12);
+            double barSpin = time * (0.024 + compressFrac * 0.018) + cage.yawOffset;
 
-                float sx = (float) Mth.lerp(flyEase, 0.52, 0.24);
-                float sy = (float) Mth.lerp(flyEase, 0.52, 2.08);
-                float sz = (float) Mth.lerp(flyEase, 0.52, 0.22);
-                float tumble = (float) ((1.0 - flyEase) * 240.0 * ((i & 1) == 0 ? 1.0 : -1.0));
+            // 6 carved vertical monolith pillars + interlocking top & bottom horizontal shackle beams!
+            if (shatterScale > 0.06f) {
+                for (int i = 0; i < 6; i++) {
+                    double ang = barSpin + (Math.PI / 3.0) * i;
+                    double barAge = Math.max(0.0, age - i * 0.42);
+                    double flyT = Mth.clamp(barAge / 6.2, 0.0, 1.0);
+                    double flyEase = 1.0 - (1.0 - flyT) * (1.0 - flyT) * (1.0 - flyT);
+                    double lockT = Mth.clamp((barAge - 4.8) / 2.6, 0.0, 1.0);
+                    double lockEase = 1.0 - (1.0 - lockT) * (1.0 - lockT);
+                    // Crisp elastic overshoot bounce right as each monolith slams into lock!
+                    double snapBounce = (lockT > 0.0 && lockT < 1.0) ? -Math.sin(lockT * Math.PI) * 0.14 : 0.0;
 
-                matrices.pushPose();
-                matrices.translate(p.x - camPos.x, p.y - camPos.y, p.z - camPos.z);
-                matrices.mulPose(Axis.YP.rotationDegrees((float) (-Math.toDegrees(ang) + 90.0) + tumble));
-                matrices.mulPose(Axis.XP.rotationDegrees(tumble * 0.6f));
-                matrices.scale(sx, sy, sz);
-                matrices.translate(-0.5, -0.5, -0.5);
-                blockRenderer.renderSingleBlock(cage.blocks.get(i % n), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
-                matrices.popPose();
-            }
+                    Vec3 radialOut = new Vec3(Math.cos(ang), 0.0, Math.sin(ang));
+                    Vec3 finalPos = center.add(radialOut.scale(lockRadius + snapBounce + shatterEase * 2.85))
+                            .add(0, shatterEase * (0.65 - (i % 2) * 0.45), 0);
+                    Vec3 origin = cage.launchOrigins.get(i % originsN);
+                    Vec3 preLockPos = center.add(radialOut.scale(2.55));
+                    Vec3 arcMid = origin.lerp(preLockPos, 0.48).add(radialOut.scale(1.35)).add(0, 0.85, 0);
+                    Vec3 flightPos = origin.lerp(arcMid, flyEase).lerp(arcMid.lerp(preLockPos, flyEase), flyEase);
+                    Vec3 p = flyT < 1.0 ? flightPos : preLockPos.lerp(finalPos, lockEase);
 
-            // Top & bottom hexagonal prison cap plates launched from remaining orbiting stones & slamming shut!
-            for (int cap = 0; cap < 2; cap++) {
-                double capY = cap == 0 ? 1.12 : -1.04;
-                double capAge = Math.max(0.0, age - (2.6 + cap * 0.9));
-                double flyT = Mth.clamp(capAge / 6.0, 0.0, 1.0);
-                double flyEase = 1.0 - (1.0 - flyT) * (1.0 - flyT) * (1.0 - flyT);
-                double slamT = Mth.clamp((capAge - 4.8) / 2.6, 0.0, 1.0);
-                double slamEase = 1.0 - (1.0 - slamT) * (1.0 - slamT);
-                Vec3 origin = cage.launchOrigins.get((6 + cap) % originsN);
-                Vec3 preSlam = center.add(0, cap == 0 ? 2.65 : -2.35, 0);
-                Vec3 finalCap = center.add(0, capY, 0);
-                Vec3 arcMid = origin.lerp(preSlam, 0.5).add(0, cap == 0 ? 1.35 : -0.65, 0);
-                Vec3 pos = flyT < 1.0
-                        ? origin.lerp(arcMid, flyEase).lerp(arcMid.lerp(preSlam, flyEase), flyEase)
-                        : preSlam.lerp(finalCap, slamEase);
+                    float sx = (float) Mth.lerp(flyEase, 0.50, 0.25) * shatterScale;
+                    float sy = (float) Mth.lerp(flyEase, 0.50, 2.32) * shatterScale;
+                    float sz = (float) Mth.lerp(flyEase, 0.50, 0.23) * shatterScale;
+                    float tumble = (float) ((1.0 - flyEase) * 240.0 * ((i & 1) == 0 ? 1.0 : -1.0));
+                    float shatterSpin = (float) (shatterEase * 195.0 * ((i & 1) == 0 ? 1.0 : -1.0));
 
-                float platW = (float) Mth.lerp(flyEase, 0.52, 1.62);
-                float platH = (float) Mth.lerp(flyEase, 0.52, 0.18);
-                for (int k = 0; k < 2; k++) {
                     matrices.pushPose();
-                    matrices.translate(pos.x - camPos.x, pos.y - camPos.y, pos.z - camPos.z);
-                    matrices.mulPose(Axis.YP.rotationDegrees((float) (Math.toDegrees(barSpin) * (cap == 0 ? 1 : -1) + k * 45.0 + (1.0 - flyEase) * 180.0)));
-                    matrices.scale(platW, platH, platW);
+                    matrices.translate(p.x - camPos.x, p.y - camPos.y, p.z - camPos.z);
+                    matrices.mulPose(Axis.YP.rotationDegrees((float) (-Math.toDegrees(ang) + 90.0) + tumble + shatterSpin));
+                    matrices.mulPose(Axis.XP.rotationDegrees(tumble * 0.55f + shatterSpin * 0.7f));
+                    matrices.scale(sx, sy, sz);
                     matrices.translate(-0.5, -0.5, -0.5);
-                    blockRenderer.renderSingleBlock(cage.blocks.get((6 + cap) % n), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
+                    blockRenderer.renderSingleBlock(cage.blocks.get(i % n), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
                     matrices.popPose();
+
+                    // Interlocking horizontal shackle collar beams locking top & bottom rims between adjacent pillars!
+                    if (lockT > 0.25) {
+                        double nextAng = barSpin + (Math.PI / 3.0) * ((i + 1) % 6);
+                        double midAng = (ang + nextAng) * 0.5;
+                        Vec3 midRad = new Vec3(Math.cos(midAng), 0.0, Math.sin(midAng));
+                        double beamR = (lockRadius * 0.88) + shatterEase * 2.4;
+                        float beamScale = (float) Mth.clamp((lockT - 0.25) / 0.75, 0.0, 1.0) * shatterScale;
+                        for (int rim = 0; rim < 2; rim++) {
+                            double rimY = (rim == 0 ? 0.96 : -0.92) + (rim == 0 ? shatterEase * 0.8 : -shatterEase * 0.4);
+                            Vec3 bp = center.add(midRad.scale(beamR)).add(0, rimY, 0);
+                            matrices.pushPose();
+                            matrices.translate(bp.x - camPos.x, bp.y - camPos.y, bp.z - camPos.z);
+                            matrices.mulPose(Axis.YP.rotationDegrees((float) (-Math.toDegrees(midAng)) + shatterSpin * 0.6f));
+                            matrices.scale(0.18f * beamScale, 0.18f * beamScale, (float) (lockRadius * 1.02) * beamScale);
+                            matrices.translate(-0.5, -0.5, -0.5);
+                            blockRenderer.renderSingleBlock(cage.blocks.get((i + rim + 1) % n), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
+                            matrices.popPose();
+                        }
+                    }
+                }
+
+                // Top & bottom hexagonal prison seal plates slamming shut vertically!
+                for (int cap = 0; cap < 2; cap++) {
+                    double capY = cap == 0 ? 1.18 : -1.08;
+                    double capAge = Math.max(0.0, age - (2.4 + cap * 0.8));
+                    double flyT = Mth.clamp(capAge / 5.6, 0.0, 1.0);
+                    double flyEase = 1.0 - (1.0 - flyT) * (1.0 - flyT) * (1.0 - flyT);
+                    double slamT = Mth.clamp((capAge - 4.4) / 2.4, 0.0, 1.0);
+                    double slamEase = 1.0 - (1.0 - slamT) * (1.0 - slamT);
+                    Vec3 origin = cage.launchOrigins.get((6 + cap) % originsN);
+                    Vec3 preSlam = center.add(0, cap == 0 ? 2.75 : -2.45, 0);
+                    Vec3 finalCap = center.add(0, capY + (cap == 0 ? shatterEase * 1.8 : -shatterEase * 0.7), 0);
+                    Vec3 arcMid = origin.lerp(preSlam, 0.5).add(0, cap == 0 ? 1.35 : -0.65, 0);
+                    Vec3 pos = flyT < 1.0
+                            ? origin.lerp(arcMid, flyEase).lerp(arcMid.lerp(preSlam, flyEase), flyEase)
+                            : preSlam.lerp(finalCap, slamEase);
+
+                    float platW = (float) Mth.lerp(flyEase, 0.50, 1.56) * shatterScale;
+                    float platH = (float) Mth.lerp(flyEase, 0.50, 0.17) * shatterScale;
+                    for (int k = 0; k < 2; k++) {
+                        matrices.pushPose();
+                        matrices.translate(pos.x - camPos.x, pos.y - camPos.y, pos.z - camPos.z);
+                        matrices.mulPose(Axis.YP.rotationDegrees((float) (Math.toDegrees(barSpin) * (cap == 0 ? 1 : -1) + k * 45.0 + (1.0 - flyEase) * 180.0)));
+                        matrices.scale(platW, platH, platW);
+                        matrices.translate(-0.5, -0.5, -0.5);
+                        blockRenderer.renderSingleBlock(cage.blocks.get((6 + cap) % n), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
+                        matrices.popPose();
+                    }
                 }
             }
 
-            // Phase 2 & 3: 4 Sculpted 3-Piece Stone Lances assembling piece-by-piece outside the cage and IMPALING straight through!
+            // Phase 2 & 3: 6 Sculpted 3-Piece Stone Lances assembling piece-by-piece -> cock-back tension -> rapid-fire supersonic IMPALE!
             if (age >= BlockDominionRules.CAGE_SPEAR_FORM_TICK || cage.impaled) {
-                Vec3[] dirs = BlockDominionBrain.cageSpearDirections(4, cage.yawOffset);
+                Vec3[] dirs = BlockDominionBrain.cageSpearDirections(BlockDominionRules.CAGE_SPEAR_COUNT, cage.yawOffset);
                 for (int s = 0; s < dirs.length; s++) {
-                    double spearAge = Math.max(0.0, age - BlockDominionRules.CAGE_SPEAR_FORM_TICK - s * 1.1);
-                    double formFrac = cage.impaled ? 1.0 : Mth.clamp(spearAge / 9.0, 0.0, 1.0);
+                    double spearAge = Math.max(0.0, age - BlockDominionRules.CAGE_SPEAR_FORM_TICK - s * 0.85);
+                    double formFrac = cage.impaled ? 1.0 : Mth.clamp(spearAge / 8.5, 0.0, 1.0);
                     double formEase = 1.0 - (1.0 - formFrac) * (1.0 - formFrac);
                     double thrustDist;
                     if (cage.impaled && cage.impaleTick >= 0) {
-                        double impAge = Math.max(0.0, time - cage.impaleTick);
-                        double slam = Mth.clamp(impAge / 3.0, 0.0, 1.0);
+                        // Staggered supersonic rapid-fire piercing volley (SHING-SHING-SHING!) driving straight through the core!
+                        double impAge = Math.max(0.0, (time - cage.impaleTick) - s * 0.45);
+                        double slam = Mth.clamp(impAge / 2.6, 0.0, 1.0);
                         double slamEase = 1.0 - (1.0 - slam) * (1.0 - slam) * (1.0 - slam);
-                        // Thrusts VIOLENTLY from 3.45m outside straight through the core (-0.28m exit protrusion!)
-                        thrustDist = Mth.lerp(slamEase, 3.45, -0.28);
+                        thrustDist = Mth.lerp(slamEase, 4.35, -0.42);
                     } else {
                         double chargeFrac = Mth.clamp((age - BlockDominionRules.CAGE_SPEAR_FORM_TICK)
                                 / (double) Math.max(1, BlockDominionRules.CAGE_IMPALE_TICK - BlockDominionRules.CAGE_SPEAR_FORM_TICK), 0.0, 1.0);
-                        double pullBack = chargeFrac > 0.72 ? (chargeFrac - 0.72) * 1.4 : 0.0;
-                        thrustDist = Mth.lerp(formEase, 4.8, 3.45) + pullBack;
+                        // Unmistakable anime cock-back anticipation pull right before release!
+                        double cockBack = chargeFrac > 0.66
+                                ? Math.pow((chargeFrac - 0.66) / 0.34, 1.5) * 1.15
+                                : 0.0;
+                        thrustDist = Mth.lerp(formEase, 4.95, 3.35) + cockBack;
                     }
                     Vec3 dir = dirs[s];
-                    double jitter = (!cage.impaled && age > BlockDominionRules.CAGE_SPEAR_FORM_TICK + 8)
-                            ? Math.sin(time * 2.1 + s * 1.7) * 0.04 : 0.0;
-                    // dir points INWARD toward center, so lance sits at center - dir * thrustDist pointing along +dir!
+                    double jitter = (!cage.impaled && age > BlockDominionRules.CAGE_SPEAR_FORM_TICK + 9)
+                            ? Math.sin(time * 2.8 + s * 1.9) * (age > BlockDominionRules.CAGE_IMPALE_TICK - 7 ? 0.075 : 0.035) : 0.0;
                     Vec3 lanceAnchor = center.subtract(dir.scale(thrustDist + jitter));
                     BlockState tipMat = cage.blocks.get((s * 2) % n);
                     BlockState shaftMat = cage.blocks.get((s * 2 + 1) % n);
                     renderStoneLance(matrices, bufferSource, blockRenderer, lanceAnchor, dir, camPos,
-                            (float) Mth.clamp(formEase * 1.15, 0.0, 1.0), (float) formFrac, tipMat, shaftMat, light);
+                            (float) Mth.clamp(formEase * 1.12, 0.0, 1.0), (float) formFrac, tipMat, shaftMat, light);
                 }
             }
         }
@@ -2024,29 +2070,34 @@ public final class BlockDominionRenderer {
                     DominionShader.emitGroundPool(buffer, mat, center.add(0, -1.08, 0), 1.95, 65,
                             cage.palette.primaryR, cage.palette.primaryG, cage.palette.primaryB, 115);
 
-                    // Spear convergence laser filaments (Phase 2) & exit piercing shock cones (Phase 3)!
+                    // 6-Spear convergence targeting lasers (Phase 2 -> bright cock-back lock!) & exit piercing shock cones (Phase 3)!
                     if (age >= BlockDominionRules.CAGE_SPEAR_FORM_TICK || cage.impaled) {
-                        Vec3[] dirs = BlockDominionBrain.cageSpearDirections(4, cage.yawOffset);
+                        Vec3[] dirs = BlockDominionBrain.cageSpearDirections(BlockDominionRules.CAGE_SPEAR_COUNT, cage.yawOffset);
                         if (cage.impaled && cage.impaleTick >= 0) {
                             double impAge = time - cage.impaleTick;
-                            if (impAge >= 0 && impAge < 12) {
-                                double it = impAge / 12.0;
-                                int ia = (int) (210 * (1.0 - it) * (1.0 - it));
+                            if (impAge >= 0 && impAge < 14) {
+                                double it = impAge / 14.0;
+                                int ia = (int) (225 * (1.0 - it) * (1.0 - it));
                                 for (int s = 0; s < dirs.length; s++) {
                                     Vec3 d = dirs[s];
-                                    DominionShader.emitFresnelCone(buffer, mat, center.add(d.scale(1.15 + it * 1.4)), d,
-                                            1.8 + it * 1.6, 0.72 + it * 0.65, 14, 5, 70 + s,
+                                    DominionShader.emitFresnelCone(buffer, mat, center.add(d.scale(1.25 + it * 1.85)), d,
+                                            2.1 + it * 1.8, 0.80 + it * 0.72, 16, 5, 70 + s,
                                             cage.palette.hotR, cage.palette.hotG, cage.palette.hotB, ia);
                                 }
                             }
                         } else {
                             double charge = Mth.clamp((age - BlockDominionRules.CAGE_SPEAR_FORM_TICK)
                                     / (double) Math.max(1, BlockDominionRules.CAGE_IMPALE_TICK - BlockDominionRules.CAGE_SPEAR_FORM_TICK), 0.0, 1.0);
-                            int la = (int) (75 + charge * 135);
+                            boolean cocking = charge > 0.66;
+                            int la = (int) (75 + charge * 155);
                             for (int s = 0; s < dirs.length; s++) {
-                                Vec3 from = center.subtract(dirs[s].scale(3.4));
-                                DominionShader.emitLiveBolt(buffer, mat, from, center, 6, 0.05, 0.022 + charge * 0.014,
-                                        7100L + s * 23L, time, cage.palette.hotR, cage.palette.hotG, cage.palette.hotB, la);
+                                Vec3 from = center.subtract(dirs[s].scale(cocking ? 4.2 : 3.4));
+                                DominionShader.emitLiveBolt(buffer, mat, from, center, 5, cocking ? 0.03 : 0.05,
+                                        0.018 + charge * 0.018,
+                                        7100L + s * 23L, time,
+                                        cocking ? 255 : cage.palette.hotR,
+                                        cocking ? 235 : cage.palette.hotG,
+                                        cocking ? 185 : cage.palette.hotB, la);
                             }
                         }
                     }

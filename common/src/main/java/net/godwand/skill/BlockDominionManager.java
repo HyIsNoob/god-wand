@@ -435,7 +435,8 @@ public final class BlockDominionManager {
                             SpatialDisplacementManager.removeActiveRecord(world.dimension(), pos);
                             removedDisplacement = true;
                         }
-                        world.destroyBlock(pos, false, owner, 0);
+                        // Use silent setBlock instead of destroyBlock so 2,000+ block-break levelEvents NEVER saturate OpenAL & mute the explosion!
+                        world.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS);
                     } else if (tier >= 2 && dist <= radius + 1.15 && dy <= 0 && st.getFluidState().isEmpty()) {
                         // Scorch the circular crater bowl crust into glowing Magma / Basalt on Tier II & Tier III!
                         if (SpatialDisplacementManager.getActiveRecord(world.dimension(), pos) == null) {
@@ -614,18 +615,22 @@ public final class BlockDominionManager {
         st.lastCageTick = now;
 
         target.setNoGravity(true);
-        target.setDeltaMovement(0, 0.30, 0);
+        target.setDeltaMovement(0, 0.34, 0);
         target.hurtMarked = true;
 
+        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                CinematicFxPayload.EVENT_FOV_PUNCH, anchor.x, anchor.y, anchor.z, 1.04f, 6));
+        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE, anchor.x, anchor.y, anchor.z, 0.14f, 5));
         world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, cageBlocks.get(0)),
-                anchor.x, anchor.y, anchor.z, 22, 0.65, 0.85, 0.65, 0.14);
+                anchor.x, anchor.y, anchor.z, 24, 0.65, 0.85, 0.65, 0.14);
         player.displayClientMessage(Component.translatable("message.godwand.dominion_cage",
                 cost, st.activeCages.size(), BlockDominionRules.CAGE_MAX_ACTIVE), true);
         sync(player, st, BlockDominionRules.EVENT_CAGE_START, anchor.x, anchor.y, anchor.z, target.getId());
         return true;
     }
 
-    /** Executes Phase 3 of Monolith Cage: drives 4 sculpted stone lances violently through the sealed target. */
+    /** Executes Phase 3 of Monolith Cage: drives 6 sculpted stone lances violently through the sealed target + shockwave AoE! */
     private static void executeCageImpale(ServerLevel world, ServerPlayer player, PlayerState st,
                                           ActiveCage cage, LivingEntity target, long now) {
         if (cage == null || cage.impaled) return;
@@ -634,13 +639,33 @@ public final class BlockDominionManager {
 
         Vec3 hitPos = target.position().add(0, target.getBbHeight() * 0.52, 0);
         var cfg = GodWandConfig.SERVER;
-        float dmg = cfg.blockDominionDamage * 2.35f * cfg.damageMultiplier * (target instanceof Mob ? 1.5f : 1.0f);
+        float dmg = cfg.blockDominionDamage * 2.75f * cfg.damageMultiplier * (target instanceof Mob ? 1.5f : 1.0f);
 
         UUID previousSelf = SELF_DAMAGE_CASTER.get();
         SELF_DAMAGE_CASTER.set(player.getUUID());
         try {
             if (SpellDamage.affects(target, player)) {
                 SpellDamage.hurt(target, world.damageSources().fallingBlock(player), dmg);
+                // Clean execution finisher: if a non-boss mob barely survived below 22% HP, skewer it cleanly!
+                if (target.isAlive() && target instanceof Mob && target.getMaxHealth() <= 120.0f
+                        && target.getHealth() <= target.getMaxHealth() * 0.22f) {
+                    SpellDamage.hurt(target, world.damageSources().fallingBlock(player), target.getHealth() + 4.0f);
+                }
+            }
+            // Radial execution shockwave chips & blasts nearby enemies around the skewered victim!
+            double shockR = 4.2;
+            AABB shockBox = new AABB(hitPos, hitPos).inflate(shockR);
+            for (LivingEntity nearby : world.getEntitiesOfClass(LivingEntity.class, shockBox,
+                    e -> e.isAlive() && e != target && !SpellDamage.isCaster(e, player))) {
+                double d = nearby.position().distanceTo(hitPos);
+                if (d <= shockR && SpellDamage.affects(nearby, player)) {
+                    double falloff = Math.max(0.35, 1.0 - d / shockR);
+                    SpellDamage.hurt(nearby, world.damageSources().fallingBlock(player), (float) (dmg * 0.42 * falloff));
+                    Vec3 out = nearby.position().subtract(hitPos);
+                    Vec3 dir = out.lengthSqr() > 1e-4 ? out.normalize() : new Vec3(1, 0, 0);
+                    nearby.setDeltaMovement(nearby.getDeltaMovement().add(dir.scale(0.85 * falloff)).add(0, 0.32, 0));
+                    nearby.hurtMarked = true;
+                }
             }
         } finally {
             if (previousSelf == null) SELF_DAMAGE_CASTER.remove();
@@ -650,11 +675,11 @@ public final class BlockDominionManager {
         boolean killed = !target.isAlive() || target.isDeadOrDying();
         cage.victimKilled = killed;
         if (killed) {
-            // Let the slain target collapse onto the crossed impaling lances while the monument lingers on clients!
+            // Let the slain target collapse onto the 6 crossed impaling lances while the monument lingers!
             target.setNoGravity(false);
-            target.setDeltaMovement(0, -0.35, 0);
+            target.setDeltaMovement(0, -0.40, 0);
             target.hurtMarked = true;
-            cage.endTick = Math.min(cage.endTick, now + 12);
+            cage.endTick = Math.min(cage.endTick, now + 14);
         } else {
             target.setDeltaMovement(Vec3.ZERO);
             target.hurtMarked = true;
@@ -663,12 +688,21 @@ public final class BlockDominionManager {
 
         BlockState spearMat = cage.blocks.isEmpty() ? Blocks.DEEPSLATE.defaultBlockState() : cage.blocks.get(0);
         world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, spearMat),
-                hitPos.x, hitPos.y, hitPos.z, 34, 0.75, 0.75, 0.75, 0.28);
-        world.sendParticles(ParticleTypes.CRIT, hitPos.x, hitPos.y, hitPos.z, 24, 0.55, 0.55, 0.55, 0.25);
-        world.sendParticles(ParticleTypes.SWEEP_ATTACK, hitPos.x, hitPos.y, hitPos.z, 3, 0.45, 0.45, 0.45, 0.0);
+                hitPos.x, hitPos.y, hitPos.z, 46, 0.85, 0.85, 0.85, 0.32);
+        world.sendParticles(ParticleTypes.CRIT, hitPos.x, hitPos.y, hitPos.z, 32, 0.65, 0.65, 0.65, 0.28);
+        world.sendParticles(ParticleTypes.SWEEP_ATTACK, hitPos.x, hitPos.y, hitPos.z, 4, 0.55, 0.55, 0.55, 0.0);
+
+        Services.NETWORK.sendToNearby(world, hitPos, SYNC_RADIUS,
+                new CannonPressurePayload(hitPos, new Vec3(0, -1, 0), 2, new Vec3(0, 1, 0)));
+        world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
+                SoundEvents.TRIDENT_HIT, SoundSource.PLAYERS, 1.25f, 0.72f);
+        world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
+                SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.68f, 0.82f);
 
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                CinematicFxPayload.EVENT_TRAUMA_SHAKE, hitPos.x, hitPos.y, hitPos.z, 0.30f, 9));
+                CinematicFxPayload.EVENT_FOV_PUNCH, hitPos.x, hitPos.y, hitPos.z, 1.09f, 9));
+        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE, hitPos.x, hitPos.y, hitPos.z, 0.42f, 11));
         player.displayClientMessage(Component.translatable("message.godwand.dominion_cage_impale"), true);
 
         int packed = (target.getId() << 1) | (killed ? 1 : 0);
@@ -1314,7 +1348,7 @@ public final class BlockDominionManager {
                         SpatialDisplacementManager.removeActiveRecord(world.dimension(), pos);
                         removedDisplacement = true;
                     }
-                    world.destroyBlock(pos, false, owner, 0);
+                    world.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS);
                 }
             }
         }
@@ -1569,9 +1603,16 @@ public final class BlockDominionManager {
                     mobilityChanged = true;
                 } else {
                     long cageAge = now - cage.startTick;
+                    if (!cage.impaled && cageAge == 7) {
+                        // Heavy iron-maiden prison slam crunch right as the 6 pillars lock shut!
+                        world.playSound(null, cage.anchor.x, cage.anchor.y, cage.anchor.z,
+                                SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 0.95f, 0.56f);
+                        world.playSound(null, cage.anchor.x, cage.anchor.y, cage.anchor.z,
+                                IMPACT_SFX, SoundSource.PLAYERS, 0.55f, 0.72f);
+                    }
                     if (!cage.impaled && cageAge == BlockDominionRules.CAGE_SPEAR_FORM_TICK) {
                         world.playSound(null, cage.anchor.x, cage.anchor.y, cage.anchor.z,
-                                CAGE_FORGE_SFX, SoundSource.PLAYERS, 0.92f, 1.02f);
+                                CAGE_FORGE_SFX, SoundSource.PLAYERS, 0.98f, 1.00f);
                     }
                     if (!cage.impaled && cageAge >= BlockDominionRules.CAGE_IMPALE_TICK) {
                         executeCageImpale(world, player, st, cage, target, now);

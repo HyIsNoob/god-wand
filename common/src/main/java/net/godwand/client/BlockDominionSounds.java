@@ -58,6 +58,16 @@ public final class BlockDominionSounds {
                 sound, SoundSource.PLAYERS, volume, pitch, RandomSource.create(), at.x, at.y, at.z));
     }
 
+    /** Plays a full-presence non-attenuated cinematic sound directly for the local caster (e.g. Cataclysm impact / Cage execution). */
+    public static void playLocalFull(SoundEvent sound, float volume, float pitch) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.getSoundManager() == null) return;
+        client.getSoundManager().play(new SimpleSoundInstance(
+                sound.getLocation(), SoundSource.PLAYERS, volume, pitch, RandomSource.create(),
+                false, 0, net.minecraft.client.resources.sounds.SoundInstance.Attenuation.NONE,
+                0.0, 0.0, 0.0, true));
+    }
+
     public static void ensureLoop(int playerId, SoundEvent sound, Supplier<Vec3> where,
                                   BooleanSupplier alive, DoubleSupplier gain, DoubleSupplier pitch) {
         FollowLoop current = LOOPS.get(playerId);

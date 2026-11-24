@@ -93,7 +93,8 @@ public final class BlockDominionRules {
     public static final int CAGE_SPEAR_FORM_TICK = 16;
     public static final int CAGE_IMPALE_TICK = 38;
     public static final int CAGE_DURATION_TICKS = 66;
-    public static final int CAGE_MONUMENT_TICKS = 96;
+    public static final int CAGE_MONUMENT_TICKS = 120;
+    public static final int CAGE_SPEAR_COUNT = 6;
     public static final int CAGE_COOLDOWN_TICKS = 6;
     public static final double CAGE_RANGE = 22.0;
     public static final int PERCH_IDLE_TICKS = 34;
