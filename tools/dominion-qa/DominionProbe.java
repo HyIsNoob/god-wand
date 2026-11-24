@@ -600,7 +600,8 @@ public final class DominionProbe implements ClientModInitializer {
                 ServerPlayer p = me(server, c);
                 ServerLevel level = p.serverLevel();
                 p.setGameMode(GameType.CREATIVE);
-                p.connection.teleport(OX + 0.5, groundY, S4Z + 0.5, 0f, -4f);
+                // Stand closer (8.5m away) for front-row Monolith Cage + Impaling Stone Lances showcase!
+                p.connection.teleport(OX + 0.5, groundY, S4Z + 6.5, 0f, -6f);
                 // Build dramatic target fortress wall + 5 Husks at S4Z + 18 on clean flat grass
                 for (int dx = -7; dx <= 7; dx++) {
                     for (int dy = 0; dy < 6; dy++) {
@@ -613,13 +614,14 @@ public final class DominionProbe implements ClientModInitializer {
                 for (int i = -2; i <= 2; i++) {
                     Mob m = EntityType.HUSK.create(level);
                     m.setPos(OX + 0.5 + i * 2.2, groundY, S4Z + 15.0);
+                    m.setNoAi(true);
                     m.setPersistenceRequired();
                     level.addFreshEntity(m);
                     spawnedMobs.add(m.getUUID());
                 }
             }).join();
         }
-        // Monolith Cage on the center Husk before unleashing Rapid Fire & Myriad Volley!
+        // Full 3-Phase Monolith Cage Showcase: Seal -> 4 Stone Lances Forge -> Impale Execution -> Impaled Monument!
         if (t == 4) {
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
@@ -630,38 +632,55 @@ public final class DominionProbe implements ClientModInitializer {
                         "caged=" + caged);
             }).join();
         }
-        if (t == 10) saveKeyframe(c, "kf_09b_monolith_cage.png");
-        // Rapid fire burst (t = 14..30)
-        if (t == 14) {
+        if (t == 14) saveKeyframe(c, "kf_09b_monolith_cage.png");
+        if (t == 34) saveKeyframe(c, "kf_09c_cage_spears_charge.png");
+        if (t == 44) saveKeyframe(c, "kf_09d_cage_impale_strike.png");
+        if (t == 58) {
+            boolean impaledKill = server.submit(() -> {
+                ServerLevel level = me(server, c).serverLevel();
+                Entity midHusk = spawnedMobs.size() > 2 ? level.getEntity(spawnedMobs.get(2)) : null;
+                return midHusk == null || !midHusk.isAlive();
+            }).join();
+            recordCheck("monolith_cage_impale_kills", impaledKill, "killed=" + impaledKill);
+            saveKeyframe(c, "kf_09e_cage_impaled_monument.png");
+        }
+        // Step back slightly for Rapid Fire (Railgun Muzzle Tracers!) & Myriad Volley
+        if (t == 64) {
+            server.submit(() -> {
+                me(server, c).connection.teleport(OX + 0.5, groundY, S4Z + 0.5, 0f, -4f);
+            }).join();
+        }
+        // Rapid fire burst (t = 68..84)
+        if (t == 68) {
             c.options.keyShift.setDown(false);
             c.options.keyUse.setDown(true);
         }
-        if (t == 22) saveKeyframe(c, "kf_10_rapid_fire.png");
-        if (t == 30) {
+        if (t == 76) saveKeyframe(c, "kf_10_rapid_fire.png");
+        if (t == 84) {
             c.options.keyUse.setDown(false);
         }
         // Hold Shift 4 ticks BEFORE right-click so server sees sneaking cleanly -> triggers Myriad Volley fan!
-        if (t == 38) {
+        if (t == 92) {
             c.options.keyShift.setDown(true);
         }
-        if (t == 42) {
+        if (t == 96) {
             c.options.keyUse.setDown(true);
         }
-        if (t == 64) saveKeyframe(c, "kf_11_volley_fan.png");
-        if (t == 68) {
+        if (t == 118) saveKeyframe(c, "kf_11_volley_fan.png");
+        if (t == 122) {
             c.options.keyUse.setDown(false);
             c.options.keyShift.setDown(false);
         }
-        if (t == 70) saveKeyframe(c, "kf_12a_volley_impact_frame.png");
-        if (t == 76) saveKeyframe(c, "kf_12_volley_launch.png");
-        if (t == 90) {
+        if (t == 124) saveKeyframe(c, "kf_12a_volley_impact_frame.png");
+        if (t == 130) saveKeyframe(c, "kf_12_volley_launch.png");
+        if (t == 144) {
             int rem = server.submit(() -> BlockDominionManager.reserveCount(me(server, c))).join();
             recordCheck("myriad_volley_empties_reserve", rem == 0, "remaining=" + rem);
             saveKeyframe(c, "kf_13_volley_impact.png");
         }
         // Milestone 4 Showcase: Earthen Surge on Amethyst field -> Royal Violet Material Resonance -> Low-Alt Ground Wash Wings -> Aerial Orbital Meteor Barrage!
         final int S4X = OX + 65;
-        if (t == 104) {
+        if (t == 158) {
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
                 ServerLevel level = p.serverLevel();
@@ -690,12 +709,12 @@ public final class DominionProbe implements ClientModInitializer {
                 p.connection.teleport(S4X + 0.5, groundY, S4Z + 0.5, 0f, 10f);
             }).join();
         }
-        if (t == 112) {
+        if (t == 166) {
             int surged = server.submit(() -> BlockDominionManager.triggerEarthenSurge(me(server, c))).join();
             recordCheck("earthen_surge_rips_blocks", surged >= 20, "surged=" + surged);
         }
-        if (t == 122) saveKeyframe(c, "kf_13b_earthen_surge_amethyst.png");
-        if (t == 130) {
+        if (t == 176) saveKeyframe(c, "kf_13b_earthen_surge_amethyst.png");
+        if (t == 184) {
             var pal = net.godwand.client.BlockDominionRenderer.localPalette();
             recordCheck("material_resonance_amethyst", pal == net.godwand.skill.BlockDominionPalette.AMETHYST_ROYAL, "palette=" + pal);
             // Low-altitude wing flight (3 blocks off ground) to showcase Royal Violet Wings + Ground Wash!
@@ -706,9 +725,9 @@ public final class DominionProbe implements ClientModInitializer {
                 BlockDominionManager.setWingFlight(p, true);
             }).join();
         }
-        if (t == 146) saveKeyframe(c, "kf_13c_amethyst_wings_groundwash.png");
+        if (t == 200) saveKeyframe(c, "kf_13c_amethyst_wings_groundwash.png");
         // Rise higher and unleash Aerial Orbital Meteor Barrage (Shift + Right-Click while wing-flying)!
-        if (t == 152) {
+        if (t == 206) {
             server.submit(() -> {
                 ServerPlayer p = me(server, c);
                 net.godwand.skill.SkillCooldowns.reset(p);
@@ -716,20 +735,20 @@ public final class DominionProbe implements ClientModInitializer {
             }).join();
             c.options.keyShift.setDown(true);
         }
-        if (t == 155) {
+        if (t == 209) {
             c.options.keyUse.setDown(true);
         }
-        if (t == 174) {
+        if (t == 228) {
             boolean stillFlying = server.submit(() -> BlockDominionManager.isWingFlying(me(server, c))).join();
             recordCheck("orbital_meteor_hovers_midair", stillFlying, "flying=" + stillFlying);
             saveKeyframe(c, "kf_13d_orbital_meteor_charge.png");
         }
-        if (t == 178) {
+        if (t == 232) {
             c.options.keyUse.setDown(false);
             c.options.keyShift.setDown(false);
         }
-        if (t == 180) saveKeyframe(c, "kf_13e_orbital_meteor_rain.png");
-        if (t >= 204) {
+        if (t == 234) saveKeyframe(c, "kf_13e_orbital_meteor_rain.png");
+        if (t >= 258) {
             server.submit(() -> BlockDominionManager.setWingFlight(me(server, c), false)).join();
             stage = 6;
             stageStart = ticks;
