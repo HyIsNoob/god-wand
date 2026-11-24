@@ -19,7 +19,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.util.Mth;
@@ -54,6 +53,16 @@ public final class BlockDominionManager {
     private static final double SYNC_RADIUS = 96.0;
     private static final SoundEvent IMPACT_SFX = SoundEvent.createVariableRangeEvent(
             ResourceLocation.fromNamespaceAndPath("godwand", "dominion_impact"));
+    private static final SoundEvent FIRE_SFX = SoundEvent.createVariableRangeEvent(
+            ResourceLocation.fromNamespaceAndPath("godwand", "dominion_fire"));
+    private static final SoundEvent PICKUP_SFX = SoundEvent.createVariableRangeEvent(
+            ResourceLocation.fromNamespaceAndPath("godwand", "dominion_pickup"));
+    private static final SoundEvent UNFOLD_SFX = SoundEvent.createVariableRangeEvent(
+            ResourceLocation.fromNamespaceAndPath("godwand", "dominion_unfold"));
+    private static final SoundEvent CAGE_FORGE_SFX = SoundEvent.createVariableRangeEvent(
+            ResourceLocation.fromNamespaceAndPath("godwand", "dominion_cage_forge"));
+    private static final SoundEvent METEOR_IGNITE_SFX = SoundEvent.createVariableRangeEvent(
+            ResourceLocation.fromNamespaceAndPath("godwand", "dominion_meteor_ignite"));
 
     private record DroppedBlock(BlockPos pos, BlockState state) {}
     private record RecallSnapshot(ResourceKey<Level> dimension, long deactivatedAtTick, boolean died, List<DroppedBlock> blocks) {}
@@ -101,7 +110,7 @@ public final class BlockDominionManager {
         long lastCageTick = -1000;
         long safeFallUntil = -1;
         Vec3 flightVel = Vec3.ZERO;
-        ActiveCage activeCage;
+        final List<ActiveCage> activeCages = new ArrayList<>();
         final ArrayDeque<QueuedShot> volleyQueue = new ArrayDeque<>();
         RecallSnapshot recall;
     }
@@ -203,7 +212,13 @@ public final class BlockDominionManager {
     public static boolean hasActiveCage(Player player) {
         if (player == null) return false;
         PlayerState state = STATES.get(player.getUUID());
-        return state != null && state.activeCage != null;
+        return state != null && !state.activeCages.isEmpty();
+    }
+
+    public static int activeCageCount(Player player) {
+        if (player == null) return 0;
+        PlayerState state = STATES.get(player.getUUID());
+        return state == null ? 0 : state.activeCages.size();
     }
 
     /** Switches Block Wings between Hover (free 3D levitation) and Glide (Elytra aerodynamic gliding + rocket boost). */
@@ -376,19 +391,6 @@ public final class BlockDominionManager {
                 CinematicFxPayload.EVENT_FOV_PUNCH, impactPos.x, impactPos.y, impactPos.z,
                 t == 3 ? 1.12f : (t == 2 ? 1.08f : 1.05f), t == 3 ? 10 : 8));
 
-        world.playSound(null, impactPos.x, impactPos.y, impactPos.z,
-                SoundEvents.DRAGON_FIREBALL_EXPLODE, SoundSource.PLAYERS, 1.1f + t * 0.35f, 0.78f - t * 0.10f);
-        world.playSound(null, impactPos.x, impactPos.y, impactPos.z,
-                SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.75f + t * 0.2f, 0.62f - t * 0.06f);
-        world.playSound(null, impactPos.x, impactPos.y, impactPos.z,
-                SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.1f + t * 0.25f, 0.58f);
-        world.playSound(null, impactPos.x, impactPos.y, impactPos.z,
-                IMPACT_SFX, SoundSource.PLAYERS, 1.1f + t * 0.25f, 0.82f - t * 0.08f);
-        if (t >= 2) {
-            world.playSound(null, impactPos.x, impactPos.y, impactPos.z,
-                    SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, t == 3 ? 1.8f : 1.1f, t == 3 ? 0.68f : 0.85f);
-        }
-
         if (hitCount > 0) {
             player.displayClientMessage(Component.translatable(
                     t == 3 ? "message.godwand.dominion_meteor_cataclysm" : "message.godwand.dominion_meteor_strike",
@@ -552,10 +554,11 @@ public final class BlockDominionManager {
 
     /**
      * Monolith Cage ("Lồng Đá Phong Ấn + Mũi Giáo Xuyên Tâm"):
-     * Phase 1: Slams up to 16 reserve blocks into an architectural hexagonal stone prison lifting the target midair.
-     * Phase 2: Forges 4 converging sculpted stone lances aimed straight through the victim's core.
-     * Phase 3: Impales straight through the victim (auto at tick 38, or IMMEDIATELY on demand if Left-Clicked again!).
-     * If the victim is slain by the impale, crossed stone lances remain skewered into the ground at the death site!
+     * - Permanently consumes 8 orbiting blocks per cast; up to 3 active cages simultaneously!
+     * - Phase 1: Slams 8 reserve blocks into an architectural hexagonal stone prison lifting the target midair.
+     * - Phase 2: Forges 4 converging sculpted stone lances aimed straight through the victim's core.
+     * - Phase 3: Impales straight through the victim (auto at tick 38, or IMMEDIATELY on demand if Left-Clicked again!).
+     * - If the victim is slain by the impale, crossed stone lances remain skewered into the ground at the death site!
      */
     public static boolean triggerMonolithCage(ServerPlayer player, int targetEntityId) {
         if (player == null || !player.isAlive() || player.isSpectator()) return false;
@@ -565,20 +568,29 @@ public final class BlockDominionManager {
         long now = world.getGameTime();
 
         // Re-clicking an already-caged target triggers immediate manual Stone Lance Impale execution!
-        if (st.activeCage != null && st.activeCage.targetId == targetEntityId
-                && !st.activeCage.impaled && now - st.activeCage.startTick >= 8
-                && world.dimension().equals(st.activeCage.dimension)) {
-            Entity existing = world.getEntity(targetEntityId);
-            if (existing instanceof LivingEntity cagedTarget && cagedTarget.isAlive()) {
-                executeCageImpale(world, player, st, cagedTarget, now);
-                return true;
+        for (ActiveCage existingCage : st.activeCages) {
+            if (existingCage.targetId == targetEntityId) {
+                if (!existingCage.impaled && now - existingCage.startTick >= 8
+                        && world.dimension().equals(existingCage.dimension)) {
+                    Entity existing = world.getEntity(targetEntityId);
+                    if (existing instanceof LivingEntity cagedTarget && cagedTarget.isAlive()) {
+                        executeCageImpale(world, player, st, existingCage, cagedTarget, now);
+                        return true;
+                    }
+                }
+                return false;
             }
         }
 
+        if (st.activeCages.size() >= BlockDominionRules.CAGE_MAX_ACTIVE) {
+            player.displayClientMessage(Component.translatable("message.godwand.dominion_cage_limit",
+                    st.activeCages.size(), BlockDominionRules.CAGE_MAX_ACTIVE), true);
+            return false;
+        }
         if (now - st.lastCageTick < BlockDominionRules.CAGE_COOLDOWN_TICKS) return false;
-        if (st.reserve.size() < BlockDominionRules.CAGE_MIN_BLOCKS) {
-            player.displayClientMessage(Component.translatable("message.godwand.dominion_cage_need",
-                    BlockDominionRules.CAGE_MIN_BLOCKS), true);
+        int cost = BlockDominionRules.CAGE_BLOCK_COST;
+        if (st.reserve.size() < cost) {
+            player.displayClientMessage(Component.translatable("message.godwand.dominion_cage_need", cost), true);
             return false;
         }
         Entity raw = world.getEntity(targetEntityId);
@@ -590,48 +602,37 @@ public final class BlockDominionManager {
             return false;
         }
 
-        // Release any previous cage cleanly first
-        if (st.activeCage != null) {
-            releaseCage(player, st, false);
-        }
-
-        int take = Math.min(BlockDominionRules.CAGE_BLOCK_COUNT, st.reserve.size());
-        List<BlockState> cageBlocks = new ArrayList<>(take);
-        for (int i = 0; i < take; i++) {
+        List<BlockState> cageBlocks = new ArrayList<>(cost);
+        for (int i = 0; i < cost; i++) {
             cageBlocks.add(st.reserve.remove(st.reserve.size() - 1));
         }
         Vec3 anchor = target.position().add(0, 1.45, 0);
-        st.activeCage = new ActiveCage(target.getId(), cageBlocks, anchor,
-                now, now + BlockDominionRules.CAGE_DURATION_TICKS, world.dimension());
+        st.activeCages.add(new ActiveCage(target.getId(), cageBlocks, anchor,
+                now, now + BlockDominionRules.CAGE_DURATION_TICKS, world.dimension()));
         st.lastCageTick = now;
 
         target.setNoGravity(true);
         target.setDeltaMovement(0, 0.30, 0);
         target.hurtMarked = true;
 
-        world.playSound(null, anchor.x, anchor.y, anchor.z,
-                SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 1.0f, 0.65f);
-        world.playSound(null, anchor.x, anchor.y, anchor.z,
-                SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.55f, 0.85f);
         world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, cageBlocks.get(0)),
                 anchor.x, anchor.y, anchor.z, 22, 0.65, 0.85, 0.65, 0.14);
-        player.displayClientMessage(Component.translatable("message.godwand.dominion_cage", take), true);
+        player.displayClientMessage(Component.translatable("message.godwand.dominion_cage",
+                cost, st.activeCages.size(), BlockDominionRules.CAGE_MAX_ACTIVE), true);
         sync(player, st, BlockDominionRules.EVENT_CAGE_START, anchor.x, anchor.y, anchor.z, target.getId());
         return true;
     }
 
     /** Executes Phase 3 of Monolith Cage: drives 4 sculpted stone lances violently through the sealed target. */
     private static void executeCageImpale(ServerLevel world, ServerPlayer player, PlayerState st,
-                                          LivingEntity target, long now) {
-        ActiveCage cage = st.activeCage;
+                                          ActiveCage cage, LivingEntity target, long now) {
         if (cage == null || cage.impaled) return;
         cage.impaled = true;
         cage.impaleTick = now;
 
         Vec3 hitPos = target.position().add(0, target.getBbHeight() * 0.52, 0);
         var cfg = GodWandConfig.SERVER;
-        float blockScale = Mth.clamp(cage.blocks.size() / (float) BlockDominionRules.CAGE_BLOCK_COUNT, 0.65f, 1.0f);
-        float dmg = cfg.blockDominionDamage * 2.35f * cfg.damageMultiplier * blockScale * (target instanceof Mob ? 1.5f : 1.0f);
+        float dmg = cfg.blockDominionDamage * 2.35f * cfg.damageMultiplier * (target instanceof Mob ? 1.5f : 1.0f);
 
         UUID previousSelf = SELF_DAMAGE_CASTER.get();
         SELF_DAMAGE_CASTER.set(player.getUUID());
@@ -664,15 +665,6 @@ public final class BlockDominionManager {
         world.sendParticles(ParticleTypes.CRIT, hitPos.x, hitPos.y, hitPos.z, 24, 0.55, 0.55, 0.55, 0.25);
         world.sendParticles(ParticleTypes.SWEEP_ATTACK, hitPos.x, hitPos.y, hitPos.z, 3, 0.45, 0.45, 0.45, 0.0);
 
-        world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                SoundEvents.TRIDENT_HIT, SoundSource.PLAYERS, 1.25f, 0.78f);
-        world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.72f, 0.70f);
-        world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.05f, 0.68f);
-        world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                IMPACT_SFX, SoundSource.PLAYERS, 1.05f, 0.92f);
-
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, hitPos.x, hitPos.y, hitPos.z, 0.30f, 9));
         player.displayClientMessage(Component.translatable("message.godwand.dominion_cage_impale"), true);
@@ -681,10 +673,10 @@ public final class BlockDominionManager {
         sync(player, st, BlockDominionRules.EVENT_CAGE_IMPALE, hitPos.x, hitPos.y, hitPos.z, packed);
     }
 
-    private static void releaseCage(ServerPlayer player, PlayerState st, boolean broadcast) {
-        ActiveCage cage = st.activeCage;
+    /** Releases a single Monolith Cage (the 8 consumed blocks are spent and NOT refunded!). */
+    private static void releaseCage(ServerPlayer player, PlayerState st, ActiveCage cage, boolean broadcast) {
         if (cage == null) return;
-        st.activeCage = null;
+        st.activeCages.remove(cage);
         ServerLevel world = player.serverLevel();
         if (world.dimension().equals(cage.dimension)) {
             Entity raw = world.getEntity(cage.targetId);
@@ -693,14 +685,15 @@ public final class BlockDominionManager {
                 target.fallDistance = 0.0f;
             }
         }
-        int capacity = BlockDominionRules.clampCapacity(GodWandConfig.SERVER.blockDominionCapacity);
-        for (BlockState bs : cage.blocks) {
-            if (st.reserve.size() < capacity) {
-                st.reserve.add(bs);
-            }
-        }
         if (broadcast) {
             sync(player, st, BlockDominionRules.EVENT_CAGE_END, cage.anchor.x, cage.anchor.y, cage.anchor.z, cage.targetId);
+        }
+    }
+
+    private static void releaseAllCages(ServerPlayer player, PlayerState st, boolean broadcast) {
+        if (st.activeCages.isEmpty()) return;
+        for (ActiveCage cage : new ArrayList<>(st.activeCages)) {
+            releaseCage(player, st, cage, broadcast);
         }
     }
 
@@ -784,10 +777,6 @@ public final class BlockDominionManager {
 
         st.lastSurgeTick = now;
         GodWandAdvancements.award(player, "use_9");
-        world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.0f, 0.65f);
-        world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 0.85f, 0.85f);
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.36f, 10));
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
@@ -806,7 +795,7 @@ public final class BlockDominionManager {
 
         cancelVolleyInternal(player, st, false);
         stopWingFlightInternal(player, st, false);
-        releaseCage(player, st, false);
+        releaseAllCages(player, st, true);
         st.airStairsActive = false;
         st.liquidStrideActive = false;
         st.sovereignPerchActive = false;
@@ -825,10 +814,6 @@ public final class BlockDominionManager {
         switch (next) {
             case MANUAL -> {
                 int recalled = tryRecallBlocks(player, st);
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 0.7f, 1.15f);
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 0.9f, 0.9f);
                 if (recalled > 0) {
                     player.displayClientMessage(Component.translatable("message.godwand.dominion_manual_recall", recalled), true);
                 } else {
@@ -838,15 +823,13 @@ public final class BlockDominionManager {
             }
             case AUTO -> {
                 world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.9f, 1.3f);
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 0.55f, 1.35f);
+                        UNFOLD_SFX, SoundSource.PLAYERS, 0.80f, 1.24f);
                 player.displayClientMessage(Component.translatable("message.godwand.dominion_auto"), true);
                 GodWandAdvancements.award(player, "use_9");
             }
             case OFF -> {
                 world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 0.65f, 1.0f);
+                        UNFOLD_SFX, SoundSource.PLAYERS, 0.65f, 0.68f);
                 player.displayClientMessage(Component.translatable("message.godwand.dominion_off"), true);
             }
         }
@@ -924,9 +907,6 @@ public final class BlockDominionManager {
 
         double cx = pos.getX() + 0.5, cy = pos.getY() + 0.5, cz = pos.getZ() + 0.5;
         world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state), cx, cy, cz, 12, 0.25, 0.25, 0.25, 0.12);
-        world.playSound(null, cx, cy, cz, SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 0.7f, 0.85f + st.reserve.size() * 0.012f);
-        world.playSound(null, cx, cy, cz, SoundEvents.BASALT_PLACE, SoundSource.PLAYERS, 0.65f, 1.25f);
-        world.playSound(null, cx, cy, cz, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.22f, 1.1f + st.reserve.size() * 0.015f);
 
         player.displayClientMessage(Component.translatable("message.godwand.dominion_count", st.reserve.size(), capacity), true);
         sync(player, st, BlockDominionRules.EVENT_PICKUP, cx, cy, cz, Block.getId(state));
@@ -957,11 +937,6 @@ public final class BlockDominionManager {
             st.volleyChargeTicks = 0;
             st.volleyAerial = st.wingFlying;
             st.rapidFiring = false;
-            ServerLevel world = player.serverLevel();
-            world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 0.7f, 0.8f);
-            world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 0.85f, 0.75f);
             sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.2, player.getZ(), 0);
             return true;
         }
@@ -992,17 +967,12 @@ public final class BlockDominionManager {
             ServerLevel world = player.serverLevel();
             if (usedTicks == BlockDominionRules.VOLLEY_MIN_CHARGE_TICKS) {
                 world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.75f, 1.25f);
+                        PICKUP_SFX, SoundSource.PLAYERS, 0.55f, 1.22f);
             } else if (usedTicks == BlockDominionRules.VOLLEY_CHARGE_TICKS) {
                 world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.PLAYERS, 0.9f, 1.45f);
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.45f, 1.55f);
+                        PICKUP_SFX, SoundSource.PLAYERS, 0.75f, 1.48f);
             }
             if (usedTicks % 6 == 0 && usedTicks <= BlockDominionRules.VOLLEY_CHARGE_TICKS) {
-                float pitch = 0.75f + Math.min(usedTicks, BlockDominionRules.VOLLEY_CHARGE_TICKS) * 0.03f;
-                world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.GRINDSTONE_USE, SoundSource.PLAYERS, 0.35f, pitch);
                 Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                         CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(),
                         0.08f + Math.min(1f, usedTicks / 20f) * 0.14f, 6));
@@ -1048,9 +1018,6 @@ public final class BlockDominionManager {
         st.volleyAerial = false;
 
         if (charged < BlockDominionRules.VOLLEY_MIN_CHARGE_TICKS || st.reserve.isEmpty()) {
-            ServerLevel world = player.serverLevel();
-            world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 0.5f, 0.7f);
             sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.2, player.getZ(), 0);
             return;
         }
@@ -1094,13 +1061,10 @@ public final class BlockDominionManager {
 
         SkillCooldowns.start(player, GodWandItem.MODE_BLOCK_DOMINION,
                 GodWandConfig.skillCooldownTicks(GodWandItem.MODE_BLOCK_DOMINION, 1));
-        ServerLevel world = player.serverLevel();
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), aerial ? 1.16f : 1.12f, 12));
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), aerial ? 0.65f : 0.55f, 16));
-        world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.05f, aerial ? 1.05f : 1.25f);
         player.displayClientMessage(Component.translatable(
                 aerial ? "message.godwand.dominion_orbital" : "message.godwand.dominion_volley", count), true);
         sync(player, st, aerial ? BlockDominionRules.EVENT_ORBITAL_BARRAGE : BlockDominionRules.EVENT_VOLLEY,
@@ -1130,12 +1094,6 @@ public final class BlockDominionManager {
         Vec3 spawnPos = player.getEyePosition().add(look.scale(1.45));
         launchProjectile(player, block, spawnPos, look, false);
 
-        ServerLevel world = player.serverLevel();
-        float pitch = 0.9f + Math.min(burstIndex, 12) * 0.055f;
-        world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.BASALT_BREAK, SoundSource.PLAYERS, 0.85f, pitch);
-        world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 0.65f, pitch * 1.15f);
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.12f, 4));
         sync(player, st, BlockDominionRules.EVENT_FIRE, spawnPos.x, spawnPos.y, spawnPos.z, Block.getId(block));
@@ -1157,8 +1115,6 @@ public final class BlockDominionManager {
         Vec3 look = player.getViewVector(1.0f).normalize();
         Vec3 spawnPos = player.getEyePosition().add(look.scale(1.45));
         launchProjectile(player, block, spawnPos, look, false);
-        world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.BASALT_BREAK, SoundSource.PLAYERS, 0.9f, 1.15f);
         sync(player, st, BlockDominionRules.EVENT_FIRE, found.getX() + 0.5, found.getY() + 0.5, found.getZ() + 0.5, Block.getId(block));
     }
 
@@ -1253,17 +1209,11 @@ public final class BlockDominionManager {
             }
         }
 
-        // Parry VFX & audio (§1.4 #3)
+        // Parry VFX & audio (client plays custom CC0 dominion_parry on EVENT_PARRY)
         Vec3 parryPoint = playerCenter.add(threatDir.scale(1.35));
         world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, parriedState),
                 parryPoint.x, parryPoint.y, parryPoint.z, 18, 0.3, 0.3, 0.3, 0.18);
         world.sendParticles(ParticleTypes.CRIT, parryPoint.x, parryPoint.y, parryPoint.z, 8, 0.2, 0.2, 0.2, 0.12);
-        world.playSound(null, parryPoint.x, parryPoint.y, parryPoint.z,
-                SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.55f, 1.45f);
-        world.playSound(null, parryPoint.x, parryPoint.y, parryPoint.z,
-                SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 0.95f, 0.95f);
-        world.playSound(null, parryPoint.x, parryPoint.y, parryPoint.z,
-                SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 0.85f, 1.15f);
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.28f, 6));
         sync(player, st, BlockDominionRules.EVENT_PARRY, threatDir.x, threatDir.y, threatDir.z, Block.getId(parriedState));
@@ -1330,18 +1280,14 @@ public final class BlockDominionManager {
             carveSmallCrater(world, hitPos, craterRadius, owner);
         }
 
-        // Reused pressure wave & debris VFX + crisp impact sounds
+        // Reused pressure wave & debris VFX + crisp CC0 impact audio
         Services.NETWORK.sendToNearby(world, hitPos, SYNC_RADIUS,
                 new CannonPressurePayload(hitPos, dir, projectile.isVolley() ? 2 : 1, surfaceNormal));
         world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state),
                 hitPos.x, hitPos.y, hitPos.z, 22, 0.45, 0.45, 0.45, 0.22);
         world.sendParticles(ParticleTypes.EXPLOSION, hitPos.x, hitPos.y, hitPos.z, 1, 0.1, 0.1, 0.1, 0.0);
         world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.0f, 0.72f);
-        world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                SoundEvents.BASALT_BREAK, SoundSource.PLAYERS, 0.85f, 0.65f);
-        world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
-                IMPACT_SFX, SoundSource.PLAYERS, projectile.isVolley() ? 1.15f : 0.85f,
+                IMPACT_SFX, SoundSource.PLAYERS, projectile.isVolley() ? 1.15f : 0.92f,
                 0.92f + (float) (Math.random() * 0.16));
     }
 
@@ -1418,7 +1364,7 @@ public final class BlockDominionManager {
                     launchProjectile(player, shot.state(), origin, dir.normalize(), true);
                 }
                 world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.BASALT_BREAK, SoundSource.PLAYERS, 0.7f, 1.05f + (float) (Math.random() * 0.35));
+                        FIRE_SFX, SoundSource.PLAYERS, 0.58f, 1.05f + (float) (Math.random() * 0.30));
             }
         }
 
@@ -1435,11 +1381,8 @@ public final class BlockDominionManager {
             st.rapidFiring = false;
             if (!st.reserve.isEmpty()) {
                 world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 0.45f, 1.35f);
+                        UNFOLD_SFX, SoundSource.PLAYERS, 0.42f, 1.32f);
             }
-        } else if (unfolded && !st.reserve.isEmpty()) {
-            world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 0.65f, 0.95f);
         }
 
         // Wing Flight & Air-Step Stairs mobility controllers
@@ -1534,7 +1477,7 @@ public final class BlockDominionManager {
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                                 CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.04f, 6));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 0.90f, 0.72f);
+                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.72f, 1.18f);
                     } else if (nextTier == 2 && prevMeteorTier < 2) {
                         player.displayClientMessage(Component.translatable("message.godwand.dominion_meteor_tier2"), true);
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
@@ -1542,9 +1485,7 @@ public final class BlockDominionManager {
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.14f, 5));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                SoundEvents.DRAGON_FIREBALL_EXPLODE, SoundSource.PLAYERS, 0.95f, 0.92f);
-                        world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 1.1f, 0.56f);
+                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.95f, 0.96f);
                     } else if (nextTier == 3 && prevMeteorTier < 3) {
                         player.displayClientMessage(Component.translatable("message.godwand.dominion_meteor_tier3"), true);
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
@@ -1552,9 +1493,7 @@ public final class BlockDominionManager {
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.18f, 6));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 1.35f, 0.82f);
-                        world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                SoundEvents.DRAGON_FIREBALL_EXPLODE, SoundSource.PLAYERS, 1.25f, 0.72f);
+                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 1.25f, 0.76f);
                     }
                 }
                 // Keep camera rock-steady during plunge (zero jerky periodic camera shake, zero lens-blocking sprites!)
@@ -1604,30 +1543,29 @@ public final class BlockDominionManager {
             }
         }
 
-        // Tick active Monolith Cage: Phase 1 seal -> Phase 2 spear forging -> Phase 3 impale execution!
-        if (st.activeCage != null) {
-            ActiveCage cage = st.activeCage;
-            Entity raw = world.dimension().equals(cage.dimension) ? world.getEntity(cage.targetId) : null;
-            if (!(raw instanceof LivingEntity target) || now >= cage.endTick
-                    || (!target.isAlive() && !cage.impaled)) {
-                releaseCage(player, st, true);
-                mobilityChanged = true;
-            } else {
-                long cageAge = now - cage.startTick;
-                if (!cage.impaled && cageAge == BlockDominionRules.CAGE_SPEAR_FORM_TICK) {
-                    world.playSound(null, cage.anchor.x, cage.anchor.y, cage.anchor.z,
-                            SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.85f, 0.68f);
-                    world.playSound(null, cage.anchor.x, cage.anchor.y, cage.anchor.z,
-                            SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 0.90f, 1.15f);
-                }
-                if (!cage.impaled && cageAge >= BlockDominionRules.CAGE_IMPALE_TICK) {
-                    executeCageImpale(world, player, st, target, now);
-                } else if (target.isAlive()) {
-                    Vec3 pull = cage.anchor.subtract(target.position()).scale(0.32);
-                    target.setNoGravity(true);
-                    target.setDeltaMovement(pull);
-                    target.fallDistance = 0.0f;
-                    target.hurtMarked = true;
+        // Tick up to 3 simultaneous active Monolith Cages: Phase 1 seal -> Phase 2 spear forging -> Phase 3 impale execution!
+        if (!st.activeCages.isEmpty()) {
+            for (ActiveCage cage : new ArrayList<>(st.activeCages)) {
+                Entity raw = world.dimension().equals(cage.dimension) ? world.getEntity(cage.targetId) : null;
+                if (!(raw instanceof LivingEntity target) || now >= cage.endTick
+                        || (!target.isAlive() && !cage.impaled)) {
+                    releaseCage(player, st, cage, true);
+                    mobilityChanged = true;
+                } else {
+                    long cageAge = now - cage.startTick;
+                    if (!cage.impaled && cageAge == BlockDominionRules.CAGE_SPEAR_FORM_TICK) {
+                        world.playSound(null, cage.anchor.x, cage.anchor.y, cage.anchor.z,
+                                CAGE_FORGE_SFX, SoundSource.PLAYERS, 0.92f, 1.02f);
+                    }
+                    if (!cage.impaled && cageAge >= BlockDominionRules.CAGE_IMPALE_TICK) {
+                        executeCageImpale(world, player, st, cage, target, now);
+                    } else if (target.isAlive()) {
+                        Vec3 pull = cage.anchor.subtract(target.position()).scale(0.32);
+                        target.setNoGravity(true);
+                        target.setDeltaMovement(pull);
+                        target.fallDistance = 0.0f;
+                        target.hurtMarked = true;
+                    }
                 }
             }
         }
@@ -1819,10 +1757,6 @@ public final class BlockDominionManager {
             world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, parriedState),
                     parryPoint.x, parryPoint.y, parryPoint.z, 14, 0.25, 0.25, 0.25, 0.16);
             world.sendParticles(ParticleTypes.CRIT, parryPoint.x, parryPoint.y, parryPoint.z, 8, 0.2, 0.2, 0.2, 0.14);
-            world.playSound(null, parryPoint.x, parryPoint.y, parryPoint.z,
-                    SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.50f, 1.55f);
-            world.playSound(null, parryPoint.x, parryPoint.y, parryPoint.z,
-                    SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 0.88f, 1.22f);
             Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                     CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.20f, 5));
             sync(player, st, BlockDominionRules.EVENT_PARRY, threatDir.x, threatDir.y, threatDir.z, Block.getId(parriedState));
@@ -1904,7 +1838,7 @@ public final class BlockDominionManager {
         if (st == null) return;
         cancelVolleyInternal(player, st, false);
         stopWingFlightInternal(player, st, false);
-        releaseCage(player, st, false);
+        releaseAllCages(player, st, true);
         st.airStairsActive = false;
         st.liquidStrideActive = false;
         st.sovereignPerchActive = false;
@@ -1981,7 +1915,7 @@ public final class BlockDominionManager {
         }
         st.reserve.clear();
         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.DEEPSLATE_FALL, SoundSource.PLAYERS, 0.85f, 0.85f);
+                UNFOLD_SFX, SoundSource.PLAYERS, 0.72f, 0.78f);
 
         if (!died && !dropped.isEmpty()) {
             st.recall = new RecallSnapshot(world.dimension(), world.getGameTime(), false, dropped);

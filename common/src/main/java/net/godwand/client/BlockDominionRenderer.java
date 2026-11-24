@@ -237,7 +237,7 @@ public final class BlockDominionRenderer {
     private record MeteorBlast(Vec3 pos, int tier, long startTick) {}
 
     private static final Map<Integer, ClientFormation> FORMATIONS = new HashMap<>();
-    private static final Map<Integer, ClientCage> ACTIVE_CAGES = new HashMap<>();
+    private static final Map<Long, ClientCage> ACTIVE_CAGES = new HashMap<>();
     private static final List<ImpaledMonument> IMPALED_MONUMENTS = new ArrayList<>();
     private static final List<MuzzleTracer> MUZZLE_TRACERS = new ArrayList<>();
     private static final List<MeteorBlast> METEOR_BLASTS = new ArrayList<>();
@@ -299,9 +299,18 @@ public final class BlockDominionRenderer {
         return f == null ? 0 : f.blocks.size();
     }
 
+    private static long cageKey(int casterId, int targetId) {
+        return (((long) casterId) << 32) | (targetId & 0xffffffffL);
+    }
+
     public static boolean hasLocalActiveCage() {
         Minecraft mc = Minecraft.getInstance();
-        return mc != null && mc.player != null && ACTIVE_CAGES.containsKey(mc.player.getId());
+        if (mc == null || mc.player == null) return false;
+        int myId = mc.player.getId();
+        for (ClientCage c : ACTIVE_CAGES.values()) {
+            if (c.casterId == myId) return true;
+        }
+        return false;
     }
 
     public static boolean isLocalWingFlying() {
@@ -509,8 +518,7 @@ public final class BlockDominionRenderer {
                 if (isLocal) {
                     DominionPostFx.triggerShockwave(0.88f, 14, pal);
                 }
-                BlockDominionSounds.play(base, BlockDominionSounds.UNFOLD, 0.95f, 0.78f);
-                BlockDominionSounds.play(base, BlockDominionSounds.PICKUP, 0.85f, 0.85f);
+                BlockDominionSounds.play(base, BlockDominionSounds.SURGE, 1.05f, 0.96f);
             }
             case BlockDominionRules.EVENT_FIRE -> {
                 Vec3 muzzle = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
@@ -519,6 +527,7 @@ public final class BlockDominionRenderer {
                 MUZZLE_TRACERS.add(new MuzzleTracer(muzzle, aim, now, pal));
                 DominionParticles.spawnRingBurst(muzzle, aim, 0.55, 10, 0.22,
                         pal.hotR, pal.hotG, pal.hotB, DominionParticles.STYLE_EMBER);
+                BlockDominionSounds.play(muzzle, BlockDominionSounds.FIRE, 0.86f, 0.94f + (float) ((now % 5) * 0.04));
             }
             case BlockDominionRules.EVENT_UNFOLD -> {
                 f.unfoldStartTick = now;
@@ -606,8 +615,8 @@ public final class BlockDominionRenderer {
                     DominionPostFx.triggerShockwave(1.0f, 16 + tier * 4, BlockDominionPalette.INFERNO_OBSIDIAN);
                     triggerImpactFrame(2 + tier, 1.0f, (int) (now & 63), BlockDominionPalette.INFERNO_OBSIDIAN);
                 }
-                BlockDominionSounds.play(impactPos, BlockDominionSounds.IMPACT, 1.15f + tier * 0.15f, 0.78f - tier * 0.07f);
-                BlockDominionSounds.play(impactPos, BlockDominionSounds.VOLLEY_RELEASE, 0.95f + tier * 0.15f, 0.82f - tier * 0.06f);
+                BlockDominionSounds.play(impactPos, BlockDominionSounds.METEOR_CATACLYSM,
+                        0.95f + tier * 0.30f, 1.16f - tier * 0.14f);
             }
             case BlockDominionRules.EVENT_CAGE_START -> {
                 Vec3 anchor = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
@@ -620,20 +629,21 @@ public final class BlockDominionRenderer {
                     cageBlocks.add(bs);
                 }
                 double yawOff = owner != null ? Math.toRadians(owner.getYRot()) : 0.35;
-                ACTIVE_CAGES.put(payload.playerId(),
+                ACTIVE_CAGES.put(cageKey(payload.playerId(), targetId),
                         new ClientCage(payload.playerId(), targetId, anchor, cageBlocks, now, pal, yawOff));
                 DominionParticles.spawnRingBurst(anchor, new Vec3(0, 1, 0), 1.65, 28, 0.26,
                         pal.primaryR, pal.primaryG, pal.primaryB, DominionParticles.STYLE_SHARD);
                 if (isLocal) {
                     DominionPostFx.triggerShockwave(0.42f, 9, pal);
                 }
-                BlockDominionSounds.play(anchor, BlockDominionSounds.SHIELD_LOCK, 0.92f, 0.82f);
+                BlockDominionSounds.play(anchor, BlockDominionSounds.SHIELD_LOCK, 0.98f, 0.88f);
             }
             case BlockDominionRules.EVENT_CAGE_IMPALE -> {
                 Vec3 hitPos = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
                 int packed = payload.eventBlockId();
+                int targetId = packed >>> 1;
                 boolean killed = (packed & 1) != 0;
-                ClientCage cage = ACTIVE_CAGES.get(payload.playerId());
+                ClientCage cage = ACTIVE_CAGES.get(cageKey(payload.playerId(), targetId));
                 Vec3[] dirs = BlockDominionBrain.cageSpearDirections(4, cage != null ? cage.yawOffset : 0.35);
                 if (cage != null) {
                     cage.impaled = true;
@@ -664,11 +674,11 @@ public final class BlockDominionRenderer {
                     DominionPostFx.triggerShockwave(0.76f, 13, pal);
                     triggerImpactFrame(2, 0.92f, (int) (now & 63), pal);
                 }
-                BlockDominionSounds.play(hitPos, BlockDominionSounds.IMPACT, 1.15f, 0.90f);
-                BlockDominionSounds.play(hitPos, BlockDominionSounds.VOLLEY_RELEASE, 0.88f, 1.08f);
+                BlockDominionSounds.play(hitPos, BlockDominionSounds.CAGE_IMPALE, 1.15f, 0.96f);
             }
             case BlockDominionRules.EVENT_CAGE_END -> {
-                ClientCage old = ACTIVE_CAGES.remove(payload.playerId());
+                int targetId = payload.eventBlockId();
+                ClientCage old = ACTIVE_CAGES.remove(cageKey(payload.playerId(), targetId));
                 if (old != null) {
                     DominionParticles.spawnRingBurst(old.anchor, new Vec3(0, 1, 0), 1.35, 18, 0.20,
                             old.palette.primaryR, old.palette.primaryG, old.palette.primaryB, DominionParticles.STYLE_SHARD);

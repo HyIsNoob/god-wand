@@ -106,6 +106,12 @@
   "dominion_pickup": {
     "sounds": [{"name":"godwand:dominion_pickup","stream":false}]
   },
+  "dominion_surge": {
+    "sounds": [{"name":"godwand:dominion_surge","stream":false}]
+  },
+  "dominion_fire": {
+    "sounds": [{"name":"godwand:dominion_fire","stream":false}]
+  },
   "dominion_parry": {
     "sounds": [{"name":"godwand:dominion_parry","stream":false}]
   },
@@ -124,6 +130,12 @@
   "dominion_shield_lock": {
     "sounds": [{"name":"godwand:dominion_shield_lock","stream":false}]
   },
+  "dominion_cage_forge": {
+    "sounds": [{"name":"godwand:dominion_cage_forge","stream":false}]
+  },
+  "dominion_cage_impale": {
+    "sounds": [{"name":"godwand:dominion_cage_impale","stream":false}]
+  },
   "dominion_wing_flap": {
     "sounds": [{"name":"godwand:dominion_wing_flap","stream":false}]
   },
@@ -132,6 +144,12 @@
   },
   "dominion_flight_loop": {
     "sounds": [{"name":"godwand:dominion_flight_loop","stream":false}]
+  },
+  "dominion_meteor_ignite": {
+    "sounds": [{"name":"godwand:dominion_meteor_ignite","stream":false}]
+  },
+  "dominion_meteor_cataclysm": {
+    "sounds": [{"name":"godwand:dominion_meteor_cataclysm","stream":false}]
   },
   "dominion_step": {
     "sounds": [{"name":"godwand:dominion_step","stream":false}]

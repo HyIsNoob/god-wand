@@ -90,13 +90,15 @@ public final class BlockDominionRules {
     public static final int SURGE_RADIUS = 8;
     public static final int SURGE_MAX_BLOCKS = 24;
     public static final int SURGE_COOLDOWN_TICKS = 30;
-    public static final int CAGE_MIN_BLOCKS = 10;
-    public static final int CAGE_BLOCK_COUNT = 16;
+    public static final int CAGE_BLOCK_COST = 8;
+    public static final int CAGE_MIN_BLOCKS = CAGE_BLOCK_COST;
+    public static final int CAGE_BLOCK_COUNT = CAGE_BLOCK_COST;
+    public static final int CAGE_MAX_ACTIVE = 3;
     public static final int CAGE_SPEAR_FORM_TICK = 16;
     public static final int CAGE_IMPALE_TICK = 38;
     public static final int CAGE_DURATION_TICKS = 66;
     public static final int CAGE_MONUMENT_TICKS = 96;
-    public static final int CAGE_COOLDOWN_TICKS = 50;
+    public static final int CAGE_COOLDOWN_TICKS = 6;
     public static final double CAGE_RANGE = 22.0;
     public static final int PERCH_IDLE_TICKS = 34;
 

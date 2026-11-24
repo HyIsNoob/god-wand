@@ -266,4 +266,12 @@ class BlockDominionRulesTest {
         Vec3 reversed = BlockDominionRules.deflectVelocity(incoming, new Vec3(0, 1.4, 2.0), null, 1.85);
         assertTrue(reversed.z > 2.0);
     }
+
+    @Test
+    void monolithCageConsumesEightBlocksAndAllowsThreeSimultaneousCages() {
+        assertEquals(8, BlockDominionRules.CAGE_BLOCK_COST);
+        assertEquals(8, BlockDominionRules.CAGE_MIN_BLOCKS);
+        assertEquals(8, BlockDominionRules.CAGE_BLOCK_COUNT);
+        assertEquals(3, BlockDominionRules.CAGE_MAX_ACTIVE);
+    }
 }

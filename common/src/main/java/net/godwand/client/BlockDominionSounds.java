@@ -24,15 +24,21 @@ public final class BlockDominionSounds {
     public static final SoundEvent ORBIT_LOOP = event("dominion_orbit_loop");
     public static final SoundEvent AUTO_LOOP = event("dominion_auto_loop");
     public static final SoundEvent PICKUP = event("dominion_pickup");
+    public static final SoundEvent SURGE = event("dominion_surge");
+    public static final SoundEvent FIRE = event("dominion_fire");
     public static final SoundEvent PARRY = event("dominion_parry");
     public static final SoundEvent VOLLEY_CHARGE = event("dominion_volley_charge");
     public static final SoundEvent VOLLEY_RELEASE = event("dominion_volley_release");
     public static final SoundEvent IMPACT = event("dominion_impact");
     public static final SoundEvent UNFOLD = event("dominion_unfold");
     public static final SoundEvent SHIELD_LOCK = event("dominion_shield_lock");
+    public static final SoundEvent CAGE_FORGE = event("dominion_cage_forge");
+    public static final SoundEvent CAGE_IMPALE = event("dominion_cage_impale");
     public static final SoundEvent WING_FLAP = event("dominion_wing_flap");
     public static final SoundEvent FLIGHT_BOOST = event("dominion_flight_boost");
     public static final SoundEvent FLIGHT_LOOP = event("dominion_flight_loop");
+    public static final SoundEvent METEOR_IGNITE = event("dominion_meteor_ignite");
+    public static final SoundEvent METEOR_CATACLYSM = event("dominion_meteor_cataclysm");
     public static final SoundEvent STEP = event("dominion_step");
 
     private static final Map<Integer, FollowLoop> LOOPS = new HashMap<>();
