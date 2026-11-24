@@ -23,6 +23,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Block;
@@ -509,9 +510,10 @@ public final class BlockDominionRenderer {
         switch (payload.eventKind()) {
             case BlockDominionRules.EVENT_PICKUP -> {
                 Vec3 origin = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
-                DominionParticles.spawnRingBurst(origin, new Vec3(0, 1, 0), 0.55, 10, 0.14,
+                DominionParticles.spawnRingBurst(origin, new Vec3(0, 1, 0), 0.55, 8, 0.14,
                         pal.primaryR, pal.primaryG, pal.primaryB, DominionParticles.STYLE_SHARD);
-                BlockDominionSounds.play(origin, BlockDominionSounds.PICKUP, 0.55f, 0.92f + Math.min(ids.length, 48) * 0.008f);
+                BlockDominionSounds.play(origin, SoundEvents.DEEPSLATE_BREAK, 0.42f, 0.90f + Math.min(ids.length, 48) * 0.008f);
+                BlockDominionSounds.play(origin, BlockDominionSounds.PICKUP, 0.50f, 0.94f + Math.min(ids.length, 48) * 0.008f);
             }
             case BlockDominionRules.EVENT_SURGE -> {
                 Vec3 base = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
@@ -569,7 +571,8 @@ public final class BlockDominionRenderer {
                 Vec3 impactPt = ownerPos.add(threatDir.normalize().scale(1.35));
                 DominionParticles.spawnRingBurst(impactPt, threatDir, 0.90, 22, 0.28,
                         pal.hotR, pal.hotG, pal.hotB, DominionParticles.STYLE_SHARD);
-                BlockDominionSounds.play(ownerPos, BlockDominionSounds.PARRY, 0.95f, 1.02f);
+                BlockDominionSounds.play(ownerPos, BlockDominionSounds.PARRY, 0.90f, 1.02f);
+                BlockDominionSounds.play(ownerPos, SoundEvents.SHIELD_BLOCK, 0.58f, 1.12f);
                 // No sakuga impact frame on shields (owner preference: clean defense without screen flash!)
                 if (isLocal) {
                     DominionPostFx.triggerShockwave(0.42f, 8, pal);
@@ -712,7 +715,8 @@ public final class BlockDominionRenderer {
                 if (isLocal) {
                     DominionPostFx.triggerShockwave(0.42f, 10, pal);
                 }
-                BlockDominionSounds.play(ownerPos, BlockDominionSounds.WING_FLAP, 0.85f, 0.96f);
+                BlockDominionSounds.play(ownerPos, BlockDominionSounds.WING_FLAP, 0.78f, 0.98f);
+                BlockDominionSounds.play(ownerPos, SoundEvents.WIND_CHARGE_BURST.value(), 0.52f, 1.05f);
             }
             case BlockDominionRules.EVENT_FLIGHT_END -> {
                 f.leftWingTrail.clear();
@@ -722,20 +726,19 @@ public final class BlockDominionRenderer {
             case BlockDominionRules.EVENT_FLIGHT_BOOST -> {
                 Vec3 aim = owner != null ? owner.getViewVector(1.0f) : new Vec3(0, 0, 1);
                 addWave(payload.playerId(), aim, 4.2, 12, now, pal);
-                DominionParticles.spawnRingBurst(ownerPos, aim, 1.5, 22, 0.30,
+                DominionParticles.spawnRingBurst(ownerPos, aim, 1.5, 16, 0.30,
                         pal.hotR, pal.hotG, pal.hotB, DominionParticles.STYLE_EMBER);
-                BlockDominionSounds.play(ownerPos, BlockDominionSounds.FLIGHT_BOOST, 0.92f, 1.04f);
+                BlockDominionSounds.play(ownerPos, BlockDominionSounds.FLIGHT_BOOST, 0.88f, 1.04f);
                 if (isLocal) {
-                    DominionPostFx.triggerShockwave(0.62f, 11, pal);
+                    DominionPostFx.triggerShockwave(0.54f, 10, pal);
                 }
             }
             case BlockDominionRules.EVENT_AIR_STEP -> {
                 Vec3 stepPos = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
                 if (STEP_FLASHES.size() >= 18) STEP_FLASHES.remove(0);
                 STEP_FLASHES.add(new StepFlash(stepPos, now, pal));
-                DominionParticles.spawnRingBurst(stepPos, new Vec3(0, 1, 0), 0.65, 10, 0.12,
-                        pal.primaryR, pal.primaryG, pal.primaryB, DominionParticles.STYLE_SHARD);
-                BlockDominionSounds.play(stepPos, BlockDominionSounds.STEP, 0.52f, 0.95f + (float) ((now % 5) * 0.04));
+                BlockDominionSounds.play(stepPos, SoundEvents.DEEPSLATE_STEP, 0.58f, 0.96f + (float) ((now % 4) * 0.04));
+                BlockDominionSounds.play(stepPos, BlockDominionSounds.STEP, 0.34f, 0.98f + (float) ((now % 4) * 0.04));
             }
             default -> {
                 if (wasStowed && !f.stowed) {
@@ -793,14 +796,14 @@ public final class BlockDominionRenderer {
                         if (cf == null || !cf.flying || cf.hiddenInCutscene) return 0.0;
                         Entity e = world == null ? null : world.getEntity(pid);
                         double spd = e == null ? 0.0 : e.getDeltaMovement().length();
-                        return Mth.clamp(0.16 + spd * 0.34 + (cf.boosting ? 0.22 : 0.0), 0.14, 0.78);
+                        return Mth.clamp(spd * 0.44 + (cf.boosting ? 0.20 : 0.0), 0.04, 0.90);
                     },
                     () -> {
                         ClientFormation cf = FORMATIONS.get(pid);
                         if (cf == null) return 1.0;
                         Entity e = world == null ? null : world.getEntity(pid);
                         double spd = e == null ? 0.0 : e.getDeltaMovement().length();
-                        return Mth.clamp(0.78 + spd * 0.48 + (cf.boosting ? 0.28 : 0.0), 0.75, 1.85);
+                        return Mth.clamp(0.84 + spd * 0.24 + (cf.boosting ? 0.14 : 0.0), 0.82, 1.38);
                     });
         } else if (mode == BlockDominionRules.Mode.MANUAL && !f.blocks.isEmpty()) {
             BlockDominionSounds.ensureLoop(pid, BlockDominionSounds.ORBIT_LOOP,
@@ -1005,10 +1008,9 @@ public final class BlockDominionRenderer {
             float unfoldProgress = Mth.clamp((now - f.unfoldStartTick) / (float) BlockDominionRules.UNFOLD_TICKS, 0f, 1f);
             float volleyProgress = Mth.clamp(f.volleyTicks / (float) BlockDominionRules.VOLLEY_CHARGE_TICKS, 0f, 1f);
 
-            // Dead-accurate foot-locked stepping stones during Air-Step Stairs AND Liquid Stride:
-            // - Slot 0: ALWAYS centered directly under the player's boots at exact sole height (zero drift!)
-            // - Slot 1: Next-step preview slab sliding smoothly ahead along actual movement vector (supports strafing!)
-            // - Slots 2..6: Frozen world-space trail steps left behind your footsteps (only oldest tail recycles forward!)
+            // Clean architectural stepping stones for Air-Step Stairs AND Liquid Bridge:
+            // - Liquid Stride: snaps cleanly to the 1x1 Minecraft block grid (crisp floating walkway over water/lava!)
+            // - Air-Stairs: evenly spaced half-slab treads (>= 0.94m apart) with zero awkward overlap or pancake distortion!
             if (f.formation.isStepping()) {
                 Vec3 feet = owner.position();
                 Vec3 yawFwdStep = yawForward(owner);
@@ -1021,17 +1023,32 @@ public final class BlockDominionRenderer {
                 boolean liquid = f.formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE;
                 double liquidSurf = liquid ? sampleLiquidSurface(owner) : Double.NaN;
                 double soleY = liquid
-                        ? ((Double.isNaN(liquidSurf) ? feet.y : Math.min(feet.y, liquidSurf)) - 0.09)
-                        : (feet.y - 0.12);
-                Vec3 underFoot = new Vec3(feet.x, soleY, feet.z);
-                double nextStepY = liquid ? soleY : (soleY + (f.stairAscending ? 0.18 : -0.14));
-                Vec3 aheadPreview = new Vec3(feet.x + moveDir.x * 0.68, nextStepY, feet.z + moveDir.z * 0.68);
+                        ? ((Double.isNaN(liquidSurf) ? feet.y : Math.min(feet.y, liquidSurf)) - 0.21)
+                        : (feet.y - 0.18);
+                Vec3 underFoot = liquid
+                        ? new Vec3(Mth.floor(feet.x) + 0.5, soleY, Mth.floor(feet.z) + 0.5)
+                        : new Vec3(feet.x, soleY, feet.z);
+                double nextStepY = liquid ? soleY : (soleY + (f.stairAscending ? 0.34 : -0.28));
+                Vec3 aheadPreview;
+                if (liquid) {
+                    int ax = Mth.floor(feet.x + moveDir.x * 1.0);
+                    int az = Mth.floor(feet.z + moveDir.z * 1.0);
+                    if (ax == Mth.floor(feet.x) && az == Mth.floor(feet.z)) {
+                        ax += Math.abs(moveDir.x) >= Math.abs(moveDir.z) ? (moveDir.x >= 0 ? 1 : -1) : 0;
+                        az += Math.abs(moveDir.z) > Math.abs(moveDir.x) ? (moveDir.z >= 0 ? 1 : -1) : 0;
+                    }
+                    aheadPreview = new Vec3(ax + 0.5, soleY, az + 0.5);
+                } else {
+                    aheadPreview = new Vec3(feet.x + moveDir.x * 0.96, nextStepY, feet.z + moveDir.z * 0.96);
+                }
 
                 f.stepSlots[0] = underFoot;
                 f.stepSlots[1] = aheadPreview;
                 if (f.stepCount < 2 || f.lastStepAnchor == null) {
-                    double backY = liquid ? soleY : (soleY + (f.stairAscending ? -0.18 : 0.14));
-                    f.stepSlots[2] = new Vec3(feet.x - moveDir.x * 0.64, backY, feet.z - moveDir.z * 0.64);
+                    double backY = liquid ? soleY : (soleY + (f.stairAscending ? -0.34 : 0.28));
+                    f.stepSlots[2] = liquid
+                            ? new Vec3(Mth.floor(feet.x - moveDir.x * 1.0) + 0.5, soleY, Mth.floor(feet.z - moveDir.z * 1.0) + 0.5)
+                            : new Vec3(feet.x - moveDir.x * 0.94, backY, feet.z - moveDir.z * 0.94);
                     f.stepCount = 3;
                     f.stepCursor = 3;
                     f.lastStepAnchor = underFoot;
@@ -1039,7 +1056,8 @@ public final class BlockDominionRenderer {
                     double dx = underFoot.x - f.lastStepAnchor.x, dz = underFoot.z - f.lastStepAnchor.z;
                     double horizDist = Math.sqrt(dx * dx + dz * dz);
                     double dy = Math.abs(underFoot.y - f.lastStepAnchor.y);
-                    if (horizDist >= 0.56 || (!liquid && dy >= 0.26)) {
+                    boolean advance = liquid ? (horizDist >= 0.95) : (horizDist >= 0.92 || dy >= 0.34);
+                    if (advance) {
                         int slotIdx = f.stepCursor;
                         f.stepSlots[slotIdx] = f.lastStepAnchor;
                         f.stepCursor = 2 + ((slotIdx - 2 + 1) % 5);
@@ -1051,10 +1069,8 @@ public final class BlockDominionRenderer {
                             rec.morphStartTick = now;
                             rec.morphDelay = 0;
                             rec.morphDuration = 4;
-                            rec.morphArcLift = 0.22;
+                            rec.morphArcLift = 0.16;
                         }
-                        DominionParticles.spawnSmoke(underFoot.add(0, -0.04, 0), new Vec3(0, 0.015, 0),
-                                0.34f, 12, f.mr(), f.mg(), f.mb(), 68);
                     }
                 }
             } else {
@@ -1090,8 +1106,8 @@ public final class BlockDominionRenderer {
                 if (isAnchoredStep) {
                     target = f.stepSlots[i];
                     targetScale = f.formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE
-                            ? new Vec3(1.04, 0.18, 1.04)
-                            : new Vec3(0.96, 0.24, 0.96);
+                            ? new Vec3(0.96, 0.42, 0.96)
+                            : new Vec3(0.90, 0.36, 0.90);
                 } else if (perch) {
                     BlockDominionBrain.WingPose wp = BlockDominionBrain.sovereignPerchPose(i, count, now, yawFwd);
                     target = chest.add(wp.offset());
@@ -1282,31 +1298,16 @@ public final class BlockDominionRenderer {
                 }
 
                 Vec3 wake = owner.getDeltaMovement().scale(-0.32);
-                if (!meteor && now % 2 == 0) {
-                    double sampleU = 0.25 + ((now * 0.19) % 0.7);
-                    Vec3 lPt = wingAnchor.add(BlockDominionBrain.rotateWingVec(
-                            BlockDominionBrain.wingFeatherTip(true, sampleU, now, yawFwd, boosted, wingAeroFrac), yawFwd, wingPitchDeg, wingRollDeg));
-                    Vec3 rPt = wingAnchor.add(BlockDominionBrain.rotateWingVec(
-                            BlockDominionBrain.wingFeatherTip(false, sampleU, now, yawFwd, boosted, wingAeroFrac), yawFwd, wingPitchDeg, wingRollDeg));
-                    boolean dark = (now % 4 == 0);
-                    DominionParticles.spawnSmoke(lPt, wake.add(0, -0.02, 0), boosted ? 0.48f : 0.38f, 16,
-                            dark ? dr : mr, dark ? dg : mg, dark ? db : mb, dark ? 120 : 95);
-                    DominionParticles.spawnSmoke(rPt, wake.add(0, -0.02, 0), boosted ? 0.48f : 0.38f, 16,
-                            dark ? dr : mr, dark ? dg : mg, dark ? db : mb, dark ? 120 : 95);
-                }
                 if (!meteor) {
-                    Vec3 lTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(true, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
-                    Vec3 rTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(false, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
-                    int emitCount = boosted ? 3 : 2;
-                    for (int k = 0; k < emitCount; k++) {
-                        DominionParticles.spawn(lTip, wake.add((Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06),
-                                boosted ? 0.20f : 0.14f, boosted ? 12 : 16, 0.90, 0.0,
-                                boosted ? hr : pr, boosted ? hg : pg, boosted ? hb : pb,
-                                (k == 0) ? DominionParticles.STYLE_STAR : DominionParticles.STYLE_EMBER);
-                        DominionParticles.spawn(rTip, wake.add((Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06),
-                                boosted ? 0.20f : 0.14f, boosted ? 12 : 16, 0.90, 0.0,
-                                boosted ? hr : pr, boosted ? hg : pg, boosted ? hb : pb,
-                                (k == 0) ? DominionParticles.STYLE_STAR : DominionParticles.STYLE_EMBER);
+                    if (boosted || now % 2 == 0) {
+                        Vec3 lTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(true, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
+                        Vec3 rTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(false, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
+                        DominionParticles.spawn(lTip, wake.add((Math.random() - 0.5) * 0.04, (Math.random() - 0.5) * 0.04, (Math.random() - 0.5) * 0.04),
+                                boosted ? 0.16f : 0.11f, boosted ? 10 : 12, 0.88, 0.0,
+                                boosted ? hr : pr, boosted ? hg : pg, boosted ? hb : pb, DominionParticles.STYLE_STAR);
+                        DominionParticles.spawn(rTip, wake.add((Math.random() - 0.5) * 0.04, (Math.random() - 0.5) * 0.04, (Math.random() - 0.5) * 0.04),
+                                boosted ? 0.16f : 0.11f, boosted ? 10 : 12, 0.88, 0.0,
+                                boosted ? hr : pr, boosted ? hg : pg, boosted ? hb : pb, DominionParticles.STYLE_STAR);
                     }
                 } else {
                     int mTier = Math.max(1, f.meteorTier);
@@ -1320,12 +1321,6 @@ public final class BlockDominionRenderer {
                         DominionParticles.spawn(sparkPos, wake.scale(0.38).add((Math.random() - 0.5) * 0.08, 0.04, (Math.random() - 0.5) * 0.08),
                                 (0.11f + mTier * 0.025f) + (float) Math.random() * 0.04f, 6 + mTier, 0.84, 0.0,
                                 255, eg, eb, DominionParticles.STYLE_EMBER);
-                    }
-                    if (mTier >= 2 && now % 2 == 0) {
-                        DominionParticles.spawnSmoke(
-                                wingAnchor.add((Math.random() - 0.5) * spread * 0.6, 0.25, (Math.random() - 0.5) * spread * 0.6),
-                                wake.scale(0.60).add(0, 0.04, 0),
-                                0.50f + mTier * 0.12f, 14, 255, mTier == 3 ? 78 : 114, 24, 115);
                     }
                 }
 
@@ -1357,38 +1352,22 @@ public final class BlockDominionRenderer {
             } else {
                 f.leftWingTrail.clear();
                 f.rightWingTrail.clear();
-                if (!f.stowed) {
+                if (!f.stowed && now % 3 == 0) {
                     VisualBlock sample = f.blocks.get((int) (now % count));
-                    DominionParticles.spawnAmbient(sample.pos, 0.32, 0.032, pr, pg, pb,
-                            (now % 3 == 0) ? DominionParticles.STYLE_STAR : DominionParticles.STYLE_EMBER);
-                    if (now % 2 == 0) {
-                        boolean dark = (now % 4 == 0);
-                        DominionParticles.spawnAmbient(sample.pos, 0.38, 0.02,
-                                dark ? dr : mr, dark ? dg : mg, dark ? db : mb, DominionParticles.STYLE_SMOKE);
-                    }
+                    DominionParticles.spawnAmbient(sample.pos, 0.24, 0.024, pr, pg, pb, DominionParticles.STYLE_STAR);
                 }
-                if (f.formation == BlockDominionBrain.FormationKind.AIR_STAIRS) {
-                    Vec3 under = owner.position().add(0, -0.18, 0);
-                    DominionParticles.spawnAmbient(under, 0.72, 0.022, pr, pg, pb, DominionParticles.STYLE_SHARD);
-                    if (now % 2 == 0) {
-                        DominionParticles.spawnSmoke(under.add((Math.random() - 0.5) * 0.8, -0.05, (Math.random() - 0.5) * 0.8),
-                                new Vec3(0, 0.015, 0), 0.42f, 16, mr, mg, mb, 105);
-                    }
-                } else if (f.formation == BlockDominionBrain.FormationKind.RAIN_UMBRELLA) {
+                if (f.formation == BlockDominionBrain.FormationKind.RAIN_UMBRELLA) {
                     // Subtle raindrop splash mist rebounding off the overhead stone umbrella canopy!
                     Vec3 roof = owner.position().add((Math.random() - 0.5) * 1.9, 2.95, (Math.random() - 0.5) * 1.9);
                     DominionParticles.spawn(roof, new Vec3((Math.random() - 0.5) * 0.06, 0.05, (Math.random() - 0.5) * 0.06),
                             0.11f, 10, 0.86, 0.008, 185, 224, 255, DominionParticles.STYLE_STAR);
                 }
             }
-        } else if (f.mode == BlockDominionRules.Mode.AUTO) {
+        } else if (f.mode == BlockDominionRules.Mode.AUTO && now % 2 == 0) {
             double ang = (now * 0.52) % (Math.PI * 2.0);
             double rad = 1.6 + (now % 8) * 1.05;
             Vec3 p = owner.position().add(Math.cos(ang) * rad, 0.25, Math.sin(ang) * rad);
-            DominionParticles.spawnAmbient(p, 0.45, 0.055, pr, pg, pb, DominionParticles.STYLE_EMBER);
-            if (now % 2 == 0) {
-                DominionParticles.spawnSmoke(p, new Vec3(0, 0.03, 0), 0.58f, 22, dr, dg, db, 105);
-            }
+            DominionParticles.spawnAmbient(p, 0.35, 0.045, pr, pg, pb, DominionParticles.STYLE_EMBER);
         }
     }
 
@@ -1502,15 +1481,10 @@ public final class BlockDominionRenderer {
                 for (int i = 0; i < count; i++) {
                     VisualBlock vb = f.blocks.get(i);
                     Vec3 renderWorld;
-                    if (i == 0 && f.formation.isStepping() && f.stepSlots[0] != null) {
-                        // Frame-exact under-boot lock so Air-Stairs & Liquid-Stride NEVER lag or drift off the soles!
+                    if (i == 0 && f.formation == BlockDominionBrain.FormationKind.AIR_STAIRS && f.stepSlots[0] != null) {
+                        // Frame-exact under-boot lock for Air-Stairs (Liquid Stride stays cleanly grid-snapped!)
                         Vec3 interpFeet = owner.getPosition(tickDelta);
-                        boolean liquid = f.formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE;
-                        double surf = liquid ? sampleLiquidSurface(owner) : Double.NaN;
-                        double exactY = liquid
-                                ? ((Double.isNaN(surf) ? interpFeet.y : Math.min(interpFeet.y, surf)) - 0.09)
-                                : (interpFeet.y - 0.12);
-                        renderWorld = new Vec3(interpFeet.x, exactY, interpFeet.z);
+                        renderWorld = new Vec3(interpFeet.x, interpFeet.y - 0.18, interpFeet.z);
                     } else {
                         renderWorld = vb.prevPos.lerp(vb.pos, tickDelta);
                     }
@@ -1706,16 +1680,21 @@ public final class BlockDominionRenderer {
                                                     BlockDominionBrain.FormationKind form, int index) {
         Vec3 delta = pos.subtract(camPos);
         double distSq = delta.lengthSqr();
-        if (form == BlockDominionBrain.FormationKind.AIR_STAIRS && index < 7) {
+        if (form.isStepping() && index < 7) {
             return distSq < 1.05 * 1.05;
         }
         if (form == BlockDominionBrain.FormationKind.RAIN_UMBRELLA && index < 7) {
             return distSq < 1.15 * 1.15;
         }
+        if (form.isWings()) {
+            // Keep first-person wing flight completely clear of wings/feathers intruding into the viewport!
+            if (distSq < 3.2 * 3.2) return true;
+            if (distSq < 5.8 * 5.8 && delta.normalize().dot(camLook) > 0.22) return true;
+            return false;
+        }
         if (distSq < 1.75 * 1.75) return true;
         if (distSq < 4.4 * 4.4) {
             double dot = delta.normalize().dot(camLook);
-            // Wide clean aim window in center of screen for shields, dome, orbit, wings & railgun
             double cone = form.isShield() ? 0.56 : 0.72;
             if (dot > cone) return true;
         }
@@ -1725,49 +1704,38 @@ public final class BlockDominionRenderer {
     private static void renderSatelliteStoneSwarm(PoseStack matrices, MultiBufferSource.BufferSource bufferSource,
                                                   BlockRenderDispatcher blockRenderer, ClientFormation f,
                                                   Entity owner, Vec3 camPos, Vec3 camLook, double time, float tickDelta, boolean firstPerson) {
-        // Multiplayer Distance LOD: full detail nearby, 50% shards at 20..48 blocks, skip tiny shards beyond 48 blocks!
+        // Keep sculpted silhouettes (Wings, Stairs, Bridge, Shields, Railgun, Perch) razor-sharp without noisy crumb clutter!
+        if (f.formation != BlockDominionBrain.FormationKind.IDLE) return;
         double distSq = owner.distanceToSqr(camPos);
-        if (distSq > 48.0 * 48.0) return;
-        int lodStep = distSq > 20.0 * 20.0 ? 2 : 1;
+        if (distSq > 40.0 * 40.0) return;
 
         int count = f.blocks.size();
-        int shardsPerBlock = f.formation.isWings() ? 1 : 2;
-        int maxShards = (f.formation.isWings() ? 36 : 84) / lodStep;
-        int emitted = 0;
-        for (int i = 0; i < count && emitted < maxShards; i += lodStep) {
+        int maxShards = Math.min(10, count / 4);
+        if (maxShards <= 0) return;
+        int stride = Math.max(1, count / maxShards);
+        for (int i = 0; i < count; i += stride) {
             VisualBlock vb = f.blocks.get(i);
             Vec3 host = vb.prevPos.lerp(vb.pos, tickDelta);
-            for (int k = 0; k < shardsPerBlock && emitted < maxShards; k++) {
-                emitted++;
-                long sd = 3100L + i * 73L + k * 29L;
-                double ang = DominionShader.hash(sd) * Math.PI * 2.0 + time * (0.07 + 0.05 * DominionShader.hash(sd + 1)) * (k == 0 ? 1 : -1);
-                double rad = f.formation.isMeteorDive()
-                        ? (0.20 + 0.28 * DominionShader.hash(sd + 2))
-                        : f.formation.isWings()
-                        ? (0.35 + 0.45 * DominionShader.hash(sd + 2))
-                        : (0.48 + 0.72 * DominionShader.hash(sd + 2));
-                double vert = Math.sin(ang * 1.4 + sd) * (f.formation == BlockDominionBrain.FormationKind.AIR_STAIRS ? 0.16 : 0.42);
-                Vec3 pos = host.add(Math.cos(ang) * rad, vert, Math.sin(ang) * rad);
-                if (firstPerson) {
-                    Vec3 d = pos.subtract(camPos);
-                    double d2 = d.lengthSqr();
-                    if (d2 < 2.4 * 2.4 || (d2 < 6.0 * 6.0 && d.normalize().dot(camLook) > 0.52)) continue;
-                }
-
-                float sx = (float) (0.14 + 0.18 * DominionShader.hash(sd + 3));
-                float sy = (float) (0.12 + 0.24 * DominionShader.hash(sd + 4));
-                float sz = (float) (0.13 + 0.16 * DominionShader.hash(sd + 5));
-                int light = sampleLight(pos, owner);
-
-                matrices.pushPose();
-                matrices.translate(pos.x - camPos.x, pos.y - camPos.y, pos.z - camPos.z);
-                matrices.mulPose(Axis.YP.rotationDegrees((float) (time * 4.5 + i * 41 + k * 120)));
-                matrices.mulPose(Axis.XP.rotationDegrees((float) (time * 3.1 + i * 27 + k * 75)));
-                matrices.scale(sx, sy, sz);
-                matrices.translate(-0.5, -0.5, -0.5);
-                blockRenderer.renderSingleBlock(vb.state, matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
-                matrices.popPose();
+            long sd = 3100L + i * 73L;
+            double ang = DominionShader.hash(sd) * Math.PI * 2.0 + time * 0.055;
+            double rad = 0.50 + 0.40 * DominionShader.hash(sd + 2);
+            double vert = Math.sin(ang * 1.4 + sd) * 0.28;
+            Vec3 pos = host.add(Math.cos(ang) * rad, vert, Math.sin(ang) * rad);
+            if (firstPerson) {
+                Vec3 d = pos.subtract(camPos);
+                double d2 = d.lengthSqr();
+                if (d2 < 2.6 * 2.6 || (d2 < 6.0 * 6.0 && d.normalize().dot(camLook) > 0.52)) continue;
             }
+            float s = (float) (0.14 + 0.08 * DominionShader.hash(sd + 3));
+            int light = sampleLight(pos, owner);
+            matrices.pushPose();
+            matrices.translate(pos.x - camPos.x, pos.y - camPos.y, pos.z - camPos.z);
+            matrices.mulPose(Axis.YP.rotationDegrees((float) (time * 3.5 + i * 41)));
+            matrices.mulPose(Axis.XP.rotationDegrees((float) (time * 2.4 + i * 27)));
+            matrices.scale(s, s, s);
+            matrices.translate(-0.5, -0.5, -0.5);
+            blockRenderer.renderSingleBlock(vb.state, matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
+            matrices.popPose();
         }
     }
 
@@ -1789,7 +1757,9 @@ public final class BlockDominionRenderer {
             if (Math.abs(groundY - base.y) > 7) continue;
             BlockPos samplePos = new BlockPos(bx, groundY - 1, bz);
             BlockState ground = world.getBlockState(samplePos);
-            if (ground.isAir() || !ground.getFluidState().isEmpty()) ground = Blocks.DEEPSLATE.defaultBlockState();
+            if (ground.isAir() || !ground.getFluidState().isEmpty() || !ground.isCollisionShapeFullBlock(world, samplePos)) {
+                ground = Blocks.DEEPSLATE.defaultBlockState();
+            }
             double hoverY = groundY + 0.45 + DominionShader.hash(sd + 2) * 1.45 + Math.sin(time * 0.11 + i * 1.3) * 0.24;
             Vec3 p = new Vec3(wx, hoverY, wz);
             if (firstPerson && p.distanceToSqr(camPos) < 1.25 * 1.25) continue;
@@ -1823,8 +1793,8 @@ public final class BlockDominionRenderer {
         } else if (f.formation.isVolley() || (f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING && index < 5)) {
             return faceDirection(look).mul(Axis.ZP.rotationDegrees(spinPhase * 28f));
         } else if (f.formation.isStepping() && index < 7) {
-            float yaw = (float) (Mth.atan2(-yawFwd.x, yawFwd.z) * (180.0 / Math.PI));
-            return Axis.YP.rotationDegrees(-yaw);
+            // World-axis-aligned blocks so Air-Stairs and Liquid Bridge look like genuine crisp Minecraft architecture!
+            return new Quaternionf();
         } else if (f.formation == BlockDominionBrain.FormationKind.RAIN_UMBRELLA && index < 7) {
             return Axis.YP.rotationDegrees((float) (time * 1.4 + index * 60f));
         } else if (f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
@@ -2000,30 +1970,10 @@ public final class BlockDominionRenderer {
                     } else if (f.formation == BlockDominionBrain.FormationKind.RAIN_UMBRELLA) {
                         emitUmbrellaVfx(buffer, mat, f, chest, time, bodyPass);
                         emitted = true;
-                    } else if (f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
-                        if (!bodyPass) {
-                            DominionShader.emitGroundPool(buffer, mat, chest.add(0, -1.24, 0), 1.65, 61,
-                                    f.pr(), f.pg(), f.pb(), firstPerson ? 55 : 115);
-                            emitted = true;
-                        }
-                    } else if (f.formation.isWings()) {
+                    } else if (f.formation.isWings() && f.formation != BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
                         emitWingsVfx(buffer, mat, f, owner, chest, look, forward, camRight, camUp, time, tickDelta, camPos, firstPerson, bodyPass);
                         emitted = true;
                     }
-                }
-            }
-
-            // Air-step soft grounded light pools (zero floating flat 2D rings!)
-            for (StepFlash sf : STEP_FLASHES) {
-                double age = time - sf.startTick;
-                if (age < 0 || age >= 14) continue;
-                double t = age / 14.0;
-                Vec3 p = sf.pos.subtract(camPos);
-                if (!bodyPass) {
-                    int a = (int) (115 * (1.0 - t) * (1.0 - t));
-                    DominionShader.emitGroundPool(buffer, mat, p.add(0, 0.04, 0), 0.72 + t * 0.65,
-                            (int) (sf.startTick % 97), sf.pR, sf.pG, sf.pB, a);
-                    emitted = true;
                 }
             }
 
@@ -2230,36 +2180,7 @@ public final class BlockDominionRenderer {
     private static void emitIdleSwarmVfx(VertexConsumer v, Matrix4f m, ClientFormation f, Vec3 chest, Vec3 forward,
                                          Vec3 camRight, Vec3 camUp, double time, float tickDelta, Vec3 camPos,
                                          boolean firstPerson, boolean bodyPass) {
-        int count = f.blocks.size();
-        Vec3 groundPos = chest.add(0, -1.16, 0);
-
-        if (bodyPass) {
-            // Subtle drifting ambient stone mist around orbit (no dark flat rings!)
-            int puffs = Math.min(7, 3 + count / 8);
-            double r = count <= 12 ? 1.9 : 2.8;
-            for (int i = 0; i < puffs; i++) {
-                double ang = (Math.PI * 2.0 * i / puffs) + time * 0.024 * ((i & 1) == 0 ? 1 : -1);
-                Vec3 p = chest.add(Math.cos(ang) * r, -0.35 + Math.sin(time * 0.05 + i) * 0.55, Math.sin(ang) * r);
-                DominionShader.emitBillboard(v, m, p, camRight, camUp, 0.78, time * 0.02 + i,
-                        DominionShader.FX_SMOKE, 10 + i, f.mr(), f.mg(), f.mb(), firstPerson ? 26 : 52);
-            }
-        } else {
-            // Soft ground light pool dyeing terrain underneath the sovereign's block aura
-            DominionShader.emitGroundPool(v, m, groundPos, 2.2 + Math.min(2.0, count * 0.04),
-                    11, f.pr(), f.pg(), f.pb(), firstPerson ? 38 : 72);
-            // Delicate hair-thin filaments arcing softly between adjacent levitating blocks
-            int arcs = Math.min(4, count / 10);
-            for (int a = 0; a < arcs; a++) {
-                int i1 = (a * 7 + (int) (time / 14)) % count;
-                int i2 = (i1 + 1) % count;
-                Vec3 p1 = f.blocks.get(i1).prevPos.lerp(f.blocks.get(i1).pos, tickDelta).subtract(camPos);
-                Vec3 p2 = f.blocks.get(i2).prevPos.lerp(f.blocks.get(i2).pos, tickDelta).subtract(camPos);
-                if (p1.distanceToSqr(p2) < 8.5) {
-                    DominionShader.emitLiveBolt(v, m, p1, p2, 6, 0.14, 0.020, 1400L + a * 17L, time,
-                            f.hr(), f.hg(), f.hb(), firstPerson ? 55 : 110);
-                }
-            }
-        }
+        // Keep Idle orbit razor-clean: let the real Minecraft blocks shine without hazy smoke clouds or glowing floor blobs!
     }
 
     /** Floating Stone Railgun Ring VFX: true 3D Fresnel barrel cone + fine crackling accelerator filaments! */
@@ -2290,6 +2211,7 @@ public final class BlockDominionRenderer {
     private static void emitWingsVfx(VertexConsumer v, Matrix4f m, ClientFormation f, Entity owner, Vec3 chest,
                                      Vec3 look, Vec3 forward, Vec3 camRight, Vec3 camUp,
                                      double time, float tickDelta, Vec3 camPos, boolean firstPerson, boolean bodyPass) {
+        if (bodyPass) return; // Zero murky smoke billboards cluttering the wings!
         boolean meteor = f.formation.isMeteorDive();
         int mTier = meteor ? Math.max(1, f.meteorTier) : 0;
         boolean boosted = f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST || meteor;
@@ -2299,104 +2221,74 @@ public final class BlockDominionRenderer {
         Vec3 yawFwd = yawForward(owner);
         Vec3 wingAnchor = chest.add(0, Mth.lerp(wingAeroFrac, 0.0, -0.30), 0);
 
-        if (bodyPass) {
-            // Subtle gossamer mist curling softly off the upper wing shoulders (blazing fiery soot & plasma at Tier II/III!)
-            for (int sideIdx = 0; sideIdx < 2; sideIdx++) {
-                boolean left = sideIdx == 0;
-                for (int k = 0; k < 3; k++) {
-                    double u = 0.28 + k * 0.30;
-                    Vec3 rawOffset = BlockDominionBrain.wingArchPoint(left, u, time, yawFwd, boosted, wingAeroFrac)
-                            .add(yawFwd.scale(Mth.lerp(wingAeroFrac, -0.24, -0.06)));
-                    Vec3 pt = wingAnchor.add(BlockDominionBrain.rotateWingVec(rawOffset, yawFwd, wingPitchDeg, wingRollDeg));
-                    DominionShader.emitBillboard(v, m, pt, camRight, camUp,
-                            meteor ? (0.68 + mTier * 0.18) : (boosted ? 0.62 : 0.54),
-                            time * 0.03 * (left ? 1 : -1) + k, DominionShader.FX_SMOKE, 30 + sideIdx * 10 + k,
-                            meteor ? 255 : f.mr(), meteor ? (mTier == 3 ? 68 : 112) : f.mg(), meteor ? 22 : f.mb(),
-                            firstPerson ? 24 : (meteor ? 66 + mTier * 20 : 52));
-                }
-            }
-        } else {
-            // Sleek gossamer wingtip contrails (omitted during Meteor Dive so no horizontal laser bars smear across sky!)
+        // Keep 1st-person sky 100% unobstructed: never draw body-wrapping cones or wingtip smears over the player's eyes!
+        if (!firstPerson) {
             if (!meteor) {
-                emitWingTrail(v, m, f, f.leftWingTrail, camPos, boosted ? 0.24 : 0.12, 41, boosted, false);
-                emitWingTrail(v, m, f, f.rightWingTrail, camPos, boosted ? 0.24 : 0.12, 42, boosted, false);
+                emitWingTrail(v, m, f, f.leftWingTrail, camPos, boosted ? 0.16 : 0.09, 41, boosted, false);
+                emitWingTrail(v, m, f, f.rightWingTrail, camPos, boosted ? 0.16 : 0.09, 42, boosted, false);
             }
 
-            // Tight camera-safe 3D Volumetric Fresnel Re-entry Fireball Shell locked directly to the diving body/wing spine!
             if (meteor) {
                 Vec3 bodyAxis = BlockDominionBrain.rotateWingVec(new Vec3(0, 1, 0), yawFwd, wingPitchDeg, wingRollDeg);
                 Vec3 axis = bodyAxis.lengthSqr() > 1e-4 ? bodyAxis.normalize() : look.normalize();
                 if (mTier == 3) {
                     DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.65)), axis,
-                            3.4, 2.25, 28, 10, 44, 255, 58, 12, firstPerson ? 80 : 225);
+                            3.4, 2.20, 28, 10, 44, 255, 58, 12, 210);
                     DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.38)), axis,
-                            2.7, 1.58, 24, 8, 45, 255, 152, 24, firstPerson ? 70 : 215);
+                            2.7, 1.54, 24, 8, 45, 255, 152, 24, 200);
                     DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.12)), axis,
-                            2.0, 1.00, 20, 7, 48, 255, 248, 210, firstPerson ? 60 : 210);
+                            2.0, 0.98, 20, 7, 48, 255, 248, 210, 195);
                 } else if (mTier == 2) {
                     DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.45)), axis,
-                            2.9, 1.88, 26, 9, 45, 255, 86, 18, firstPerson ? 75 : 210);
+                            2.9, 1.84, 26, 9, 45, 255, 86, 18, 195);
                     DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.18)), axis,
-                            2.2, 1.20, 22, 7, 47, 255, 212, 92, firstPerson ? 65 : 195);
+                            2.2, 1.18, 22, 7, 47, 255, 212, 92, 180);
                 } else {
                     DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.25)), axis,
-                            2.5, 1.50, 24, 8, 45, 255, 118, 26, firstPerson ? 70 : 190);
+                            2.5, 1.46, 24, 8, 45, 255, 118, 26, 175);
                     DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.02)), axis,
-                            1.7, 0.92, 20, 6, 48, 255, 238, 168, firstPerson ? 55 : 175);
+                            1.7, 0.90, 20, 6, 48, 255, 238, 168, 160);
                 }
-                // Crackling superheated plasma arcs tightly linking the diving comet blocks at Tier II & Tier III!
                 if (mTier >= 2 && f.blocks.size() >= 6) {
-                    int arcs = mTier == 3 ? 5 : 3;
+                    int arcs = mTier == 3 ? 4 : 2;
                     for (int a = 0; a < arcs; a++) {
                         int i1 = (a * 5 + (int) (time / 3)) % f.blocks.size();
                         int i2 = (i1 + 3) % f.blocks.size();
                         Vec3 p1 = f.blocks.get(i1).prevPos.lerp(f.blocks.get(i1).pos, tickDelta).subtract(camPos);
                         Vec3 p2 = f.blocks.get(i2).prevPos.lerp(f.blocks.get(i2).pos, tickDelta).subtract(camPos);
                         if (p1.distanceToSqr(p2) < 9.0) {
-                            DominionShader.emitLiveBolt(v, m, p1, p2, 6, 0.12, mTier == 3 ? 0.030 : 0.022,
-                                    8800L + a * 23L, time, 255, mTier == 3 ? 236 : 165, mTier == 3 ? 150 : 48, 185);
+                            DominionShader.emitLiveBolt(v, m, p1, p2, 6, 0.12, mTier == 3 ? 0.028 : 0.020,
+                                    8800L + a * 23L, time, 255, mTier == 3 ? 236 : 165, mTier == 3 ? 150 : 48, 175);
                         }
                     }
                 }
             } else if (boosted) {
+                // Sleek subtle Mach edge in 3rd-person only (never foggy!)
                 Vec3 vel = owner.getDeltaMovement();
                 Vec3 axis = vel.lengthSqr() > 0.04 ? vel.normalize() : look.normalize();
-                DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.35)), axis,
-                        3.4, 2.05, 22, 7, 45, f.pr(), f.pg(), f.pb(), firstPerson ? 65 : 155);
-                DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(0.85)), axis,
-                        2.3, 1.35, 18, 6, 48, f.hr(), f.hg(), f.hb(), firstPerson ? 48 : 118);
+                DominionShader.emitFresnelCone(v, m, wingAnchor.add(axis.scale(1.25)), axis,
+                        2.8, 1.65, 20, 6, 45, f.hr(), f.hg(), f.hb(), 78);
             }
         }
 
-        // Low-Altitude Ground Wash (wings) OR Exact Raycast-Grounded Meteor Target Pool directly on the dive impact point!
-        if (!bodyPass) {
-            if (meteor) {
-                Vec3 vel = owner.getDeltaMovement();
-                Vec3 axis = vel.lengthSqr() > 0.04 ? vel.normalize() : look.normalize();
-                double maxRay = 14.0 + mTier * 5.0;
-                Vec3 start = owner.getPosition(tickDelta).add(0, 0.8, 0);
-                var hit = world.clip(new net.minecraft.world.level.ClipContext(
-                        start, start.add(axis.scale(maxRay)),
-                        net.minecraft.world.level.ClipContext.Block.COLLIDER,
-                        net.minecraft.world.level.ClipContext.Fluid.NONE, owner));
-                if (hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
-                    Vec3 hitPos = hit.getLocation();
-                    double dist = start.distanceTo(hitPos);
-                    double kProx = Mth.clamp(1.0 - dist / maxRay, 0.0, 1.0);
-                    double poolR = 2.2 + mTier * 1.4 + kProx * (2.4 + mTier * 1.6);
-                    int aWash = Mth.clamp((int) (kProx * (165 + mTier * 20)), 0, 215);
-                    DominionShader.emitGroundPool(v, m, hitPos.add(0, 0.08, 0).subtract(camPos), poolR, 49,
-                            255, mTier == 3 ? 68 : 112, mTier == 3 ? 14 : 26, aWash);
-                }
-            } else {
-                double alt = altitudeAboveTerrain(owner);
-                if (alt >= 0.2 && alt <= 6.8) {
-                    double kWash = 1.0 - alt / 6.8;
-                    Vec3 groundPos = chest.add(0, -1.25 - alt + 0.08, 0);
-                    double poolR = 3.2 + (1.0 - kWash) * 2.2 + (boosted ? 1.4 : 0.0);
-                    int aWash = Mth.clamp((int) (kWash * (boosted ? 155 : 105)), 0, 175);
-                    DominionShader.emitGroundPool(v, m, groundPos, poolR, 49, f.pr(), f.pg(), f.pb(), aWash);
-                }
+        // Exact raycast-grounded Meteor Target Pool ONLY during active Meteor Dive!
+        if (meteor) {
+            Vec3 vel = owner.getDeltaMovement();
+            Vec3 axis = vel.lengthSqr() > 0.04 ? vel.normalize() : look.normalize();
+            double maxRay = 14.0 + mTier * 5.0;
+            Vec3 start = owner.getPosition(tickDelta).add(0, 0.8, 0);
+            var hit = world.clip(new net.minecraft.world.level.ClipContext(
+                    start, start.add(axis.scale(maxRay)),
+                    net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE, owner));
+            if (hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                Vec3 hitPos = hit.getLocation();
+                double dist = start.distanceTo(hitPos);
+                double kProx = Mth.clamp(1.0 - dist / maxRay, 0.0, 1.0);
+                double poolR = 2.2 + mTier * 1.4 + kProx * (2.4 + mTier * 1.6);
+                int aWash = Mth.clamp((int) (kProx * (165 + mTier * 20)), 0, 215);
+                DominionShader.emitGroundPool(v, m, hitPos.add(0, 0.08, 0).subtract(camPos), poolR, 49,
+                        255, mTier == 3 ? 68 : 112, mTier == 3 ? 14 : 26, aWash);
             }
         }
     }
@@ -2411,22 +2303,10 @@ public final class BlockDominionRenderer {
         }
     }
 
-    /** World-anchored Air-Step Stairs & Liquid Stride: crisp soft glow flush on each step surface! */
+    /** Crisp Minecraft-native Air-Step Stairs & Liquid Bridge: zero fake glowing blobs pasted on top of slabs! */
     private static void emitAirStairsVfx(VertexConsumer v, Matrix4f m, ClientFormation f, Vec3 camRight, Vec3 camUp,
                                          double time, float tickDelta, Vec3 camPos, boolean bodyPass) {
-        int stairSlots = Math.min(f.stepCount, f.blocks.size());
-        boolean liquid = f.formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE;
-        double topOff = liquid ? 0.10 : 0.13;
-        for (int s = 0; s < stairSlots; s++) {
-            Vec3 bp = f.blocks.get(s).prevPos.lerp(f.blocks.get(s).pos, tickDelta).subtract(camPos);
-            if (bodyPass) {
-                DominionShader.emitBillboard(v, m, bp.add(0, -0.06, 0), camRight, camUp, 0.44 - s * 0.03,
-                        time * 0.04 + s, DominionShader.FX_SMOKE, 70 + s, f.mr(), f.mg(), f.mb(), 50 - s * 6);
-            } else {
-                DominionShader.emitGroundPool(v, m, bp.add(0, topOff, 0), 0.70 - s * 0.04,
-                        75 + s, f.pr(), f.pg(), f.pb(), 98 - s * 11);
-            }
-        }
+        // Let the real grid-aligned stone/block treads read cleanly without blurry spotlight smudges.
     }
 
     /** True 3D Curved Fresnel Kinetic Shield Domes (zero flat 2D floating discs!). */
@@ -2486,24 +2366,13 @@ public final class BlockDominionRenderer {
         }
     }
 
-    /** Auto Mode Gravity Field: soft wide ground light pool + gentle rising ground mist (zero stiff rings!). */
+    /** Auto Mode Gravity Field: restrained expanding ground pulse (zero murky smoke clouds!). */
     private static void emitAutoFieldVfx(VertexConsumer v, Matrix4f m, ClientFormation f, Vec3 feet, Vec3 camRight, Vec3 camUp,
                                          double time, boolean bodyPass) {
-        if (bodyPass) {
-            for (int i = 0; i < 8; i++) {
-                double ang = (Math.PI * 2.0 * i / 8.0) + time * 0.018;
-                double rad = 2.8 + (i % 3) * 2.2;
-                Vec3 p = feet.add(Math.cos(ang) * rad, 0.35, Math.sin(ang) * rad);
-                DominionShader.emitBillboard(v, m, p, camRight, camUp, 1.35, time * 0.02 + i,
-                        DominionShader.FX_SMOKE, 80 + i, f.mr(), f.mg(), f.mb(), 52);
-            }
-        } else {
-            DominionShader.emitGroundPool(v, m, feet, BlockDominionRules.AUTO_SCAN_RADIUS * 0.85,
-                    35, f.pr(), f.pg(), f.pb(), 95);
-            double pulseR = 1.6 + ((time * 0.24) % (BlockDominionRules.AUTO_SCAN_RADIUS - 1.6));
-            int pulseA = (int) (85 * (1.0 - pulseR / BlockDominionRules.AUTO_SCAN_RADIUS));
-            DominionShader.emitGroundPool(v, m, feet.add(0, 0.03, 0), pulseR, 36, f.hr(), f.hg(), f.hb(), pulseA);
-        }
+        if (bodyPass) return;
+        double pulseR = 1.6 + ((time * 0.22) % (BlockDominionRules.AUTO_SCAN_RADIUS - 1.6));
+        int pulseA = (int) (72 * (1.0 - pulseR / BlockDominionRules.AUTO_SCAN_RADIUS));
+        DominionShader.emitGroundPool(v, m, feet.add(0, 0.03, 0), pulseR, 36, f.pr(), f.pg(), f.pb(), pulseA);
     }
 
     private static void emitWingTrail(VertexConsumer v, Matrix4f m, ClientFormation f, ArrayDeque<Vec3> trail, Vec3 camPos,

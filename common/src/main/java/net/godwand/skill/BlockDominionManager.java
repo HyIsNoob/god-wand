@@ -19,6 +19,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.util.Mth;
@@ -847,7 +848,8 @@ public final class BlockDominionManager {
         boolean spatial = SpatialDisplacementManager.isPositionDisplaced(world.dimension(), pos);
         boolean protectedBlock = state.is(Blocks.BEDROCK) || state.is(Blocks.BARRIER)
                 || state.is(Blocks.END_PORTAL) || state.is(Blocks.END_PORTAL_FRAME) || state.is(Blocks.NETHER_PORTAL);
-        return BlockDominionRules.canPickUp(isAir, isFluid, hasBe, speed, spatial, protectedBlock);
+        boolean fullBlock = state.isCollisionShapeFullBlock(world, pos);
+        return BlockDominionRules.canPickUp(isAir, isFluid, hasBe, speed, spatial, protectedBlock, fullBlock);
     }
 
     /** Left click (or hold) on a block in MANUAL mode lifts it into the orbiting reserve. */
@@ -978,7 +980,9 @@ public final class BlockDominionManager {
                         0.08f + Math.min(1f, usedTicks / 20f) * 0.14f, 6));
             }
             int bars = Math.min(4, 1 + (usedTicks * 3) / BlockDominionRules.VOLLEY_CHARGE_TICKS);
-            player.displayClientMessage(Component.literal("§eMyriad Volley: " + GodWandItem.chargeMeter(bars, 4)), true);
+            int readyShots = BlockDominionRules.volleyShotCount(usedTicks, st.reserve.size());
+            player.displayClientMessage(Component.literal("§eMyriad Volley: " + GodWandItem.chargeMeter(bars, 4)
+                    + " §7(" + readyShots + "/" + st.reserve.size() + ")"), true);
             if (usedTicks % 2 == 0) {
                 sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.2, player.getZ(), 0);
             }
@@ -1017,16 +1021,19 @@ public final class BlockDominionManager {
         st.volleyChargeTicks = 0;
         st.volleyAerial = false;
 
-        if (charged < BlockDominionRules.VOLLEY_MIN_CHARGE_TICKS || st.reserve.isEmpty()) {
+        int fireCount = BlockDominionRules.volleyShotCount(charged, st.reserve.size());
+        if (fireCount <= 0) {
             sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.2, player.getZ(), 0);
             return;
         }
 
-        // Launch Myriad Volley (ground fan) or Aerial Orbital Meteor Barrage (when soaring on Block Wings!)
-        int count = st.reserve.size();
+        // Launch proportional Myriad Volley / Orbital Barrage: partial charge only fires part of the reserve!
+        int count = fireCount;
         int[] order = BlockDominionRules.volleyReleaseOrder(count);
-        List<BlockState> snapshot = new ArrayList<>(st.reserve);
-        st.reserve.clear();
+        List<BlockState> snapshot = new ArrayList<>(count);
+        for (int i = 0; i < count && !st.reserve.isEmpty(); i++) {
+            snapshot.add(st.reserve.remove(st.reserve.size() - 1));
+        }
         st.volleyQueue.clear();
         st.volleySilenceLeft = BlockDominionRules.VOLLEY_SILENCE_TICKS;
 
@@ -1043,8 +1050,10 @@ public final class BlockDominionManager {
                 double upOff = 2.6 + ring * 0.85;
                 st.volleyQueue.add(new QueuedShot(snapshot.get(slot), sideOff, upOff, fwdOff, i / 2));
             }
-            // Safe landing cushion for 4 seconds after expending Block Wings into an Orbital Meteor Barrage
-            st.safeFallUntil = player.serverLevel().getGameTime() + 80;
+            if (st.reserve.size() < BlockDominionRules.MIN_FLIGHT_BLOCKS) {
+                // Safe landing cushion for 4 seconds if Orbital Barrage emptied wings
+                st.safeFallUntil = player.serverLevel().getGameTime() + 80;
+            }
         } else {
             int rows = count > 16 ? 2 : 1;
             for (int i = 0; i < order.length; i++) {
@@ -1059,12 +1068,15 @@ public final class BlockDominionManager {
             }
         }
 
+        float chargeFrac = Mth.clamp(charged / (float) BlockDominionRules.VOLLEY_CHARGE_TICKS, 0.25f, 1.0f);
         SkillCooldowns.start(player, GodWandItem.MODE_BLOCK_DOMINION,
-                GodWandConfig.skillCooldownTicks(GodWandItem.MODE_BLOCK_DOMINION, 1));
+                Math.max(10, Math.round(GodWandConfig.skillCooldownTicks(GodWandItem.MODE_BLOCK_DOMINION, 1) * chargeFrac)));
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), aerial ? 1.16f : 1.12f, 12));
+                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(),
+                1.0f + (aerial ? 0.14f : 0.10f) * chargeFrac, 10));
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), aerial ? 0.65f : 0.55f, 16));
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(),
+                (aerial ? 0.58f : 0.48f) * chargeFrac, 14));
         player.displayClientMessage(Component.translatable(
                 aerial ? "message.godwand.dominion_orbital" : "message.godwand.dominion_volley", count), true);
         sync(player, st, aerial ? BlockDominionRules.EVENT_ORBITAL_BARRAGE : BlockDominionRules.EVENT_VOLLEY,
@@ -1477,7 +1489,9 @@ public final class BlockDominionManager {
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                                 CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.04f, 6));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.72f, 1.18f);
+                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.78f, 1.15f);
+                        world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                                SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 0.75f, 0.78f);
                     } else if (nextTier == 2 && prevMeteorTier < 2) {
                         player.displayClientMessage(Component.translatable("message.godwand.dominion_meteor_tier2"), true);
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
@@ -1485,7 +1499,9 @@ public final class BlockDominionManager {
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.14f, 5));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.95f, 0.96f);
+                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 1.0f, 0.94f);
+                        world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                                SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.72f, 1.15f);
                     } else if (nextTier == 3 && prevMeteorTier < 3) {
                         player.displayClientMessage(Component.translatable("message.godwand.dominion_meteor_tier3"), true);
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
@@ -1493,7 +1509,24 @@ public final class BlockDominionManager {
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.18f, 6));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
-                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 1.25f, 0.76f);
+                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 1.30f, 0.74f);
+                        world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                                SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.05f, 0.85f);
+                    }
+                }
+                // Rhythmic crackling atmospheric boom-pops while plunging down like a burning meteor!
+                if (nextTier >= 1) {
+                    int boomInterval = nextTier == 3 ? 4 : (nextTier == 2 ? 6 : 8);
+                    if (now % boomInterval == 0) {
+                        float pitchJitter = (float) ((now * 17 % 7) * 0.04);
+                        world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                                SoundEvents.FIREWORK_ROCKET_BLAST, SoundSource.PLAYERS,
+                                0.52f + nextTier * 0.18f, 0.82f - nextTier * 0.08f + pitchJitter);
+                        if (nextTier >= 2 && (now % (boomInterval * 2) == 0)) {
+                            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                                    SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS,
+                                    nextTier == 3 ? 0.68f : 0.44f, (nextTier == 3 ? 0.92f : 1.15f) + pitchJitter);
+                        }
                     }
                 }
                 // Keep camera rock-steady during plunge (zero jerky periodic camera shake, zero lens-blocking sprites!)

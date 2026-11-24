@@ -36,7 +36,7 @@ public final class BlockDominionRules {
     public static final int HOLD_PICKUP_INTERVAL = 4;
     public static final int RAPID_FIRE_START_INTERVAL = 6;
     public static final int RAPID_FIRE_MIN_INTERVAL = 2;
-    public static final int VOLLEY_MIN_CHARGE_TICKS = 10;
+    public static final int VOLLEY_MIN_CHARGE_TICKS = 4;
     public static final int VOLLEY_CHARGE_TICKS = 20;
     public static final int VOLLEY_SILENCE_TICKS = 4;
     public static final int PARRY_INVULN_TICKS = 10;
@@ -123,11 +123,32 @@ public final class BlockDominionRules {
         return Mth.clamp(configured, MIN_CAPACITY, MAX_CAPACITY);
     }
 
-    /** Block filter: excludes air, fluids, block entities, unbreakable blocks, Spatial-displaced blocks and protected blocks. */
+    /** Block filter: excludes air, fluids, block entities, non-full-cube blocks (grass/flowers/fire), unbreakable & protected blocks. */
     public static boolean canPickUp(boolean isAir, boolean isFluid, boolean hasBlockEntity,
                                     float destroySpeed, boolean isDisplacedBySpatial, boolean isProtected) {
-        if (isAir || isFluid || hasBlockEntity || isDisplacedBySpatial || isProtected) return false;
+        return canPickUp(isAir, isFluid, hasBlockEntity, destroySpeed, isDisplacedBySpatial, isProtected, true);
+    }
+
+    public static boolean canPickUp(boolean isAir, boolean isFluid, boolean hasBlockEntity,
+                                    float destroySpeed, boolean isDisplacedBySpatial, boolean isProtected,
+                                    boolean isFullBlock) {
+        if (isAir || isFluid || hasBlockEntity || isDisplacedBySpatial || isProtected || !isFullBlock) return false;
         return destroySpeed >= 0.0f;
+    }
+
+    /**
+     * Number of blocks fired by Myriad Volley / Orbital Barrage based on charge duration:
+     * - Below min charge (< 4 ticks): 0 (cancelled)
+     * - Full charge (>= 20 ticks): 100% of reserve
+     * - Partial charge (4..19 ticks): scales smoothly from ~20% to ~85% so partial charges save remaining blocks!
+     */
+    public static int volleyShotCount(int chargedTicks, int reserveCount) {
+        if (reserveCount <= 0 || chargedTicks < VOLLEY_MIN_CHARGE_TICKS) return 0;
+        if (chargedTicks >= VOLLEY_CHARGE_TICKS || reserveCount == 1) return reserveCount;
+        float frac = (chargedTicks - VOLLEY_MIN_CHARGE_TICKS)
+                / (float) Math.max(1, VOLLEY_CHARGE_TICKS - VOLLEY_MIN_CHARGE_TICKS);
+        float ratio = 0.20f + 0.65f * Mth.clamp(frac, 0f, 1f);
+        return Mth.clamp(Math.round(reserveCount * ratio), 1, reserveCount - 1);
     }
 
     /** Rapid-fire cadence accelerates from 6 ticks/shot down to 2 ticks/shot over a burst. */

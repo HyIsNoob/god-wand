@@ -5,6 +5,7 @@ import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -36,7 +37,7 @@ public final class BlockDominionSounds {
     public static final SoundEvent CAGE_IMPALE = event("dominion_cage_impale");
     public static final SoundEvent WING_FLAP = event("dominion_wing_flap");
     public static final SoundEvent FLIGHT_BOOST = event("dominion_flight_boost");
-    public static final SoundEvent FLIGHT_LOOP = event("dominion_flight_loop");
+    public static final SoundEvent FLIGHT_LOOP = SoundEvents.ELYTRA_FLYING;
     public static final SoundEvent METEOR_IGNITE = event("dominion_meteor_ignite");
     public static final SoundEvent METEOR_CATACLYSM = event("dominion_meteor_cataclysm");
     public static final SoundEvent STEP = event("dominion_step");

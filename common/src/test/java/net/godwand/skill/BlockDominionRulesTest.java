@@ -274,4 +274,21 @@ class BlockDominionRulesTest {
         assertEquals(8, BlockDominionRules.CAGE_BLOCK_COUNT);
         assertEquals(3, BlockDominionRules.CAGE_MAX_ACTIVE);
     }
+
+    @Test
+    void pickupRejectsNonFullCubeBlocksAndVolleyScalesWithCharge() {
+        // Non-full-shape blocks (grass, flowers, fire, snow layers, torches) are rejected
+        assertFalse(BlockDominionRules.canPickUp(false, false, false, 0.0f, false, false, false));
+        assertTrue(BlockDominionRules.canPickUp(false, false, false, 1.5f, false, false, true));
+
+        // Partial Myriad Volley charge fires only part of the reserve; full charge fires 100%
+        assertEquals(0, BlockDominionRules.volleyShotCount(2, 48));
+        int tap = BlockDominionRules.volleyShotCount(4, 48);
+        int half = BlockDominionRules.volleyShotCount(12, 48);
+        int almost = BlockDominionRules.volleyShotCount(19, 48);
+        int full = BlockDominionRules.volleyShotCount(20, 48);
+        assertTrue(tap > 0 && tap < half, "Tap charge fires small subset (" + tap + ")");
+        assertTrue(half < almost && almost < 48, "Partial charge keeps remaining blocks (" + half + " -> " + almost + ")");
+        assertEquals(48, full, "Full charge unleashes all 48 blocks");
+    }
 }
