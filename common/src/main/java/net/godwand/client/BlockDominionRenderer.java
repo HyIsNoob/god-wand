@@ -61,6 +61,11 @@ public final class BlockDominionRenderer {
         boolean rotInit;
         Vec3 pickupOrigin;
         long pickupStartTick = -1000;
+        Vec3 morphOrigin;
+        long morphStartTick = -1000;
+        int morphDuration = 8;
+        int morphDelay = 0;
+        double morphArcLift = 0.0;
 
         VisualBlock(BlockState state, Vec3 startPos, float startScale, float spinPhase) {
             this.state = state;
@@ -207,6 +212,7 @@ public final class BlockDominionRenderer {
         final int targetId;
         final Vec3 anchor;
         final List<BlockState> blocks;
+        final List<Vec3> launchOrigins;
         final long startTick;
         final BlockDominionPalette palette;
         final double yawOffset;
@@ -215,11 +221,12 @@ public final class BlockDominionRenderer {
         boolean victimKilled;
 
         ClientCage(int casterId, int targetId, Vec3 anchor, List<BlockState> blocks,
-                   long startTick, BlockDominionPalette palette, double yawOffset) {
+                   List<Vec3> launchOrigins, long startTick, BlockDominionPalette palette, double yawOffset) {
             this.casterId = casterId;
             this.targetId = targetId;
             this.anchor = anchor;
             this.blocks = blocks;
+            this.launchOrigins = launchOrigins;
             this.startTick = startTick;
             this.palette = palette;
             this.yawOffset = yawOffset;
@@ -434,6 +441,7 @@ public final class BlockDominionRenderer {
         for (int id : ids) targetCounts.merge(id, 1, Integer::sum);
 
         Map<Integer, Integer> keptCounts = new HashMap<>();
+        List<VisualBlock> removedBlocks = new ArrayList<>();
         for (int i = f.blocks.size() - 1; i >= 0; i--) {
             int curId = Block.getId(f.blocks.get(i).state);
             int want = targetCounts.getOrDefault(curId, 0);
@@ -441,7 +449,7 @@ public final class BlockDominionRenderer {
             if (have < want) {
                 keptCounts.put(curId, have + 1);
             } else {
-                f.blocks.remove(i);
+                removedBlocks.add(f.blocks.remove(i));
             }
         }
 
@@ -495,6 +503,7 @@ public final class BlockDominionRenderer {
 
         if (prevFormation != f.formation && f.blocks.size() > 1 && owner != null) {
             reassignNearestSlots(f, owner, now);
+            triggerFormationAssemblyWave(f, prevFormation, now);
         }
 
         switch (payload.eventKind()) {
@@ -622,15 +631,24 @@ public final class BlockDominionRenderer {
                 Vec3 anchor = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
                 int targetId = payload.eventBlockId();
                 List<BlockState> cageBlocks = new ArrayList<>(BlockDominionRules.CAGE_BLOCK_COUNT);
+                List<Vec3> launchOrigins = new ArrayList<>(BlockDominionRules.CAGE_BLOCK_COUNT);
                 for (int i = 0; i < BlockDominionRules.CAGE_BLOCK_COUNT; i++) {
-                    BlockState bs = f.blocks.isEmpty()
-                            ? Blocks.DEEPSLATE_BRICKS.defaultBlockState()
-                            : f.blocks.get(i % f.blocks.size()).state;
-                    cageBlocks.add(bs);
+                    if (i < removedBlocks.size()) {
+                        VisualBlock src = removedBlocks.get(i);
+                        cageBlocks.add(src.state);
+                        launchOrigins.add(src.pos);
+                    } else {
+                        BlockState bs = f.blocks.isEmpty()
+                                ? Blocks.DEEPSLATE_BRICKS.defaultBlockState()
+                                : f.blocks.get(i % f.blocks.size()).state;
+                        cageBlocks.add(bs);
+                        double ang = (Math.PI * 2.0 * i) / BlockDominionRules.CAGE_BLOCK_COUNT;
+                        launchOrigins.add(ownerPos.add(Math.cos(ang) * 1.8, 0.25, Math.sin(ang) * 1.8));
+                    }
                 }
                 double yawOff = owner != null ? Math.toRadians(owner.getYRot()) : 0.35;
                 ACTIVE_CAGES.put(cageKey(payload.playerId(), targetId),
-                        new ClientCage(payload.playerId(), targetId, anchor, cageBlocks, now, pal, yawOff));
+                        new ClientCage(payload.playerId(), targetId, anchor, cageBlocks, launchOrigins, now, pal, yawOff));
                 DominionParticles.spawnRingBurst(anchor, new Vec3(0, 1, 0), 1.65, 28, 0.26,
                         pal.primaryR, pal.primaryG, pal.primaryB, DominionParticles.STYLE_SHARD);
                 if (isLocal) {
@@ -873,6 +891,61 @@ public final class BlockDominionRenderer {
         f.blocks.addAll(reordered);
     }
 
+    /**
+     * Triggers a tactile telekinetic push-out & interlocking wave whenever blocks re-assemble into
+     * Wings, Shields, Railgun Ring, Volley Fan, or Stepping Stones.
+     */
+    private static void triggerFormationAssemblyWave(ClientFormation f, BlockDominionBrain.FormationKind prev, long now) {
+        if (prev.isWings() && f.formation.isWings()) return; // Keep Hover <-> Boost <-> Meteor seamless!
+        if (prev.isStepping() && f.formation.isStepping()) return;
+        int n = f.blocks.size();
+        for (int i = 0; i < n; i++) {
+            VisualBlock vb = f.blocks.get(i);
+            vb.morphOrigin = vb.pos;
+            vb.morphStartTick = now;
+            if (f.formation.isWings()) {
+                vb.morphDelay = Math.min(4, (i * 5) / Math.max(1, n));
+                vb.morphDuration = 8;
+                vb.morphArcLift = 0.58;
+            } else if (f.formation.isVolley()) {
+                vb.morphDelay = Math.min(4, (i * 5) / Math.max(1, n));
+                vb.morphDuration = 8;
+                vb.morphArcLift = 0.72;
+            } else if (f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING) {
+                vb.morphDelay = i < 5 ? (i / 2) : 2;
+                vb.morphDuration = 6;
+                vb.morphArcLift = 0.36;
+            } else if (f.formation.isShield()) {
+                vb.morphDelay = i % 2;
+                vb.morphDuration = 5;
+                vb.morphArcLift = 0.24;
+            } else if (f.formation.isStepping()) {
+                vb.morphDelay = i < 7 ? (i / 2) : 1;
+                vb.morphDuration = 6;
+                vb.morphArcLift = 0.30;
+            } else {
+                vb.morphDelay = Math.min(3, (i * 4) / Math.max(1, n));
+                vb.morphDuration = 7;
+                vb.morphArcLift = 0.34;
+            }
+        }
+    }
+
+    /** Samples the exact water/lava top surface beneath the entity so Liquid Stride slabs sit dead-flush under boots. */
+    private static double sampleLiquidSurface(Entity owner) {
+        if (world == null || owner == null) return Double.NaN;
+        BlockPos feet = owner.blockPosition();
+        for (BlockPos p : new BlockPos[]{feet, feet.below()}) {
+            if (!world.getFluidState(p).isEmpty() && world.getFluidState(p.above()).isEmpty()) {
+                double surf = p.getY() + 0.96;
+                if (owner.getY() <= surf + 0.65 && owner.getY() >= p.getY() - 0.25) {
+                    return surf;
+                }
+            }
+        }
+        return Double.NaN;
+    }
+
     public static void tick(Minecraft client) {
         if (client == null || client.level == null) {
             reset();
@@ -932,39 +1005,61 @@ public final class BlockDominionRenderer {
             float unfoldProgress = Mth.clamp((now - f.unfoldStartTick) / (float) BlockDominionRules.UNFOLD_TICKS, 0f, 1f);
             float volleyProgress = Mth.clamp(f.volleyTicks / (float) BlockDominionRules.VOLLEY_CHARGE_TICKS, 0f, 1f);
 
-            // Ring-buffer world-space stepping stones during Air-Step Stairs AND Liquid Stride:
-            // ONLY the single oldest tail stone recycles ahead; the other 6 stones stay 100% motionless under boots!
+            // Dead-accurate foot-locked stepping stones during Air-Step Stairs AND Liquid Stride:
+            // - Slot 0: ALWAYS centered directly under the player's boots at exact sole height (zero drift!)
+            // - Slot 1: Next-step preview slab sliding smoothly ahead along actual movement vector (supports strafing!)
+            // - Slots 2..6: Frozen world-space trail steps left behind your footsteps (only oldest tail recycles forward!)
             if (f.formation.isStepping()) {
-                Vec3 horizFwd = new Vec3(look.x, 0, look.z);
-                horizFwd = horizFwd.lengthSqr() > 1e-4 ? horizFwd.normalize() : new Vec3(0, 0, 1);
                 Vec3 feet = owner.position();
+                Vec3 yawFwdStep = yawForward(owner);
+                Vec3 moveVec = new Vec3(ownerDelta.x, 0.0, ownerDelta.z);
+                if (moveVec.lengthSqr() < 0.0004) {
+                    Vec3 dm = owner.getDeltaMovement();
+                    moveVec = new Vec3(dm.x, 0.0, dm.z);
+                }
+                Vec3 moveDir = moveVec.lengthSqr() > 0.0004 ? moveVec.normalize() : yawFwdStep;
                 boolean liquid = f.formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE;
-                double stepY = liquid ? (feet.y - 0.10) : (feet.y - 0.18 + (f.stairAscending ? 0.14 : -0.06));
-                Vec3 candidate = new Vec3(feet.x + horizFwd.x * 0.42, stepY, feet.z + horizFwd.z * 0.42);
-                if (f.stepCount == 0 || f.lastStepAnchor == null) {
-                    double leadBack = liquid ? 0.0 : (f.stairAscending ? -0.26 : 0.24);
-                    f.stepSlots[0] = new Vec3(feet.x - horizFwd.x * 0.65, feet.y - 0.14 + leadBack, feet.z - horizFwd.z * 0.65);
-                    f.stepSlots[1] = new Vec3(feet.x, feet.y - 0.12, feet.z);
-                    f.stepSlots[2] = candidate;
+                double liquidSurf = liquid ? sampleLiquidSurface(owner) : Double.NaN;
+                double soleY = liquid
+                        ? ((Double.isNaN(liquidSurf) ? feet.y : Math.min(feet.y, liquidSurf)) - 0.09)
+                        : (feet.y - 0.12);
+                Vec3 underFoot = new Vec3(feet.x, soleY, feet.z);
+                double nextStepY = liquid ? soleY : (soleY + (f.stairAscending ? 0.18 : -0.14));
+                Vec3 aheadPreview = new Vec3(feet.x + moveDir.x * 0.68, nextStepY, feet.z + moveDir.z * 0.68);
+
+                f.stepSlots[0] = underFoot;
+                f.stepSlots[1] = aheadPreview;
+                if (f.stepCount < 2 || f.lastStepAnchor == null) {
+                    double backY = liquid ? soleY : (soleY + (f.stairAscending ? -0.18 : 0.14));
+                    f.stepSlots[2] = new Vec3(feet.x - moveDir.x * 0.64, backY, feet.z - moveDir.z * 0.64);
                     f.stepCount = 3;
                     f.stepCursor = 3;
-                    f.lastStepAnchor = candidate;
+                    f.lastStepAnchor = underFoot;
                 } else {
-                    double dx = feet.x - f.lastStepAnchor.x, dz = feet.z - f.lastStepAnchor.z;
+                    double dx = underFoot.x - f.lastStepAnchor.x, dz = underFoot.z - f.lastStepAnchor.z;
                     double horizDist = Math.sqrt(dx * dx + dz * dz);
-                    double dy = Math.abs(stepY - f.lastStepAnchor.y);
-                    if (horizDist >= 0.72 || (!liquid && dy >= 0.34)) {
-                        f.stepSlots[f.stepCursor] = candidate;
-                        f.stepCursor = (f.stepCursor + 1) % 7;
+                    double dy = Math.abs(underFoot.y - f.lastStepAnchor.y);
+                    if (horizDist >= 0.56 || (!liquid && dy >= 0.26)) {
+                        int slotIdx = f.stepCursor;
+                        f.stepSlots[slotIdx] = f.lastStepAnchor;
+                        f.stepCursor = 2 + ((slotIdx - 2 + 1) % 5);
                         if (f.stepCount < 7) f.stepCount++;
-                        f.lastStepAnchor = candidate;
-                        DominionParticles.spawnSmoke(candidate.add(0, -0.06, 0), new Vec3(0, 0.015, 0),
-                                0.36f, 14, f.mr(), f.mg(), f.mb(), 72);
+                        f.lastStepAnchor = underFoot;
+                        if (slotIdx < f.blocks.size()) {
+                            VisualBlock rec = f.blocks.get(slotIdx);
+                            rec.morphOrigin = rec.pos;
+                            rec.morphStartTick = now;
+                            rec.morphDelay = 0;
+                            rec.morphDuration = 4;
+                            rec.morphArcLift = 0.22;
+                        }
+                        DominionParticles.spawnSmoke(underFoot.add(0, -0.04, 0), new Vec3(0, 0.015, 0),
+                                0.34f, 12, f.mr(), f.mg(), f.mb(), 68);
                     }
                 }
             } else {
                 f.stepCount = 0;
-                f.stepCursor = 0;
+                f.stepCursor = 2;
                 f.lastStepAnchor = null;
             }
 
@@ -990,11 +1085,13 @@ public final class BlockDominionRenderer {
                 Vec3 target;
                 Vec3 targetScale;
                 boolean isAnchoredStep = f.formation.isStepping() && i < f.stepCount && f.stepSlots[i] != null;
+                boolean isLiveFootStep = f.formation.isStepping() && i == 0 && f.stepSlots[0] != null;
+                boolean isAheadStep = f.formation.isStepping() && i == 1 && f.stepSlots[1] != null;
                 if (isAnchoredStep) {
                     target = f.stepSlots[i];
                     targetScale = f.formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE
-                            ? new Vec3(0.94, 0.20, 0.94)
-                            : new Vec3(0.86, 0.28, 0.86);
+                            ? new Vec3(1.04, 0.18, 1.04)
+                            : new Vec3(0.96, 0.24, 0.96);
                 } else if (perch) {
                     BlockDominionBrain.WingPose wp = BlockDominionBrain.sovereignPerchPose(i, count, now, yawFwd);
                     target = chest.add(wp.offset());
@@ -1018,6 +1115,7 @@ public final class BlockDominionRenderer {
                 }
 
                 long pickupAge = now - vb.pickupStartTick;
+                long morphAge = now - vb.morphStartTick;
                 if (vb.pickupOrigin != null && pickupAge >= 0 && pickupAge < 11) {
                     if (pickupAge < 2) {
                         double j = (pickupAge == 0 ? 0.05 : -0.05);
@@ -1033,20 +1131,45 @@ public final class BlockDominionRenderer {
                         vb.vel = nextPos.subtract(vb.pos);
                         vb.pos = nextPos;
                     }
+                } else if (vb.morphOrigin != null && !isLiveFootStep
+                        && morphAge >= 0 && morphAge < vb.morphDelay + vb.morphDuration) {
+                    vb.pickupOrigin = null;
+                    if (morphAge < vb.morphDelay) {
+                        vb.morphOrigin = vb.morphOrigin.add(ownerDelta.scale(0.85));
+                        vb.pos = vb.pos.add(ownerDelta.scale(0.85));
+                    } else {
+                        double u = Mth.clamp((morphAge - vb.morphDelay + 1.0) / Math.max(1.0, vb.morphDuration), 0.0, 1.0);
+                        double ease = 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u);
+                        Vec3 startPos = vb.morphOrigin;
+                        Vec3 radial = startPos.subtract(chest);
+                        Vec3 pushDir = radial.lengthSqr() > 0.04 ? radial.normalize() : new Vec3(0, 1, 0);
+                        Vec3 mid = startPos.lerp(target, 0.48).add(pushDir.scale(vb.morphArcLift)).add(0, vb.morphArcLift * 0.28, 0);
+                        Vec3 a = startPos.lerp(mid, ease);
+                        Vec3 b = mid.lerp(target, ease);
+                        Vec3 nextPos = a.lerp(b, ease);
+                        vb.vel = nextPos.subtract(vb.pos);
+                        vb.pos = nextPos;
+                    }
                 } else {
                     vb.pickupOrigin = null;
-                    if (vb.pos.distanceToSqr(target) > 48.0 * 48.0) {
+                    vb.morphOrigin = null;
+                    if (isLiveFootStep) {
+                        vb.vel = target.subtract(vb.pos);
+                        vb.pos = target;
+                    } else if (vb.pos.distanceToSqr(target) > 48.0 * 48.0) {
                         vb.pos = target;
                         vb.prevPos = target;
                         vb.vel = Vec3.ZERO;
                     } else {
                         // Critically-damped smooth exponential follow (silky glide, ZERO bouncy spring overshoot!)
-                        double carry = isAnchoredStep ? 0.0
+                        double carry = isAheadStep ? 0.90
+                                : isAnchoredStep ? 0.0
                                 : f.formation.isWings() ? 0.96
                                 : (f.formation.isShield() || f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING ? 0.90 : 0.76);
                         vb.pos = vb.pos.add(ownerDelta.scale(carry));
 
-                        double follow = isAnchoredStep ? 0.42
+                        double follow = isAheadStep ? 0.68
+                                : isAnchoredStep ? 0.48
                                 : (f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST || f.formation.isMeteorDive()) ? 0.50
                                 : f.formation.isWings() ? 0.36
                                 : f.formation.isShield() ? 0.44
@@ -1378,7 +1501,19 @@ public final class BlockDominionRenderer {
                 Vec3 camLook = new Vec3(camera.getLookVector().x(), camera.getLookVector().y(), camera.getLookVector().z());
                 for (int i = 0; i < count; i++) {
                     VisualBlock vb = f.blocks.get(i);
-                    Vec3 renderWorld = vb.prevPos.lerp(vb.pos, tickDelta);
+                    Vec3 renderWorld;
+                    if (i == 0 && f.formation.isStepping() && f.stepSlots[0] != null) {
+                        // Frame-exact under-boot lock so Air-Stairs & Liquid-Stride NEVER lag or drift off the soles!
+                        Vec3 interpFeet = owner.getPosition(tickDelta);
+                        boolean liquid = f.formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE;
+                        double surf = liquid ? sampleLiquidSurface(owner) : Double.NaN;
+                        double exactY = liquid
+                                ? ((Double.isNaN(surf) ? interpFeet.y : Math.min(interpFeet.y, surf)) - 0.09)
+                                : (interpFeet.y - 0.12);
+                        renderWorld = new Vec3(interpFeet.x, exactY, interpFeet.z);
+                    } else {
+                        renderWorld = vb.prevPos.lerp(vb.pos, tickDelta);
+                    }
                     Vec3 sc = vb.prevScale.lerp(vb.scale, tickDelta);
                     if (firstPerson && isObstructingFirstPerson(renderWorld, camPos, camLook, f.formation, i)) continue;
 
@@ -1423,7 +1558,7 @@ public final class BlockDominionRenderer {
             matrices.popPose();
         }
 
-        // 2b. Render active Monolith Cages: Architectural Hexagonal Stone Prison + 4 Converging Impaling Stone Lances!
+        // 2b. Render active Monolith Cages: Telekinetic Block Launch -> Interlocking Hexagonal Jail -> 3-Piece Assembling Stone Lances!
         for (ClientCage cage : ACTIVE_CAGES.values()) {
             Entity target = world.getEntity(cage.targetId);
             Vec3 center = target != null && target.isAlive()
@@ -1431,70 +1566,101 @@ public final class BlockDominionRenderer {
                     : cage.anchor;
             if (center.distanceToSqr(camPos) > 96.0 * 96.0) continue;
             double age = Math.max(0.0, time - cage.startTick);
-            double snap = Math.min(1.0, age / 5.0);
-            double ease = 1.0 - (1.0 - snap) * (1.0 - snap) * (1.0 - snap);
-            double rBar = Mth.lerp(ease, 3.6, 1.24);
             int n = Math.max(1, cage.blocks.size());
+            int originsN = Math.max(1, cage.launchOrigins.size());
             int light = sampleLight(center, target != null ? target : client.player);
 
-            // 6 tall slender vertical stone prison bars forming an unmistakable hexagonal jail around the victim
+            // 6 tall slender vertical stone prison bars launched out from the player's actual orbiting blocks & clicking into place!
             double barSpin = time * 0.026 + cage.yawOffset;
             for (int i = 0; i < 6; i++) {
                 double ang = barSpin + (Math.PI / 3.0) * i;
-                Vec3 p = center.add(Math.cos(ang) * rBar, 0.0, Math.sin(ang) * rBar);
+                Vec3 finalPos = center.add(Math.cos(ang) * 1.24, 0.0, Math.sin(ang) * 1.24);
+                double barAge = Math.max(0.0, age - i * 0.45);
+                double flyT = Mth.clamp(barAge / 6.5, 0.0, 1.0);
+                double flyEase = 1.0 - (1.0 - flyT) * (1.0 - flyT) * (1.0 - flyT);
+                double lockT = Mth.clamp((barAge - 5.2) / 2.8, 0.0, 1.0);
+                double lockEase = 1.0 - (1.0 - lockT) * (1.0 - lockT);
+
+                Vec3 origin = cage.launchOrigins.get(i % originsN);
+                Vec3 preLockPos = center.add(Math.cos(ang) * 2.45, 0.0, Math.sin(ang) * 2.45);
+                Vec3 radialOut = new Vec3(Math.cos(ang), 0.0, Math.sin(ang));
+                Vec3 arcMid = origin.lerp(preLockPos, 0.48).add(radialOut.scale(1.35)).add(0, 0.85, 0);
+                Vec3 flightPos = origin.lerp(arcMid, flyEase).lerp(arcMid.lerp(preLockPos, flyEase), flyEase);
+                Vec3 p = flyT < 1.0 ? flightPos : preLockPos.lerp(finalPos, lockEase);
+
+                float sx = (float) Mth.lerp(flyEase, 0.52, 0.24);
+                float sy = (float) Mth.lerp(flyEase, 0.52, 2.08);
+                float sz = (float) Mth.lerp(flyEase, 0.52, 0.22);
+                float tumble = (float) ((1.0 - flyEase) * 240.0 * ((i & 1) == 0 ? 1.0 : -1.0));
+
                 matrices.pushPose();
                 matrices.translate(p.x - camPos.x, p.y - camPos.y, p.z - camPos.z);
-                matrices.mulPose(Axis.YP.rotationDegrees((float) (-Math.toDegrees(ang) + 90.0)));
-                matrices.scale(0.24f, 2.08f, 0.22f);
+                matrices.mulPose(Axis.YP.rotationDegrees((float) (-Math.toDegrees(ang) + 90.0) + tumble));
+                matrices.mulPose(Axis.XP.rotationDegrees(tumble * 0.6f));
+                matrices.scale(sx, sy, sz);
                 matrices.translate(-0.5, -0.5, -0.5);
                 blockRenderer.renderSingleBlock(cage.blocks.get(i % n), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
                 matrices.popPose();
             }
 
-            // Top & bottom hexagonal prison cap plates / shackles locking head & feet inside the cage
+            // Top & bottom hexagonal prison cap plates launched from remaining orbiting stones & slamming shut!
             for (int cap = 0; cap < 2; cap++) {
                 double capY = cap == 0 ? 1.12 : -1.04;
-                double slideY = cap == 0 ? Mth.lerp(ease, 2.8, capY) : Mth.lerp(ease, -2.5, capY);
+                double capAge = Math.max(0.0, age - (2.6 + cap * 0.9));
+                double flyT = Mth.clamp(capAge / 6.0, 0.0, 1.0);
+                double flyEase = 1.0 - (1.0 - flyT) * (1.0 - flyT) * (1.0 - flyT);
+                double slamT = Mth.clamp((capAge - 4.8) / 2.6, 0.0, 1.0);
+                double slamEase = 1.0 - (1.0 - slamT) * (1.0 - slamT);
+                Vec3 origin = cage.launchOrigins.get((6 + cap) % originsN);
+                Vec3 preSlam = center.add(0, cap == 0 ? 2.65 : -2.35, 0);
+                Vec3 finalCap = center.add(0, capY, 0);
+                Vec3 arcMid = origin.lerp(preSlam, 0.5).add(0, cap == 0 ? 1.35 : -0.65, 0);
+                Vec3 pos = flyT < 1.0
+                        ? origin.lerp(arcMid, flyEase).lerp(arcMid.lerp(preSlam, flyEase), flyEase)
+                        : preSlam.lerp(finalCap, slamEase);
+
+                float platW = (float) Mth.lerp(flyEase, 0.52, 1.62);
+                float platH = (float) Mth.lerp(flyEase, 0.52, 0.18);
                 for (int k = 0; k < 2; k++) {
                     matrices.pushPose();
-                    matrices.translate(center.x - camPos.x, center.y + slideY - camPos.y, center.z - camPos.z);
-                    matrices.mulPose(Axis.YP.rotationDegrees((float) (Math.toDegrees(barSpin) * (cap == 0 ? 1 : -1) + k * 45.0)));
-                    matrices.scale(1.62f, 0.18f, 1.62f);
+                    matrices.translate(pos.x - camPos.x, pos.y - camPos.y, pos.z - camPos.z);
+                    matrices.mulPose(Axis.YP.rotationDegrees((float) (Math.toDegrees(barSpin) * (cap == 0 ? 1 : -1) + k * 45.0 + (1.0 - flyEase) * 180.0)));
+                    matrices.scale(platW, platH, platW);
                     matrices.translate(-0.5, -0.5, -0.5);
-                    blockRenderer.renderSingleBlock(cage.blocks.get((6 + cap * 2 + k) % n), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
+                    blockRenderer.renderSingleBlock(cage.blocks.get((6 + cap) % n), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
                     matrices.popPose();
                 }
             }
 
-            // Phase 2 & 3: 4 Sculpted Multi-Part Stone Lances forging outside the cage and IMPALING straight through!
+            // Phase 2 & 3: 4 Sculpted 3-Piece Stone Lances assembling piece-by-piece outside the cage and IMPALING straight through!
             if (age >= BlockDominionRules.CAGE_SPEAR_FORM_TICK || cage.impaled) {
                 Vec3[] dirs = BlockDominionBrain.cageSpearDirections(4, cage.yawOffset);
-                double formFrac = cage.impaled ? 1.0
-                        : Mth.clamp((age - BlockDominionRules.CAGE_SPEAR_FORM_TICK) / 10.0, 0.0, 1.0);
-                double formEase = 1.0 - (1.0 - formFrac) * (1.0 - formFrac);
-                double thrustDist;
-                if (cage.impaled && cage.impaleTick >= 0) {
-                    double impAge = Math.max(0.0, time - cage.impaleTick);
-                    double slam = Mth.clamp(impAge / 3.0, 0.0, 1.0);
-                    double slamEase = 1.0 - (1.0 - slam) * (1.0 - slam) * (1.0 - slam);
-                    // Thrusts VIOLENTLY from 3.45m outside straight through the core (-0.28m exit protrusion!)
-                    thrustDist = Mth.lerp(slamEase, 3.45, -0.28);
-                } else {
-                    double chargeFrac = Mth.clamp((age - BlockDominionRules.CAGE_SPEAR_FORM_TICK)
-                            / (double) Math.max(1, BlockDominionRules.CAGE_IMPALE_TICK - BlockDominionRules.CAGE_SPEAR_FORM_TICK), 0.0, 1.0);
-                    double pullBack = chargeFrac > 0.72 ? (chargeFrac - 0.72) * 1.4 : 0.0;
-                    thrustDist = Mth.lerp(formEase, 5.2, 3.45) + pullBack;
-                }
                 for (int s = 0; s < dirs.length; s++) {
+                    double spearAge = Math.max(0.0, age - BlockDominionRules.CAGE_SPEAR_FORM_TICK - s * 1.1);
+                    double formFrac = cage.impaled ? 1.0 : Mth.clamp(spearAge / 9.0, 0.0, 1.0);
+                    double formEase = 1.0 - (1.0 - formFrac) * (1.0 - formFrac);
+                    double thrustDist;
+                    if (cage.impaled && cage.impaleTick >= 0) {
+                        double impAge = Math.max(0.0, time - cage.impaleTick);
+                        double slam = Mth.clamp(impAge / 3.0, 0.0, 1.0);
+                        double slamEase = 1.0 - (1.0 - slam) * (1.0 - slam) * (1.0 - slam);
+                        // Thrusts VIOLENTLY from 3.45m outside straight through the core (-0.28m exit protrusion!)
+                        thrustDist = Mth.lerp(slamEase, 3.45, -0.28);
+                    } else {
+                        double chargeFrac = Mth.clamp((age - BlockDominionRules.CAGE_SPEAR_FORM_TICK)
+                                / (double) Math.max(1, BlockDominionRules.CAGE_IMPALE_TICK - BlockDominionRules.CAGE_SPEAR_FORM_TICK), 0.0, 1.0);
+                        double pullBack = chargeFrac > 0.72 ? (chargeFrac - 0.72) * 1.4 : 0.0;
+                        thrustDist = Mth.lerp(formEase, 4.8, 3.45) + pullBack;
+                    }
                     Vec3 dir = dirs[s];
                     double jitter = (!cage.impaled && age > BlockDominionRules.CAGE_SPEAR_FORM_TICK + 8)
                             ? Math.sin(time * 2.1 + s * 1.7) * 0.04 : 0.0;
                     // dir points INWARD toward center, so lance sits at center - dir * thrustDist pointing along +dir!
                     Vec3 lanceAnchor = center.subtract(dir.scale(thrustDist + jitter));
-                    BlockState tipMat = cage.blocks.get((10 + s) % n);
-                    BlockState shaftMat = cage.blocks.get((12 + s) % n);
+                    BlockState tipMat = cage.blocks.get((s * 2) % n);
+                    BlockState shaftMat = cage.blocks.get((s * 2 + 1) % n);
                     renderStoneLance(matrices, bufferSource, blockRenderer, lanceAnchor, dir, camPos,
-                            (float) formEase, tipMat, shaftMat, light);
+                            (float) Mth.clamp(formEase * 1.15, 0.0, 1.0), (float) formFrac, tipMat, shaftMat, light);
                 }
             }
         }
@@ -1701,39 +1867,50 @@ public final class BlockDominionRenderer {
 
     /**
      * Renders a sculpted 3-piece 3D Stone Lance (diamond spearhead + carved cross-guard + elongated shaft)
-     * oriented cleanly along {@code dir} for Monolith Cage execution and Impaled Corpse Monuments.
+     * with magnetic piece-by-piece interlocking assembly ({@code assembleT = 0..1}).
      */
     private static void renderStoneLance(PoseStack matrices, MultiBufferSource.BufferSource bufferSource,
                                          BlockRenderDispatcher blockRenderer, Vec3 anchor, Vec3 dir, Vec3 camPos,
                                          float scaleMul, BlockState tipMat, BlockState shaftMat, int light) {
+        renderStoneLance(matrices, bufferSource, blockRenderer, anchor, dir, camPos, scaleMul, 1.0f, tipMat, shaftMat, light);
+    }
+
+    private static void renderStoneLance(PoseStack matrices, MultiBufferSource.BufferSource bufferSource,
+                                         BlockRenderDispatcher blockRenderer, Vec3 anchor, Vec3 dir, Vec3 camPos,
+                                         float scaleMul, float assembleT, BlockState tipMat, BlockState shaftMat, int light) {
         if (scaleMul <= 0.04f) return;
+        float aT = Mth.clamp(assembleT, 0f, 1f);
+        float aEase = 1.0f - (1.0f - aT) * (1.0f - aT) * (1.0f - aT);
+        float spread = 1.0f - aEase;
+
         Quaternionf orient = faceDirection(dir);
         matrices.pushPose();
         matrices.translate(anchor.x - camPos.x, anchor.y - camPos.y, anchor.z - camPos.z);
         matrices.mulPose(orient);
         matrices.scale(scaleMul, scaleMul, scaleMul);
 
-        // 1. Elongated razor diamond spearhead blade (+Z)
+        // 1. Elongated razor diamond spearhead blade (+Z) — flies in from upper-front & clicks into collar!
         matrices.pushPose();
-        matrices.translate(0.0, 0.0, 0.82);
-        matrices.mulPose(Axis.ZP.rotationDegrees(45f));
+        matrices.translate(spread * 0.55, spread * 0.72, 0.82 + spread * 1.15);
+        matrices.mulPose(Axis.ZP.rotationDegrees(45f + spread * 135f));
         matrices.scale(0.20f, 0.20f, 1.38f);
         matrices.translate(-0.5, -0.5, -0.5);
         blockRenderer.renderSingleBlock(tipMat, matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
         matrices.popPose();
 
-        // 2. Heavy carved cross-guard collar
+        // 2. Heavy carved cross-guard collar — spins inward radially to lock blade & shaft!
         matrices.pushPose();
-        matrices.translate(0.0, 0.0, 0.06);
-        matrices.mulPose(Axis.ZP.rotationDegrees(45f));
+        matrices.translate(-spread * 0.75, spread * 0.40, 0.06);
+        matrices.mulPose(Axis.ZP.rotationDegrees(45f - spread * 210f));
         matrices.scale(0.42f, 0.42f, 0.16f);
         matrices.translate(-0.5, -0.5, -0.5);
         blockRenderer.renderSingleBlock(tipMat, matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
         matrices.popPose();
 
-        // 3. Long slender stone lance shaft (-Z)
+        // 3. Long slender stone lance shaft (-Z) — thrusts forward from behind into the cross-guard socket!
         matrices.pushPose();
-        matrices.translate(0.0, 0.0, -1.25);
+        matrices.translate(0.0, -spread * 0.45, -1.25 - spread * 1.65);
+        matrices.mulPose(Axis.ZP.rotationDegrees(spread * 90f));
         matrices.scale(0.14f, 0.14f, 2.55f);
         matrices.translate(-0.5, -0.5, -0.5);
         blockRenderer.renderSingleBlock(shaftMat, matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
@@ -1914,6 +2091,20 @@ public final class BlockDominionRenderer {
                     if (center.lengthSqr() > 96.0 * 96.0) continue;
                     double age = Math.max(0.0, time - cage.startTick);
                     double pulse = 0.85 + 0.15 * Math.sin(time * 0.35);
+                    // Telekinetic launch filaments pushing the 8 stones out from the caster toward the cage!
+                    if (age < 8.5) {
+                        Entity caster = world.getEntity(cage.casterId);
+                        if (caster != null) {
+                            Vec3 castHand = caster.getPosition(tickDelta).add(0, 1.25, 0).subtract(camPos);
+                            int ta = (int) (185 * (1.0 - age / 8.5));
+                            for (int b = 0; b < 4; b++) {
+                                double ang = time * 0.026 + cage.yawOffset + (Math.PI * 0.5) * b;
+                                Vec3 dst = center.add(Math.cos(ang) * 1.35, (b % 2 == 0 ? 0.35 : -0.35), Math.sin(ang) * 1.35);
+                                DominionShader.emitLiveBolt(buffer, mat, castHand, dst, 7, 0.18, 0.028,
+                                        6200L + b * 19L, time, cage.palette.hotR, cage.palette.hotG, cage.palette.hotB, ta);
+                            }
+                        }
+                    }
                     DominionShader.emitFresnelDome(buffer, mat, center, new Vec3(0, 1, 0), 1.54, Math.PI * 0.92,
                             18, 8, DominionShader.FX_HEX_MIST, 64,
                             cage.palette.primaryR, cage.palette.primaryG, cage.palette.primaryB, (int) (145 * pulse));
@@ -2220,18 +2411,20 @@ public final class BlockDominionRenderer {
         }
     }
 
-    /** World-anchored Air-Step Stairs: subtle soft light pool on each floating step (zero rigid rings!). */
+    /** World-anchored Air-Step Stairs & Liquid Stride: crisp soft glow flush on each step surface! */
     private static void emitAirStairsVfx(VertexConsumer v, Matrix4f m, ClientFormation f, Vec3 camRight, Vec3 camUp,
                                          double time, float tickDelta, Vec3 camPos, boolean bodyPass) {
-        int stairSlots = Math.min(6, f.blocks.size());
+        int stairSlots = Math.min(f.stepCount, f.blocks.size());
+        boolean liquid = f.formation == BlockDominionBrain.FormationKind.LIQUID_STRIDE;
+        double topOff = liquid ? 0.10 : 0.13;
         for (int s = 0; s < stairSlots; s++) {
-            Vec3 bp = f.blocks.get(s).prevPos.lerp(f.blocks.get(s).pos, tickDelta).subtract(camPos).add(0, -0.10, 0);
+            Vec3 bp = f.blocks.get(s).prevPos.lerp(f.blocks.get(s).pos, tickDelta).subtract(camPos);
             if (bodyPass) {
-                DominionShader.emitBillboard(v, m, bp.add(0, -0.10, 0), camRight, camUp, 0.52 - s * 0.04,
-                        time * 0.04 + s, DominionShader.FX_SMOKE, 70 + s, f.mr(), f.mg(), f.mb(), 58 - s * 8);
+                DominionShader.emitBillboard(v, m, bp.add(0, -0.06, 0), camRight, camUp, 0.44 - s * 0.03,
+                        time * 0.04 + s, DominionShader.FX_SMOKE, 70 + s, f.mr(), f.mg(), f.mb(), 50 - s * 6);
             } else {
-                DominionShader.emitGroundPool(v, m, bp.add(0, 0.24, 0), 0.72 - s * 0.05,
-                        75 + s, f.pr(), f.pg(), f.pb(), 105 - s * 14);
+                DominionShader.emitGroundPool(v, m, bp.add(0, topOff, 0), 0.70 - s * 0.04,
+                        75 + s, f.pr(), f.pg(), f.pb(), 98 - s * 11);
             }
         }
     }
