@@ -96,14 +96,15 @@ public final class BlockDominionRules {
 
     public static final int MIN_FLIGHT_BLOCKS = 6;
     public static final int MIN_STAIR_BLOCKS = 4;
-    public static final double FLIGHT_CRUISE_SPEED = 0.78;
-    public static final double FLIGHT_BOOST_SPEED = 1.72;
-    public static final double FLIGHT_ACCEL = 0.115;
-    public static final double FLIGHT_BOOST_ACCEL = 0.195;
+    public static final double FLIGHT_CRUISE_SPEED = 0.86;
+    public static final double FLIGHT_BOOST_SPEED = 1.98;
+    public static final double FLIGHT_ACCEL = 0.125;
+    public static final double FLIGHT_BOOST_ACCEL = 0.215;
     public static final double FLIGHT_DRAG = 0.82;
-    public static final double GLIDE_MIN_SPEED = 0.44;
-    public static final double GLIDE_MAX_SPEED = 1.92;
-    public static final double GLIDE_BOOST_ACCEL = 0.17;
+    public static final double GLIDE_MIN_SPEED = 0.46;
+    public static final double GLIDE_MAX_SPEED = 2.18;
+    public static final double GLIDE_DIVE_MAX_SPEED = 2.38;
+    public static final double GLIDE_BOOST_ACCEL = 0.19;
     public static final double STAIR_DESCEND_VY = -0.085;
     public static final double STAIR_ASCEND_VY = 0.165;
     public static final double STAIR_HOP_VY = 0.44;
@@ -250,12 +251,36 @@ public final class BlockDominionRules {
     }
 
     /**
+     * Flight thrust multiplier scaled by orbiting block count for tactical depth:
+     * 6 blocks (~0.62x) -> 24 blocks (~0.81x) -> full 48 blocks (1.00x peak) -> 96 blocks (1.10x overcharge).
+     */
+    public static double wingSpeedScale(int blockCount) {
+        int c = Math.max(MIN_FLIGHT_BLOCKS, blockCount);
+        if (c <= DEFAULT_CAPACITY) {
+            double t = (c - MIN_FLIGHT_BLOCKS) / (double) (DEFAULT_CAPACITY - MIN_FLIGHT_BLOCKS);
+            return 0.62 + 0.38 * Mth.clamp(t, 0.0, 1.0);
+        }
+        double over = (c - DEFAULT_CAPACITY) / (double) (MAX_CAPACITY - DEFAULT_CAPACITY);
+        return 1.0 + 0.10 * Mth.clamp(over, 0.0, 1.0);
+    }
+
+    /**
      * Pure per-tick 3D free-flight velocity integrator used identically on client and server.
+     * Backward-compatible overload assuming full 48-block reserve.
+     */
+    public static Vec3 stepFlightVelocity(Vec3 currentVel, Vec3 lookDir,
+                                          int forwardInput, int strafeInput, int verticalInput, boolean boost) {
+        return stepFlightVelocity(currentVel, lookDir, forwardInput, strafeInput, verticalInput, boost, DEFAULT_CAPACITY);
+    }
+
+    /**
+     * Pure per-tick 3D free-flight velocity integrator scaled by {@code blockCount}.
      * Supports smooth acceleration up to cruise speed, high-speed aerodynamic sprint boost,
      * and smooth exponential deceleration to a regal midair hover when keys are released.
      */
     public static Vec3 stepFlightVelocity(Vec3 currentVel, Vec3 lookDir,
-                                          int forwardInput, int strafeInput, int verticalInput, boolean boost) {
+                                          int forwardInput, int strafeInput, int verticalInput, boolean boost,
+                                          int blockCount) {
         Vec3 cur = currentVel == null ? Vec3.ZERO : currentVel;
         Vec3 look = lookDir == null || lookDir.lengthSqr() < 1e-6 ? new Vec3(0, 0, 1) : lookDir.normalize();
         Vec3 horizFwd = new Vec3(look.x, 0, look.z);
@@ -269,9 +294,10 @@ public final class BlockDominionRules {
         if (verticalInput != 0) wish = wish.add(0, Mth.clamp(verticalInput, -1, 1), 0);
 
         if (wish.lengthSqr() > 1e-5) {
+            double scale = wingSpeedScale(blockCount);
             Vec3 wishDir = wish.normalize();
-            double maxSpeed = boost ? FLIGHT_BOOST_SPEED : FLIGHT_CRUISE_SPEED;
-            double accel = boost ? FLIGHT_BOOST_ACCEL : FLIGHT_ACCEL;
+            double maxSpeed = (boost ? FLIGHT_BOOST_SPEED : FLIGHT_CRUISE_SPEED) * scale;
+            double accel = (boost ? FLIGHT_BOOST_ACCEL : FLIGHT_ACCEL) * (0.80 + 0.20 * scale);
             Vec3 targetVel = wishDir.scale(maxSpeed);
             Vec3 diff = targetVel.subtract(cur);
             double diffLen = diff.length();
@@ -294,10 +320,17 @@ public final class BlockDominionRules {
 
     /**
      * Elytra-style aerodynamic gliding physics with firework-like rocket boost (Mode 2 of Block Wings).
-     * Diving pitches trade gravity into high speed; pulling up converts airspeed into graceful climb lift;
-     * holding boost (Sprint / Space) delivers sustained jet propulsion along {@code lookDir}.
+     * Backward-compatible overload assuming full 48-block reserve.
      */
     public static Vec3 stepGlideVelocity(Vec3 currentVel, Vec3 lookDir, int strafeInput, boolean boost) {
+        return stepGlideVelocity(currentVel, lookDir, strafeInput, boost, DEFAULT_CAPACITY);
+    }
+
+    /**
+     * Elytra-style aerodynamic gliding physics scaled by {@code blockCount}:
+     * carrying more orbiting blocks visibly boosts both Jet top speed and dive velocity.
+     */
+    public static Vec3 stepGlideVelocity(Vec3 currentVel, Vec3 lookDir, int strafeInput, boolean boost, int blockCount) {
         Vec3 cur = currentVel == null ? Vec3.ZERO : currentVel;
         Vec3 look = lookDir == null || lookDir.lengthSqr() < 1e-6 ? new Vec3(0, 0, 1) : lookDir.normalize();
         Vec3 horizLook = new Vec3(look.x, 0, look.z);
@@ -306,20 +339,22 @@ public final class BlockDominionRules {
                 ? new Vec3(-horizLook.z / horizLookLen, 0, horizLook.x / horizLookLen)
                 : new Vec3(1, 0, 0);
 
+        double scale = wingSpeedScale(blockCount);
+        double minSpeed = GLIDE_MIN_SPEED * (0.85 + 0.15 * scale);
         double curSpeed = cur.length();
-        double baseSpeed = Math.max(GLIDE_MIN_SPEED, curSpeed);
+        double baseSpeed = Math.max(minSpeed, curSpeed);
 
         // Energy exchange: steep diving accelerates like a falling comet; climbing trades speed for altitude
-        double pitchEnergy = look.y < -0.55 ? (-look.y * 0.115) : (-look.y * 0.085);
+        double pitchEnergy = look.y < -0.55 ? (-look.y * 0.125) : (-look.y * 0.088);
         double speed = baseSpeed + pitchEnergy;
         if (boost) {
-            speed += GLIDE_BOOST_ACCEL;
+            speed += GLIDE_BOOST_ACCEL * (0.80 + 0.20 * scale);
         } else {
             // Gentle aerodynamic drag above cruise glide speed
             speed *= 0.985;
         }
-        double maxSpeed = look.y < -0.55 ? 2.08 : GLIDE_MAX_SPEED;
-        speed = Mth.clamp(speed, GLIDE_MIN_SPEED, maxSpeed);
+        double maxSpeed = (look.y < -0.55 ? GLIDE_DIVE_MAX_SPEED : GLIDE_MAX_SPEED) * scale;
+        speed = Mth.clamp(speed, minSpeed, maxSpeed);
 
         // Blend velocity direction smoothly toward 3D look vector + optional horizontal banking from A/D
         Vec3 desiredDir = look;

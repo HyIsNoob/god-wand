@@ -185,13 +185,13 @@ public final class BlockDominionInput {
             if (chargingOrbital) {
                 // Hold regal midair hover while charging Shift+RMB Orbital Meteor Barrage!
                 localFlightVel = BlockDominionRules.stepFlightVelocity(
-                        localFlightVel, player.getViewVector(1.0f), 0, 0, Math.max(0, vert), false);
+                        localFlightVel, player.getViewVector(1.0f), 0, 0, Math.max(0, vert), false, localBlocks);
             } else if (localGlide) {
                 localFlightVel = BlockDominionRules.stepGlideVelocity(
-                        localFlightVel, player.getViewVector(1.0f), strafe, boost);
+                        localFlightVel, player.getViewVector(1.0f), strafe, boost, localBlocks);
             } else {
                 localFlightVel = BlockDominionRules.stepFlightVelocity(
-                        localFlightVel, player.getViewVector(1.0f), fwd, strafe, vert, boost);
+                        localFlightVel, player.getViewVector(1.0f), fwd, strafe, vert, boost, localBlocks);
             }
             player.setNoGravity(true);
             player.fallDistance = 0.0f;

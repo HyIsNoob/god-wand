@@ -212,6 +212,27 @@ class BlockDominionRulesTest {
             jet = BlockDominionRules.stepGlideVelocity(jet, levelLook, 0, true);
         }
         assertEquals(BlockDominionRules.GLIDE_MAX_SPEED, jet.length(), 0.04);
+
+        // Tactical depth: 24 blocks flies noticeably slower than a full 48-block armada in both Hover and Glide
+        assertTrue(BlockDominionRules.wingSpeedScale(6) < BlockDominionRules.wingSpeedScale(24));
+        assertTrue(BlockDominionRules.wingSpeedScale(24) < BlockDominionRules.wingSpeedScale(48));
+        assertEquals(1.0, BlockDominionRules.wingSpeedScale(48), 1e-6);
+
+        Vec3 glide24 = new Vec3(0, 0, BlockDominionRules.GLIDE_MIN_SPEED);
+        Vec3 glide48 = new Vec3(0, 0, BlockDominionRules.GLIDE_MIN_SPEED);
+        Vec3 hover24 = Vec3.ZERO;
+        Vec3 hover48 = Vec3.ZERO;
+        for (int t = 0; t < 28; t++) {
+            glide24 = BlockDominionRules.stepGlideVelocity(glide24, levelLook, 0, true, 24);
+            glide48 = BlockDominionRules.stepGlideVelocity(glide48, levelLook, 0, true, 48);
+            hover24 = BlockDominionRules.stepFlightVelocity(hover24, levelLook, 1, 0, 0, true, 24);
+            hover48 = BlockDominionRules.stepFlightVelocity(hover48, levelLook, 1, 0, 0, true, 48);
+        }
+        assertTrue(glide48.length() > glide24.length() + 0.30,
+                "Full 48-block Glide Jet must outpace 24-block wings (" + glide48.length() + " vs " + glide24.length() + ")");
+        assertTrue(hover48.length() > hover24.length() + 0.28,
+                "Full 48-block Hover Mach must outpace 24-block wings (" + hover48.length() + " vs " + hover24.length() + ")");
+        assertTrue(glide48.length() > 2.10, "Peak 48-block Glide max speed exceeds 2.10 blocks/tick");
     }
 
     @Test

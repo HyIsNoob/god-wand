@@ -115,11 +115,12 @@ public final class BlockDominionHud {
                 g.fill(barX, barY, barX + fillW, barY + 1, hot);
             }
 
-            // Live speed / Mach bar while Wing Flight is active
+            // Live speed / Mach bar while Wing Flight is active (normalized to full-48 peak speed so 24 vs 48 depth is visible!)
             if (flying) {
                 int spY = y + 23;
                 g.fill(barX, spY, barX + barW, spY + 3, 0x661C1C24);
-                float spFill = Mth.clamp((float) (speedBlocksPerTick / BlockDominionRules.FLIGHT_BOOST_SPEED), 0f, 1f);
+                double refMax = glideMode ? BlockDominionRules.GLIDE_MAX_SPEED : BlockDominionRules.FLIGHT_BOOST_SPEED;
+                float spFill = Mth.clamp((float) (speedBlocksPerTick / refMax), 0f, 1f);
                 int spW = Math.round(barW * spFill);
                 if (spW > 0) {
                     g.fill(barX, spY, barX + spW, spY + 3, boosting ? hot : accent);
