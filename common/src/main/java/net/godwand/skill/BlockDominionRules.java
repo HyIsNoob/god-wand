@@ -58,6 +58,8 @@ public final class BlockDominionRules {
     public static final int FLAG_LIQUID_STRIDE = 1024;
     public static final int FLAG_PERCH = 2048;
     public static final int FLAG_METEOR_DIVE = 4096;
+    public static final int FLAG_METEOR_TIER2 = 8192;
+    public static final int FLAG_METEOR_TIER3 = 16384;
 
     public static final int EVENT_SYNC = 0;
     public static final int EVENT_PICKUP = 1;
@@ -82,8 +84,8 @@ public final class BlockDominionRules {
     public static final int METEOR_DIVE_TRIGGER_TICKS = 5;
     public static final double METEOR_DIVE_MIN_LOOK_Y = -0.55;
     public static final double METEOR_DIVE_MIN_VY = -0.50;
-    public static final double METEOR_STRIKE_MIN_RADIUS = 5.5;
-    public static final double METEOR_STRIKE_MAX_RADIUS = 8.5;
+    public static final double METEOR_STRIKE_MIN_RADIUS = 6.5;
+    public static final double METEOR_STRIKE_MAX_RADIUS = 18.5;
 
     public static final int SURGE_RADIUS = 8;
     public static final int SURGE_MAX_BLOCKS = 24;
@@ -384,6 +386,31 @@ public final class BlockDominionRules {
         if (vel.y > METEOR_DIVE_MIN_VY) return false;
         if (lookDir.y <= METEOR_DIVE_MIN_LOOK_Y) return true;
         return glideMode && vel.y <= -0.78 && lookDir.y <= -0.42;
+    }
+
+    /**
+     * Normalized 0..1 Meteor Dive charge from sustained plunge ticks, altitude dropped, and orbiting block reserve.
+     * Reaches full charge (~0.82..1.0) after ~1.3–1.6s of steep high-altitude diving with a strong block armada!
+     */
+    public static float meteorDiveCharge(int diveTicks, double dropBlocks, int blockCount) {
+        if (diveTicks < METEOR_DIVE_TRIGGER_TICKS) return 0f;
+        double tickFrac = Mth.clamp((diveTicks - METEOR_DIVE_TRIGGER_TICKS) / 26.0, 0.0, 1.0);
+        double dropFrac = Mth.clamp((dropBlocks - 8.0) / 50.0, 0.0, 1.0);
+        double blockFrac = Mth.clamp((blockCount - MIN_FLIGHT_BLOCKS) / (double) (DEFAULT_CAPACITY - MIN_FLIGHT_BLOCKS), 0.0, 1.0);
+        double raw = (tickFrac * 0.52 + dropFrac * 0.48) * (0.72 + 0.28 * blockFrac);
+        return (float) Mth.clamp(raw, 0.0, 1.0);
+    }
+
+    /**
+     * Discrete Meteor Strike Dive escalation tier:
+     * 0 = inactive, 1 = Meteor I (ignition), 2 = Meteor II (inferno comet), 3 = Tier III CATACLYSM (full-charge apocalypse!).
+     */
+    public static int meteorDiveTier(int diveTicks, double dropBlocks, int blockCount) {
+        if (diveTicks < METEOR_DIVE_TRIGGER_TICKS) return 0;
+        float charge = meteorDiveCharge(diveTicks, dropBlocks, blockCount);
+        if ((charge >= 0.80f && blockCount >= 24) || charge >= 0.92f) return 3;
+        if (charge >= 0.38f && blockCount >= 12) return 2;
+        return 1;
     }
 
     /**

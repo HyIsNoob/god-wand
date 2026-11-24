@@ -233,6 +233,13 @@ class BlockDominionRulesTest {
         assertTrue(hover48.length() > hover24.length() + 0.28,
                 "Full 48-block Hover Mach must outpace 24-block wings (" + hover48.length() + " vs " + hover24.length() + ")");
         assertTrue(glide48.length() > 2.10, "Peak 48-block Glide max speed exceeds 2.10 blocks/tick");
+
+        // Multi-tier Meteor Strike Dive escalation (Tier 0 -> Tier I -> Tier II -> Tier III CATACLYSM!)
+        assertEquals(0, BlockDominionRules.meteorDiveTier(2, 4.0, 48));
+        assertEquals(1, BlockDominionRules.meteorDiveTier(7, 12.0, 48));
+        assertEquals(2, BlockDominionRules.meteorDiveTier(19, 32.0, 48));
+        assertEquals(3, BlockDominionRules.meteorDiveTier(32, 60.0, 48));
+        assertTrue(BlockDominionRules.meteorDiveCharge(32, 60.0, 48) > BlockDominionRules.meteorDiveCharge(32, 60.0, 12));
     }
 
     @Test

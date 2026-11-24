@@ -24,6 +24,14 @@ public final class BlockDominionHud {
                               int count, int capacity, boolean flying, boolean glideMode, boolean boosting,
                               boolean stairAscending, boolean volleyCharging, float volleyProgress,
                               BlockDominionPalette palette, double speedBlocksPerTick) {
+        render(g, mode, formation, count, capacity, flying, glideMode, boosting,
+                stairAscending, volleyCharging, volleyProgress, palette, speedBlocksPerTick, 0);
+    }
+
+    public static void render(GuiGraphics g, BlockDominionRules.Mode mode, BlockDominionBrain.FormationKind formation,
+                              int count, int capacity, boolean flying, boolean glideMode, boolean boosting,
+                              boolean stairAscending, boolean volleyCharging, float volleyProgress,
+                              BlockDominionPalette palette, double speedBlocksPerTick, int meteorTier) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || !GodWandConfig.CLIENT.skillHud
                 || mc.options.hideGui || mc.screen != null) {
@@ -38,6 +46,12 @@ public final class BlockDominionHud {
         int accent = 0xFF000000 | palette.hexAccent;
         int accentSoft = 0x55000000 | palette.hexAccent;
         int hot = 0xFF000000 | ((palette.hotR << 16) | (palette.hotG << 8) | palette.hotB);
+        if (formation == BlockDominionBrain.FormationKind.METEOR_DIVE && meteorTier >= 2) {
+            int flameHex = meteorTier >= 3 ? 0xFF3E18 : 0xFF7A1F;
+            accent = 0xFF000000 | flameHex;
+            accentSoft = 0x77000000 | flameHex;
+            hot = meteorTier >= 3 ? 0xFFFFF2B0 : 0xFFFFC86A;
+        }
 
         // 1. Crosshair clockwise charge ring while charging Volley / Orbital Meteor Barrage
         if (volleyCharging) {
@@ -51,27 +65,12 @@ public final class BlockDominionHud {
             }
         }
 
-        // 2. Compact status badge tucked cleanly beside the right edge of the hotbar (never collides with chat/hearts)
-        Font font = mc.font;
-        int sw = g.guiWidth();
-        int sh = g.guiHeight();
-        int panelW = 86;
-        int panelH = flying ? 32 : 24;
-        int x = Math.min(sw - panelW - 6, sw / 2 + 98);
-        int y = sh - panelH - 4;
-
-        // Translucent dark obsidian card + resonant left accent stripe & 1px frame
-        g.fill(x, y, x + panelW, y + panelH, 0xA8101016);
-        g.fill(x, y, x + 2, y + panelH, accent);
-        g.fill(x, y, x + panelW, y + 1, accentSoft);
-        g.fill(x, y + panelH - 1, x + panelW, y + panelH, accentSoft);
-        g.fill(x + panelW - 1, y, x + panelW, y + panelH, accentSoft);
-
         String tag;
         if (mode == BlockDominionRules.Mode.AUTO) {
             tag = "AUTO";
-        } else if (formation == BlockDominionBrain.FormationKind.METEOR_DIVE
-                || formation == BlockDominionBrain.FormationKind.ORBITAL_METEOR) {
+        } else if (formation == BlockDominionBrain.FormationKind.METEOR_DIVE) {
+            tag = meteorTier >= 3 ? "CATACLYSM" : (meteorTier == 2 ? "METEOR II" : "METEOR I");
+        } else if (formation == BlockDominionBrain.FormationKind.ORBITAL_METEOR) {
             tag = "METEOR";
         } else if (formation == BlockDominionBrain.FormationKind.VOLLEY_FAN) {
             tag = "VOLLEY";
@@ -95,13 +94,29 @@ public final class BlockDominionHud {
             tag = "DOMINION";
         }
 
+        // 2. Compact status badge tucked cleanly beside the right edge of the hotbar (auto-expands for wide tags like CATACLYSM!)
+        Font font = mc.font;
+        String rightLabel = mode == BlockDominionRules.Mode.MANUAL ? (count + "/" + capacity) : "FIELD";
+        int sw = g.guiWidth();
+        int sh = g.guiHeight();
+        int panelW = Math.max(86, font.width(tag) + font.width(rightLabel) + 18);
+        int panelH = flying ? 32 : 24;
+        int x = Math.min(sw - panelW - 6, sw / 2 + 98);
+        int y = sh - panelH - 4;
+
+        // Translucent dark obsidian card + resonant left accent stripe & 1px frame
+        g.fill(x, y, x + panelW, y + panelH, 0xA8101016);
+        g.fill(x, y, x + 2, y + panelH, accent);
+        g.fill(x, y, x + panelW, y + 1, accentSoft);
+        g.fill(x, y + panelH - 1, x + panelW, y + panelH, accentSoft);
+        g.fill(x + panelW - 1, y, x + panelW, y + panelH, accentSoft);
+
         int tagColor = (boosting || formation.isVolley() || formation.isMeteorDive()) ? hot : accent;
         g.drawString(font, tag, x + 6, y + 4, tagColor, false);
 
         if (mode == BlockDominionRules.Mode.MANUAL) {
-            String num = count + "/" + capacity;
-            int numW = font.width(num);
-            g.drawString(font, num, x + panelW - numW - 4, y + 4, 0xFFEFECE6, false);
+            int numW = font.width(rightLabel);
+            g.drawString(font, rightLabel, x + panelW - numW - 4, y + 4, 0xFFEFECE6, false);
 
             // Reserve fill bar
             int barX = x + 6;
