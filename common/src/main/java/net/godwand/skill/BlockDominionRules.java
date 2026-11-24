@@ -104,15 +104,15 @@ public final class BlockDominionRules {
 
     public static final int MIN_FLIGHT_BLOCKS = 6;
     public static final int MIN_STAIR_BLOCKS = 4;
-    public static final double FLIGHT_CRUISE_SPEED = 0.86;
-    public static final double FLIGHT_BOOST_SPEED = 1.98;
-    public static final double FLIGHT_ACCEL = 0.125;
-    public static final double FLIGHT_BOOST_ACCEL = 0.215;
+    public static final double FLIGHT_CRUISE_SPEED = 0.94;
+    public static final double FLIGHT_BOOST_SPEED = 2.35;
+    public static final double FLIGHT_ACCEL = 0.135;
+    public static final double FLIGHT_BOOST_ACCEL = 0.255;
     public static final double FLIGHT_DRAG = 0.82;
-    public static final double GLIDE_MIN_SPEED = 0.46;
-    public static final double GLIDE_MAX_SPEED = 2.18;
-    public static final double GLIDE_DIVE_MAX_SPEED = 2.38;
-    public static final double GLIDE_BOOST_ACCEL = 0.19;
+    public static final double GLIDE_MIN_SPEED = 0.48;
+    public static final double GLIDE_MAX_SPEED = 2.58;
+    public static final double GLIDE_DIVE_MAX_SPEED = 2.85;
+    public static final double GLIDE_BOOST_ACCEL = 0.23;
     public static final double STAIR_DESCEND_VY = -0.085;
     public static final double STAIR_ASCEND_VY = 0.165;
     public static final double STAIR_HOP_VY = 0.44;
