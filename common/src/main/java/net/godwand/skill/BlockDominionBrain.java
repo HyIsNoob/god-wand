@@ -725,6 +725,23 @@ public final class BlockDominionBrain {
     }
 
     /**
+     * Computes dramatic converging 3D impaling spear directions for Monolith Cage execution:
+     * downward-angled diagonal lances that pierce straight through the caged victim and pin cleanly into the ground!
+     */
+    public static Vec3[] cageSpearDirections(int spearCount, double yawOffsetRad) {
+        int n = Math.max(1, spearCount);
+        Vec3[] dirs = new Vec3[n];
+        for (int i = 0; i < n; i++) {
+            double ang = yawOffsetRad + (Math.PI * 2.0 * i / n) + ((i & 1) == 0 ? 0.14 : -0.14);
+            // Downward diagonal pitch (~36..48 deg) so every lance skewers the torso and pins firmly into the earth!
+            double downY = -0.58 - (i % 3) * 0.09;
+            double horiz = Math.sqrt(Math.max(0.05, 1.0 - downY * downY));
+            dirs[i] = new Vec3(Math.cos(ang) * horiz, downY, Math.sin(ang) * horiz).normalize();
+        }
+        return dirs;
+    }
+
+    /**
      * Hex-packed curved shield plate perpendicular to {@code threatDir}.
      * Center block guards dead-center, subsequent rings pack around it in a tight concave buckler/wall.
      */

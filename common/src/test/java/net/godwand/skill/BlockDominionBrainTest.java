@@ -223,5 +223,13 @@ class BlockDominionBrainTest {
             assertEquals(1.0, mp.axisY().length(), 0.01);
             assertEquals(1.0, mp.axisZ().length(), 0.01);
         }
+
+        // Monolith Cage Impaling Stone Lances: 4 normalized downward-converging vectors to skewer & pin into ground
+        Vec3[] spears = BlockDominionBrain.cageSpearDirections(4, 0.4);
+        assertEquals(4, spears.length);
+        for (Vec3 sp : spears) {
+            assertEquals(1.0, sp.length(), 1e-4);
+            assertTrue(sp.y < -0.45, "Spears angle cleanly downward into the earth (y=" + sp.y + ")");
+        }
     }
 }

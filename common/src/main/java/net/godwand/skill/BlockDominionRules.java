@@ -76,7 +76,8 @@ public final class BlockDominionRules {
     public static final int EVENT_CAGE_START = 14;
     public static final int EVENT_CAGE_END = 15;
     public static final int EVENT_METEOR_STRIKE = 16;
-    public static final int MAX_EVENT = EVENT_METEOR_STRIKE;
+    public static final int EVENT_CAGE_IMPALE = 17;
+    public static final int MAX_EVENT = EVENT_CAGE_IMPALE;
 
     public static final int METEOR_DIVE_TRIGGER_TICKS = 5;
     public static final double METEOR_DIVE_MIN_LOOK_Y = -0.55;
@@ -88,8 +89,11 @@ public final class BlockDominionRules {
     public static final int SURGE_MAX_BLOCKS = 24;
     public static final int SURGE_COOLDOWN_TICKS = 30;
     public static final int CAGE_MIN_BLOCKS = 10;
-    public static final int CAGE_BLOCK_COUNT = 12;
-    public static final int CAGE_DURATION_TICKS = 60;
+    public static final int CAGE_BLOCK_COUNT = 16;
+    public static final int CAGE_SPEAR_FORM_TICK = 16;
+    public static final int CAGE_IMPALE_TICK = 38;
+    public static final int CAGE_DURATION_TICKS = 66;
+    public static final int CAGE_MONUMENT_TICKS = 96;
     public static final int CAGE_COOLDOWN_TICKS = 50;
     public static final double CAGE_RANGE = 22.0;
     public static final int PERCH_IDLE_TICKS = 34;

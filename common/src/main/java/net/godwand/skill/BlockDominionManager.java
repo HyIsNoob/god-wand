@@ -108,13 +108,18 @@ public final class BlockDominionManager {
         final int targetId;
         final List<BlockState> blocks;
         final Vec3 anchor;
-        final long endTick;
+        final long startTick;
+        long endTick;
         final ResourceKey<Level> dimension;
+        boolean impaled;
+        long impaleTick = -1;
+        boolean victimKilled;
 
-        ActiveCage(int targetId, List<BlockState> blocks, Vec3 anchor, long endTick, ResourceKey<Level> dimension) {
+        ActiveCage(int targetId, List<BlockState> blocks, Vec3 anchor, long startTick, long endTick, ResourceKey<Level> dimension) {
             this.targetId = targetId;
             this.blocks = blocks;
             this.anchor = anchor;
+            this.startTick = startTick;
             this.endTick = endTick;
             this.dimension = dimension;
         }
@@ -442,8 +447,11 @@ public final class BlockDominionManager {
     }
 
     /**
-     * Monolith Cage ("Lồng Đá Phong Ấn"): detaches up to 12 reserve blocks to slam around a targeted enemy
-     * and suspend them midair inside a rotating hexagonal stone prison for 3 seconds (perfect combo setup!).
+     * Monolith Cage ("Lồng Đá Phong Ấn + Mũi Giáo Xuyên Tâm"):
+     * Phase 1: Slams up to 16 reserve blocks into an architectural hexagonal stone prison lifting the target midair.
+     * Phase 2: Forges 4 converging sculpted stone lances aimed straight through the victim's core.
+     * Phase 3: Impales straight through the victim (auto at tick 38, or IMMEDIATELY on demand if Left-Clicked again!).
+     * If the victim is slain by the impale, crossed stone lances remain skewered into the ground at the death site!
      */
     public static boolean triggerMonolithCage(ServerPlayer player, int targetEntityId) {
         if (player == null || !player.isAlive() || player.isSpectator()) return false;
@@ -451,6 +459,18 @@ public final class BlockDominionManager {
         if (st == null || st.mode != BlockDominionRules.Mode.MANUAL || st.stowed || st.hiddenInCutscene) return false;
         ServerLevel world = player.serverLevel();
         long now = world.getGameTime();
+
+        // Re-clicking an already-caged target triggers immediate manual Stone Lance Impale execution!
+        if (st.activeCage != null && st.activeCage.targetId == targetEntityId
+                && !st.activeCage.impaled && now - st.activeCage.startTick >= 8
+                && world.dimension().equals(st.activeCage.dimension)) {
+            Entity existing = world.getEntity(targetEntityId);
+            if (existing instanceof LivingEntity cagedTarget && cagedTarget.isAlive()) {
+                executeCageImpale(world, player, st, cagedTarget, now);
+                return true;
+            }
+        }
+
         if (now - st.lastCageTick < BlockDominionRules.CAGE_COOLDOWN_TICKS) return false;
         if (st.reserve.size() < BlockDominionRules.CAGE_MIN_BLOCKS) {
             player.displayClientMessage(Component.translatable("message.godwand.dominion_cage_need",
@@ -476,13 +496,13 @@ public final class BlockDominionManager {
         for (int i = 0; i < take; i++) {
             cageBlocks.add(st.reserve.remove(st.reserve.size() - 1));
         }
-        Vec3 anchor = target.position().add(0, 1.35, 0);
+        Vec3 anchor = target.position().add(0, 1.45, 0);
         st.activeCage = new ActiveCage(target.getId(), cageBlocks, anchor,
-                now + BlockDominionRules.CAGE_DURATION_TICKS, world.dimension());
+                now, now + BlockDominionRules.CAGE_DURATION_TICKS, world.dimension());
         st.lastCageTick = now;
 
         target.setNoGravity(true);
-        target.setDeltaMovement(0, 0.28, 0);
+        target.setDeltaMovement(0, 0.30, 0);
         target.hurtMarked = true;
 
         world.playSound(null, anchor.x, anchor.y, anchor.z,
@@ -490,10 +510,71 @@ public final class BlockDominionManager {
         world.playSound(null, anchor.x, anchor.y, anchor.z,
                 SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.55f, 0.85f);
         world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, cageBlocks.get(0)),
-                anchor.x, anchor.y, anchor.z, 20, 0.65, 0.85, 0.65, 0.14);
+                anchor.x, anchor.y, anchor.z, 22, 0.65, 0.85, 0.65, 0.14);
         player.displayClientMessage(Component.translatable("message.godwand.dominion_cage", take), true);
         sync(player, st, BlockDominionRules.EVENT_CAGE_START, anchor.x, anchor.y, anchor.z, target.getId());
         return true;
+    }
+
+    /** Executes Phase 3 of Monolith Cage: drives 4 sculpted stone lances violently through the sealed target. */
+    private static void executeCageImpale(ServerLevel world, ServerPlayer player, PlayerState st,
+                                          LivingEntity target, long now) {
+        ActiveCage cage = st.activeCage;
+        if (cage == null || cage.impaled) return;
+        cage.impaled = true;
+        cage.impaleTick = now;
+
+        Vec3 hitPos = target.position().add(0, target.getBbHeight() * 0.52, 0);
+        var cfg = GodWandConfig.SERVER;
+        float blockScale = Mth.clamp(cage.blocks.size() / (float) BlockDominionRules.CAGE_BLOCK_COUNT, 0.65f, 1.0f);
+        float dmg = cfg.blockDominionDamage * 2.35f * cfg.damageMultiplier * blockScale * (target instanceof Mob ? 1.5f : 1.0f);
+
+        UUID previousSelf = SELF_DAMAGE_CASTER.get();
+        SELF_DAMAGE_CASTER.set(player.getUUID());
+        try {
+            if (SpellDamage.affects(target, player)) {
+                SpellDamage.hurt(target, world.damageSources().fallingBlock(player), dmg);
+            }
+        } finally {
+            if (previousSelf == null) SELF_DAMAGE_CASTER.remove();
+            else SELF_DAMAGE_CASTER.set(previousSelf);
+        }
+
+        boolean killed = !target.isAlive() || target.isDeadOrDying();
+        cage.victimKilled = killed;
+        if (killed) {
+            // Let the slain target collapse onto the crossed impaling lances while the monument lingers on clients!
+            target.setNoGravity(false);
+            target.setDeltaMovement(0, -0.35, 0);
+            target.hurtMarked = true;
+            cage.endTick = Math.min(cage.endTick, now + 12);
+        } else {
+            target.setDeltaMovement(Vec3.ZERO);
+            target.hurtMarked = true;
+            cage.endTick = Math.min(cage.endTick, now + 22);
+        }
+
+        BlockState spearMat = cage.blocks.isEmpty() ? Blocks.DEEPSLATE.defaultBlockState() : cage.blocks.get(0);
+        world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, spearMat),
+                hitPos.x, hitPos.y, hitPos.z, 34, 0.75, 0.75, 0.75, 0.28);
+        world.sendParticles(ParticleTypes.CRIT, hitPos.x, hitPos.y, hitPos.z, 24, 0.55, 0.55, 0.55, 0.25);
+        world.sendParticles(ParticleTypes.SWEEP_ATTACK, hitPos.x, hitPos.y, hitPos.z, 3, 0.45, 0.45, 0.45, 0.0);
+
+        world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
+                SoundEvents.TRIDENT_HIT, SoundSource.PLAYERS, 1.25f, 0.78f);
+        world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
+                SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.72f, 0.70f);
+        world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
+                SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.05f, 0.68f);
+        world.playSound(null, hitPos.x, hitPos.y, hitPos.z,
+                IMPACT_SFX, SoundSource.PLAYERS, 1.05f, 0.92f);
+
+        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE, hitPos.x, hitPos.y, hitPos.z, 0.30f, 9));
+        player.displayClientMessage(Component.translatable("message.godwand.dominion_cage_impale"), true);
+
+        int packed = (target.getId() << 1) | (killed ? 1 : 0);
+        sync(player, st, BlockDominionRules.EVENT_CAGE_IMPALE, hitPos.x, hitPos.y, hitPos.z, packed);
     }
 
     private static void releaseCage(ServerPlayer player, PlayerState st, boolean broadcast) {
@@ -1386,19 +1467,31 @@ public final class BlockDominionManager {
             }
         }
 
-        // Tick active Monolith Cage: suspend target midair & return blocks cleanly when finished
+        // Tick active Monolith Cage: Phase 1 seal -> Phase 2 spear forging -> Phase 3 impale execution!
         if (st.activeCage != null) {
             ActiveCage cage = st.activeCage;
             Entity raw = world.dimension().equals(cage.dimension) ? world.getEntity(cage.targetId) : null;
-            if (!(raw instanceof LivingEntity target) || !target.isAlive() || now >= cage.endTick) {
+            if (!(raw instanceof LivingEntity target) || now >= cage.endTick
+                    || (!target.isAlive() && !cage.impaled)) {
                 releaseCage(player, st, true);
                 mobilityChanged = true;
             } else {
-                Vec3 pull = cage.anchor.subtract(target.position()).scale(0.32);
-                target.setNoGravity(true);
-                target.setDeltaMovement(pull);
-                target.fallDistance = 0.0f;
-                target.hurtMarked = true;
+                long cageAge = now - cage.startTick;
+                if (!cage.impaled && cageAge == BlockDominionRules.CAGE_SPEAR_FORM_TICK) {
+                    world.playSound(null, cage.anchor.x, cage.anchor.y, cage.anchor.z,
+                            SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.85f, 0.68f);
+                    world.playSound(null, cage.anchor.x, cage.anchor.y, cage.anchor.z,
+                            SoundEvents.DEEPSLATE_PLACE, SoundSource.PLAYERS, 0.90f, 1.15f);
+                }
+                if (!cage.impaled && cageAge >= BlockDominionRules.CAGE_IMPALE_TICK) {
+                    executeCageImpale(world, player, st, target, now);
+                } else if (target.isAlive()) {
+                    Vec3 pull = cage.anchor.subtract(target.position()).scale(0.32);
+                    target.setNoGravity(true);
+                    target.setDeltaMovement(pull);
+                    target.fallDistance = 0.0f;
+                    target.hurtMarked = true;
+                }
             }
         }
 

@@ -81,6 +81,7 @@
   "message.godwand.dominion_surge": "Earthen Surge! +%s blocks (%s/%s)",
   "message.godwand.dominion_orbital": "Orbital Meteor Barrage! (%s blocks)",
   "message.godwand.dominion_cage": "Monolith Cage! Sealed target (%s blocks)",
+  "message.godwand.dominion_cage_impale": "Monolith Execution! Stone Lances impaled target",
   "message.godwand.dominion_cage_need": "Need at least %s blocks in orbit for Monolith Cage",
   "message.godwand.dominion_meteor_strike": "Meteor Strike! Impacted %s targets",
   "advancements.godwand.root.title": "God Wand",

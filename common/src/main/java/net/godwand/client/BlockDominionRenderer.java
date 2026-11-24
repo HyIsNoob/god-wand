@@ -201,11 +201,41 @@ public final class BlockDominionRenderer {
         }
     }
 
-    private record ClientCage(int casterId, int targetId, Vec3 anchor, List<BlockState> blocks,
-                              long startTick, BlockDominionPalette palette) {}
+    private static final class ClientCage {
+        final int casterId;
+        final int targetId;
+        final Vec3 anchor;
+        final List<BlockState> blocks;
+        final long startTick;
+        final BlockDominionPalette palette;
+        final double yawOffset;
+        boolean impaled;
+        long impaleTick = -1;
+        boolean victimKilled;
+
+        ClientCage(int casterId, int targetId, Vec3 anchor, List<BlockState> blocks,
+                   long startTick, BlockDominionPalette palette, double yawOffset) {
+            this.casterId = casterId;
+            this.targetId = targetId;
+            this.anchor = anchor;
+            this.blocks = blocks;
+            this.startTick = startTick;
+            this.palette = palette;
+            this.yawOffset = yawOffset;
+        }
+    }
+
+    /** Lingering crossed Stone Lance monument pinned through a slain victim's death spot into the ground (~4.8s). */
+    private record ImpaledMonument(Vec3 pinPos, List<BlockState> blocks, Vec3[] spearDirs,
+                                   long startTick, BlockDominionPalette palette) {}
+
+    /** Crisp 7-tick Railgun muzzle flash & electromagnetic tracer beam on rapid-fire shot. */
+    private record MuzzleTracer(Vec3 origin, Vec3 dir, long startTick, BlockDominionPalette palette) {}
 
     private static final Map<Integer, ClientFormation> FORMATIONS = new HashMap<>();
     private static final Map<Integer, ClientCage> ACTIVE_CAGES = new HashMap<>();
+    private static final List<ImpaledMonument> IMPALED_MONUMENTS = new ArrayList<>();
+    private static final List<MuzzleTracer> MUZZLE_TRACERS = new ArrayList<>();
     private static final List<ParryBurst> PARRIES = new ArrayList<>();
     private static final List<WaveBurst> WAVES = new ArrayList<>();
     private static final List<StepFlash> STEP_FLASHES = new ArrayList<>();
@@ -227,6 +257,8 @@ public final class BlockDominionRenderer {
     public static void reset() {
         FORMATIONS.clear();
         ACTIVE_CAGES.clear();
+        IMPALED_MONUMENTS.clear();
+        MUZZLE_TRACERS.clear();
         PARRIES.clear();
         WAVES.clear();
         STEP_FLASHES.clear();
@@ -259,6 +291,11 @@ public final class BlockDominionRenderer {
     public static int localReserveCount() {
         ClientFormation f = localFormation();
         return f == null ? 0 : f.blocks.size();
+    }
+
+    public static boolean hasLocalActiveCage() {
+        Minecraft mc = Minecraft.getInstance();
+        return mc != null && mc.player != null && ACTIVE_CAGES.containsKey(mc.player.getId());
     }
 
     public static boolean isLocalWingFlying() {
@@ -450,14 +487,28 @@ public final class BlockDominionRenderer {
             }
             case BlockDominionRules.EVENT_SURGE -> {
                 Vec3 base = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
-                addWave(payload.playerId(), new Vec3(0, 1, 0), 7.6, 16, now, pal);
-                DominionParticles.spawnRingBurst(base.add(0, 0.35, 0), new Vec3(0, 1, 0), 3.4, 38, 0.28,
+                addWave(payload.playerId(), new Vec3(0, 1, 0), 7.8, 16, now, pal);
+                DominionParticles.spawnRingBurst(base.add(0, 0.35, 0), new Vec3(0, 1, 0), 3.6, 42, 0.30,
                         pal.primaryR, pal.primaryG, pal.primaryB, DominionParticles.STYLE_SHARD);
+                for (int s = 0; s < 10; s++) {
+                    double a = (Math.PI * 2.0 * s) / 10.0;
+                    Vec3 p = base.add(Math.cos(a) * 2.6, 0.25, Math.sin(a) * 2.6);
+                    DominionParticles.spawnSmoke(p, new Vec3(Math.cos(a) * 0.08, 0.09, Math.sin(a) * 0.08),
+                            0.72f, 18, pal.midR, pal.midG, pal.midB, 110);
+                }
                 if (isLocal) {
                     DominionPostFx.triggerShockwave(0.88f, 14, pal);
                 }
                 BlockDominionSounds.play(base, BlockDominionSounds.UNFOLD, 0.95f, 0.78f);
                 BlockDominionSounds.play(base, BlockDominionSounds.PICKUP, 0.85f, 0.85f);
+            }
+            case BlockDominionRules.EVENT_FIRE -> {
+                Vec3 muzzle = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
+                Vec3 aim = owner != null ? owner.getViewVector(1.0f).normalize() : new Vec3(0, 0, 1);
+                if (MUZZLE_TRACERS.size() >= 16) MUZZLE_TRACERS.remove(0);
+                MUZZLE_TRACERS.add(new MuzzleTracer(muzzle, aim, now, pal));
+                DominionParticles.spawnRingBurst(muzzle, aim, 0.55, 10, 0.22,
+                        pal.hotR, pal.hotG, pal.hotB, DominionParticles.STYLE_EMBER);
             }
             case BlockDominionRules.EVENT_UNFOLD -> {
                 f.unfoldStartTick = now;
@@ -543,18 +594,58 @@ public final class BlockDominionRenderer {
                             : f.blocks.get(i % f.blocks.size()).state;
                     cageBlocks.add(bs);
                 }
-                ACTIVE_CAGES.put(payload.playerId(), new ClientCage(payload.playerId(), targetId, anchor, cageBlocks, now, pal));
-                DominionParticles.spawnRingBurst(anchor, new Vec3(0, 1, 0), 1.45, 26, 0.24,
+                double yawOff = owner != null ? Math.toRadians(owner.getYRot()) : 0.35;
+                ACTIVE_CAGES.put(payload.playerId(),
+                        new ClientCage(payload.playerId(), targetId, anchor, cageBlocks, now, pal, yawOff));
+                DominionParticles.spawnRingBurst(anchor, new Vec3(0, 1, 0), 1.65, 28, 0.26,
                         pal.primaryR, pal.primaryG, pal.primaryB, DominionParticles.STYLE_SHARD);
                 if (isLocal) {
                     DominionPostFx.triggerShockwave(0.42f, 9, pal);
                 }
                 BlockDominionSounds.play(anchor, BlockDominionSounds.SHIELD_LOCK, 0.92f, 0.82f);
             }
+            case BlockDominionRules.EVENT_CAGE_IMPALE -> {
+                Vec3 hitPos = new Vec3(payload.eventX(), payload.eventY(), payload.eventZ());
+                int packed = payload.eventBlockId();
+                boolean killed = (packed & 1) != 0;
+                ClientCage cage = ACTIVE_CAGES.get(payload.playerId());
+                Vec3[] dirs = BlockDominionBrain.cageSpearDirections(4, cage != null ? cage.yawOffset : 0.35);
+                if (cage != null) {
+                    cage.impaled = true;
+                    cage.impaleTick = now;
+                    cage.victimKilled = killed;
+                }
+                for (Vec3 d : dirs) {
+                    DominionParticles.spawnRingBurst(hitPos.add(d.scale(0.95)), d, 0.85, 10, 0.32,
+                            pal.hotR, pal.hotG, pal.hotB, DominionParticles.STYLE_SHARD);
+                    DominionParticles.spawn(hitPos.add(d.scale(0.5)), d.scale(0.38), 0.24f, 14, 0.90, 0.0,
+                            pal.primaryR, pal.primaryG, pal.primaryB, DominionParticles.STYLE_EMBER);
+                }
+                if (killed) {
+                    // Plant an Impaled Stone Lance Monument pinned straight through the fallen corpse into the ground!
+                    int gx = Mth.floor(hitPos.x), gz = Mth.floor(hitPos.z);
+                    double pinY = hitPos.y - 0.85;
+                    if (world != null && world.getChunkSource().hasChunk(gx >> 4, gz >> 4)) {
+                        int groundY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, gx, gz);
+                        if (Math.abs(groundY - hitPos.y) <= 6.0) {
+                            pinY = groundY + 0.42;
+                        }
+                    }
+                    List<BlockState> mats = cage != null ? cage.blocks : List.of(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
+                    if (IMPALED_MONUMENTS.size() >= 10) IMPALED_MONUMENTS.remove(0);
+                    IMPALED_MONUMENTS.add(new ImpaledMonument(new Vec3(hitPos.x, pinY, hitPos.z), mats, dirs, now, pal));
+                }
+                if (isLocal) {
+                    DominionPostFx.triggerShockwave(0.76f, 13, pal);
+                    triggerImpactFrame(2, 0.92f, (int) (now & 63), pal);
+                }
+                BlockDominionSounds.play(hitPos, BlockDominionSounds.IMPACT, 1.15f, 0.90f);
+                BlockDominionSounds.play(hitPos, BlockDominionSounds.VOLLEY_RELEASE, 0.88f, 1.08f);
+            }
             case BlockDominionRules.EVENT_CAGE_END -> {
                 ClientCage old = ACTIVE_CAGES.remove(payload.playerId());
                 if (old != null) {
-                    DominionParticles.spawnRingBurst(old.anchor, new Vec3(0, 1, 0), 1.2, 16, 0.18,
+                    DominionParticles.spawnRingBurst(old.anchor, new Vec3(0, 1, 0), 1.35, 18, 0.20,
                             old.palette.primaryR, old.palette.primaryG, old.palette.primaryB, DominionParticles.STYLE_SHARD);
                 }
             }
@@ -774,7 +865,22 @@ public final class BlockDominionRenderer {
         PARRIES.removeIf(p -> now - p.startTick > 14);
         WAVES.removeIf(w -> now - w.startTick > w.duration);
         STEP_FLASHES.removeIf(s -> now - s.startTick > 16);
-        ACTIVE_CAGES.entrySet().removeIf(e -> now - e.getValue().startTick > BlockDominionRules.CAGE_DURATION_TICKS + 4);
+        MUZZLE_TRACERS.removeIf(m -> now - m.startTick > 7);
+        ACTIVE_CAGES.entrySet().removeIf(e -> now - e.getValue().startTick > BlockDominionRules.CAGE_DURATION_TICKS + 6);
+        IMPALED_MONUMENTS.removeIf(m -> now - m.startTick > BlockDominionRules.CAGE_MONUMENT_TICKS);
+        if (now % 3 == 0 && !IMPALED_MONUMENTS.isEmpty()) {
+            for (ImpaledMonument mon : IMPALED_MONUMENTS) {
+                DominionParticles.spawnSmoke(
+                        mon.pinPos.add((Math.random() - 0.5) * 0.85, 0.25 + Math.random() * 0.4, (Math.random() - 0.5) * 0.85),
+                        new Vec3(0, 0.045, 0), 0.52f, 22,
+                        mon.palette.darkR, mon.palette.darkG, mon.palette.darkB, 115);
+                DominionParticles.spawn(
+                        mon.pinPos.add((Math.random() - 0.5) * 0.9, 0.15, (Math.random() - 0.5) * 0.9),
+                        new Vec3((Math.random() - 0.5) * 0.03, 0.065, (Math.random() - 0.5) * 0.03),
+                        0.16f, 18, 0.92, 0.0,
+                        mon.palette.primaryR, mon.palette.primaryG, mon.palette.primaryB, DominionParticles.STYLE_EMBER);
+            }
+        }
 
         for (var entry : FORMATIONS.entrySet()) {
             Entity owner = world.getEntity(entry.getKey());
@@ -1186,7 +1292,8 @@ public final class BlockDominionRenderer {
             reset();
             world = client.level;
         }
-        if (FORMATIONS.isEmpty() && PARRIES.isEmpty() && WAVES.isEmpty() && STEP_FLASHES.isEmpty()) return;
+        if (FORMATIONS.isEmpty() && ACTIVE_CAGES.isEmpty() && IMPALED_MONUMENTS.isEmpty()
+                && MUZZLE_TRACERS.isEmpty() && PARRIES.isEmpty() && WAVES.isEmpty() && STEP_FLASHES.isEmpty()) return;
 
         Vec3 camPos = camera.getPosition();
         double time = world.getGameTime() + tickDelta;
@@ -1259,7 +1366,7 @@ public final class BlockDominionRenderer {
             matrices.popPose();
         }
 
-        // 2b. Render active Monolith Cages (12 sculpted stone prison monoliths rotating around sealed targets!)
+        // 2b. Render active Monolith Cages: Architectural Hexagonal Stone Prison + 4 Converging Impaling Stone Lances!
         for (ClientCage cage : ACTIVE_CAGES.values()) {
             Entity target = world.getEntity(cage.targetId);
             Vec3 center = target != null && target.isAlive()
@@ -1269,21 +1376,92 @@ public final class BlockDominionRenderer {
             double age = Math.max(0.0, time - cage.startTick);
             double snap = Math.min(1.0, age / 5.0);
             double ease = 1.0 - (1.0 - snap) * (1.0 - snap) * (1.0 - snap);
-            double rBase = Mth.lerp(ease, 3.6, 1.38);
-            int n = cage.blocks.size();
+            double rBar = Mth.lerp(ease, 3.6, 1.24);
+            int n = Math.max(1, cage.blocks.size());
             int light = sampleLight(center, target != null ? target : client.player);
-            for (int i = 0; i < n; i++) {
-                boolean upper = i >= 6;
-                double ang = (Math.PI / 3.0) * (i % 6) + time * (upper ? -0.045 : 0.055) + (upper ? Math.PI / 6.0 : 0.0);
-                double yOff = upper ? 0.72 : -0.45;
-                Vec3 p = center.add(Math.cos(ang) * rBase, yOff, Math.sin(ang) * rBase);
+
+            // 6 tall slender vertical stone prison bars forming an unmistakable hexagonal jail around the victim
+            double barSpin = time * 0.026 + cage.yawOffset;
+            for (int i = 0; i < 6; i++) {
+                double ang = barSpin + (Math.PI / 3.0) * i;
+                Vec3 p = center.add(Math.cos(ang) * rBar, 0.0, Math.sin(ang) * rBar);
                 matrices.pushPose();
                 matrices.translate(p.x - camPos.x, p.y - camPos.y, p.z - camPos.z);
                 matrices.mulPose(Axis.YP.rotationDegrees((float) (-Math.toDegrees(ang) + 90.0)));
-                matrices.scale(0.36f, 0.92f, 0.24f);
+                matrices.scale(0.24f, 2.08f, 0.22f);
                 matrices.translate(-0.5, -0.5, -0.5);
-                blockRenderer.renderSingleBlock(cage.blocks.get(i), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
+                blockRenderer.renderSingleBlock(cage.blocks.get(i % n), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
                 matrices.popPose();
+            }
+
+            // Top & bottom hexagonal prison cap plates / shackles locking head & feet inside the cage
+            for (int cap = 0; cap < 2; cap++) {
+                double capY = cap == 0 ? 1.12 : -1.04;
+                double slideY = cap == 0 ? Mth.lerp(ease, 2.8, capY) : Mth.lerp(ease, -2.5, capY);
+                for (int k = 0; k < 2; k++) {
+                    matrices.pushPose();
+                    matrices.translate(center.x - camPos.x, center.y + slideY - camPos.y, center.z - camPos.z);
+                    matrices.mulPose(Axis.YP.rotationDegrees((float) (Math.toDegrees(barSpin) * (cap == 0 ? 1 : -1) + k * 45.0)));
+                    matrices.scale(1.62f, 0.18f, 1.62f);
+                    matrices.translate(-0.5, -0.5, -0.5);
+                    blockRenderer.renderSingleBlock(cage.blocks.get((6 + cap * 2 + k) % n), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
+                    matrices.popPose();
+                }
+            }
+
+            // Phase 2 & 3: 4 Sculpted Multi-Part Stone Lances forging outside the cage and IMPALING straight through!
+            if (age >= BlockDominionRules.CAGE_SPEAR_FORM_TICK || cage.impaled) {
+                Vec3[] dirs = BlockDominionBrain.cageSpearDirections(4, cage.yawOffset);
+                double formFrac = cage.impaled ? 1.0
+                        : Mth.clamp((age - BlockDominionRules.CAGE_SPEAR_FORM_TICK) / 10.0, 0.0, 1.0);
+                double formEase = 1.0 - (1.0 - formFrac) * (1.0 - formFrac);
+                double thrustDist;
+                if (cage.impaled && cage.impaleTick >= 0) {
+                    double impAge = Math.max(0.0, time - cage.impaleTick);
+                    double slam = Mth.clamp(impAge / 3.0, 0.0, 1.0);
+                    double slamEase = 1.0 - (1.0 - slam) * (1.0 - slam) * (1.0 - slam);
+                    // Thrusts VIOLENTLY from 3.45m outside straight through the core (-0.28m exit protrusion!)
+                    thrustDist = Mth.lerp(slamEase, 3.45, -0.28);
+                } else {
+                    double chargeFrac = Mth.clamp((age - BlockDominionRules.CAGE_SPEAR_FORM_TICK)
+                            / (double) Math.max(1, BlockDominionRules.CAGE_IMPALE_TICK - BlockDominionRules.CAGE_SPEAR_FORM_TICK), 0.0, 1.0);
+                    double pullBack = chargeFrac > 0.72 ? (chargeFrac - 0.72) * 1.4 : 0.0;
+                    thrustDist = Mth.lerp(formEase, 5.2, 3.45) + pullBack;
+                }
+                for (int s = 0; s < dirs.length; s++) {
+                    Vec3 dir = dirs[s];
+                    double jitter = (!cage.impaled && age > BlockDominionRules.CAGE_SPEAR_FORM_TICK + 8)
+                            ? Math.sin(time * 2.1 + s * 1.7) * 0.04 : 0.0;
+                    // dir points INWARD toward center, so lance sits at center - dir * thrustDist pointing along +dir!
+                    Vec3 lanceAnchor = center.subtract(dir.scale(thrustDist + jitter));
+                    BlockState tipMat = cage.blocks.get((10 + s) % n);
+                    BlockState shaftMat = cage.blocks.get((12 + s) % n);
+                    renderStoneLance(matrices, bufferSource, blockRenderer, lanceAnchor, dir, camPos,
+                            (float) formEase, tipMat, shaftMat, light);
+                }
+            }
+        }
+
+        // 2c. Render Impaled Corpse Monuments: 4 crossed sculpted stone lances skewered into the earth at the slain spot!
+        for (ImpaledMonument mon : IMPALED_MONUMENTS) {
+            if (mon.pinPos.distanceToSqr(camPos) > 96.0 * 96.0) continue;
+            double age = Math.max(0.0, time - mon.startTick);
+            if (age < 0 || age > BlockDominionRules.CAGE_MONUMENT_TICKS) continue;
+            double fade = age > BlockDominionRules.CAGE_MONUMENT_TICKS - 14
+                    ? Mth.clamp((BlockDominionRules.CAGE_MONUMENT_TICKS - age) / 14.0, 0.0, 1.0)
+                    : 1.0;
+            double settle = Math.min(1.0, age / 4.0);
+            double sink = (1.0 - fade) * 0.65;
+            int n = Math.max(1, mon.blocks.size());
+            int light = sampleLight(mon.pinPos, client.player);
+            for (int s = 0; s < mon.spearDirs.length; s++) {
+                Vec3 dir = mon.spearDirs[s];
+                double shudder = age < 6.0 ? Math.sin(age * 2.8 + s) * (1.0 - age / 6.0) * 0.04 : 0.0;
+                Vec3 anchor = mon.pinPos.add(0, -sink, 0).subtract(dir.scale(Mth.lerp(settle, 1.35, -0.32) + shudder));
+                BlockState tipMat = mon.blocks.get((s * 2) % n);
+                BlockState shaftMat = mon.blocks.get((s * 2 + 1) % n);
+                renderStoneLance(matrices, bufferSource, blockRenderer, anchor, dir, camPos,
+                        (float) (0.96 * fade), tipMat, shaftMat, light);
             }
         }
 
@@ -1340,7 +1518,9 @@ public final class BlockDominionRenderer {
                 emitted++;
                 long sd = 3100L + i * 73L + k * 29L;
                 double ang = DominionShader.hash(sd) * Math.PI * 2.0 + time * (0.07 + 0.05 * DominionShader.hash(sd + 1)) * (k == 0 ? 1 : -1);
-                double rad = f.formation.isWings()
+                double rad = f.formation.isMeteorDive()
+                        ? (0.20 + 0.28 * DominionShader.hash(sd + 2))
+                        : f.formation.isWings()
                         ? (0.35 + 0.45 * DominionShader.hash(sd + 2))
                         : (0.48 + 0.72 * DominionShader.hash(sd + 2));
                 double vert = Math.sin(ang * 1.4 + sd) * (f.formation == BlockDominionBrain.FormationKind.AIR_STAIRS ? 0.16 : 0.42);
@@ -1460,6 +1640,49 @@ public final class BlockDominionRenderer {
     private static Quaternionf faceDirection(Vec3 dir) {
         Vec3 n = dir == null || dir.lengthSqr() < 1e-4 ? new Vec3(0, 0, 1) : dir.normalize();
         return new Quaternionf().rotationTo(new Vector3f(0, 0, 1), new Vector3f((float) n.x, (float) n.y, (float) n.z));
+    }
+
+    /**
+     * Renders a sculpted 3-piece 3D Stone Lance (diamond spearhead + carved cross-guard + elongated shaft)
+     * oriented cleanly along {@code dir} for Monolith Cage execution and Impaled Corpse Monuments.
+     */
+    private static void renderStoneLance(PoseStack matrices, MultiBufferSource.BufferSource bufferSource,
+                                         BlockRenderDispatcher blockRenderer, Vec3 anchor, Vec3 dir, Vec3 camPos,
+                                         float scaleMul, BlockState tipMat, BlockState shaftMat, int light) {
+        if (scaleMul <= 0.04f) return;
+        Quaternionf orient = faceDirection(dir);
+        matrices.pushPose();
+        matrices.translate(anchor.x - camPos.x, anchor.y - camPos.y, anchor.z - camPos.z);
+        matrices.mulPose(orient);
+        matrices.scale(scaleMul, scaleMul, scaleMul);
+
+        // 1. Elongated razor diamond spearhead blade (+Z)
+        matrices.pushPose();
+        matrices.translate(0.0, 0.0, 0.82);
+        matrices.mulPose(Axis.ZP.rotationDegrees(45f));
+        matrices.scale(0.20f, 0.20f, 1.38f);
+        matrices.translate(-0.5, -0.5, -0.5);
+        blockRenderer.renderSingleBlock(tipMat, matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
+        matrices.popPose();
+
+        // 2. Heavy carved cross-guard collar
+        matrices.pushPose();
+        matrices.translate(0.0, 0.0, 0.06);
+        matrices.mulPose(Axis.ZP.rotationDegrees(45f));
+        matrices.scale(0.42f, 0.42f, 0.16f);
+        matrices.translate(-0.5, -0.5, -0.5);
+        blockRenderer.renderSingleBlock(tipMat, matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
+        matrices.popPose();
+
+        // 3. Long slender stone lance shaft (-Z)
+        matrices.pushPose();
+        matrices.translate(0.0, 0.0, -1.25);
+        matrices.scale(0.14f, 0.14f, 2.55f);
+        matrices.translate(-0.5, -0.5, -0.5);
+        blockRenderer.renderSingleBlock(shaftMat, matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
+        matrices.popPose();
+
+        matrices.popPose();
     }
 
     private static void renderVolumetricPass(PoseStack matrices, Camera camera, double time, float tickDelta,
@@ -1623,17 +1846,80 @@ public final class BlockDominionRenderer {
                 }
             }
 
-            // Monolith Cage 3D Fresnel containment domes around sealed targets
+            // Monolith Cage 3D Fresnel containment domes, bar tension veins, spear targeting lasers & exit shock cones!
             if (!bodyPass) {
                 for (ClientCage cage : ACTIVE_CAGES.values()) {
                     Entity target = world.getEntity(cage.targetId);
-                    Vec3 center = target != null && target.isAlive()
-                            ? target.getPosition(tickDelta).add(0, target.getBbHeight() * 0.52, 0).subtract(camPos)
-                            : cage.anchor.subtract(camPos);
+                    Vec3 worldCenter = target != null && target.isAlive()
+                            ? target.getPosition(tickDelta).add(0, target.getBbHeight() * 0.52, 0)
+                            : cage.anchor;
+                    Vec3 center = worldCenter.subtract(camPos);
                     if (center.lengthSqr() > 96.0 * 96.0) continue;
-                    DominionShader.emitFresnelDome(buffer, mat, center, new Vec3(0, 1, 0), 1.62, Math.PI * 0.92,
+                    double age = Math.max(0.0, time - cage.startTick);
+                    double pulse = 0.85 + 0.15 * Math.sin(time * 0.35);
+                    DominionShader.emitFresnelDome(buffer, mat, center, new Vec3(0, 1, 0), 1.54, Math.PI * 0.92,
                             18, 8, DominionShader.FX_HEX_MIST, 64,
-                            cage.palette.primaryR, cage.palette.primaryG, cage.palette.primaryB, 145);
+                            cage.palette.primaryR, cage.palette.primaryG, cage.palette.primaryB, (int) (145 * pulse));
+                    DominionShader.emitGroundPool(buffer, mat, center.add(0, -1.08, 0), 1.95, 65,
+                            cage.palette.primaryR, cage.palette.primaryG, cage.palette.primaryB, 115);
+
+                    // Spear convergence laser filaments (Phase 2) & exit piercing shock cones (Phase 3)!
+                    if (age >= BlockDominionRules.CAGE_SPEAR_FORM_TICK || cage.impaled) {
+                        Vec3[] dirs = BlockDominionBrain.cageSpearDirections(4, cage.yawOffset);
+                        if (cage.impaled && cage.impaleTick >= 0) {
+                            double impAge = time - cage.impaleTick;
+                            if (impAge >= 0 && impAge < 12) {
+                                double it = impAge / 12.0;
+                                int ia = (int) (210 * (1.0 - it) * (1.0 - it));
+                                for (int s = 0; s < dirs.length; s++) {
+                                    Vec3 d = dirs[s];
+                                    DominionShader.emitFresnelCone(buffer, mat, center.add(d.scale(1.15 + it * 1.4)), d,
+                                            1.8 + it * 1.6, 0.72 + it * 0.65, 14, 5, 70 + s,
+                                            cage.palette.hotR, cage.palette.hotG, cage.palette.hotB, ia);
+                                }
+                            }
+                        } else {
+                            double charge = Mth.clamp((age - BlockDominionRules.CAGE_SPEAR_FORM_TICK)
+                                    / (double) Math.max(1, BlockDominionRules.CAGE_IMPALE_TICK - BlockDominionRules.CAGE_SPEAR_FORM_TICK), 0.0, 1.0);
+                            int la = (int) (75 + charge * 135);
+                            for (int s = 0; s < dirs.length; s++) {
+                                Vec3 from = center.subtract(dirs[s].scale(3.4));
+                                DominionShader.emitLiveBolt(buffer, mat, from, center, 6, 0.05, 0.022 + charge * 0.014,
+                                        7100L + s * 23L, time, cage.palette.hotR, cage.palette.hotG, cage.palette.hotB, la);
+                            }
+                        }
+                    }
+                    emitted = true;
+                }
+
+                // Impaled Corpse Monument glowing ground seal pool!
+                for (ImpaledMonument mon : IMPALED_MONUMENTS) {
+                    Vec3 p = mon.pinPos.subtract(camPos);
+                    if (p.lengthSqr() > 96.0 * 96.0) continue;
+                    double age = Math.max(0.0, time - mon.startTick);
+                    double fade = age > BlockDominionRules.CAGE_MONUMENT_TICKS - 14
+                            ? Mth.clamp((BlockDominionRules.CAGE_MONUMENT_TICKS - age) / 14.0, 0.0, 1.0)
+                            : 1.0;
+                    int a = (int) (135 * fade);
+                    DominionShader.emitGroundPool(buffer, mat, p.add(0, -0.34, 0), 2.15, 69,
+                            mon.palette.primaryR, mon.palette.primaryG, mon.palette.primaryB, a);
+                    emitted = true;
+                }
+
+                // Floating Railgun Ring crisp muzzle blast cone & electromagnetic rail tracer beam!
+                for (MuzzleTracer tr : MUZZLE_TRACERS) {
+                    double age = time - tr.startTick;
+                    if (age < 0 || age >= 7) continue;
+                    double t = age / 7.0;
+                    Vec3 orig = tr.origin.subtract(camPos);
+                    if (orig.lengthSqr() > 96.0 * 96.0) continue;
+                    int a = (int) (195 * (1.0 - t) * (1.0 - t));
+                    DominionShader.emitFresnelCone(buffer, mat, orig.add(tr.dir.scale(0.85)), tr.dir,
+                            1.5 + t * 1.2, 0.42 + t * 0.36, 14, 4, 83,
+                            tr.palette.hotR, tr.palette.hotG, tr.palette.hotB, a);
+                    DominionShader.emitLiveBolt(buffer, mat, orig, orig.add(tr.dir.scale(9.0 + t * 8.0)),
+                            5, 0.04, 0.036 * (1.0 - t * 0.7), tr.startTick * 17L, time,
+                            tr.palette.hotR, tr.palette.hotG, tr.palette.hotB, (int) (a * 0.85));
                     emitted = true;
                 }
             }

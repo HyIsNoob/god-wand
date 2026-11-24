@@ -53,8 +53,9 @@ public final class BlockDominionInput {
         }
         suppressHoldUntilRelease = false;
         if (BlockDominionRenderer.isLocalManualActive()
-                && BlockDominionRenderer.localReserveCount() >= BlockDominionRules.CAGE_MIN_BLOCKS) {
-            net.minecraft.world.entity.LivingEntity target = findCrosshairLivingTarget(client, 16.0);
+                && (BlockDominionRenderer.localReserveCount() >= BlockDominionRules.CAGE_MIN_BLOCKS
+                || BlockDominionRenderer.hasLocalActiveCage())) {
+            net.minecraft.world.entity.LivingEntity target = findCrosshairLivingTarget(client, 20.0);
             if (target != null) {
                 suppressHoldUntilRelease = true;
                 Services.NETWORK.sendToServer(BlockDominionInputPayload.cageEntity(target.getId()));
@@ -88,7 +89,7 @@ public final class BlockDominionInput {
         double bestDistSq = range * range;
         for (var entity : client.level.getEntities(client.player, box,
                 e -> e instanceof net.minecraft.world.entity.LivingEntity l && l.isAlive() && !l.isSpectator())) {
-            var hit = entity.getBoundingBox().inflate(0.45).clip(eye, end);
+            var hit = entity.getBoundingBox().inflate(0.65).clip(eye, end);
             if (hit.isPresent()) {
                 double d2 = eye.distanceToSqr(hit.get());
                 if (d2 < bestDistSq) {
