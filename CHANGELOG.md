@@ -7,6 +7,7 @@
 - With a shaderpack, Fuga and Silent Gate could lose parts of their effects (missing layers, Fuga's bridge gone) when the mod's post effects were switched off or failed to load.
 - OptiFine shaders are now detected like Iris/Oculus shaderpacks.
 - Spatial Path no longer loses sand, gravel and other falling blocks: they used to fall as the path closed behind you instead of returning to their place.
+- Silent Gate is lighter on the CPU: its scene is built once per frame instead of once for each of its layers, so the barrage runs at a higher frame rate. It looks exactly the same.
 
 ## [1.6.2]
 

@@ -82,7 +82,7 @@ public final class SilentGateProbe implements ClientModInitializer {
             c.getWindow().setWindowed(1280, 720);
             c.getWindow().setTitle("God Wand 1.5.0 - Silent Gate QA");
             // build/fuga-qa/rd8: the owner's render distance (8), where far shots leave the loaded chunks.
-            c.options.framerateLimit().set(60); c.options.renderDistance().set(Files.exists(c.gameDirectory.toPath().getParent().resolve("rd8")) ? 8 : 16);
+            c.options.framerateLimit().set(Files.exists(c.gameDirectory.toPath().getParent().resolve("uncap")) ? 260 : 60); c.options.renderDistance().set(Files.exists(c.gameDirectory.toPath().getParent().resolve("rd8")) ? 8 : 16);
             c.options.guiScale().set(2); c.options.setCameraType(CameraType.FIRST_PERSON); c.options.broadcastOptions();
             GodWandConfig.CLIENT.gateCutscene = true;
             server.submit(() -> {

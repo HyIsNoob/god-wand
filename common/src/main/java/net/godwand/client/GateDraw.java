@@ -19,9 +19,42 @@ final class GateDraw {
         boolean beforeBody;
         /** World height above which nothing is drawn yet (the gate coming down out of the crack in the sky), fading in over {@value #CLIP_BAND} blocks under it. */
         double clipY = Double.MAX_VALUE;
-        boolean body() { return layer <= 0; }
-        boolean glow() { return layer == 1 || layer < 0; }
-        boolean shade() { return layer == 2 || layer < 0; }
+        /** Set: the scene is built once and every quad goes to the record of its own layer (body, glow, shade), each with its own budget. The emitters ask
+         *  body()/glow()/shade() right before what they draw for that layer, so the last one asked is where the next quads belong. */
+        Record rec;
+        /** Routed: the glow is left out for now (beams and feathers that fly over the scope bars belong to the pop-out pass instead). */
+        boolean noGlow;
+        boolean body() { if (rec == null) return layer <= 0; route(0); return true; }
+        boolean glow() { if (rec == null) return layer == 1 || layer < 0; if (noGlow) return false; route(1); return true; }
+        boolean shade() { if (rec == null) return layer == 2 || layer < 0; route(2); return true; }
+        private void route(int to) {
+            if (to == rec.cur) return;
+            rec.quads[rec.cur] = quads; rec.cur = to; quads = rec.quads[to];
+            gain = to == 1 ? SilentGateRenderer.GLOW_GAIN : 1;
+        }
+    }
+
+    /** The vertices of one built scene, by layer (0 body, 1 glow, 2 shade): camera-relative position, packed colour and texel, ready to replay into a buffer. */
+    static final class Record {
+        final float[][] data = {new float[6 * 4096], new float[6 * 4096], new float[6 * 4096]};
+        final int[] size = new int[3], quads = new int[3];
+        int cur;
+        void clear() { java.util.Arrays.fill(size, 0); java.util.Arrays.fill(quads, 0); cur = 0; }
+        void add(int layer, float x, float y, float z, int argb, float u, float v) {
+            float[] d = data[layer];
+            if (size[layer] + 6 > d.length) data[layer] = d = java.util.Arrays.copyOf(d, d.length * 2);
+            int i = size[layer];
+            d[i] = x; d[i + 1] = y; d[i + 2] = z; d[i + 3] = Float.intBitsToFloat(argb); d[i + 4] = u; d[i + 5] = v;
+            size[layer] = i + 6;
+        }
+        /** The vertices of {@code layer} into {@code out}, in the order they were built. */
+        void replay(int layer, VertexConsumer out, Matrix4f m) {
+            float[] d = data[layer];
+            for (int i = 0; i < size[layer]; i += 6) {
+                int c = Float.floatToRawIntBits(d[i + 3]);
+                out.addVertex(m, d[i], d[i + 1], d[i + 2]).setColor((c >> 16) & 255, (c >> 8) & 255, c & 255, c >>> 24).setUv(d[i + 4], d[i + 5]);
+            }
+        }
     }
     /** Circle geometry is invisible closer than {@value #NEAR_MIN} blocks to the camera and fully there from {@value #NEAR_MAX}. */
     static final double NEAR_MIN = 3, NEAR_MAX = 12;
@@ -31,6 +64,9 @@ final class GateDraw {
 
     /** Opacity factor from the distance of the quad's nearest corner or centre to the camera. */
     static double proximity(Ctx c, Vec3 a, Vec3 b, Vec3 d, Vec3 e) {
+        // Every point of the quad lies within its longest edge from a: when a is that far past nearMax the full test below gives 1 too (it was a hot spot).
+        double edge = Math.sqrt(Math.max(a.distanceToSqr(b), Math.max(a.distanceToSqr(d), a.distanceToSqr(e))));
+        if (Math.sqrt(a.distanceToSqr(c.eye)) - edge >= c.nearMax) return 1;
         double lo = Math.min(Math.min(a.distanceToSqr(c.eye), b.distanceToSqr(c.eye)), Math.min(d.distanceToSqr(c.eye), e.distanceToSqr(c.eye)));
         lo = Math.min(lo, a.add(b).add(d).add(e).scale(.25).distanceToSqr(c.eye));
         if (lo >= c.nearMax * c.nearMax) return 1;
@@ -156,12 +192,21 @@ final class GateDraw {
     }
 
     private static void vertex(Ctx c, Vec3 p, int color, double alpha, float u, float v) {
-        Vec3 q = pull(p.subtract(c.eye), farPlane);
+        // pull() without its two Vec3s per vertex (the hot path): the same numbers.
+        double qx = p.x - c.eye.x, qy = p.y - c.eye.y, qz = p.z - c.eye.z, keep = .7 * farPlane;
+        double d2 = qx * qx + qy * qy + qz * qz;
+        if (d2 > keep * keep) {
+            double dl = Math.sqrt(d2), span = .28 * farPlane, s = (keep + span * (1 - Math.exp(-(dl - keep) / span))) / dl;
+            qx *= s; qy *= s; qz *= s;
+        }
         // Above the crack in the sky nothing of the gate exists yet: stone, glow, vapour and feathers alike fade out over CLIP_BAND blocks under it.
         if (c.clipY != Double.MAX_VALUE) alpha *= clamp01((c.clipY - p.y) / CLIP_BAND);
-        double a = clamp01(alpha), k = premultiplied ? a : 1;
-        c.v.addVertex(c.m, (float) q.x, (float) q.y, (float) q.z)
-                .setColor((int) (((color >> 16) & 255) * k), (int) (((color >> 8) & 255) * k), (int) ((color & 255) * k), premultiplied ? 255 : (int) (a * 255)).setUv(u, v);
+        // The body is plain alpha; the glow and the shade are premultiplied (the renderer's passes set the flag the same way).
+        boolean pm = c.rec != null ? c.rec.cur != 0 : premultiplied;
+        double a = clamp01(alpha), k = pm ? a : 1;
+        int r = (int) (((color >> 16) & 255) * k), g = (int) (((color >> 8) & 255) * k), b = (int) ((color & 255) * k), al = pm ? 255 : (int) (a * 255);
+        if (c.rec != null) c.rec.add(c.rec.cur, (float) qx, (float) qy, (float) qz, al << 24 | r << 16 | g << 8 | b, u, v);
+        else c.v.addVertex(c.m, (float) qx, (float) qy, (float) qz).setColor(r, g, b, al).setUv(u, v);
     }
 
     /** True while another quad fits the budget; callers check before emitting so a vertex run is never cut short. */

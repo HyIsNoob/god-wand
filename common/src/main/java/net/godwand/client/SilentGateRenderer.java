@@ -143,9 +143,11 @@ public final class SilentGateRenderer {
 
     // ---- geometry: great circle in GateCircles; sky discs, ground ring, gate and beams are still milestone-1 placeholders ----
     static final int QUAD_BUDGET = 20000;
+    /** One built scene per visible cast, reused every frame (render thread only). */
+    private static final List<GateDraw.Record> RECORDS = new java.util.ArrayList<>();
     static final double BEAM_TICKS = GateBeams.LIFE;
     /** Opacity of the legacy flat geometry in the additive pass: it only adds a soft glow over the body. */
-    private static final double GLOW_GAIN = .35;
+    static final double GLOW_GAIN = .35;
 
     public static void render(PoseStack pose, Camera camera, float partial) {
         List<Frame> frames = frames(partial);
@@ -156,14 +158,17 @@ public final class SilentGateRenderer {
         try {
             // Body first; then, with the gate's depth stamped, the shade (smoke and storm darken what is behind them) and last the light, which adds over both.
             // The body is drawn over its own stamped depth too: only its nearest faces pass, else back faces painted over front ones made it look hollow.
+            // The scene is built once and each pass replays its own layer of it.
+            while (RECORDS.size() < frames.size()) RECORDS.add(new GateDraw.Record());
+            for (int i = 0; i < frames.size(); i++) record(RECORDS.get(i), frames.get(i), shots(frames.get(i).casterId()), camera.getPosition());
             for (int layer : new int[]{0, 2, 1}) {
                 if (layer == 0) { stampPartial = false; depthPrepass(pose, camera, frames, true); RenderSystem.defaultBlendFunc(); }
                 // The stamp before the body already holds the gate's depth; it is stamped again only for what it left out (a fading gate, a doorway just opening).
                 else if (layer == 2) { if (stampPartial) depthPrepass(pose, camera, frames, false); RenderSystem.blendFunc(GlStateManager.SourceFactor.ZERO, GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR); GateAtlas.bindGlow(); GateDraw.premultiplied = true; }
                 else additiveBlend();
-                for (Frame f : frames) {
+                for (int i = 0; i < frames.size(); i++) {
                     BufferBuilder buffer = begin();
-                    emitScene(buffer, pose.last().pose(), f, shots(f.casterId()), camera.getPosition(), layer);
+                    RECORDS.get(i).replay(layer, buffer, pose.last().pose());
                     draw(buffer);
                 }
             }
@@ -342,11 +347,27 @@ public final class SilentGateRenderer {
 
     static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye, int layer, boolean solidOnly) { return emitScene(v, m, f, shots, eye, layer, solidOnly, false); }
     static int emitScene(VertexConsumer v, Matrix4f m, Frame f, List<Shot> shots, Vec3 eye, int layer, boolean solidOnly, boolean beforeBody) {
+        Ctx c = new Ctx(); c.v = v; c.m = m; c.eye = eye; c.solidOnly = solidOnly; c.beforeBody = beforeBody;
+        return scene(c, f, shots, eye, layer);
+    }
+
+    /** Builds the scene once into {@code rec}, every quad in its own layer (body 0, glow 1, shade 2): the same quads, in the same order, as three passes of
+     *  {@link #emitScene} would give, for a third of the work (the whole scene used to be built again for each layer: the cast's main cost, owner 2026-11-25). */
+    static void record(GateDraw.Record rec, Frame f, List<Shot> shots, Vec3 eye) {
+        rec.clear();
+        Ctx c = new Ctx(); c.rec = rec; c.eye = eye;
+        scene(c, f, shots, eye, -2);
+        rec.quads[rec.cur] = c.quads;
+    }
+
+    /** {@code layer} -2: routed (see {@link #record}). */
+    private static int scene(Ctx c, Frame f, List<Shot> shots, Vec3 eye, int layer) {
+        boolean solidOnly = c.solidOnly;
         if (!Double.isFinite(f.age()) || f.age() < 0 || f.anchor() == null || !Double.isFinite(f.anchor().x + f.anchor().y + f.anchor().z)
                 || !Double.isFinite(eye.x + eye.y + eye.z)) return 0;
         // Layer 3 is the pop-out pass: the light that is drawn after the scope bars. It is left out of the ordinary glow pass (1).
         boolean front = layer == 3;
-        Ctx c = new Ctx(); c.v = v; c.m = m; c.eye = eye; c.layer = front ? 1 : layer; c.gain = c.layer == 1 ? GLOW_GAIN : 1; c.solidOnly = solidOnly; c.beforeBody = beforeBody;
+        c.layer = front ? 1 : layer; c.gain = c.layer == 1 ? GLOW_GAIN : 1;
         int endStart = SilentGateSequence.ACTIVATE_TICKS + f.barrageTicks();
         // Ending ticks after the barrage (-1 before); everything dims only in the last 25 ticks, the sequence itself is staged by e.
         double e = f.commandAge() >= endStart ? f.commandAge() - endStart : -1;
@@ -386,12 +407,15 @@ public final class SilentGateRenderer {
         // Decided by when each beam fired, not by the clock: a live beam that switched layers dropped under the bars mid-flight (owner, 2026-11-15: "not smooth").
         double commandAt = now - f.commandAge();
         for (Shot s : shots) {
+            c.noGlow = false;
             boolean volley = f.commandAge() >= 0 && s.tick() - commandAt < SilentGateSequence.ACTIVATE_TICKS + 30;
             if (s.circle() < 0 || s.circle() >= count) continue;
             // The ground's light and scars stay in the picture, under the scope bars, whatever the beam itself does.
             if (!front && s.hit().distanceToSqr(eye) < 260 * 260) GateBeams.pool(c, s.hit(), beamLife(s, now) - GateBeams.FALL_TICKS,
                     s.heavy() ? GateBeams.KILL : s.circle() % 2 == 0 ? GateMinor.JADE : GateCircles.GLOW_BLUE, s.tick() * 31L + s.circle(), s.heavy() ? 2 : 1);
             if ((layer == 1 || front) && (s.heavy() || volley) != front) continue;
+            // Routed: these beams' light belongs to the pop-out pass; their body and shade stay here.
+            c.noGlow = layer == -2 && (s.heavy() || volley);
             Vec3 from = SilentGateSequence.skyCircle(anchor, f.yaw(), f.seed(), s.circle(), count).add(0, -GateMinor.NOZZLE, 0);
             double life = beamLife(s, now);
             if (s.heavy() && life < 0) GateBeams.charge(c, from, 1 + life / SilentGateSequence.HEAVY_CHARGE);
@@ -406,6 +430,7 @@ public final class SilentGateRenderer {
             GateBeams.shot(c, from, s.hit(), life, tint, s.tick() * 31L + s.circle(), now,
                     s.heavy() ? 1 : 1 / Math.max(1, stacked * .6), s.heavy() ? 2 : 1);
         }
+        c.noGlow = false;
         if (!front) {
             GateFx.motes(c, age, smooth((age - SilentGateSequence.CIRCLE_START) / 70) * (1 - smooth(endK / .8)));
             var sim = GateMana.sim(f.casterId());
@@ -459,7 +484,8 @@ public final class SilentGateRenderer {
         if (!c.solidOnly) {
             GateFx.wind(c, pose, age, Math.max(0, speed), travel);
             GateFx.smoke(c, pose, age, Math.max(0, speed), travel, open, endK);
-            if (c.layer != 1 || !burst) GateFx.feathers(c, pose, age, spread, endK);
+            if (c.rec != null) { c.noGlow = burst; GateFx.feathers(c, pose, age, spread, endK); c.noGlow = false; }
+            else if (c.layer != 1 || !burst) GateFx.feathers(c, pose, age, spread, endK);
             c.clipY = Double.MAX_VALUE;
             if (e < 0) GateFx.groundWave(c, new Vec3(pose.foot().x, anchor.y, pose.foot().z), age - SilentGateSequence.SHOCK);
             if (e < 0) {
