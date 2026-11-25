@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "    @Inject(method = \"setupRotations\", at = @At(\"TAIL\"))\n    private void godwand$dominionFlightRotations(LivingEntity entity, PoseStack matrices, float time,\n                                                 float yaw, float partial, float scale, CallbackInfo ci) {\n        BlockDominionPose.applyBodyRotations(entity, matrices, partial);\n    }\n",
+      "after": "    @Inject(method = \"setupRotations\", at = @At(\"TAIL\"))\n    private void godwand$dominionFlightRotations(LivingEntity entity, PoseStack matrices, float time,\n                                                 float yaw, float partial, CallbackInfo ci) {\n        BlockDominionPose.applyBodyRotations(entity, matrices, partial);\n    }\n"
+    }
+  ]
+}

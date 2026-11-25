@@ -1,0 +1,21 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "    private DominionPostFx() {}\n\n    public static boolean ready() {\n",
+      "after": "    private DominionPostFx() {}\n\n    private static void setUniform(PostChain chain, String name, float value) {\n        for (var pass : ((PostEffectProcessorAccessor) chain).getPasses()) pass.getEffect().safeGetUniform(name).set(value);\n    }\n\n    public static boolean ready() {\n"
+    },
+    {
+      "before": "        Minecraft mc = Minecraft.getInstance();\n        if (mc == null || mc.level == null) return;\n        float delta = mc.getTimer().getGameTimeDeltaPartialTick(true);\n",
+      "after": "        Minecraft mc = Minecraft.getInstance();\n        if (mc == null || mc.level == null) return;\n        float delta = mc.getFrameTime();\n"
+    },
+    {
+      "before": "            if (chain == null) {\n                chain = new PostChain(client.getTextureManager(), client.getResourceManager(),\n                        client.getMainRenderTarget(),\n                        ResourceLocation.withDefaultNamespace(\"shaders/post/godwand_dominion.json\"));\n            }\n",
+      "after": "            if (chain == null) {\n                chain = new PostChain(client.getTextureManager(), client.getResourceManager(),\n                        client.getMainRenderTarget(),\n                        new ResourceLocation(\"minecraft\", \"shaders/post/godwand_dominion.json\"));\n            }\n"
+    },
+    {
+      "before": "            chain.setUniform(\"BloomStrength\", bloom);\n            chain.setUniform(\"CenterX\", shockCenterX);\n            chain.setUniform(\"CenterY\", shockCenterY);\n            chain.setUniform(\"SpeedBlur\", sb);\n            chain.setUniform(\"ShockRadius\", shockR);\n            chain.setUniform(\"ShockStrength\", shockStr);\n            chain.setUniform(\"ImpactMode\", impactMode);\n            chain.setUniform(\"AccentR\", accentR);\n            chain.setUniform(\"AccentG\", accentG);\n            chain.setUniform(\"AccentB\", accentB);\n            chain.setUniform(\"VfxTime\", vfxTime);\n",
+      "after": "            setUniform(chain, \"BloomStrength\", bloom);\n            setUniform(chain, \"CenterX\", shockCenterX);\n            setUniform(chain, \"CenterY\", shockCenterY);\n            setUniform(chain, \"SpeedBlur\", sb);\n            setUniform(chain, \"ShockRadius\", shockR);\n            setUniform(chain, \"ShockStrength\", shockStr);\n            setUniform(chain, \"ImpactMode\", impactMode);\n            setUniform(chain, \"AccentR\", accentR);\n            setUniform(chain, \"AccentG\", accentG);\n            setUniform(chain, \"AccentB\", accentB);\n            setUniform(chain, \"VfxTime\", vfxTime);\n"
+    }
+  ]
+}

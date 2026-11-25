@@ -1,0 +1,25 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "                BlockDominionSounds.play(ownerPos, BlockDominionSounds.WING_FLAP, 0.78f, 0.98f);\n                BlockDominionSounds.play(ownerPos, SoundEvents.WIND_CHARGE_BURST.value(), 0.52f, 1.05f);\n",
+      "after": "                BlockDominionSounds.play(ownerPos, BlockDominionSounds.WING_FLAP, 0.78f, 0.98f);\n                BlockDominionSounds.play(ownerPos, SoundEvents.PHANTOM_FLAP, 0.52f, 1.05f);\n"
+    },
+    {
+      "before": "        DominionShader.bind(seconds);\n        try {\n            Matrix4f mat = graphics.pose().last().pose();\n            var buf = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);\n            float u0 = impactFrameSeed + 0.002f, u1 = impactFrameSeed + 0.998f;\n            float v0 = (DominionShader.FX_IMPACT_FRAME + 2) + 0.002f, v1 = (DominionShader.FX_IMPACT_FRAME + 2) + 0.998f;\n            buf.addVertex(mat, 0, h, 0).setUv(u0, v1).setColor(impactR, impactG, impactB, alphaByte);\n            buf.addVertex(mat, w, h, 0).setUv(u1, v1).setColor(impactR, impactG, impactB, alphaByte);\n            buf.addVertex(mat, w, 0, 0).setUv(u1, v0).setColor(impactR, impactG, impactB, alphaByte);\n            buf.addVertex(mat, 0, 0, 0).setUv(u0, v0).setColor(impactR, impactG, impactB, alphaByte);\n            var mesh = buf.build();\n            if (mesh != null) BufferUploader.drawWithShader(mesh);\n",
+      "after": "        DominionShader.bind(seconds);\n        DominionShader.layer(false);\n        try {\n            Matrix4f mat = graphics.pose().last().pose();\n            var buf = RenderHelper.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);\n            float u0 = impactFrameSeed + 0.002f, u1 = impactFrameSeed + 0.998f;\n            float v0 = (DominionShader.FX_IMPACT_FRAME + 2) + 0.002f, v1 = (DominionShader.FX_IMPACT_FRAME + 2) + 0.998f;\n            buf.vertex(mat, 0, h, 0).uv(u0, v1).color(impactR, impactG, impactB, alphaByte).endVertex();\n            buf.vertex(mat, w, h, 0).uv(u1, v1).color(impactR, impactG, impactB, alphaByte).endVertex();\n            buf.vertex(mat, w, 0, 0).uv(u1, v0).color(impactR, impactG, impactB, alphaByte).endVertex();\n            buf.vertex(mat, 0, 0, 0).uv(u0, v0).color(impactR, impactG, impactB, alphaByte).endVertex();\n            RenderHelper.draw(buf);\n"
+    },
+    {
+      "before": "        Minecraft.getInstance().getMainRenderTarget().bindWrite(false);\n        var stack = RenderSystem.getModelViewStack();\n        stack.pushMatrix();\n        stack.set(d.modelView());\n        RenderSystem.applyModelViewMatrix();\n        RenderSystem.backupProjectionMatrix();\n        RenderSystem.setProjectionMatrix(d.projection(), com.mojang.blaze3d.vertex.VertexSorting.DISTANCE_TO_ORIGIN);\n        PoseStack pose = new PoseStack();\n        pose.last().pose().set(d.pose());\n        try {\n            renderVolumetric(pose, d.camera(), d.tickDelta());\n        } finally {\n            RenderSystem.restoreProjectionMatrix();\n            stack.popMatrix();\n            RenderSystem.applyModelViewMatrix();\n        }\n",
+      "after": "        Minecraft.getInstance().getMainRenderTarget().bindWrite(false);\n        var stack = RenderSystem.getModelViewStack();\n        stack.pushPose();\n        stack.last().pose().set(d.modelView());\n        RenderSystem.applyModelViewMatrix();\n        RenderSystem.backupProjectionMatrix();\n        RenderSystem.setProjectionMatrix(d.projection(), com.mojang.blaze3d.vertex.VertexSorting.DISTANCE_TO_ORIGIN);\n        PoseStack pose = new PoseStack();\n        pose.last().pose().set(d.pose());\n        try {\n            renderVolumetric(pose, d.camera(), d.tickDelta());\n        } finally {\n            RenderSystem.restoreProjectionMatrix();\n            stack.popPose();\n            RenderSystem.applyModelViewMatrix();\n        }\n"
+    },
+    {
+      "before": "        DominionShader.bind(seconds);\n\n        try {\n            var buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);\n",
+      "after": "        DominionShader.bind(seconds);\n        DominionShader.layer(!bodyPass);\n\n        try {\n            var buffer = RenderHelper.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);\n"
+    },
+    {
+      "before": "            if (emitted) {\n                var built = buffer.build();\n                if (built != null) BufferUploader.drawWithShader(built);\n            }\n",
+      "after": "            if (emitted) {\n                RenderHelper.draw(buffer);\n            } else {\n                buffer.endOrDiscardIfEmpty();\n            }\n"
+    }
+  ]
+}

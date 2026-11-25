@@ -79,6 +79,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         KeyMappingHelper.registerKeyMapping(SkillWheelScreen.PREV_SKILL);
         EntityRendererRegistry.register(GodWandMod.ARCANE_ORB_ENTITY_TYPE, ArcaneOrbEntityRenderer::new);
         EntityRendererRegistry.register(GodWandMod.STONE_CANNON_ENTITY_TYPE, StoneCannonEntityRenderer::new);
+        EntityRendererRegistry.register(GodWandMod.DOMINION_BLOCK_ENTITY_TYPE, net.godwand.client.DominionBlockEntityRenderer::new);
 
         ClientPlayNetworking.registerGlobalReceiver(DrillWindPayload.ID, (payload, context) ->
                 context.client().execute(() -> DrillWindRenderer.receive(payload)));
@@ -95,6 +96,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
                 context.client().execute(() -> net.godwand.client.SilentGateRenderer.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.BlueRedPayload.ID, (payload, context) ->
                 context.client().execute(() -> net.godwand.client.BlueRedRenderer.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.BlockDominionStatePayload.ID, (payload, context) ->
+                context.client().execute(() -> net.godwand.client.BlockDominionRenderer.receive(payload)));
 
         ClientPlayNetworking.registerGlobalReceiver(SpatialAuraPayload.ID, (payload, context) ->
                 context.client().execute(() -> SpatialAuraRenderer.receive(payload)));
@@ -145,6 +148,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.SilentGateRenderer.render(matrices, camera, tickDelta);
             net.godwand.client.BlueRedRenderer.render(matrices, camera, tickDelta);
             net.godwand.client.BlueRedRenderer.renderOverlay();
+            net.godwand.client.BlockDominionRenderer.render(matrices, camera, tickDelta);
             net.godwand.client.compat.GodWandGeometry.deferFlush();
         });
 
@@ -167,6 +171,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","silent_gate"),net.godwand.client.SilentGateCinematic::render);
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","cooldown"),(graphics,timer)->net.godwand.client.SkillCooldownClient.render(graphics));
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","blue_red"),(graphics,timer) -> net.godwand.client.BlueRedHud.render(graphics, timer.getGameTimeDeltaPartialTick(false)));
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("godwand","block_dominion"),(graphics,timer) -> net.godwand.client.BlockDominionRenderer.renderHud(graphics));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             SkillWheelScreen.handleKeyInput(client);
@@ -177,6 +182,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.SilentGateCinematic.tick(client);
             net.godwand.client.BlueRedInput.tick(client);
             net.godwand.client.BlueRedRenderer.tick(client);
+            net.godwand.client.BlockDominionInput.tick(client);
+            net.godwand.client.BlockDominionRenderer.tick(client);
             net.godwand.client.PurpleCinematic.tick(client);
             net.godwand.client.SkillCooldownClient.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
@@ -197,6 +204,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.SilentGateCinematic.reset();
             net.godwand.client.BlueRedInput.reset();
             net.godwand.client.BlueRedRenderer.reset();
+            net.godwand.client.BlockDominionInput.reset();
+            net.godwand.client.BlockDominionRenderer.reset();
             net.godwand.client.PurpleCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
@@ -220,6 +229,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.SilentGateCinematic.reset();
             net.godwand.client.BlueRedInput.reset();
             net.godwand.client.BlueRedRenderer.reset();
+            net.godwand.client.BlockDominionInput.reset();
+            net.godwand.client.BlockDominionRenderer.reset();
             net.godwand.client.PurpleCinematic.reset();
             StoneCannonWindSound.reset();
             EarthDrillSoundscape.reset();

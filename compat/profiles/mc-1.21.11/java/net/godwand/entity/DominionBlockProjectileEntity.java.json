@@ -1,0 +1,13 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "import net.minecraft.nbt.CompoundTag;\n",
+      "after": "import net.minecraft.world.level.storage.ValueInput;\nimport net.minecraft.world.level.storage.ValueOutput;\n"
+    },
+    {
+      "before": "    @Override\n    protected void addAdditionalSaveData(CompoundTag nbt) {\n        super.addAdditionalSaveData(nbt);\n        nbt.putInt(\"BlockStateId\", Block.getId(getBlockState()));\n        nbt.putBoolean(\"Volley\", isVolley());\n        nbt.putInt(\"Age\", this.tickCount);\n    }\n\n    @Override\n    protected void readAdditionalSaveData(CompoundTag nbt) {\n        super.readAdditionalSaveData(nbt);\n        if (nbt.contains(\"BlockStateId\")) {\n            BlockState decoded = Block.stateById(nbt.getInt(\"BlockStateId\"));\n            setBlockState(decoded);\n        }\n        setVolley(nbt.getBoolean(\"Volley\"));\n        this.tickCount = nbt.getInt(\"Age\");\n    }\n",
+      "after": "    @Override\n    protected void addAdditionalSaveData(ValueOutput nbt) {\n        super.addAdditionalSaveData(nbt);\n        nbt.putInt(\"BlockStateId\", Block.getId(getBlockState()));\n        nbt.putBoolean(\"Volley\", isVolley());\n        nbt.putInt(\"Age\", this.tickCount);\n    }\n\n    @Override\n    protected void readAdditionalSaveData(ValueInput nbt) {\n        super.readAdditionalSaveData(nbt);\n        int stateId = nbt.getIntOr(\"BlockStateId\", -1);\n        if (stateId >= 0) {\n            setBlockState(Block.stateById(stateId));\n        }\n        setVolley(nbt.getBooleanOr(\"Volley\", false));\n        this.tickCount = nbt.getIntOr(\"Age\", 0);\n    }\n"
+    }
+  ]
+}

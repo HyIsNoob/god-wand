@@ -1,0 +1,25 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "            rightLeg.zRot = 0.05f;\n            leftLeg.xRot = -0.04f;\n            leftLeg.zRot = -0.05f;\n            hat.copyFrom(head);\n            return;\n        }\n        if (form == BlockDominionBrain.FormationKind.VOLLEY_FAN\n",
+      "after": "            rightLeg.zRot = 0.05f;\n            leftLeg.xRot = -0.04f;\n            leftLeg.zRot = -0.05f;\n            hat.loadPose(head.storePose());\n            return;\n        }\n        if (form == BlockDominionBrain.FormationKind.VOLLEY_FAN\n"
+    },
+    {
+      "before": "                rightLeg.xRot = 0.14f;\n                leftLeg.xRot = -0.30f;\n            }\n            hat.copyFrom(head);\n            return;\n        }\n\n",
+      "after": "                rightLeg.xRot = 0.14f;\n                leftLeg.xRot = -0.30f;\n            }\n            hat.loadPose(head.storePose());\n            return;\n        }\n\n"
+    },
+    {
+      "before": "            rightLeg.zRot = Mth.lerp(w, rightLeg.zRot, 0.14f);\n            leftLeg.xRot = Mth.lerp(w, leftLeg.xRot, 0.62f);\n            leftLeg.zRot = Mth.lerp(w, leftLeg.zRot, -0.14f);\n            hat.copyFrom(head);\n            return;\n        }\n\n",
+      "after": "            rightLeg.zRot = Mth.lerp(w, rightLeg.zRot, 0.14f);\n            leftLeg.xRot = Mth.lerp(w, leftLeg.xRot, 0.62f);\n            leftLeg.zRot = Mth.lerp(w, leftLeg.zRot, -0.14f);\n            hat.loadPose(head.storePose());\n            return;\n        }\n\n"
+    },
+    {
+      "before": "            rightLeg.zRot = Mth.lerp(w, rightLeg.zRot, 0.05f);\n            leftLeg.xRot = Mth.lerp(w, leftLeg.xRot, 0.22f - flutter * 0.6f);\n            leftLeg.zRot = Mth.lerp(w, leftLeg.zRot, -0.05f);\n            hat.copyFrom(head);\n        } else {\n            float w = Mth.clamp(hover, 0f, 1f);\n            float sway = (float) Math.sin(t * 0.11f) * 0.05f;\n",
+      "after": "            rightLeg.zRot = Mth.lerp(w, rightLeg.zRot, 0.05f);\n            leftLeg.xRot = Mth.lerp(w, leftLeg.xRot, 0.22f - flutter * 0.6f);\n            leftLeg.zRot = Mth.lerp(w, leftLeg.zRot, -0.05f);\n            hat.loadPose(head.storePose());\n        } else {\n            float w = Mth.clamp(hover, 0f, 1f);\n            float sway = (float) Math.sin(t * 0.11f) * 0.05f;\n"
+    },
+    {
+      "before": "            rightLeg.zRot = Mth.lerp(w, rightLeg.zRot, 0.06f);\n            leftLeg.xRot = Mth.lerp(w, leftLeg.xRot, -0.34f - sway * 0.4f);\n            leftLeg.zRot = Mth.lerp(w, leftLeg.zRot, -0.06f);\n            hat.copyFrom(head);\n        }\n    }\n}\n",
+      "after": "            rightLeg.zRot = Mth.lerp(w, rightLeg.zRot, 0.06f);\n            leftLeg.xRot = Mth.lerp(w, leftLeg.xRot, -0.34f - sway * 0.4f);\n            leftLeg.zRot = Mth.lerp(w, leftLeg.zRot, -0.06f);\n            hat.loadPose(head.storePose());\n        }\n    }\n}\n"
+    }
+  ]
+}

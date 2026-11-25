@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "    @Inject(method = \"setupRotations\", at = @At(\"TAIL\"))\n    private void godwand$dominionFlightRotations(LivingEntity entity, PoseStack matrices, float time,\n                                                 float yaw, float partial, float scale, CallbackInfo ci) {\n        BlockDominionPose.applyBodyRotations(entity, matrices, partial);\n    }\n",
+      "after": "    @Inject(method = \"setupRotations\", at = @At(\"TAIL\"))\n    private void godwand$dominionFlightRotations(net.minecraft.client.renderer.entity.state.LivingEntityRenderState state,\n                                                 PoseStack matrices, float yaw, float scale, CallbackInfo ci) {\n        if (state instanceof net.minecraft.client.renderer.entity.state.HumanoidRenderState humanoid) {\n            var level = net.minecraft.client.Minecraft.getInstance().level;\n            var entity = level == null ? null : level.getEntity(net.godwand.client.AtomicPoseFrames.entityId(humanoid));\n            if (entity instanceof LivingEntity living) {\n                BlockDominionPose.applyBodyRotations(living, matrices, net.godwand.client.AtomicPoseFrames.partial(humanoid));\n            }\n        }\n    }\n"
+    }
+  ]
+}

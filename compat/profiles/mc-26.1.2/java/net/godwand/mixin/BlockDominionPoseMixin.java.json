@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "    @Inject(method = \"setupAnim(Lnet/minecraft/world/entity/LivingEntity;FFFFF)V\", at = @At(\"TAIL\"))\n    private void godwand$dominionPose(LivingEntity entity, float walk, float stride, float time,\n                                      float yaw, float pitch, CallbackInfo ci) {\n        float partial = Mth.clamp(time - entity.tickCount, 0f, 1f);\n        BlockDominionPose.applyLimbPose(entity, partial, head, body, rightArm, leftArm, rightLeg, leftLeg, hat);\n    }\n",
+      "after": "    @Inject(method = \"setupAnim(Lnet/minecraft/client/renderer/entity/state/HumanoidRenderState;)V\", at = @At(\"TAIL\"))\n    private void godwand$dominionPose(net.minecraft.client.renderer.entity.state.HumanoidRenderState state, CallbackInfo ci) {\n        var level = net.minecraft.client.Minecraft.getInstance().level;\n        var entity = level == null ? null : level.getEntity(net.godwand.client.AtomicPoseFrames.entityId(state));\n        if (entity instanceof LivingEntity living) {\n            BlockDominionPose.applyLimbPose(living, net.godwand.client.AtomicPoseFrames.partial(state), head, body, rightArm, leftArm, rightLeg, leftLeg, hat);\n        }\n    }\n"
+    }
+  ]
+}

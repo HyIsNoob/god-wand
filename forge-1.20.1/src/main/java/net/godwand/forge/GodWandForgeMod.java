@@ -75,6 +75,14 @@ public class GodWandForgeMod {
         return type;
     });
 
+    public static final RegistryObject<EntityType<net.godwand.entity.DominionBlockProjectileEntity>> DOMINION_BLOCK = ENTITY_TYPES.register("dominion_block", () -> {
+        EntityType<net.godwand.entity.DominionBlockProjectileEntity> type = EntityType.Builder.<net.godwand.entity.DominionBlockProjectileEntity>of(net.godwand.entity.DominionBlockProjectileEntity::new, MobCategory.MISC)
+                .sized(0.7f, 0.7f)
+                .build("godwand:dominion_block");
+        GodWandMod.DOMINION_BLOCK_ENTITY_TYPE = type;
+        return type;
+    });
+
     public static final RegistryObject<CreativeModeTab> GODWAND_TAB = CREATIVE_MODE_TABS.register("godwand_tab", () -> {
         CreativeModeTab tab = CreativeModeTab.builder()
                 .icon(() -> new ItemStack(GOD_WAND.get()))
@@ -116,6 +124,7 @@ public class GodWandForgeMod {
             GodWandMod.GOD_WAND_ITEM = GOD_WAND.get();
             GodWandMod.ARCANE_ORB_ENTITY_TYPE = ARCANE_ORB.get();
             GodWandMod.STONE_CANNON_ENTITY_TYPE = STONE_CANNON.get();
+            GodWandMod.DOMINION_BLOCK_ENTITY_TYPE = DOMINION_BLOCK.get();
             GodWandMod.GODWAND_ITEM_GROUP = GODWAND_TAB.get();
         });
     }
@@ -133,6 +142,7 @@ public class GodWandForgeMod {
         if (server == null) return;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             SpatialPathWalker.tickPlayer(player);
+            net.godwand.skill.BlockDominionManager.tickPlayer(player);
         }
         for (ServerLevel level : server.getAllLevels()) {
             ShockwaveSlicer.tick(level);
@@ -200,19 +210,24 @@ public class GodWandForgeMod {
             SpatialPathWalker.deactivate(serverPlayer);
             net.godwand.skill.SkillCooldowns.reset(serverPlayer);
             net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
+            net.godwand.skill.BlockDominionManager.onLeave(serverPlayer, false);
         }
     }
 
     /** Blue and Red stay in the dimension they were cast in: their caster leaving it lets them go (as on Fabric). */
     @SubscribeEvent
     public void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
-        if (event.getEntity() instanceof ServerPlayer serverPlayer) net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
+            net.godwand.skill.BlockDominionManager.onLeave(serverPlayer, false);
+        }
     }
 
     @SubscribeEvent
     public void onLivingDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
+            net.godwand.skill.BlockDominionManager.onLeave(serverPlayer, true);
             SpatialPathWalker.deactivate(serverPlayer);
             net.godwand.skill.SkillCooldowns.reset(serverPlayer);
         }
@@ -235,6 +250,7 @@ public class GodWandForgeMod {
         net.godwand.skill.FugaManager.clearAllTasks();
         net.godwand.skill.SilentGateManager.clearAllTasks();
         net.godwand.skill.BlueRedManager.clearAll();
+        net.godwand.skill.BlockDominionManager.clearAll();
         for (ServerLevel level : event.getServer().getAllLevels()) {
             SpatialBridge.clearVisuals(level);
             SpatialDisplacementManager.emergencyRestoreAll(level);

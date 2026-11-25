@@ -84,6 +84,14 @@ public class GodWandNeoForgeMod {
         return type;
     });
 
+    public static final DeferredHolder<EntityType<?>, EntityType<net.godwand.entity.DominionBlockProjectileEntity>> DOMINION_BLOCK = ENTITY_TYPES.register("dominion_block", () -> {
+        EntityType<net.godwand.entity.DominionBlockProjectileEntity> type = EntityType.Builder.<net.godwand.entity.DominionBlockProjectileEntity>of(net.godwand.entity.DominionBlockProjectileEntity::new, MobCategory.MISC)
+                .sized(0.7f, 0.7f)
+                .build(net.minecraft.resources.ResourceKey.create(Registries.ENTITY_TYPE, net.minecraft.resources.Identifier.fromNamespaceAndPath(GodWandMod.MOD_ID,"dominion_block")));
+        GodWandMod.DOMINION_BLOCK_ENTITY_TYPE = type;
+        return type;
+    });
+
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> GODWAND_TAB = CREATIVE_MODE_TABS.register("godwand_tab", () -> {
         CreativeModeTab tab = CreativeModeTab.builder()
                 .icon(() -> new ItemStack(GOD_WAND.get()))
@@ -127,6 +135,7 @@ public class GodWandNeoForgeMod {
             GodWandMod.GOD_WAND_ITEM = GOD_WAND.get();
             GodWandMod.ARCANE_ORB_ENTITY_TYPE = ARCANE_ORB.get();
             GodWandMod.STONE_CANNON_ENTITY_TYPE = STONE_CANNON.get();
+            GodWandMod.DOMINION_BLOCK_ENTITY_TYPE = DOMINION_BLOCK.get();
             GodWandMod.GODWAND_ITEM_GROUP = GODWAND_TAB.get();
         });
     }
@@ -151,6 +160,10 @@ public class GodWandNeoForgeMod {
                     registrar.playToServer(net.godwand.network.BlueInputPayload.ID, net.godwand.network.BlueInputPayload.CODEC,
                             (payload,context) -> context.enqueueWork(() -> {
                                 if(context.player() instanceof ServerPlayer player)net.godwand.skill.BlueRedManager.input(player,payload.held());
+                            }));
+                    registrar.playToServer(net.godwand.network.BlockDominionInputPayload.ID, net.godwand.network.BlockDominionInputPayload.CODEC,
+                            (payload,context) -> context.enqueueWork(() -> {
+                                if(context.player() instanceof ServerPlayer player)net.godwand.skill.BlockDominionManager.handleInput(player,payload);
                             }));
 
         registrar.playToServer(
@@ -181,6 +194,7 @@ public class GodWandNeoForgeMod {
             registrar.playToClient(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC, (payload, context) -> {});
             registrar.playToClient(net.godwand.network.SilentGatePayload.ID, net.godwand.network.SilentGatePayload.CODEC, (payload, context) -> {});
             registrar.playToClient(net.godwand.network.BlueRedPayload.ID, net.godwand.network.BlueRedPayload.CODEC, (payload, context) -> {});
+            registrar.playToClient(net.godwand.network.BlockDominionStatePayload.ID, net.godwand.network.BlockDominionStatePayload.CODEC, (payload, context) -> {});
             registrar.playToClient(net.godwand.network.SkillCooldownPayload.ID, net.godwand.network.SkillCooldownPayload.CODEC, (payload, context) -> {});
         }
     }
@@ -189,6 +203,7 @@ public class GodWandNeoForgeMod {
         MinecraftServer server = event.getServer();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             SpatialPathWalker.tickPlayer(player);
+            net.godwand.skill.BlockDominionManager.tickPlayer(player);
         }
         for (ServerLevel level : server.getAllLevels()) {
             ShockwaveSlicer.tick(level);
@@ -249,7 +264,8 @@ public class GodWandNeoForgeMod {
 
     private void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
-        net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
+            net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
+            net.godwand.skill.BlockDominionManager.onLeave(serverPlayer, false);
             SpatialPathWalker.deactivate(serverPlayer);
             net.godwand.skill.SkillCooldowns.reset(serverPlayer);
         }
@@ -257,12 +273,16 @@ public class GodWandNeoForgeMod {
 
     /** Blue and Red stay in the dimension they were cast in: their caster leaving it lets them go (as on 1.21.1). */
     private void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
-        if (event.getEntity() instanceof ServerPlayer serverPlayer) net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
+            net.godwand.skill.BlockDominionManager.onLeave(serverPlayer, false);
+        }
     }
 
     private void onLivingDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
-        net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
+            net.godwand.skill.BlueRedManager.onLeave(serverPlayer);
+            net.godwand.skill.BlockDominionManager.onLeave(serverPlayer, true);
             SpatialPathWalker.deactivate(serverPlayer);
             net.godwand.skill.SkillCooldowns.reset(serverPlayer);
         }
@@ -283,6 +303,7 @@ public class GodWandNeoForgeMod {
         net.godwand.skill.FugaManager.clearAllTasks();
         net.godwand.skill.SilentGateManager.clearAllTasks();
         net.godwand.skill.BlueRedManager.clearAll();
+        net.godwand.skill.BlockDominionManager.clearAll();
         for (ServerLevel level : event.getServer().getAllLevels()) {
             SpatialBridge.clearVisuals(level);
             SpatialDisplacementManager.emergencyRestoreAll(level);

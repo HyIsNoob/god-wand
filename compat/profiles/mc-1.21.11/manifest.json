@@ -11,7 +11,10 @@
   "resources/assets/minecraft/shaders/post/godwand_gate.json",
   "resources/assets/minecraft/shaders/program/godwand_gate_ink.json",
   "resources/assets/minecraft/shaders/program/godwand_gate_ink.fsh",
-  "resources/assets/minecraft/shaders/core/godwand_bluered_add.json"
+  "resources/assets/minecraft/shaders/core/godwand_bluered_add.json",
+  "resources/assets/minecraft/shaders/post/godwand_dominion.json",
+  "resources/assets/minecraft/shaders/program/godwand_dominion_fx.json",
+  "resources/assets/minecraft/shaders/program/godwand_dominion_fx.fsh"
  ],
  "rename": {}
 }

@@ -4,14 +4,18 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "EntityMixin",
+    "LivingEntityMixin",
     "FlowableFluidMixin",
     "AtomicMovementMixin",
     "DisplayLifecycleMixin",
-    "ExperienceOrbAccessor"
+    "ExperienceOrbAccessor",
+    "ServerGamePacketListenerAccessor"
   ],
   "client": [
     "AtomicCameraMixin",
     "AtomicPoseMixin",
+    "BlockDominionFlightRenderMixin",
+    "BlockDominionPoseMixin",
     "GatePoseMixin",
     "CastPoseLastMixin",
     "AtomicFacingMixin",

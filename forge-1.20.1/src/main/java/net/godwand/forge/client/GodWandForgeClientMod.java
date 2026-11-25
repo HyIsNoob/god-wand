@@ -62,13 +62,15 @@ public class GodWandForgeClientMod {
         public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
             GodWandMod.ARCANE_ORB_ENTITY_TYPE = net.godwand.forge.GodWandForgeMod.ARCANE_ORB.get();
             GodWandMod.STONE_CANNON_ENTITY_TYPE = net.godwand.forge.GodWandForgeMod.STONE_CANNON.get();
+            GodWandMod.DOMINION_BLOCK_ENTITY_TYPE = net.godwand.forge.GodWandForgeMod.DOMINION_BLOCK.get();
             event.registerEntityRenderer(net.godwand.forge.GodWandForgeMod.ARCANE_ORB.get(), ArcaneOrbEntityRenderer::new);
             event.registerEntityRenderer(net.godwand.forge.GodWandForgeMod.STONE_CANNON.get(), StoneCannonEntityRenderer::new);
+            event.registerEntityRenderer(net.godwand.forge.GodWandForgeMod.DOMINION_BLOCK.get(), net.godwand.client.DominionBlockEntityRenderer::new);
         }
 
         @SubscribeEvent
         public static void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
-            event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> { GodWandPostFxManager.reloadShaders(); net.godwand.client.AtomicPostFx.reload(); });
+            event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> { GodWandPostFxManager.reloadShaders(); net.godwand.client.AtomicPostFx.reload(); net.godwand.client.DominionPostFx.close(); });
         }
 
         @SubscribeEvent
@@ -77,6 +79,7 @@ public class GodWandForgeClientMod {
             event.registerAboveAll("fuga_cinematic", (gui, graphics, partialTick, width, height) -> net.godwand.client.FugaCinematic.render(graphics, partialTick));
             event.registerAboveAll("silent_gate_cinematic", (gui, graphics, partialTick, width, height) -> net.godwand.client.SilentGateCinematic.render(graphics, partialTick));
             event.registerAboveAll("blue_red_hud", (gui, graphics, partialTick, width, height) -> net.godwand.client.BlueRedHud.render(graphics, partialTick));
+            event.registerAboveAll("block_dominion_hud", (gui, graphics, partialTick, width, height) -> net.godwand.client.BlockDominionRenderer.renderHud(graphics));
             event.registerAbove(VanillaGuiOverlay.VIGNETTE.id(), "impact_frame",
                     (gui, guiGraphics, partialTick, screenWidth, screenHeight) ->
                             CustomImpactFrameOverlay.render(guiGraphics, partialTick));
@@ -100,13 +103,17 @@ public class GodWandForgeClientMod {
 
         @SubscribeEvent
         public static void onRenderLevelStage(RenderLevelStageEvent event) {
-            if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
+            if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+                net.godwand.client.BlockDominionRenderer.renderBlocks(
+                        event.getPoseStack(), event.getCamera(), Minecraft.getInstance().renderBuffers().bufferSource(), event.getPartialTick());
+            } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
                 PoseStack matrices = event.getPoseStack();
                 Camera camera = event.getCamera();
                 float tickDelta = event.getPartialTick();
                 net.godwand.client.AtomicRenderer.render(matrices, camera, tickDelta);
                 if (!net.godwand.client.FugaRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
                 if (!net.godwand.client.SilentGateRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.SilentGateRenderer.render(matrices, camera, tickDelta);
+                if (!net.godwand.client.BlockDominionRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.BlockDominionRenderer.renderVolumetric(matrices, camera, tickDelta);
                 net.godwand.client.AtomicPostFx.capture(matrices.last().pose(), event.getProjectionMatrix(), tickDelta);
                 LEVEL_POSE.set(matrices.last().pose());
                 LEVEL_NORMAL.set(matrices.last().normal());
@@ -144,6 +151,8 @@ public class GodWandForgeClientMod {
             net.godwand.client.SilentGateCinematic.tick(client);
             net.godwand.client.BlueRedInput.tick(client);
             net.godwand.client.BlueRedRenderer.tick(client);
+            net.godwand.client.BlockDominionInput.tick(client);
+            net.godwand.client.BlockDominionRenderer.tick(client);
             net.godwand.client.PurpleCinematic.tick(client);
             net.godwand.client.SkillCooldownClient.tick(client);
             SkillWheelScreen.handleKeyInput(client);
@@ -165,6 +174,8 @@ public class GodWandForgeClientMod {
             net.godwand.client.SilentGateCinematic.reset();
             net.godwand.client.BlueRedInput.reset();
             net.godwand.client.BlueRedRenderer.reset();
+            net.godwand.client.BlockDominionInput.reset();
+            net.godwand.client.BlockDominionRenderer.reset();
             net.godwand.client.PurpleCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();

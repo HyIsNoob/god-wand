@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "    private static SoundEvent event(String name) {\n        return SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(\"godwand\", name));\n    }\n",
+      "after": "    private static SoundEvent event(String name) {\n        return SoundEvent.createVariableRangeEvent(new ResourceLocation(\"godwand\", name));\n    }\n"
+    }
+  ]
+}

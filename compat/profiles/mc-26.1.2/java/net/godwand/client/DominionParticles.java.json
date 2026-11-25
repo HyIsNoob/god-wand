@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "\n    /** Emits live particles for either BODY pass ({@code bodyPass=true}) or GLOW pass ({@code bodyPass=false}). */\n    public static boolean emitPass(VertexConsumer v, Matrix4f m, Camera camera, float tickDelta, boolean bodyPass) {\n        Vec3 camPos = camera.getPosition();\n        Vector3f left = camera.getLeftVector();\n        Vector3f upVec = camera.getUpVector();\n        Vec3 right = new Vec3(-left.x, -left.y, -left.z);\n        Vec3 up = new Vec3(upVec.x, upVec.y, upVec.z);\n\n        boolean any = false;\n        for (Particle p : POOL) {\n",
+      "after": "\n    /** Emits live particles for either BODY pass ({@code bodyPass=true}) or GLOW pass ({@code bodyPass=false}). */\n    public static boolean emitPass(VertexConsumer v, Matrix4f m, Camera camera, float tickDelta, boolean bodyPass) {\n        Vec3 camPos = camera.position();\n        var left = camera.leftVector();\n        var upVec = camera.upVector();\n        Vec3 right = new Vec3(-left.x(), -left.y(), -left.z());\n        Vec3 up = new Vec3(upVec.x(), upVec.y(), upVec.z());\n\n        boolean any = false;\n        for (Particle p : POOL) {\n"
+    }
+  ]
+}

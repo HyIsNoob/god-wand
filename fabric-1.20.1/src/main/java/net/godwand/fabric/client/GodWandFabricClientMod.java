@@ -65,6 +65,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
                     public void onResourceManagerReload(ResourceManager resourceManager) {
                         GodWandPostFxManager.reloadShaders();
                         net.godwand.client.AtomicPostFx.reload();
+                        net.godwand.client.DominionPostFx.close();
                     }
                 });
 
@@ -76,6 +77,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         BuiltinItemRendererRegistry.INSTANCE.register(GodWandMod.GOD_WAND_ITEM, itemRenderer::render);
         EntityRendererRegistry.register(GodWandMod.ARCANE_ORB_ENTITY_TYPE, ArcaneOrbEntityRenderer::new);
         EntityRendererRegistry.register(GodWandMod.STONE_CANNON_ENTITY_TYPE, StoneCannonEntityRenderer::new);
+        EntityRendererRegistry.register(GodWandMod.DOMINION_BLOCK_ENTITY_TYPE, net.godwand.client.DominionBlockEntityRenderer::new);
 
         ClientPlayNetworking.registerGlobalReceiver(DrillWindPayload.ID, (client, handler, buf, responseSender) -> {
             DrillWindPayload payload = DrillWindPayload.read(buf);
@@ -141,9 +143,17 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             var payload = net.godwand.network.BlueRedPayload.read(buf);
             client.execute(() -> net.godwand.client.BlueRedRenderer.receive(payload));
         });
+        ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.BlockDominionStatePayload.ID, (client, handler, buf, responseSender) -> {
+            var payload = net.godwand.network.BlockDominionStatePayload.read(buf);
+            client.execute(() -> net.godwand.client.BlockDominionRenderer.receive(payload));
+        });
         ClientPlayNetworking.registerGlobalReceiver(net.godwand.network.SilentGatePayload.ID, (client, handler, buf, responseSender) -> {
             var payload = net.godwand.network.SilentGatePayload.read(buf);
             client.execute(() -> net.godwand.client.SilentGateRenderer.receive(payload));
+        });
+
+        WorldRenderEvents.AFTER_ENTITIES.register(context -> {
+            net.godwand.client.BlockDominionRenderer.renderBlocks(context.matrixStack(), context.camera(), context.consumers(), context.tickDelta());
         });
 
         WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> {
@@ -153,6 +163,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.AtomicRenderer.render(matrices,camera,tickDelta);
             if (!net.godwand.client.FugaRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.FugaRenderer.render(matrices, camera, tickDelta);
             if (!net.godwand.client.SilentGateRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.SilentGateRenderer.render(matrices, camera, tickDelta);
+            if (!net.godwand.client.BlockDominionRenderer.deferForShaderPack(matrices, camera, tickDelta)) net.godwand.client.BlockDominionRenderer.renderVolumetric(matrices, camera, tickDelta);
             CannonPressureRenderer.render(matrices, camera, tickDelta);
             DrillWindRenderer.render(matrices, camera, tickDelta);
             ImpactDebrisRenderer.render(matrices, camera, tickDelta);
@@ -192,6 +203,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         HudRenderCallback.EVENT.register(net.godwand.client.FugaCinematic::render);
         HudRenderCallback.EVENT.register(net.godwand.client.SilentGateCinematic::render);
         HudRenderCallback.EVENT.register((graphics,partial)->net.godwand.client.BlueRedHud.render(graphics,partial));
+        HudRenderCallback.EVENT.register((graphics,partial)->net.godwand.client.BlockDominionRenderer.renderHud(graphics));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             net.godwand.client.AtomicRenderer.tick(client);
@@ -201,6 +213,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.SilentGateCinematic.tick(client);
             net.godwand.client.BlueRedInput.tick(client);
             net.godwand.client.BlueRedRenderer.tick(client);
+            net.godwand.client.BlockDominionInput.tick(client);
+            net.godwand.client.BlockDominionRenderer.tick(client);
             net.godwand.client.PurpleCinematic.tick(client);
             net.godwand.client.SkillCooldownClient.tick(client);
             SkillWheelScreen.handleKeyInput(client);
@@ -221,6 +235,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.SilentGateCinematic.reset();
             net.godwand.client.BlueRedInput.reset();
             net.godwand.client.BlueRedRenderer.reset();
+            net.godwand.client.BlockDominionInput.reset();
+            net.godwand.client.BlockDominionRenderer.reset();
             net.godwand.client.PurpleCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();
@@ -243,6 +259,8 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             net.godwand.client.SilentGateCinematic.reset();
             net.godwand.client.BlueRedInput.reset();
             net.godwand.client.BlueRedRenderer.reset();
+            net.godwand.client.BlockDominionInput.reset();
+            net.godwand.client.BlockDominionRenderer.reset();
             net.godwand.client.PurpleCinematic.reset();
             StoneCannonWindSound.reset();
             EarthDrillSoundscape.reset();

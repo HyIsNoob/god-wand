@@ -128,6 +128,13 @@ public final class GodWandForgeNetwork {
                     handleBlueRed(payload);
                     ctx.get().setPacketHandled(true);
                 }).add();
+        CHANNEL.messageBuilder(net.godwand.network.BlockDominionStatePayload.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(net.godwand.network.BlockDominionStatePayload::write)
+                .decoder(net.godwand.network.BlockDominionStatePayload::read)
+                .consumerMainThread((payload, ctx) -> {
+                    handleBlockDominion(payload);
+                    ctx.get().setPacketHandled(true);
+                }).add();
         CHANNEL.messageBuilder(net.godwand.network.SkillCooldownPayload.class,id++,NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(net.godwand.network.SkillCooldownPayload::write).decoder(net.godwand.network.SkillCooldownPayload::read)
                 .consumerMainThread((payload,ctx)->{handleSkillCooldown(payload);ctx.get().setPacketHandled(true);}).add();
@@ -165,6 +172,14 @@ public final class GodWandForgeNetwork {
                     if(player!=null)ctx.get().enqueueWork(() -> net.godwand.skill.BlueRedManager.input(player,payload.held()));
                     ctx.get().setPacketHandled(true);
                 }).add();
+        CHANNEL.messageBuilder(net.godwand.network.BlockDominionInputPayload.class, id++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(net.godwand.network.BlockDominionInputPayload::write)
+                .decoder(net.godwand.network.BlockDominionInputPayload::read)
+                .consumerMainThread((payload,ctx) -> {
+                    var player=ctx.get().getSender();
+                    if(player!=null)ctx.get().enqueueWork(() -> net.godwand.skill.BlockDominionManager.handleInput(player,payload));
+                    ctx.get().setPacketHandled(true);
+                }).add();
         CHANNEL.messageBuilder(net.godwand.network.SilentGateCancelPayload.class, id++, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(net.godwand.network.SilentGateCancelPayload::write)
                 .decoder(net.godwand.network.SilentGateCancelPayload::read)
@@ -193,6 +208,8 @@ public final class GodWandForgeNetwork {
     private static void handleSilentGate(net.godwand.network.SilentGatePayload payload) { net.godwand.client.SilentGateRenderer.receive(payload); }
     @OnlyIn(Dist.CLIENT)
     private static void handleBlueRed(net.godwand.network.BlueRedPayload payload) { net.godwand.client.BlueRedRenderer.receive(payload); }
+    @OnlyIn(Dist.CLIENT)
+    private static void handleBlockDominion(net.godwand.network.BlockDominionStatePayload payload) { net.godwand.client.BlockDominionRenderer.receive(payload); }
     private static void handleSkillCooldown(net.godwand.network.SkillCooldownPayload payload) {net.godwand.client.SkillCooldownClient.receive(payload);}
 
     @OnlyIn(Dist.CLIENT)

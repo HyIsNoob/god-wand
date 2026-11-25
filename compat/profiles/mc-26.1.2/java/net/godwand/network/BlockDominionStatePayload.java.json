@@ -1,0 +1,13 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "import net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.resources.ResourceLocation;\n",
+      "after": "import net.minecraft.network.protocol.common.custom.CustomPacketPayload;\nimport net.minecraft.resources.Identifier;\n"
+    },
+    {
+      "before": "    public static final Type<BlockDominionStatePayload> ID =\n            new Type<>(ResourceLocation.fromNamespaceAndPath(\"godwand\", \"block_dominion_state\"));\n",
+      "after": "    public static final Type<BlockDominionStatePayload> ID =\n            new Type<>(Identifier.fromNamespaceAndPath(\"godwand\", \"block_dominion_state\"));\n"
+    }
+  ]
+}

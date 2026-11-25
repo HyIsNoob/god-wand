@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "    @Override\n    protected void defineSynchedData(SynchedEntityData.Builder builder) {\n        builder.define(BLOCK_STATE, Blocks.STONE.defaultBlockState());\n        builder.define(VOLLEY, false);\n    }\n",
+      "after": "    @Override\n    protected void defineSynchedData() {\n        this.entityData.define(BLOCK_STATE, Blocks.STONE.defaultBlockState());\n        this.entityData.define(VOLLEY, false);\n    }\n"
+    }
+  ]
+}

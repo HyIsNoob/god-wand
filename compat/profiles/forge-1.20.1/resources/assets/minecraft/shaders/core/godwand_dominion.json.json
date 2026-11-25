@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "{\n    \"vertex\": \"godwand_dominion\",\n    \"fragment\": \"godwand_dominion\",\n    \"uniforms\": [\n",
+      "after": "{\n    \"blend\": { \"func\": \"add\", \"srcrgb\": \"srcalpha\", \"dstrgb\": \"1-srcalpha\" },\n    \"vertex\": \"godwand_dominion\",\n    \"fragment\": \"godwand_dominion\",\n    \"uniforms\": [\n"
+    }
+  ]
+}

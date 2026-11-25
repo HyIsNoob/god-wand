@@ -77,6 +77,8 @@ public class GodWandNeoForgeClientMod {
                 (payload, context) -> context.enqueueWork(() -> net.godwand.client.SilentGateRenderer.receive(payload)));
         registrar.playToClient(net.godwand.network.BlueRedPayload.ID, net.godwand.network.BlueRedPayload.CODEC,
                 (payload, context) -> context.enqueueWork(() -> net.godwand.client.BlueRedRenderer.receive(payload)));
+        registrar.playToClient(net.godwand.network.BlockDominionStatePayload.ID, net.godwand.network.BlockDominionStatePayload.CODEC,
+                (payload, context) -> context.enqueueWork(() -> net.godwand.client.BlockDominionRenderer.receive(payload)));
         registrar.playToClient(
                 DrillWindPayload.ID,
                 DrillWindPayload.CODEC,
@@ -139,12 +141,13 @@ public class GodWandNeoForgeClientMod {
         public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
             event.registerEntityRenderer(GodWandMod.ARCANE_ORB_ENTITY_TYPE, ArcaneOrbEntityRenderer::new);
             event.registerEntityRenderer(GodWandMod.STONE_CANNON_ENTITY_TYPE, StoneCannonEntityRenderer::new);
+            event.registerEntityRenderer(GodWandMod.DOMINION_BLOCK_ENTITY_TYPE, net.godwand.client.DominionBlockEntityRenderer::new);
         }
 
         @SubscribeEvent
         public static void onRegisterClientReloadListeners(RegisterClientReloadListenersEvent event) {
             event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> {
-                GodWandPostFxManager.reloadShaders(); AtomicPostFx.reload();
+                GodWandPostFxManager.reloadShaders(); AtomicPostFx.reload(); net.godwand.client.DominionPostFx.close();
             });
         }
 
@@ -178,7 +181,11 @@ public class GodWandNeoForgeClientMod {
     public static class GameBusEvents {
         @SubscribeEvent
         public static void onRenderLevelStage(RenderLevelStageEvent event) {
-            if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
+            if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+                float tickDelta = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+                net.godwand.client.BlockDominionRenderer.renderBlocks(
+                        event.getPoseStack(), event.getCamera(), Minecraft.getInstance().renderBuffers().bufferSource(), tickDelta);
+            } else if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
                 PoseStack matrices = event.getPoseStack();
                 Camera camera = event.getCamera();
                 float tickDelta = event.getPartialTick().getGameTimeDeltaPartialTick(false);
@@ -187,6 +194,9 @@ public class GodWandNeoForgeClientMod {
                 ImpactDebrisRenderer.render(matrices, camera, tickDelta);
                 SingularityThreadRenderer.render(matrices, camera, tickDelta);
                 SpatialAuraRenderer.render(matrices, camera, tickDelta);
+                if (!net.godwand.client.BlockDominionRenderer.deferForShaderPack(matrices, camera, tickDelta)) {
+                    net.godwand.client.BlockDominionRenderer.renderVolumetric(matrices, camera, tickDelta);
+                }
                 StoneCannonChargeRenderer.render(matrices, camera, tickDelta);
                 ArcaneOrbChargeRenderer.render(matrices, camera, tickDelta);
                 SupernovaAccretionRenderer.render(matrices, camera, tickDelta);
@@ -214,6 +224,7 @@ public class GodWandNeoForgeClientMod {
                 net.godwand.client.SilentGateCinematic.render(event.getGuiGraphics(), event.getPartialTick());
                 net.godwand.client.SkillCooldownClient.render(event.getGuiGraphics());
                 net.godwand.client.BlueRedHud.render(event.getGuiGraphics(), event.getPartialTick().getGameTimeDeltaPartialTick(false));
+                net.godwand.client.BlockDominionRenderer.renderHud(event.getGuiGraphics());
             }
         }
 
@@ -228,6 +239,8 @@ public class GodWandNeoForgeClientMod {
             net.godwand.client.SilentGateCinematic.tick(client);
             net.godwand.client.BlueRedInput.tick(client);
             net.godwand.client.BlueRedRenderer.tick(client);
+            net.godwand.client.BlockDominionInput.tick(client);
+            net.godwand.client.BlockDominionRenderer.tick(client);
             net.godwand.client.PurpleCinematic.tick(client);
             net.godwand.client.SkillCooldownClient.tick(client);
             SupernovaAccretionRenderer.tickCharge(client);
@@ -248,6 +261,8 @@ public class GodWandNeoForgeClientMod {
             net.godwand.client.SilentGateCinematic.reset();
             net.godwand.client.BlueRedInput.reset();
             net.godwand.client.BlueRedRenderer.reset();
+            net.godwand.client.BlockDominionInput.reset();
+            net.godwand.client.BlockDominionRenderer.reset();
             net.godwand.client.PurpleCinematic.reset();
             DrillWindRenderer.reset();
             CannonPressureRenderer.reset();

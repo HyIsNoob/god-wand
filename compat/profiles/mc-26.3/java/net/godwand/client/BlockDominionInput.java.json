@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "        LocalPlayer player = client.player;\n        boolean inGui = client.screen != null;\n\n        tickMobility(client, player, inGui);\n",
+      "after": "        LocalPlayer player = client.player;\n        boolean inGui = client.gui.screen() != null;\n\n        tickMobility(client, player, inGui);\n"
+    }
+  ]
+}

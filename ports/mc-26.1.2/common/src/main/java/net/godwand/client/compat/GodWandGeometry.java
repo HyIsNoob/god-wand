@@ -17,12 +17,12 @@ import java.util.*;
 /** Extracts authored meshes, then uploads and submits them on the world drawing stage. */
 public final class GodWandGeometry {
     private record Key(VertexFormat.Mode topology, boolean texture, boolean blend,
-                       int func, boolean depth, boolean writeDepth, boolean cull, boolean colorWrite, boolean bluered) {}
+                       int func, boolean depth, boolean writeDepth, boolean cull, boolean colorWrite, boolean bluered, boolean dominion) {}
     private record Draw(MeshData mesh, Key key, Identifier texture, Vector4f color) {}
     private static final ByteBufferBuilder ARENA = new ByteBufferBuilder(2 * 1024 * 1024);
     private static final List<Draw> PENDING = new ArrayList<>();
     private static final Map<Key, RenderPipeline> PIPELINES = new HashMap<>();
-    private static boolean blend, depth = true, writeDepth = true, cull = true, texture, colorWrite = true, bluered;
+    private static boolean blend, depth = true, writeDepth = true, cull = true, texture, colorWrite = true, bluered, dominion;
     /** 0 translucent, 1 additive, 2 shade (ZERO, ONE_MINUS_SRC_COLOR), 3 invert (ONE_MINUS_DST_COLOR, ONE_MINUS_SRC_COLOR). */
     private static int func;
     private static Identifier textureId;
@@ -63,21 +63,24 @@ public final class GodWandGeometry {
     public static void setShaderColor(float r, float g, float b, float a) { color = new Vector4f(r,g,b,a); }
     /** Blue/Red/Purple's procedural shader (core/godwand_bluered): textured quads whose effects are drawn per pixel, clocked by Globals.GameTime. */
     public static void bluered(boolean value) { bluered = value; }
+    /** Block Dominion's procedural volumetric shader (core/godwand_dominion): UV-encoded quads without Sampler0, clocked by Globals.GameTime. */
+    public static void dominion(boolean value) { dominion = value; }
 
     private static RenderPipeline pipeline(Key key) {
         return PIPELINES.computeIfAbsent(key, k -> {
-            String shader = k.bluered ? "core/godwand_bluered" : k.texture ? "core/position_tex_color" : "core/position_color";
+            String shader = k.dominion ? "core/godwand_dominion" : k.bluered ? "core/godwand_bluered" : k.texture ? "core/position_tex_color" : "core/position_color";
+            boolean uvFormat = k.texture || k.dominion;
             var builder = RenderPipeline.builder()
                     .withLocation(Identifier.fromNamespaceAndPath("godwand", "geometry/" + PIPELINES.size()))
                     .withVertexShader(shader).withFragmentShader(shader)
                     .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
                     .withUniform("Projection", UniformType.UNIFORM_BUFFER)
-                    .withVertexFormat(k.texture ? DefaultVertexFormat.POSITION_TEX_COLOR : DefaultVertexFormat.POSITION_COLOR, k.topology)
+                    .withVertexFormat(uvFormat ? DefaultVertexFormat.POSITION_TEX_COLOR : DefaultVertexFormat.POSITION_COLOR, k.topology)
                     .withCull(k.cull)
                     .withColorTargetState(new ColorTargetState(k.blend ? Optional.of(blendFunction(k.func)) : Optional.empty(), k.colorWrite ? ColorTargetState.WRITE_ALL : ColorTargetState.WRITE_NONE))
                     .withDepthStencilState(new DepthStencilState(k.depth ? CompareOp.LESS_THAN_OR_EQUAL : CompareOp.ALWAYS_PASS, k.writeDepth));
             if (k.texture) builder.withSampler("Sampler0");
-            if (k.bluered) builder.withUniform("Globals", UniformType.UNIFORM_BUFFER);
+            if (k.bluered || k.dominion) builder.withUniform("Globals", UniformType.UNIFORM_BUFFER);
             return builder.build();
         });
     }
@@ -88,24 +91,27 @@ public final class GodWandGeometry {
                 VertexFormat.Mode.TRIANGLE_STRIP, VertexFormat.Mode.TRIANGLE_FAN})
             for (int style = 0; style < 3; style++)
                 for (boolean writing : new boolean[]{false,true})
-                    pipeline(new Key(topology,false,style != 0,style == 2 ? 1 : 0,true,writing,false,true,false));
+                    pipeline(new Key(topology,false,style != 0,style == 2 ? 1 : 0,true,writing,false,true,false,false));
         // Textured quads in every blend style Fuga uses: its normal-blend layer and backdrop need these as much as the glow.
         for (int style = 0; style < 3; style++)
             for (boolean writing : new boolean[]{false,true})
-                pipeline(new Key(VertexFormat.Mode.QUADS,true,style != 0,style == 2 ? 1 : 0,true,writing,false,true,false));
+                pipeline(new Key(VertexFormat.Mode.QUADS,true,style != 0,style == 2 ? 1 : 0,true,writing,false,true,false,false));
         // Silent Gate: textured quads in all four blend functions, with and without the depth test, and its depth-only stamp.
         for (int f = 0; f < 4; f++) for (boolean tested : new boolean[]{false,true}) for (boolean writing : new boolean[]{false,true})
-            pipeline(new Key(VertexFormat.Mode.QUADS,true,true,f,tested,writing,false,true,false));
-        pipeline(new Key(VertexFormat.Mode.QUADS,true,true,0,true,true,false,false,false));
+            pipeline(new Key(VertexFormat.Mode.QUADS,true,true,f,tested,writing,false,true,false,false));
+        pipeline(new Key(VertexFormat.Mode.QUADS,true,true,0,true,true,false,false,false,false));
         // Blue/Red/Purple: normal and additive, with and without the depth test (its overlay draws over everything).
         for (int f = 0; f < 2; f++) for (boolean tested : new boolean[]{false,true})
-            pipeline(new Key(VertexFormat.Mode.QUADS,true,true,f,tested,false,false,true,true));
+            pipeline(new Key(VertexFormat.Mode.QUADS,true,true,f,tested,false,false,true,true,false));
+        // Block Dominion: normal and additive, with and without the depth test.
+        for (int f = 0; f < 2; f++) for (boolean tested : new boolean[]{false,true})
+            pipeline(new Key(VertexFormat.Mode.QUADS,false,true,f,tested,false,false,true,false,true));
         PIPELINES.values().forEach(register);
     }
 
     public static void draw(MeshData mesh) {
         if (mesh == null) return;
-        var key = new Key(mesh.drawState().mode(), texture, blend, func, depth, writeDepth, cull, colorWrite, bluered);
+        var key = new Key(mesh.drawState().mode(), texture, blend, func, depth, writeDepth, cull, colorWrite, bluered, dominion);
         PENDING.add(new Draw(mesh,key,textureId,new Vector4f(color)));
     }
 
@@ -145,7 +151,7 @@ public final class GodWandGeometry {
                         pass.setPipeline(pipeline(draw.key));
                         pass.setUniform("Projection", RenderSystem.getProjectionMatrixBuffer());
                         pass.setUniform("DynamicTransforms", transforms);
-                        if (draw.key.bluered) pass.setUniform("Globals", RenderSystem.getGlobalSettingsUniform());
+                        if (draw.key.bluered || draw.key.dominion) pass.setUniform("Globals", RenderSystem.getGlobalSettingsUniform());
                         if (draw.key.texture) {
                             var sampled = client.getTextureManager().getTexture(Objects.requireNonNull(draw.texture));
                             pass.bindTexture("Sampler0", sampled.getTextureView(), sampled.getSampler());

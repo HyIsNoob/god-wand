@@ -1,0 +1,17 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "import net.minecraft.resources.ResourceLocation;\n",
+      "after": "import net.minecraft.resources.Identifier;\n"
+    },
+    {
+      "before": "    private static SoundEvent event(String name) {\n        return SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(\"godwand\", name));\n    }\n",
+      "after": "    private static SoundEvent event(String name) {\n        return SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(\"godwand\", name));\n    }\n"
+    },
+    {
+      "before": "        client.getSoundManager().play(new SimpleSoundInstance(\n                sound.getLocation(), SoundSource.PLAYERS, volume, pitch, RandomSource.create(),\n",
+      "after": "        client.getSoundManager().play(new SimpleSoundInstance(\n                sound.location(), SoundSource.PLAYERS, volume, pitch, RandomSource.create(),\n"
+    }
+  ]
+}

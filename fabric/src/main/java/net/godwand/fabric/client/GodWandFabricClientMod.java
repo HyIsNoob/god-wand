@@ -69,6 +69,7 @@ public class GodWandFabricClientMod implements ClientModInitializer {
                     public void onResourceManagerReload(ResourceManager resourceManager) {
                         GodWandPostFxManager.reloadShaders();
                         AtomicPostFx.reload();
+                        net.godwand.client.DominionPostFx.close();
                     }
                 });
 

@@ -6,12 +6,14 @@
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "EntityMixin",
+    "LivingEntityMixin",
     "FlowableFluidMixin",
     "DisplayAccessor",
     "BlockDisplayAccessor",
     "AtomicMovementMixin",
     "DisplayLifecycleMixin",
-    "ExperienceOrbAccessor"
+    "ExperienceOrbAccessor",
+    "ServerGamePacketListenerAccessor"
   ],
   "client": [
     "GameRendererMixin",
@@ -24,6 +26,8 @@
     "AtomicInputMixin",
     "AtomicKeyboardMixin",
     "AtomicPoseMixin",
+    "BlockDominionFlightRenderMixin",
+    "BlockDominionPoseMixin",
     "GatePoseMixin",
     "CastPoseLastMixin",
     "AtomicToastMixin",

@@ -1,0 +1,9 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "#version 150\n// God Wand Block Dominion — True 3D Volumetric & Atmospheric GLSL shader (zero flat PNG stickers).\n// Two-pass rendering:\n//   Pass 1 (BODY, alpha blend): soft self-shaded world-space smoke/dust, dark 3D-lit stone splinters.\n//   Pass 2 (GLOW, additive): 3D Fresnel Mach cones & curved domes, world-space ground light pools,\n//          gossamer aerodynamic slipstream ribbons, ultra-fine crackling arcs, and micro dust motes.\n//\n// UV encoding:\n//   effect = int(floor(texCoord0.y)) - 2\n//   seed   = floor(texCoord0.x)\n//   p      = clamp((fract(texCoord0) - 0.001) / 0.998, 0.0, 1.0)\n\nuniform vec4 ColorModulator;\nuniform float VfxTime;\n",
+      "after": "#version 330\n// God Wand Block Dominion — True 3D Volumetric & Atmospheric GLSL shader (zero flat PNG stickers).\n// Two-pass rendering:\n//   Pass 1 (BODY, alpha blend): soft self-shaded world-space smoke/dust, dark 3D-lit stone splinters.\n//   Pass 2 (GLOW, additive): 3D Fresnel Mach cones & curved domes, world-space ground light pools,\n//          gossamer aerodynamic slipstream ribbons, ultra-fine crackling arcs, and micro dust motes.\n//\n// UV encoding:\n//   effect = int(floor(texCoord0.y)) - 2\n//   seed   = floor(texCoord0.x)\n//   p      = clamp((fract(texCoord0) - 0.001) / 0.998, 0.0, 1.0)\n\nlayout(std140) uniform DynamicTransforms {\n    mat4 ModelViewMat;\n    vec4 ColorModulator;\n    vec3 ModelOffset;\n    mat4 TextureMat;\n};\nlayout(std140) uniform Globals {\n    ivec3 CameraBlockPos;\n    vec3 CameraOffset;\n    vec2 ScreenSize;\n    float GlintAlpha;\n    float GameTime;\n    int MenuBlurRadius;\n    int UseRgss;\n};\n#define VfxTime (GameTime * 1200.0)\n"
+    }
+  ]
+}

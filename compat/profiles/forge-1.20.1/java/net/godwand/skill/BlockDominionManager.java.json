@@ -1,0 +1,21 @@
+{
+  "reason": "Explicit version/loader API adapter",
+  "changes": [
+    {
+      "before": "    private static final SoundEvent IMPACT_SFX = SoundEvent.createVariableRangeEvent(\n            ResourceLocation.fromNamespaceAndPath(\"godwand\", \"dominion_impact\"));\n    private static final SoundEvent FIRE_SFX = SoundEvent.createVariableRangeEvent(\n            ResourceLocation.fromNamespaceAndPath(\"godwand\", \"dominion_fire\"));\n    private static final SoundEvent PICKUP_SFX = SoundEvent.createVariableRangeEvent(\n            ResourceLocation.fromNamespaceAndPath(\"godwand\", \"dominion_pickup\"));\n    private static final SoundEvent UNFOLD_SFX = SoundEvent.createVariableRangeEvent(\n            ResourceLocation.fromNamespaceAndPath(\"godwand\", \"dominion_unfold\"));\n    private static final SoundEvent CAGE_FORGE_SFX = SoundEvent.createVariableRangeEvent(\n            ResourceLocation.fromNamespaceAndPath(\"godwand\", \"dominion_cage_forge\"));\n    private static final SoundEvent METEOR_IGNITE_SFX = SoundEvent.createVariableRangeEvent(\n            ResourceLocation.fromNamespaceAndPath(\"godwand\", \"dominion_meteor_ignite\"));\n",
+      "after": "    private static final SoundEvent IMPACT_SFX = SoundEvent.createVariableRangeEvent(\n            new ResourceLocation(\"godwand\", \"dominion_impact\"));\n    private static final SoundEvent FIRE_SFX = SoundEvent.createVariableRangeEvent(\n            new ResourceLocation(\"godwand\", \"dominion_fire\"));\n    private static final SoundEvent PICKUP_SFX = SoundEvent.createVariableRangeEvent(\n            new ResourceLocation(\"godwand\", \"dominion_pickup\"));\n    private static final SoundEvent UNFOLD_SFX = SoundEvent.createVariableRangeEvent(\n            new ResourceLocation(\"godwand\", \"dominion_unfold\"));\n    private static final SoundEvent CAGE_FORGE_SFX = SoundEvent.createVariableRangeEvent(\n            new ResourceLocation(\"godwand\", \"dominion_cage_forge\"));\n    private static final SoundEvent METEOR_IGNITE_SFX = SoundEvent.createVariableRangeEvent(\n            new ResourceLocation(\"godwand\", \"dominion_meteor_ignite\"));\n"
+    },
+    {
+      "before": "                    SpellDamage.hurt(entity, world.damageSources().fallingBlock(player), dmg);\n                    entity.igniteForSeconds(igniteSecs);\n",
+      "after": "                    SpellDamage.hurt(entity, world.damageSources().fallingBlock(player), dmg);\n                    entity.setSecondsOnFire(igniteSecs);\n"
+    },
+    {
+      "before": "        world.playSound(null, impactPos.x, impactPos.y, impactPos.z,\n                SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 1.45f + t * 0.50f, 0.68f - t * 0.06f);\n",
+      "after": "        world.playSound(null, impactPos.x, impactPos.y, impactPos.z,\n                SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 1.45f + t * 0.50f, 0.68f - t * 0.06f);\n"
+    },
+    {
+      "before": "        world.playSound(null, hitPos.x, hitPos.y, hitPos.z,\n                SoundEvents.GENERIC_EXPLODE.value(), SoundSource.PLAYERS, 0.68f, 0.82f);\n",
+      "after": "        world.playSound(null, hitPos.x, hitPos.y, hitPos.z,\n                SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 0.68f, 0.82f);\n"
+    }
+  ]
+}

@@ -72,6 +72,14 @@ public class GodWandFabricMod implements ModInitializer {
                         .build(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.ENTITY_TYPE,Identifier.fromNamespaceAndPath("godwand","stone_cannon")))
         );
 
+        GodWandMod.DOMINION_BLOCK_ENTITY_TYPE = Registry.register(
+                BuiltInRegistries.ENTITY_TYPE,
+                Identifier.fromNamespaceAndPath(GodWandMod.MOD_ID, "dominion_block"),
+                EntityType.Builder.<net.godwand.entity.DominionBlockProjectileEntity>of(net.godwand.entity.DominionBlockProjectileEntity::new, MobCategory.MISC)
+                        .sized(0.7f, 0.7f)
+                        .build(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.ENTITY_TYPE,Identifier.fromNamespaceAndPath("godwand","dominion_block")))
+        );
+
         GodWandMod.GOD_WAND_ITEM = Registry.register(
                 BuiltInRegistries.ITEM,
                 Identifier.fromNamespaceAndPath(GodWandMod.MOD_ID, "god_wand"),
@@ -83,6 +91,7 @@ public class GodWandFabricMod implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.FugaFxPayload.ID, net.godwand.network.FugaFxPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.SilentGatePayload.ID, net.godwand.network.SilentGatePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.BlueRedPayload.ID, net.godwand.network.BlueRedPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.BlockDominionStatePayload.ID, net.godwand.network.BlockDominionStatePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(net.godwand.network.SkillCooldownPayload.ID, net.godwand.network.SkillCooldownPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(SpatialAuraPayload.ID, SpatialAuraPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(CannonPressurePayload.ID, CannonPressurePayload.CODEC);
@@ -93,8 +102,11 @@ public class GodWandFabricMod implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(net.godwand.network.AtomicSkipPayload.ID, net.godwand.network.AtomicSkipPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(net.godwand.network.SilentGateCancelPayload.ID, net.godwand.network.SilentGateCancelPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(net.godwand.network.BlueInputPayload.ID, net.godwand.network.BlueInputPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(net.godwand.network.BlockDominionInputPayload.ID, net.godwand.network.BlockDominionInputPayload.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.BlueInputPayload.ID, (payload, context) ->
                 context.server().execute(() -> net.godwand.skill.BlueRedManager.input(context.player(), payload.held())));
+        ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.BlockDominionInputPayload.ID, (payload, context) ->
+                context.server().execute(() -> net.godwand.skill.BlockDominionManager.handleInput(context.player(), payload)));
         ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.AtomicSkipPayload.ID, (payload, context) ->
                 context.server().execute(() -> net.godwand.skill.AtomicManager.releaseMovement(context.player(),payload.startedAt())));
         ServerPlayNetworking.registerGlobalReceiver(net.godwand.network.SilentGateCancelPayload.ID, (payload, context) ->
@@ -126,6 +138,7 @@ public class GodWandFabricMod implements ModInitializer {
         ServerTickEvents.START_SERVER_TICK.register(server -> {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 SpatialPathWalker.tickPlayer(player);
+                net.godwand.skill.BlockDominionManager.tickPlayer(player);
             }
         });
 
@@ -175,18 +188,20 @@ public class GodWandFabricMod implements ModInitializer {
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             net.godwand.skill.BlueRedManager.onLeave(handler.player);
+            net.godwand.skill.BlockDominionManager.onLeave(handler.player, false);
             SpatialPathWalker.deactivate(handler.player);
             net.godwand.skill.SkillCooldowns.reset(handler.player);
         });
 
-        net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register((player, origin, destination) ->
-
-                net.godwand.skill.BlueRedManager.onLeave(player));
-
+        net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register((player, origin, destination) -> {
+            net.godwand.skill.BlueRedManager.onLeave(player);
+            net.godwand.skill.BlockDominionManager.onLeave(player, false);
+        });
 
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (entity instanceof ServerPlayer player) {
-            net.godwand.skill.BlueRedManager.onLeave(player);
+                net.godwand.skill.BlueRedManager.onLeave(player);
+                net.godwand.skill.BlockDominionManager.onLeave(player, true);
                 SpatialPathWalker.deactivate(player);
                 net.godwand.skill.SkillCooldowns.reset(player);
             }
@@ -205,6 +220,7 @@ public class GodWandFabricMod implements ModInitializer {
             net.godwand.skill.FugaManager.clearAllTasks();
             net.godwand.skill.SilentGateManager.clearAllTasks();
             net.godwand.skill.BlueRedManager.clearAll();
+            net.godwand.skill.BlockDominionManager.clearAll();
             for (ServerLevel level : server.getAllLevels()) {
                 SpatialBridge.clearVisuals(level);
                 SpatialDisplacementManager.emergencyRestoreAll(level);
