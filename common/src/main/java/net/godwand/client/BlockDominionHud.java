@@ -196,14 +196,14 @@ public final class BlockDominionHud {
             maxDescW = Math.max(maxDescW, font.width(row[1]));
         }
         int padX = 5;
-        int padY = 4;
+        int padY = 2;
         int colGap = 10;
-        int rowH = 10;
+        int rowH = 8;
         int boxW = maxKeyW + colGap + maxDescW + padX * 2;
-        int boxH = padY * 2 + rows.length * rowH - 1;
+        int boxH = padY * 2 + rows.length * rowH + 1;
 
-        float scale = 0.75f;
-        int margin = 6;
+        float scale = 0.66f;
+        int margin = 3;
         float screenX = margin;
         float screenY = g.guiHeight() - margin - boxH * scale;
 
