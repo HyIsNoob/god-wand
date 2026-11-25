@@ -263,8 +263,6 @@ public final class BlockDominionManager {
             player.setDeltaMovement(st.flightVel);
             player.hurtMarked = true;
         }
-        player.displayClientMessage(Component.translatable(
-                glide ? "message.godwand.dominion_wings_glide" : "message.godwand.dominion_wings_hover"), true);
         if (st.mode != BlockDominionRules.Mode.OFF) {
             sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.25, player.getZ(), 0);
         }
@@ -301,7 +299,6 @@ public final class BlockDominionManager {
             player.hurtMarked = true;
             Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                     CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.06f, 6));
-            player.displayClientMessage(Component.translatable("message.godwand.dominion_wings_on"), true);
             st.formation = BlockDominionBrain.FormationKind.WINGS_HOVER;
             sync(player, st, BlockDominionRules.EVENT_FLIGHT_START, player.getX(), player.getY() + 1.25, player.getZ(), 0);
             return true;
@@ -364,7 +361,6 @@ public final class BlockDominionManager {
 
         UUID previousSelf = SELF_DAMAGE_CASTER.get();
         SELF_DAMAGE_CASTER.set(player.getUUID());
-        int hitCount = 0;
         try {
             AABB aoe = new AABB(impactPos, impactPos).inflate(radius, 4.5 + t * 1.5, radius);
             SpellDamage.hurtExtras(world, aoe, world.damageSources().fallingBlock(player),
@@ -386,7 +382,6 @@ public final class BlockDominionManager {
                     double push = (1.05 + t * 0.55) * falloff;
                     entity.setDeltaMovement(entity.getDeltaMovement().add(dir.scale(push)).add(0, 0.55 + t * 0.28, 0));
                     entity.hurtMarked = true;
-                    hitCount++;
                 }
             }
         } finally {
@@ -432,12 +427,6 @@ public final class BlockDominionManager {
         if (t >= 2) {
             world.playSound(null, impactPos.x, impactPos.y, impactPos.z,
                     SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 1.55f + t * 0.45f, 0.72f - t * 0.06f);
-        }
-
-        if (hitCount > 0) {
-            player.displayClientMessage(Component.translatable(
-                    t == 3 ? "message.godwand.dominion_meteor_cataclysm" : "message.godwand.dominion_meteor_strike",
-                    hitCount), true);
         }
     }
 
@@ -652,11 +641,7 @@ public final class BlockDominionManager {
             if (st != null && st.wingFlying) {
                 setWingFlight(player, false);
             } else if (holdsBlockDominion(player) || (st != null && st.mode == BlockDominionRules.Mode.MANUAL)) {
-                if (!setWingFlight(player, true) && st != null && st.mode == BlockDominionRules.Mode.MANUAL
-                        && st.reserve.size() < BlockDominionRules.MIN_FLIGHT_BLOCKS) {
-                    player.displayClientMessage(Component.translatable("message.godwand.dominion_wings_need",
-                            BlockDominionRules.MIN_FLIGHT_BLOCKS), true);
-                }
+                setWingFlight(player, true);
             }
             return;
         }
@@ -715,14 +700,11 @@ public final class BlockDominionManager {
         }
 
         if (st.activeCages.size() >= BlockDominionRules.CAGE_MAX_ACTIVE) {
-            player.displayClientMessage(Component.translatable("message.godwand.dominion_cage_limit",
-                    st.activeCages.size(), BlockDominionRules.CAGE_MAX_ACTIVE), true);
             return false;
         }
         if (now - st.lastCageTick < BlockDominionRules.CAGE_COOLDOWN_TICKS) return false;
         int cost = BlockDominionRules.CAGE_BLOCK_COST;
         if (st.reserve.size() < cost) {
-            player.displayClientMessage(Component.translatable("message.godwand.dominion_cage_need", cost), true);
             return false;
         }
         Entity raw = world.getEntity(targetEntityId);
@@ -753,8 +735,6 @@ public final class BlockDominionManager {
                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, anchor.x, anchor.y, anchor.z, 0.14f, 5));
         world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, cageBlocks.get(0)),
                 anchor.x, anchor.y, anchor.z, 24, 0.65, 0.85, 0.65, 0.14);
-        player.displayClientMessage(Component.translatable("message.godwand.dominion_cage",
-                cost, st.activeCages.size(), BlockDominionRules.CAGE_MAX_ACTIVE), true);
         sync(player, st, BlockDominionRules.EVENT_CAGE_START, anchor.x, anchor.y, anchor.z, target.getId());
         return true;
     }
@@ -832,7 +812,6 @@ public final class BlockDominionManager {
                 CinematicFxPayload.EVENT_FOV_PUNCH, hitPos.x, hitPos.y, hitPos.z, 1.09f, 9));
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, hitPos.x, hitPos.y, hitPos.z, 0.42f, 11));
-        player.displayClientMessage(Component.translatable("message.godwand.dominion_cage_impale"), true);
 
         int packed = (target.getId() << 1) | (killed ? 1 : 0);
         sync(player, st, BlockDominionRules.EVENT_CAGE_IMPALE, hitPos.x, hitPos.y, hitPos.z, packed);
@@ -870,7 +849,6 @@ public final class BlockDominionManager {
         if (player == null || !player.isAlive() || player.isSpectator()) return 0;
         PlayerState st = stateOf(player.getUUID());
         if (st.mode == BlockDominionRules.Mode.OFF) {
-            player.displayClientMessage(Component.translatable("message.godwand.dominion_hint_off"), true);
             return 0;
         }
         if (st.mode != BlockDominionRules.Mode.MANUAL || st.volleyCharging || !st.volleyQueue.isEmpty()) {
@@ -884,7 +862,6 @@ public final class BlockDominionManager {
         int capacity = BlockDominionRules.clampCapacity(GodWandConfig.SERVER.blockDominionCapacity);
         int room = capacity - st.reserve.size();
         if (room <= 0) {
-            player.displayClientMessage(Component.translatable("message.godwand.dominion_full", st.reserve.size(), capacity), true);
             return 0;
         }
 
@@ -917,7 +894,6 @@ public final class BlockDominionManager {
         }
 
         if (candidates.isEmpty()) {
-            player.displayClientMessage(Component.translatable("message.godwand.dominion_no_nearby"), true);
             return 0;
         }
 
@@ -946,7 +922,6 @@ public final class BlockDominionManager {
                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.36f, 10));
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.07f, 8));
-        player.displayClientMessage(Component.translatable("message.godwand.dominion_surge", lifted, st.reserve.size(), capacity), true);
         sync(player, st, BlockDominionRules.EVENT_SURGE, player.getX(), player.getY(), player.getZ(), Block.getId(lastState));
         return lifted;
     }
@@ -978,12 +953,10 @@ public final class BlockDominionManager {
         st.hiddenInCutscene = inCutscene(player);
 
         if (next == BlockDominionRules.Mode.MANUAL) {
-            player.displayClientMessage(Component.translatable("message.godwand.dominion_manual"), true);
             GodWandAdvancements.award(player, "use_9");
         } else {
             world.playSound(null, player.getX(), player.getY(), player.getZ(),
                     UNFOLD_SFX, SoundSource.PLAYERS, 0.58f, 0.68f);
-            player.displayClientMessage(Component.translatable("message.godwand.dominion_off"), true);
         }
         sync(player, st, next == BlockDominionRules.Mode.MANUAL ? BlockDominionRules.EVENT_UNFOLD : BlockDominionRules.EVENT_SYNC,
                 player.getX(), player.getY() + 1.2, player.getZ(), 0);
@@ -1007,7 +980,6 @@ public final class BlockDominionManager {
     public static boolean tryPickUpBlock(ServerPlayer player, BlockPos pos) {
         PlayerState st = stateOf(player.getUUID());
         if (st.mode == BlockDominionRules.Mode.OFF) {
-            player.displayClientMessage(Component.translatable("message.godwand.dominion_hint_off"), true);
             return false;
         }
         if (st.mode != BlockDominionRules.Mode.MANUAL) {
@@ -1017,7 +989,6 @@ public final class BlockDominionManager {
 
         int capacity = BlockDominionRules.clampCapacity(GodWandConfig.SERVER.blockDominionCapacity);
         if (st.reserve.size() >= capacity) {
-            player.displayClientMessage(Component.translatable("message.godwand.dominion_full", st.reserve.size(), capacity), true);
             return false;
         }
 
@@ -1061,7 +1032,6 @@ public final class BlockDominionManager {
         double cx = pos.getX() + 0.5, cy = pos.getY() + 0.5, cz = pos.getZ() + 0.5;
         world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state), cx, cy, cz, 12, 0.25, 0.25, 0.25, 0.12);
 
-        player.displayClientMessage(Component.translatable("message.godwand.dominion_count", st.reserve.size(), capacity), true);
         sync(player, st, BlockDominionRules.EVENT_PICKUP, cx, cy, cz, Block.getId(state));
         return true;
     }
@@ -1070,7 +1040,6 @@ public final class BlockDominionManager {
     public static boolean beginRightClick(ServerPlayer player) {
         PlayerState st = stateOf(player.getUUID());
         if (st.mode == BlockDominionRules.Mode.OFF) {
-            player.displayClientMessage(Component.translatable("message.godwand.dominion_hint_off"), true);
             return false;
         }
         if (st.mode == BlockDominionRules.Mode.AUTO) {
@@ -1130,10 +1099,6 @@ public final class BlockDominionManager {
                         CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(),
                         0.08f + Math.min(1f, usedTicks / 20f) * 0.14f, 6));
             }
-            int bars = Math.min(4, 1 + (usedTicks * 3) / BlockDominionRules.VOLLEY_CHARGE_TICKS);
-            int readyShots = BlockDominionRules.volleyShotCount(usedTicks, st.reserve.size());
-            player.displayClientMessage(Component.literal("§eMyriad Volley: " + GodWandItem.chargeMeter(bars, 4)
-                    + " §7(" + readyShots + "/" + st.reserve.size() + ")"), true);
             if (usedTicks % 2 == 0) {
                 sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.2, player.getZ(), 0);
             }
@@ -1228,8 +1193,6 @@ public final class BlockDominionManager {
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(),
                 (aerial ? 0.58f : 0.48f) * chargeFrac, 14));
-        player.displayClientMessage(Component.translatable(
-                aerial ? "message.godwand.dominion_orbital" : "message.godwand.dominion_volley", count), true);
         sync(player, st, aerial ? BlockDominionRules.EVENT_ORBITAL_BARRAGE : BlockDominionRules.EVENT_VOLLEY,
                 player.getX(), player.getY() + 1.2, player.getZ(), 0);
     }
@@ -1272,7 +1235,6 @@ public final class BlockDominionManager {
         ServerLevel world = player.serverLevel();
         BlockPos found = findNearestAutoBlock(world, player, BlockDominionRules.AUTO_SCAN_RADIUS);
         if (found == null) {
-            player.displayClientMessage(Component.translatable("message.godwand.dominion_no_nearby"), true);
             return;
         }
         BlockState block = world.getBlockState(found);
@@ -1678,7 +1640,6 @@ public final class BlockDominionManager {
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                                 METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.36f, 1.15f);
                     } else if (nextTier == 2 && prevMeteorTier < 2) {
-                        player.displayClientMessage(Component.translatable("message.godwand.dominion_meteor_tier2"), true);
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                                 CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.05f, 7));
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
@@ -1686,7 +1647,6 @@ public final class BlockDominionManager {
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                                 METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.48f, 0.96f);
                     } else if (nextTier == 3 && prevMeteorTier < 3) {
-                        player.displayClientMessage(Component.translatable("message.godwand.dominion_meteor_tier3"), true);
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                                 CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.06f, 8));
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(

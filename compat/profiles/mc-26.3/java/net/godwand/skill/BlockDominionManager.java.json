@@ -10,16 +10,12 @@
       "after": "    private static final double SYNC_RADIUS = 96.0;\n    private static final SoundEvent IMPACT_SFX = SoundEvent.createVariableRangeEvent(\n            Identifier.fromNamespaceAndPath(\"godwand\", \"dominion_impact\"));\n    private static final SoundEvent FIRE_SFX = SoundEvent.createVariableRangeEvent(\n            Identifier.fromNamespaceAndPath(\"godwand\", \"dominion_fire\"));\n    private static final SoundEvent PICKUP_SFX = SoundEvent.createVariableRangeEvent(\n            Identifier.fromNamespaceAndPath(\"godwand\", \"dominion_pickup\"));\n    private static final SoundEvent UNFOLD_SFX = SoundEvent.createVariableRangeEvent(\n            Identifier.fromNamespaceAndPath(\"godwand\", \"dominion_unfold\"));\n    private static final SoundEvent CAGE_FORGE_SFX = SoundEvent.createVariableRangeEvent(\n            Identifier.fromNamespaceAndPath(\"godwand\", \"dominion_cage_forge\"));\n    private static final SoundEvent METEOR_IGNITE_SFX = SoundEvent.createVariableRangeEvent(\n            Identifier.fromNamespaceAndPath(\"godwand\", \"dominion_meteor_ignite\"));\n\n    private record DroppedBlock(BlockPos pos, BlockState state) {}\n"
     },
     {
-      "before": "            st.flightVel = player.getViewVector(1.0f).normalize().scale(0.65);\n            player.setDeltaMovement(st.flightVel);\n            player.hurtMarked = true;\n        }\n        player.displayClientMessage(Component.translatable(\n                glide ? \"message.godwand.dominion_wings_glide\" : \"message.godwand.dominion_wings_hover\"), true);\n        if (st.mode != BlockDominionRules.Mode.OFF) {\n            sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.25, player.getZ(), 0);\n",
-      "after": "            st.flightVel = player.getViewVector(1.0f).normalize().scale(0.65);\n            player.setDeltaMovement(st.flightVel);\n            player.syncVelocity = true;\n        }\n        player.sendOverlayMessage(Component.translatable(\n                glide ? \"message.godwand.dominion_wings_glide\" : \"message.godwand.dominion_wings_hover\"));\n        if (st.mode != BlockDominionRules.Mode.OFF) {\n            sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.25, player.getZ(), 0);\n"
+      "before": "            st.flightVel = player.getViewVector(1.0f).normalize().scale(0.65);\n            player.setDeltaMovement(st.flightVel);\n            player.hurtMarked = true;\n        }\n        if (st.mode != BlockDominionRules.Mode.OFF) {\n",
+      "after": "            st.flightVel = player.getViewVector(1.0f).normalize().scale(0.65);\n            player.setDeltaMovement(st.flightVel);\n            player.syncVelocity = true;\n        }\n        if (st.mode != BlockDominionRules.Mode.OFF) {\n"
     },
     {
       "before": "            player.fallDistance = 0.0f;\n            player.setDeltaMovement(st.flightVel);\n            player.hurtMarked = true;\n            Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(\n                    CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.06f, 6));\n",
       "after": "            player.fallDistance = 0.0f;\n            player.setDeltaMovement(st.flightVel);\n            player.syncVelocity = true;\n            Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(\n                    CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.06f, 6));\n"
-    },
-    {
-      "before": "            Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(\n                    CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.06f, 6));\n            player.displayClientMessage(Component.translatable(\"message.godwand.dominion_wings_on\"), true);\n            st.formation = BlockDominionBrain.FormationKind.WINGS_HOVER;\n            sync(player, st, BlockDominionRules.EVENT_FLIGHT_START, player.getX(), player.getY() + 1.25, player.getZ(), 0);\n",
-      "after": "            Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(\n                    CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.06f, 6));\n            player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_wings_on\"));\n            st.formation = BlockDominionBrain.FormationKind.WINGS_HOVER;\n            sync(player, st, BlockDominionRules.EVENT_FLIGHT_START, player.getX(), player.getY() + 1.25, player.getZ(), 0);\n"
     },
     {
       "before": "        st.flightBoostInput = boost;\n        if (fromClientPacket) {\n            st.lastFlightPacketTick = player.serverLevel().getGameTime();\n        }\n    }\n",
@@ -30,12 +26,8 @@
       "after": "        player.setDeltaMovement(landVel.x * 0.12, 0.0, landVel.z * 0.12);\n        player.fallDistance = 0.0f;\n        player.syncVelocity = true;\n\n        Vec3 impactPos = player.position();\n"
     },
     {
-      "before": "                    double push = (1.05 + t * 0.55) * falloff;\n                    entity.setDeltaMovement(entity.getDeltaMovement().add(dir.scale(push)).add(0, 0.55 + t * 0.28, 0));\n                    entity.hurtMarked = true;\n                    hitCount++;\n                }\n",
-      "after": "                    double push = (1.05 + t * 0.55) * falloff;\n                    entity.setDeltaMovement(entity.getDeltaMovement().add(dir.scale(push)).add(0, 0.55 + t * 0.28, 0));\n                    entity.syncVelocity = true;\n                    hitCount++;\n                }\n"
-    },
-    {
-      "before": "\n        if (hitCount > 0) {\n            player.displayClientMessage(Component.translatable(\n                    t == 3 ? \"message.godwand.dominion_meteor_cataclysm\" : \"message.godwand.dominion_meteor_strike\",\n                    hitCount), true);\n        }\n    }\n",
-      "after": "\n        if (hitCount > 0) {\n            player.sendOverlayMessage(Component.translatable(\n                    t == 3 ? \"message.godwand.dominion_meteor_cataclysm\" : \"message.godwand.dominion_meteor_strike\",\n                    hitCount));\n        }\n    }\n"
+      "before": "                    double push = (1.05 + t * 0.55) * falloff;\n                    entity.setDeltaMovement(entity.getDeltaMovement().add(dir.scale(push)).add(0, 0.55 + t * 0.28, 0));\n                    entity.hurtMarked = true;\n                }\n            }\n",
+      "after": "                    double push = (1.05 + t * 0.55) * falloff;\n                    entity.setDeltaMovement(entity.getDeltaMovement().add(dir.scale(push)).add(0, 0.55 + t * 0.28, 0));\n                    entity.syncVelocity = true;\n                }\n            }\n"
     },
     {
       "before": "                        BlockPos below = firePos.below();\n                        if (!world.isInWorldBounds(firePos) || !world.isInWorldBounds(below) || !world.hasChunkAt(firePos)) continue;\n                        if (world.getBlockState(firePos).isAir() && world.getBlockState(below).isSolidRender(world, below)) {\n                            world.setBlock(firePos, Blocks.FIRE.defaultBlockState(), Block.UPDATE_ALL);\n                            break;\n",
@@ -50,28 +42,12 @@
       "after": "        if (player == null || !player.isAlive() || player.isSpectator()) return;\n        if (GodWandConfig.SERVER.skillDisabled(GodWandItem.MODE_BLOCK_DOMINION)) return;\n        ServerLevel world = player.level();\n        if (!GodWandConfig.SERVER.isDimensionAllowed(world.dimension().identifier().toString())) {\n            player.sendOverlayMessage(Component.translatable(\"message.godwand.dimension_blocked\"));\n            return;\n        }\n"
     },
     {
-      "before": "                if (!setWingFlight(player, true) && st != null && st.mode == BlockDominionRules.Mode.MANUAL\n                        && st.reserve.size() < BlockDominionRules.MIN_FLIGHT_BLOCKS) {\n                    player.displayClientMessage(Component.translatable(\"message.godwand.dominion_wings_need\",\n                            BlockDominionRules.MIN_FLIGHT_BLOCKS), true);\n                }\n            }\n",
-      "after": "                if (!setWingFlight(player, true) && st != null && st.mode == BlockDominionRules.Mode.MANUAL\n                        && st.reserve.size() < BlockDominionRules.MIN_FLIGHT_BLOCKS) {\n                    player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_wings_need\",\n                            BlockDominionRules.MIN_FLIGHT_BLOCKS));\n                }\n            }\n"
-    },
-    {
       "before": "        PlayerState st = STATES.get(player.getUUID());\n        if (st == null || st.mode != BlockDominionRules.Mode.MANUAL || st.stowed || st.hiddenInCutscene) return false;\n        ServerLevel world = player.serverLevel();\n        long now = world.getGameTime();\n\n",
       "after": "        PlayerState st = STATES.get(player.getUUID());\n        if (st == null || st.mode != BlockDominionRules.Mode.MANUAL || st.stowed || st.hiddenInCutscene) return false;\n        ServerLevel world = player.level();\n        long now = world.getGameTime();\n\n"
     },
     {
-      "before": "\n        if (st.activeCages.size() >= BlockDominionRules.CAGE_MAX_ACTIVE) {\n            player.displayClientMessage(Component.translatable(\"message.godwand.dominion_cage_limit\",\n                    st.activeCages.size(), BlockDominionRules.CAGE_MAX_ACTIVE), true);\n            return false;\n        }\n",
-      "after": "\n        if (st.activeCages.size() >= BlockDominionRules.CAGE_MAX_ACTIVE) {\n            player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_cage_limit\",\n                    st.activeCages.size(), BlockDominionRules.CAGE_MAX_ACTIVE));\n            return false;\n        }\n"
-    },
-    {
-      "before": "        int cost = BlockDominionRules.CAGE_BLOCK_COST;\n        if (st.reserve.size() < cost) {\n            player.displayClientMessage(Component.translatable(\"message.godwand.dominion_cage_need\", cost), true);\n            return false;\n        }\n",
-      "after": "        int cost = BlockDominionRules.CAGE_BLOCK_COST;\n        if (st.reserve.size() < cost) {\n            player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_cage_need\", cost));\n            return false;\n        }\n"
-    },
-    {
       "before": "        target.setNoGravity(true);\n        target.setDeltaMovement(0, 0.34, 0);\n        target.hurtMarked = true;\n\n        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(\n",
       "after": "        target.setNoGravity(true);\n        target.setDeltaMovement(0, 0.34, 0);\n        target.syncVelocity = true;\n\n        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(\n"
-    },
-    {
-      "before": "        world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, cageBlocks.get(0)),\n                anchor.x, anchor.y, anchor.z, 24, 0.65, 0.85, 0.65, 0.14);\n        player.displayClientMessage(Component.translatable(\"message.godwand.dominion_cage\",\n                cost, st.activeCages.size(), BlockDominionRules.CAGE_MAX_ACTIVE), true);\n        sync(player, st, BlockDominionRules.EVENT_CAGE_START, anchor.x, anchor.y, anchor.z, target.getId());\n        return true;\n",
-      "after": "        world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, cageBlocks.get(0)),\n                anchor.x, anchor.y, anchor.z, 24, 0.65, 0.85, 0.65, 0.14);\n        player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_cage\",\n                cost, st.activeCages.size(), BlockDominionRules.CAGE_MAX_ACTIVE));\n        sync(player, st, BlockDominionRules.EVENT_CAGE_START, anchor.x, anchor.y, anchor.z, target.getId());\n        return true;\n"
     },
     {
       "before": "                    Vec3 dir = out.lengthSqr() > 1e-4 ? out.normalize() : new Vec3(1, 0, 0);\n                    nearby.setDeltaMovement(nearby.getDeltaMovement().add(dir.scale(0.85 * falloff)).add(0, 0.32, 0));\n                    nearby.hurtMarked = true;\n                }\n            }\n",
@@ -86,92 +62,36 @@
       "after": "        } else {\n            target.setDeltaMovement(Vec3.ZERO);\n            target.syncVelocity = true;\n            cage.endTick = Math.min(cage.endTick, now + 22);\n        }\n"
     },
     {
-      "before": "        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(\n                CinematicFxPayload.EVENT_TRAUMA_SHAKE, hitPos.x, hitPos.y, hitPos.z, 0.42f, 11));\n        player.displayClientMessage(Component.translatable(\"message.godwand.dominion_cage_impale\"), true);\n\n        int packed = (target.getId() << 1) | (killed ? 1 : 0);\n",
-      "after": "        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(\n                CinematicFxPayload.EVENT_TRAUMA_SHAKE, hitPos.x, hitPos.y, hitPos.z, 0.42f, 11));\n        player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_cage_impale\"));\n\n        int packed = (target.getId() << 1) | (killed ? 1 : 0);\n"
-    },
-    {
       "before": "        if (cage == null) return;\n        st.activeCages.remove(cage);\n        ServerLevel world = player.serverLevel();\n        if (world.dimension().equals(cage.dimension)) {\n            Entity raw = world.getEntity(cage.targetId);\n",
       "after": "        if (cage == null) return;\n        st.activeCages.remove(cage);\n        ServerLevel world = player.level();\n        if (world.dimension().equals(cage.dimension)) {\n            Entity raw = world.getEntity(cage.targetId);\n"
-    },
-    {
-      "before": "        PlayerState st = stateOf(player.getUUID());\n        if (st.mode == BlockDominionRules.Mode.OFF) {\n            player.displayClientMessage(Component.translatable(\"message.godwand.dominion_hint_off\"), true);\n            return 0;\n        }\n",
-      "after": "        PlayerState st = stateOf(player.getUUID());\n        if (st.mode == BlockDominionRules.Mode.OFF) {\n            player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_hint_off\"));\n            return 0;\n        }\n"
     },
     {
       "before": "            return 0;\n        }\n        ServerLevel world = player.serverLevel();\n        long now = world.getGameTime();\n        if (now - st.lastSurgeTick < BlockDominionRules.SURGE_COOLDOWN_TICKS) {\n",
       "after": "            return 0;\n        }\n        ServerLevel world = player.level();\n        long now = world.getGameTime();\n        if (now - st.lastSurgeTick < BlockDominionRules.SURGE_COOLDOWN_TICKS) {\n"
     },
     {
-      "before": "        int room = capacity - st.reserve.size();\n        if (room <= 0) {\n            player.displayClientMessage(Component.translatable(\"message.godwand.dominion_full\", st.reserve.size(), capacity), true);\n            return 0;\n        }\n",
-      "after": "        int room = capacity - st.reserve.size();\n        if (room <= 0) {\n            player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_full\", st.reserve.size(), capacity));\n            return 0;\n        }\n"
-    },
-    {
       "before": "        int r = BlockDominionRules.SURGE_RADIUS;\n        List<BlockPos> candidates = new ArrayList<>();\n        int minY = Math.max(world.getMinBuildHeight(), feet.getY() - 5);\n        int maxY = Math.min(world.getMaxBuildHeight() - 1, feet.getY() + 3);\n\n        for (int dx = -r; dx <= r; dx++) {\n",
       "after": "        int r = BlockDominionRules.SURGE_RADIUS;\n        List<BlockPos> candidates = new ArrayList<>();\n        int minY = Math.max(world.getMinY(), feet.getY() - 5);\n        int maxY = Math.min((world.getMaxY() + 1) - 1, feet.getY() + 3);\n\n        for (int dx = -r; dx <= r; dx++) {\n"
-    },
-    {
-      "before": "\n        if (candidates.isEmpty()) {\n            player.displayClientMessage(Component.translatable(\"message.godwand.dominion_no_nearby\"), true);\n            return 0;\n        }\n",
-      "after": "\n        if (candidates.isEmpty()) {\n            player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_no_nearby\"));\n            return 0;\n        }\n"
-    },
-    {
-      "before": "        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(\n                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.07f, 8));\n        player.displayClientMessage(Component.translatable(\"message.godwand.dominion_surge\", lifted, st.reserve.size(), capacity), true);\n        sync(player, st, BlockDominionRules.EVENT_SURGE, player.getX(), player.getY(), player.getZ(), Block.getId(lastState));\n        return lifted;\n",
-      "after": "        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(\n                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.07f, 8));\n        player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_surge\", lifted, st.reserve.size(), capacity));\n        sync(player, st, BlockDominionRules.EVENT_SURGE, player.getX(), player.getY(), player.getZ(), Block.getId(lastState));\n        return lifted;\n"
     },
     {
       "before": "    /** Shift + Left Click: cleanly toggles Block Dominion OFF <-> ON (no Auto mode, no auto-recall of old blocks). */\n    public static void cycleMode(ServerPlayer player) {\n        ServerLevel world = player.serverLevel();\n        PlayerState st = stateOf(player.getUUID());\n        BlockDominionRules.Mode previous = st.mode;\n",
       "after": "    /** Shift + Left Click: cleanly toggles Block Dominion OFF <-> ON (no Auto mode, no auto-recall of old blocks). */\n    public static void cycleMode(ServerPlayer player) {\n        ServerLevel world = player.level();\n        PlayerState st = stateOf(player.getUUID());\n        BlockDominionRules.Mode previous = st.mode;\n"
     },
     {
-      "before": "\n        if (next == BlockDominionRules.Mode.MANUAL) {\n            player.displayClientMessage(Component.translatable(\"message.godwand.dominion_manual\"), true);\n            GodWandAdvancements.award(player, \"use_9\");\n        } else {\n",
-      "after": "\n        if (next == BlockDominionRules.Mode.MANUAL) {\n            player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_manual\"));\n            GodWandAdvancements.award(player, \"use_9\");\n        } else {\n"
-    },
-    {
-      "before": "            world.playSound(null, player.getX(), player.getY(), player.getZ(),\n                    UNFOLD_SFX, SoundSource.PLAYERS, 0.58f, 0.68f);\n            player.displayClientMessage(Component.translatable(\"message.godwand.dominion_off\"), true);\n        }\n        sync(player, st, next == BlockDominionRules.Mode.MANUAL ? BlockDominionRules.EVENT_UNFOLD : BlockDominionRules.EVENT_SYNC,\n",
-      "after": "            world.playSound(null, player.getX(), player.getY(), player.getZ(),\n                    UNFOLD_SFX, SoundSource.PLAYERS, 0.58f, 0.68f);\n            player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_off\"));\n        }\n        sync(player, st, next == BlockDominionRules.Mode.MANUAL ? BlockDominionRules.EVENT_UNFOLD : BlockDominionRules.EVENT_SYNC,\n"
-    },
-    {
-      "before": "    /** Left click (or hold) on a block in MANUAL mode lifts it into the orbiting reserve. */\n    public static boolean tryPickUpBlock(ServerPlayer player, BlockPos pos) {\n        PlayerState st = stateOf(player.getUUID());\n        if (st.mode == BlockDominionRules.Mode.OFF) {\n            player.displayClientMessage(Component.translatable(\"message.godwand.dominion_hint_off\"), true);\n            return false;\n        }\n        if (st.mode != BlockDominionRules.Mode.MANUAL) {\n            return false;\n",
-      "after": "    /** Left click (or hold) on a block in MANUAL mode lifts it into the orbiting reserve. */\n    public static boolean tryPickUpBlock(ServerPlayer player, BlockPos pos) {\n        PlayerState st = stateOf(player.getUUID());\n        if (st.mode == BlockDominionRules.Mode.OFF) {\n            player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_hint_off\"));\n            return false;\n        }\n        if (st.mode != BlockDominionRules.Mode.MANUAL) {\n            return false;\n"
-    },
-    {
-      "before": "        int capacity = BlockDominionRules.clampCapacity(GodWandConfig.SERVER.blockDominionCapacity);\n        if (st.reserve.size() >= capacity) {\n            player.displayClientMessage(Component.translatable(\"message.godwand.dominion_full\", st.reserve.size(), capacity), true);\n            return false;\n        }\n",
-      "after": "        int capacity = BlockDominionRules.clampCapacity(GodWandConfig.SERVER.blockDominionCapacity);\n        if (st.reserve.size() >= capacity) {\n            player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_full\", st.reserve.size(), capacity));\n            return false;\n        }\n"
-    },
-    {
       "before": "        }\n\n        ServerLevel world = player.serverLevel();\n        if (pos == null || player.getEyePosition().distanceToSqr(Vec3.atCenterOf(pos)) > PICKUP_REACH * PICKUP_REACH) {\n            return false;\n",
       "after": "        }\n\n        ServerLevel world = player.level();\n        if (pos == null || player.getEyePosition().distanceToSqr(Vec3.atCenterOf(pos)) > PICKUP_REACH * PICKUP_REACH) {\n            return false;\n"
-    },
-    {
-      "before": "        world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state), cx, cy, cz, 12, 0.25, 0.25, 0.25, 0.12);\n\n        player.displayClientMessage(Component.translatable(\"message.godwand.dominion_count\", st.reserve.size(), capacity), true);\n        sync(player, st, BlockDominionRules.EVENT_PICKUP, cx, cy, cz, Block.getId(state));\n        return true;\n",
-      "after": "        world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state), cx, cy, cz, 12, 0.25, 0.25, 0.25, 0.12);\n\n        player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_count\", st.reserve.size(), capacity));\n        sync(player, st, BlockDominionRules.EVENT_PICKUP, cx, cy, cz, Block.getId(state));\n        return true;\n"
-    },
-    {
-      "before": "    /** Right-click handler from GodWandItem.use. Returns true if the wand should enter continuous use (rapid fire or volley). */\n    public static boolean beginRightClick(ServerPlayer player) {\n        PlayerState st = stateOf(player.getUUID());\n        if (st.mode == BlockDominionRules.Mode.OFF) {\n            player.displayClientMessage(Component.translatable(\"message.godwand.dominion_hint_off\"), true);\n            return false;\n        }\n        if (st.mode == BlockDominionRules.Mode.AUTO) {\n            // Auto mode: tap right-click grabs nearest terrain block and fires 1 shot (no rapid fire, no volley)\n",
-      "after": "    /** Right-click handler from GodWandItem.use. Returns true if the wand should enter continuous use (rapid fire or volley). */\n    public static boolean beginRightClick(ServerPlayer player) {\n        PlayerState st = stateOf(player.getUUID());\n        if (st.mode == BlockDominionRules.Mode.OFF) {\n            player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_hint_off\"));\n            return false;\n        }\n        if (st.mode == BlockDominionRules.Mode.AUTO) {\n            // Auto mode: tap right-click grabs nearest terrain block and fires 1 shot (no rapid fire, no volley)\n"
     },
     {
       "before": "            }\n            st.volleyChargeTicks = usedTicks;\n            ServerLevel world = player.serverLevel();\n            if (usedTicks == BlockDominionRules.VOLLEY_MIN_CHARGE_TICKS) {\n                world.playSound(null, player.getX(), player.getY(), player.getZ(),\n",
       "after": "            }\n            st.volleyChargeTicks = usedTicks;\n            ServerLevel world = player.level();\n            if (usedTicks == BlockDominionRules.VOLLEY_MIN_CHARGE_TICKS) {\n                world.playSound(null, player.getX(), player.getY(), player.getZ(),\n"
     },
     {
-      "before": "            int bars = Math.min(4, 1 + (usedTicks * 3) / BlockDominionRules.VOLLEY_CHARGE_TICKS);\n            int readyShots = BlockDominionRules.volleyShotCount(usedTicks, st.reserve.size());\n            player.displayClientMessage(Component.literal(\"\u00a7eMyriad Volley: \" + GodWandItem.chargeMeter(bars, 4)\n                    + \" \u00a77(\" + readyShots + \"/\" + st.reserve.size() + \")\"), true);\n            if (usedTicks % 2 == 0) {\n                sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.2, player.getZ(), 0);\n",
-      "after": "            int bars = Math.min(4, 1 + (usedTicks * 3) / BlockDominionRules.VOLLEY_CHARGE_TICKS);\n            int readyShots = BlockDominionRules.volleyShotCount(usedTicks, st.reserve.size());\n            player.sendOverlayMessage(Component.literal(\"\u00a7eMyriad Volley: \" + GodWandItem.chargeMeter(bars, 4)\n                    + \" \u00a77(\" + readyShots + \"/\" + st.reserve.size() + \")\"));\n            if (usedTicks % 2 == 0) {\n                sync(player, st, BlockDominionRules.EVENT_SYNC, player.getX(), player.getY() + 1.2, player.getZ(), 0);\n"
-    },
-    {
       "before": "            if (st.reserve.size() < BlockDominionRules.MIN_FLIGHT_BLOCKS) {\n                // Safe landing cushion for 4 seconds if Orbital Barrage emptied wings\n                st.safeFallUntil = player.serverLevel().getGameTime() + 80;\n            }\n        } else {\n",
       "after": "            if (st.reserve.size() < BlockDominionRules.MIN_FLIGHT_BLOCKS) {\n                // Safe landing cushion for 4 seconds if Orbital Barrage emptied wings\n                st.safeFallUntil = player.level().getGameTime() + 80;\n            }\n        } else {\n"
     },
     {
-      "before": "                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(),\n                (aerial ? 0.58f : 0.48f) * chargeFrac, 14));\n        player.displayClientMessage(Component.translatable(\n                aerial ? \"message.godwand.dominion_orbital\" : \"message.godwand.dominion_volley\", count), true);\n        sync(player, st, aerial ? BlockDominionRules.EVENT_ORBITAL_BARRAGE : BlockDominionRules.EVENT_VOLLEY,\n                player.getX(), player.getY() + 1.2, player.getZ(), 0);\n",
-      "after": "                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(),\n                (aerial ? 0.58f : 0.48f) * chargeFrac, 14));\n        player.sendOverlayMessage(Component.translatable(\n                aerial ? \"message.godwand.dominion_orbital\" : \"message.godwand.dominion_volley\", count));\n        sync(player, st, aerial ? BlockDominionRules.EVENT_ORBITAL_BARRAGE : BlockDominionRules.EVENT_VOLLEY,\n                player.getX(), player.getY() + 1.2, player.getZ(), 0);\n"
-    },
-    {
       "before": "\n    private static void fireAutoSingle(ServerPlayer player, PlayerState st) {\n        ServerLevel world = player.serverLevel();\n        BlockPos found = findNearestAutoBlock(world, player, BlockDominionRules.AUTO_SCAN_RADIUS);\n        if (found == null) {\n",
       "after": "\n    private static void fireAutoSingle(ServerPlayer player, PlayerState st) {\n        ServerLevel world = player.level();\n        BlockPos found = findNearestAutoBlock(world, player, BlockDominionRules.AUTO_SCAN_RADIUS);\n        if (found == null) {\n"
-    },
-    {
-      "before": "        BlockPos found = findNearestAutoBlock(world, player, BlockDominionRules.AUTO_SCAN_RADIUS);\n        if (found == null) {\n            player.displayClientMessage(Component.translatable(\"message.godwand.dominion_no_nearby\"), true);\n            return;\n        }\n",
-      "after": "        BlockPos found = findNearestAutoBlock(world, player, BlockDominionRules.AUTO_SCAN_RADIUS);\n        if (found == null) {\n            player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_no_nearby\"));\n            return;\n        }\n"
     },
     {
       "before": "        PlayerState st = STATES.get(player.getUUID());\n        BlockDominionRules.Mode mode = st == null ? BlockDominionRules.Mode.OFF : st.mode;\n        ServerLevel world = player.serverLevel();\n        long now = world.getGameTime();\n        boolean inPostParry = st != null && st.postParryInvulnUntil >= now;\n",
@@ -200,14 +120,6 @@
     {
       "before": "                            Vec3 dir = horiz.lengthSqr() > 1e-4 ? horiz.normalize() : new Vec3(1, 0, 0);\n                            nearby.setDeltaMovement(nearby.getDeltaMovement().add(dir.scale(0.55 * falloff)).add(0, 0.42 * falloff, 0));\n                            nearby.hurtMarked = true;\n                        }\n                    }\n",
       "after": "                            Vec3 dir = horiz.lengthSqr() > 1e-4 ? horiz.normalize() : new Vec3(1, 0, 0);\n                            nearby.setDeltaMovement(nearby.getDeltaMovement().add(dir.scale(0.55 * falloff)).add(0, 0.42 * falloff, 0));\n                            nearby.syncVelocity = true;\n                        }\n                    }\n"
-    },
-    {
-      "before": "                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.36f, 1.15f);\n                    } else if (nextTier == 2 && prevMeteorTier < 2) {\n                        player.displayClientMessage(Component.translatable(\"message.godwand.dominion_meteor_tier2\"), true);\n                        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(\n                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.05f, 7));\n",
-      "after": "                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.36f, 1.15f);\n                    } else if (nextTier == 2 && prevMeteorTier < 2) {\n                        player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_meteor_tier2\"));\n                        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(\n                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.05f, 7));\n"
-    },
-    {
-      "before": "                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.48f, 0.96f);\n                    } else if (nextTier == 3 && prevMeteorTier < 3) {\n                        player.displayClientMessage(Component.translatable(\"message.godwand.dominion_meteor_tier3\"), true);\n                        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(\n                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.06f, 8));\n",
-      "after": "                                METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.48f, 0.96f);\n                    } else if (nextTier == 3 && prevMeteorTier < 3) {\n                        player.sendOverlayMessage(Component.translatable(\"message.godwand.dominion_meteor_tier3\"));\n                        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(\n                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.06f, 8));\n"
     },
     {
       "before": "                // Only force-push velocity to client when not driven by client's own synchronized prediction\n                if (now - st.lastFlightPacketTick > 4) {\n                    player.hurtMarked = true;\n                }\n                if (st.wingBoosting && !wasBoosting) {\n",
