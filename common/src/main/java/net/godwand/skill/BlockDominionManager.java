@@ -1442,7 +1442,7 @@ public final class BlockDominionManager {
                 // Only trigger Meteor Strike if Tier I+ actually ignited during a deliberate steep plunge!
                 boolean meteorImpact = landingFromFlight && st.meteorDiveActive && st.meteorDiveTier >= 1;
                 boolean heroLand = landingFromFlight && !meteorImpact
-                        && (st.flightVel.lengthSqr() > 0.62 * 0.62 || st.flightVel.y < -0.18);
+                        && (st.flightVel.lengthSqr() > 0.28 * 0.28 || st.flightVel.y < -0.09);
                 Vec3 landVel = st.flightVel;
                 double dropBlocks = Double.isNaN(st.meteorDiveStartY) ? 0.0 : Math.max(0.0, st.meteorDiveStartY - player.getY());
                 int impactTier = Math.max(1, st.meteorDiveTier);
@@ -1456,11 +1456,32 @@ public final class BlockDominionManager {
                     mobEventBlockId = impactTier;
                     mobEy = player.getY() + 0.15;
                 } else if (heroLand) {
-                    // Superhero touchdown: damp horizontal slide, zero fall damage, shockwave + trauma!
-                    player.setDeltaMovement(landVel.x * 0.25, 0.0, landVel.z * 0.25);
+                    // Superhero Seismic Upheaval touchdown: damp slide, zero fall damage, radial pressure & mob pop-up!
+                    st.safeFallUntil = now + 14;
+                    player.setDeltaMovement(landVel.x * 0.22, 0.0, landVel.z * 0.22);
                     player.hurtMarked = true;
+                    Vec3 landPos = player.position();
+                    AABB shockBox = new AABB(landPos, landPos).inflate(5.8, 2.5, 5.8);
+                    for (LivingEntity nearby : world.getEntitiesOfClass(LivingEntity.class, shockBox,
+                            e -> e.isAlive() && !SpellDamage.isCaster(e, player) && SpellDamage.affects(e, player))) {
+                        double d = nearby.position().distanceTo(landPos);
+                        if (d <= 5.8) {
+                            double falloff = Math.max(0.30, 1.0 - d / 5.8);
+                            Vec3 out = nearby.position().subtract(landPos);
+                            Vec3 horiz = new Vec3(out.x, 0, out.z);
+                            Vec3 dir = horiz.lengthSqr() > 1e-4 ? horiz.normalize() : new Vec3(1, 0, 0);
+                            nearby.setDeltaMovement(nearby.getDeltaMovement().add(dir.scale(0.55 * falloff)).add(0, 0.42 * falloff, 0));
+                            nearby.hurtMarked = true;
+                        }
+                    }
+                    Services.NETWORK.sendToNearby(world, landPos, SYNC_RADIUS,
+                            new CannonPressurePayload(landPos.add(0, 0.15, 0), new Vec3(0, -1, 0), 2, new Vec3(0, 1, 0)));
                     Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                            CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.24f, 8));
+                            CinematicFxPayload.EVENT_TRAUMA_SHAKE, landPos.x, landPos.y, landPos.z, 0.30f, 10));
+                    Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                            CinematicFxPayload.EVENT_FOV_PUNCH, landPos.x, landPos.y, landPos.z, 1.07f, 7));
+                    world.playSound(null, landPos.x, landPos.y, landPos.z,
+                            SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.15f, 0.65f);
                     mobilityEvent = BlockDominionRules.EVENT_HERO_LAND;
                     mobEy = player.getY() + 0.1;
                 } else {

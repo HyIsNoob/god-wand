@@ -24,6 +24,8 @@ public final class BlockDominionPose {
         float rollDeg, prevRollDeg;
         float glideWeight, prevGlideWeight;
         float hoverWeight, prevHoverWeight;
+        float landWeight, prevLandWeight;
+        long landStartTick = -1000;
         float lastYaw = Float.NaN;
         long lastTick;
     }
@@ -34,6 +36,13 @@ public final class BlockDominionPose {
 
     public static void reset() {
         STATES.clear();
+    }
+
+    /** Triggers a crisp 3-point superhero touchdown crouch pose lasting ~24 ticks on Hero Land / Meteor Strike. */
+    public static void triggerHeroLanding(int entityId, long nowTick) {
+        PoseState st = STATES.computeIfAbsent(entityId, k -> new PoseState());
+        st.landStartTick = nowTick;
+        st.lastTick = nowTick;
     }
 
     /** Called once per client tick from BlockDominionRenderer for every visible player using Block Dominion. */
@@ -50,6 +59,7 @@ public final class BlockDominionPose {
         st.prevRollDeg = st.rollDeg;
         st.prevGlideWeight = st.glideWeight;
         st.prevHoverWeight = st.hoverWeight;
+        st.prevLandWeight = st.landWeight;
         st.lastTick = nowTick;
 
         Vec3 vel = entity.getDeltaMovement();
@@ -105,6 +115,12 @@ public final class BlockDominionPose {
         st.rollDeg = Mth.lerp(0.24f, st.rollDeg, targetRoll);
         st.glideWeight = Mth.lerp(0.26f, st.glideWeight, targetGlide);
         st.hoverWeight = Mth.lerp(0.26f, st.hoverWeight, targetHover);
+
+        long landAge = nowTick - st.landStartTick;
+        float targetLand = (!flying && landAge >= 0 && landAge < 22)
+                ? (landAge < 12 ? 1.0f : Mth.clamp(1.0f - (landAge - 12) / 10.0f, 0f, 1f))
+                : 0f;
+        st.landWeight = Mth.lerp(targetLand > st.landWeight ? 0.55f : 0.28f, st.landWeight, targetLand);
     }
 
     public static void prune(long nowTick) {
@@ -140,8 +156,18 @@ public final class BlockDominionPose {
 
         float glide = Mth.lerp(partialTick, st.prevGlideWeight, st.glideWeight);
         float hover = Mth.lerp(partialTick, st.prevHoverWeight, st.hoverWeight);
-        float total = Math.max(glide, hover);
+        float land = Mth.lerp(partialTick, st.prevLandWeight, st.landWeight);
+        float total = Math.max(Math.max(glide, hover), land);
         if (total < 0.01f) return;
+
+        if (land > 0.02f && glide < 0.15f && hover < 0.15f) {
+            // Superhero 3-point impact crouch: drops torso sharply into a grounded knee-bend & leans forward!
+            matrices.translate(0.0, -0.26 * land, 0.0);
+            matrices.translate(0.0, 0.85, 0.0);
+            matrices.mulPose(Axis.XP.rotationDegrees(-24.0f * land));
+            matrices.translate(0.0, -0.85, 0.0);
+            return;
+        }
 
         float pitch = Mth.lerp(partialTick, st.prevPitchDeg, st.pitchDeg);
         float roll = Mth.lerp(partialTick, st.prevRollDeg, st.rollDeg);
@@ -219,9 +245,26 @@ public final class BlockDominionPose {
 
         float glide = Mth.lerp(partialTick, st.prevGlideWeight, st.glideWeight);
         float hover = Mth.lerp(partialTick, st.prevHoverWeight, st.hoverWeight);
-        if (glide < 0.02f && hover < 0.02f) return;
+        float land = Mth.lerp(partialTick, st.prevLandWeight, st.landWeight);
+        if (glide < 0.02f && hover < 0.02f && land < 0.02f) return;
 
         float t = entity.tickCount + partialTick;
+
+        if (land > 0.02f && glide < 0.25f && hover < 0.25f) {
+            float w = Mth.clamp(land, 0f, 1f);
+            // 3-point hero landing: right fist slammed down toward earth, left arm swept back, heroic bent-knee crouch!
+            head.xRot = Mth.lerp(w, head.xRot, 0.22f);
+            rightArm.xRot = Mth.lerp(w, rightArm.xRot, -1.05f);
+            rightArm.zRot = Mth.lerp(w, rightArm.zRot, -0.18f);
+            leftArm.xRot = Mth.lerp(w, leftArm.xRot, 0.85f);
+            leftArm.zRot = Mth.lerp(w, leftArm.zRot, -0.45f);
+            rightLeg.xRot = Mth.lerp(w, rightLeg.xRot, -0.78f);
+            rightLeg.zRot = Mth.lerp(w, rightLeg.zRot, 0.14f);
+            leftLeg.xRot = Mth.lerp(w, leftLeg.xRot, 0.62f);
+            leftLeg.zRot = Mth.lerp(w, leftLeg.zRot, -0.14f);
+            hat.copyFrom(head);
+            return;
+        }
 
         if (glide >= hover) {
             float w = Mth.clamp(glide, 0f, 1f);
