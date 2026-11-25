@@ -1986,33 +1986,36 @@ public final class BlockDominionRenderer {
                 }
             }
 
-            // Parry: true 3D curved Fresnel kinetic shock dome + billowing world-space dust
-            for (ParryBurst burst : PARRIES) {
-                Entity owner = world.getEntity(burst.playerId);
-                if (owner == null || owner.distanceToSqr(camPos) > 96.0 * 96.0) continue;
-                double age = time - burst.startTick;
-                if (age < 0 || age >= 14) continue;
-                double t = age / 14.0;
-                ClientFormation pf = FORMATIONS.get(burst.playerId);
-                BlockDominionPalette pal = pf != null ? pf.palette : BlockDominionPalette.SOVEREIGN_GOLD;
-                Vec3 chest = owner.getPosition(tickDelta).add(0, 1.15, 0).subtract(camPos);
-                int a = (int) (205 * (1.0 - t) * (1.0 - t));
-                if (bodyPass) {
+            // Parry: crisp Minecraft-native kinetic spark burst right off the blocking stone block (zero sci-fi hex dome / murky smoke!)
+            if (!bodyPass) {
+                for (ParryBurst burst : PARRIES) {
+                    Entity owner = world.getEntity(burst.playerId);
+                    if (owner == null || owner.distanceToSqr(camPos) > 96.0 * 96.0) continue;
+                    double age = time - burst.startTick;
+                    if (age < 0 || age >= 7) continue;
+                    double t = age / 7.0;
+                    ClientFormation pf = FORMATIONS.get(burst.playerId);
+                    BlockDominionPalette pal = pf != null ? pf.palette : BlockDominionPalette.SOVEREIGN_GOLD;
+                    Vec3 chest = owner.getPosition(tickDelta).add(0, 1.15, 0).subtract(camPos);
                     Vec3 impact = chest.add(burst.direction.scale(1.32));
-                    for (int s = 0; s < 5; s++) {
-                        double ang = s * (Math.PI * 2.0 / 5.0) + t * 1.2;
-                        Vec3[] uw = DominionShader.basis(burst.direction);
-                        Vec3 sp = impact.add(uw[0].scale(Math.cos(ang) * (0.35 + t * 1.45)))
-                                .add(uw[1].scale(Math.sin(ang) * (0.35 + t * 1.45)));
-                        DominionShader.emitBillboard(buffer, mat, sp, camRight, camUp, 0.42 + t * 0.52, ang,
-                                DominionShader.FX_SMOKE, 50 + s, pal.midR, pal.midG, pal.midB, (int) (a * 0.36));
+                    Vec3[] uw = DominionShader.basis(burst.direction);
+                    int a = (int) (215 * (1.0 - t) * (1.0 - t));
+                    for (int s = 0; s < 6; s++) {
+                        double ang = s * (Math.PI * 2.0 / 6.0) + 0.35;
+                        Vec3 rad = uw[0].scale(Math.cos(ang)).add(uw[1].scale(Math.sin(ang)));
+                        Vec3 start = impact.add(rad.scale(0.18 + t * 0.95));
+                        DominionShader.emitVelocityStreak(buffer, mat, start, rad,
+                                0.55 + t * 0.45, 0.032 * (1.0 - t * 0.65),
+                                50 + s, pal.hotR, pal.hotG, pal.hotB, a);
                     }
-                } else {
-                    DominionShader.emitFresnelDome(buffer, mat, chest, burst.direction,
-                            1.35 + t * 1.15, 0.85, 18, 6, DominionShader.FX_HEX_MIST, 55,
-                            pal.hotR, pal.hotG, pal.hotB, a);
+                    if (age < 3.0) {
+                        double ft = age / 3.0;
+                        DominionShader.emitBillboard(buffer, mat, impact, camRight, camUp,
+                                0.34 + ft * 0.22, ft * 0.4,
+                                DominionShader.FX_SPARK, 56, 255, 248, 220, (int) (185 * (1.0 - ft)));
+                    }
+                    emitted = true;
                 }
-                emitted = true;
             }
 
             // Surge / Takeoff / Volley: true 3D expanding Fresnel air-compression dome (zero flat PNG rings!)
@@ -2280,14 +2283,10 @@ public final class BlockDominionRenderer {
         }
     }
 
-    /** QoL Rain Umbrella Canopy: true 3D curved Fresnel water-repelling dome overhead (zero flat rings!). */
+    /** QoL Rain Umbrella Canopy: let the 7 real floating overhead blocks + raindrop splashes read cleanly (zero hologram dome!). */
     private static void emitUmbrellaVfx(VertexConsumer v, Matrix4f m, ClientFormation f, Vec3 chest,
                                         double time, boolean bodyPass) {
-        if (!bodyPass) {
-            // Curved protective 3D spherical cap directly hugging the 7 overhead stone blocks
-            DominionShader.emitFresnelDome(v, m, chest.add(0, 0.35, 0), new Vec3(0, 1, 0),
-                    1.68, 0.72, 20, 6, DominionShader.FX_HEX_MIST, 33, 175, 224, 255, 115);
-        }
+        // Pure Minecraft block canopy — no sci-fi hexagon dome overlay.
     }
 
     /** Crisp Minecraft-native Air-Step Stairs & Liquid Bridge: zero fake glowing blobs pasted on top of slabs! */
@@ -2296,37 +2295,20 @@ public final class BlockDominionRenderer {
         // Let the real grid-aligned stone/block treads read cleanly without blurry spotlight smudges.
     }
 
-    /** True 3D Curved Fresnel Kinetic Shield Domes (zero flat 2D floating discs!). */
+    /** Minecraft-native Block Shield: let the actual interlocking wall/dome of real blocks shine, linked by sparse crisp telekinetic threads (zero sci-fi hex dome!). */
     private static void emitShieldVfx(VertexConsumer v, Matrix4f m, ClientFormation f, Vec3 chest, Vec3 forward,
                                       double time, float tickDelta, Vec3 camPos, boolean firstPerson, boolean bodyPass) {
         int count = f.blocks.size();
-        if (!bodyPass) {
-            if (f.formation == BlockDominionBrain.FormationKind.SHIELD_SINGLE) {
-                Vec3 n = f.threatPrimary.lengthSqr() > 1e-4 ? f.threatPrimary.normalize() : forward;
-                DominionShader.emitFresnelDome(v, m, chest, n, 1.92, 0.78, 18, 6,
-                        DominionShader.FX_HEX_MIST, 14, f.pr(), f.pg(), f.pb(), firstPerson ? 95 : 175);
-            } else if (f.formation == BlockDominionBrain.FormationKind.SHIELD_MULTI) {
-                Vec3 n1 = f.threatPrimary.lengthSqr() > 1e-4 ? f.threatPrimary.normalize() : forward;
-                Vec3 n2 = f.threatSecondary.lengthSqr() > 1e-4 ? f.threatSecondary.normalize() : forward.scale(-1);
-                int a = firstPerson ? 85 : 165;
-                DominionShader.emitFresnelDome(v, m, chest, n1, 1.88, 0.72, 16, 5, DominionShader.FX_HEX_MIST, 15, f.pr(), f.pg(), f.pb(), a);
-                DominionShader.emitFresnelDome(v, m, chest, n2, 1.88, 0.72, 16, 5, DominionShader.FX_HEX_MIST, 16, f.hr(), f.hg(), f.hb(), a);
-            } else if (f.formation == BlockDominionBrain.FormationKind.SHIELD_DOME) {
-                DominionShader.emitFresnelDome(v, m, chest.add(0, 0.1, 0), new Vec3(0, 1, 0), 2.55, Math.PI * 0.92,
-                        22, 10, DominionShader.FX_HEX_MIST, 18, f.pr(), f.pg(), f.pb(), firstPerson ? 85 : 165);
-            }
-
-            if (count >= 4) {
-                int arcs = Math.min(4, count / 6);
-                for (int a = 0; a < arcs; a++) {
-                    int i1 = (a * 4 + (int) (time / 5)) % count;
-                    int i2 = (i1 + 2) % count;
-                    Vec3 p1 = f.blocks.get(i1).prevPos.lerp(f.blocks.get(i1).pos, tickDelta).subtract(camPos);
-                    Vec3 p2 = f.blocks.get(i2).prevPos.lerp(f.blocks.get(i2).pos, tickDelta).subtract(camPos);
-                    if (p1.distanceToSqr(p2) < 6.5) {
-                        DominionShader.emitLiveBolt(v, m, p1, p2, 5, 0.10, 0.020, 2400L + a * 19L, time,
-                                f.hr(), f.hg(), f.hb(), firstPerson ? 75 : 135);
-                    }
+        if (!bodyPass && count >= 4) {
+            int arcs = Math.min(4, count / 6);
+            for (int a = 0; a < arcs; a++) {
+                int i1 = (a * 4 + (int) (time / 5)) % count;
+                int i2 = (i1 + 2) % count;
+                Vec3 p1 = f.blocks.get(i1).prevPos.lerp(f.blocks.get(i1).pos, tickDelta).subtract(camPos);
+                Vec3 p2 = f.blocks.get(i2).prevPos.lerp(f.blocks.get(i2).pos, tickDelta).subtract(camPos);
+                if (p1.distanceToSqr(p2) < 6.5) {
+                    DominionShader.emitLiveBolt(v, m, p1, p2, 4, 0.04, 0.014, 2400L + a * 19L, time,
+                            f.hr(), f.hg(), f.hb(), firstPerson ? 45 : 95);
                 }
             }
         }
