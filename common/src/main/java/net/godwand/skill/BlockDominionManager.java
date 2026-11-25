@@ -76,6 +76,7 @@ public final class BlockDominionManager {
     private static final class PlayerState {
         BlockDominionRules.Mode mode = BlockDominionRules.Mode.OFF;
         final List<BlockState> reserve = new ArrayList<>();
+        boolean conjuredReserve;
         boolean stowed;
         boolean hiddenInCutscene;
         boolean volleyCharging;
@@ -170,8 +171,39 @@ public final class BlockDominionManager {
 
     private static final Map<UUID, PlayerState> STATES = new ConcurrentHashMap<>();
     private static final ThreadLocal<UUID> SELF_DAMAGE_CASTER = new ThreadLocal<>();
+    private static final BlockState[] SAFE_CONJURE_PALETTE = {
+            Blocks.STONE.defaultBlockState(),
+            Blocks.DEEPSLATE.defaultBlockState(),
+            Blocks.COBBLESTONE.defaultBlockState(),
+            Blocks.ANDESITE.defaultBlockState(),
+            Blocks.SMOOTH_BASALT.defaultBlockState(),
+            Blocks.TUFF.defaultBlockState()
+    };
 
     private BlockDominionManager() {}
+
+    /** True when Block Dominion is allowed to break, lift, steal, or place real world blocks. */
+    static boolean canModifyTerrain() {
+        var cfg = GodWandConfig.SERVER;
+        return cfg.terrain(cfg.blockDominionTerrainDamage);
+    }
+
+    private static boolean isCopyableVisualBlock(ServerLevel world, BlockPos pos) {
+        if (pos == null || !world.isInWorldBounds(pos) || !world.hasChunkAt(pos)) return false;
+        BlockState state = world.getBlockState(pos);
+        return !state.isAir() && state.getFluidState().isEmpty() && !state.hasBlockEntity()
+                && state.isCollisionShapeFullBlock(world, pos);
+    }
+
+    private static BlockState conjurePaletteBlock(ServerLevel world, BlockPos near, int index) {
+        if (world != null && near != null) {
+            for (int dy = 0; dy >= -4; dy--) {
+                BlockPos p = near.offset(0, dy, 0);
+                if (isCopyableVisualBlock(world, p)) return world.getBlockState(p);
+            }
+        }
+        return SAFE_CONJURE_PALETTE[Math.floorMod(index, SAFE_CONJURE_PALETTE.length)];
+    }
 
     private static PlayerState stateOf(UUID id) {
         return STATES.computeIfAbsent(id, k -> new PlayerState());
@@ -356,7 +388,7 @@ public final class BlockDominionManager {
             case 2 -> (float) (Mth.lerp(charge, 42.0f, 58.0f) * (0.80 + 0.20 * blockFrac));
             default -> (float) (Mth.lerp(charge, 18.0f, 26.0f) * (0.85 + 0.15 * blockFrac));
         };
-        float baseDmg = rawDmg * cfg.damageMultiplier;
+        float baseDmg = rawDmg * (cfg.blockDominionDamage / 45.0f) * cfg.damageMultiplier;
         int igniteSecs = t == 3 ? 6 : (t == 2 ? 4 : 3);
 
         UUID previousSelf = SELF_DAMAGE_CASTER.get();
@@ -389,14 +421,13 @@ public final class BlockDominionManager {
             else SELF_DAMAGE_CASTER.set(previousSelf);
         }
 
-        // Tier-scaled volcanic crater (Tier I shallow 3m -> Tier II volcanic 5.4m -> Tier III CATACLYSM 9.0m burning bowl!)
+        // Tier-scaled volcanic crater + real-terrain rim aftershock (strictly gated by terrain-damage config!)
         double craterR = t == 3 ? (8.4 + charge * 1.0) : (t == 2 ? (4.8 + charge * 0.8) : 2.9);
-        if (cfg.terrain(cfg.blockDominionTerrainDamage)) {
+        if (canModifyTerrain()) {
             carveVolcanicCrater(world, impactPos, craterR, t, player);
+            double rimStart = Math.max(2.0, craterR - 0.3);
+            startSeismicWave(st, world, impactPos, rimStart, rimStart + 5.2 + t * 1.4, 0.95, 1.15 + t * 0.28, 220 + t * 40);
         }
-        // Launch rolling real-terrain aftershock wave around the crater rim (heaves real rim blocks & trees skyward!)
-        double rimStart = cfg.terrain(cfg.blockDominionTerrainDamage) ? Math.max(2.0, craterR - 0.3) : 1.8;
-        startSeismicWave(st, world, impactPos, rimStart, rimStart + 5.2 + t * 1.4, 0.95, 1.15 + t * 0.28, 220 + t * 40);
 
         BlockState groundState = world.getBlockState(player.blockPosition().below());
         if (groundState.isAir()) {
@@ -500,6 +531,10 @@ public final class BlockDominionManager {
     }
 
     private static void tickSeismicWaves(ServerPlayer player, PlayerState st, ServerLevel world) {
+        if (!canModifyTerrain()) {
+            st.seismicWaves.clear();
+            return;
+        }
         Iterator<SeismicWave> it = st.seismicWaves.iterator();
         while (it.hasNext()) {
             SeismicWave wave = it.next();
@@ -720,6 +755,7 @@ public final class BlockDominionManager {
         for (int i = 0; i < cost; i++) {
             cageBlocks.add(st.reserve.remove(st.reserve.size() - 1));
         }
+        if (st.reserve.isEmpty()) st.conjuredReserve = false;
         Vec3 anchor = target.position().add(0, 1.45, 0);
         st.activeCages.add(new ActiveCage(target.getId(), cageBlocks, anchor,
                 now, now + BlockDominionRules.CAGE_DURATION_TICKS, world.dimension()));
@@ -870,9 +906,56 @@ public final class BlockDominionManager {
         BlockPos under1 = feet.below();
         BlockPos under2 = under1.below();
         int r = BlockDominionRules.SURGE_RADIUS;
-        List<BlockPos> candidates = new ArrayList<>();
         int minY = Math.max(world.getMinBuildHeight(), feet.getY() - 5);
         int maxY = Math.min(world.getMaxBuildHeight() - 1, feet.getY() + 3);
+
+        // Safe Mode (terrainDamage or blockDominionTerrainDamage is OFF):
+        // Never remove real world blocks — conjure virtual blocks matching nearby terrain (or stone palette)!
+        if (!canModifyTerrain()) {
+            List<BlockState> sampledPalette = new ArrayList<>();
+            for (int dx = -r; dx <= r && sampledPalette.size() < wanted; dx += 2) {
+                for (int dz = -r; dz <= r && sampledPalette.size() < wanted; dz += 2) {
+                    int h2 = dx * dx + dz * dz;
+                    if (h2 > r * r) continue;
+                    int bx = feet.getX() + dx;
+                    int bz = feet.getZ() + dz;
+                    if (!world.getChunkSource().hasChunk(bx >> 4, bz >> 4)) continue;
+                    for (int y = maxY; y >= minY; y--) {
+                        BlockPos pos = new BlockPos(bx, y, bz);
+                        if (isCopyableVisualBlock(world, pos) && world.getBlockState(pos.above()).isAir()) {
+                            sampledPalette.add(world.getBlockState(pos));
+                            break;
+                        }
+                    }
+                }
+            }
+            BlockState lastState = Blocks.STONE.defaultBlockState();
+            for (int i = 0; i < wanted; i++) {
+                BlockState bs = sampledPalette.isEmpty()
+                        ? conjurePaletteBlock(world, feet.below(), st.reserve.size() + i)
+                        : sampledPalette.get(i % sampledPalette.size());
+                st.reserve.add(bs);
+                lastState = bs;
+                if (i % 2 == 0) {
+                    double ang = (Math.PI * 2.0 * i) / Math.max(1, wanted);
+                    double rad = 2.0 + (i % 4) * 0.85;
+                    world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, bs),
+                            player.getX() + Math.cos(ang) * rad, player.getY() + 0.4, player.getZ() + Math.sin(ang) * rad,
+                            5, 0.25, 0.25, 0.25, 0.14);
+                }
+            }
+            st.conjuredReserve = true;
+            st.lastSurgeTick = now;
+            GodWandAdvancements.award(player, "use_9");
+            Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                    CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.36f, 10));
+            Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                    CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.07f, 8));
+            sync(player, st, BlockDominionRules.EVENT_SURGE, player.getX(), player.getY(), player.getZ(), Block.getId(lastState));
+            return wanted;
+        }
+
+        List<BlockPos> candidates = new ArrayList<>();
 
         for (int dx = -r; dx <= r; dx++) {
             for (int dz = -r; dz <= r; dz++) {
@@ -996,6 +1079,49 @@ public final class BlockDominionManager {
         if (pos == null || player.getEyePosition().distanceToSqr(Vec3.atCenterOf(pos)) > PICKUP_REACH * PICKUP_REACH) {
             return false;
         }
+
+        long now = world.getGameTime();
+        boolean continuousHold = (now - st.lastPickupTick) <= 6;
+
+        // Safe Mode: conjure matching block copies without touching or removing any real block from the world!
+        if (!canModifyTerrain()) {
+            if (!world.isInWorldBounds(pos) || !world.hasChunkAt(pos)) return false;
+            BlockState clicked = world.getBlockState(pos);
+            if (clicked.isAir()) return false;
+            BlockState state = isCopyableVisualBlock(world, pos)
+                    ? clicked
+                    : conjurePaletteBlock(world, pos, st.reserve.size());
+            st.reserve.add(state);
+            st.conjuredReserve = true;
+            st.lastPickupTick = now;
+
+            if (continuousHold && st.reserve.size() < capacity) {
+                int extra = 0;
+                BlockPos[] neighbors = {
+                        pos.north(), pos.south(), pos.east(), pos.west(),
+                        pos.above(), pos.north().east(), pos.south().west(), pos.below()
+                };
+                for (BlockPos nb : neighbors) {
+                    if (extra >= 2 || st.reserve.size() >= capacity) break;
+                    if (!isCopyableVisualBlock(world, nb)) continue;
+                    BlockState ns = world.getBlockState(nb);
+                    st.reserve.add(ns);
+                    extra++;
+                    world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, ns),
+                            nb.getX() + 0.5, nb.getY() + 0.5, nb.getZ() + 0.5, 5, 0.2, 0.2, 0.2, 0.1);
+                }
+                while (extra < 2 && st.reserve.size() < capacity) {
+                    st.reserve.add(state);
+                    extra++;
+                }
+            }
+            GodWandAdvancements.award(player, "use_9");
+            double cx = pos.getX() + 0.5, cy = pos.getY() + 0.5, cz = pos.getZ() + 0.5;
+            world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state), cx, cy, cz, 10, 0.25, 0.25, 0.25, 0.12);
+            sync(player, st, BlockDominionRules.EVENT_PICKUP, cx, cy, cz, Block.getId(state));
+            return true;
+        }
+
         if (!canPickUpWorldBlock(world, pos)) return false;
 
         BlockState state = world.getBlockState(pos);
@@ -1003,8 +1129,6 @@ public final class BlockDominionManager {
             return false;
         }
         st.reserve.add(state);
-        long now = world.getGameTime();
-        boolean continuousHold = (now - st.lastPickupTick) <= 6;
         st.lastPickupTick = now;
 
         // Holding left-click rips a cluster of up to 2 extra adjacent blocks so players summon a massive swarm rapidly
@@ -1150,6 +1274,7 @@ public final class BlockDominionManager {
         for (int i = 0; i < count && !st.reserve.isEmpty(); i++) {
             snapshot.add(st.reserve.remove(st.reserve.size() - 1));
         }
+        if (st.reserve.isEmpty()) st.conjuredReserve = false;
         st.volleyQueue.clear();
         st.volleySilenceLeft = BlockDominionRules.VOLLEY_SILENCE_TICKS;
 
@@ -1216,6 +1341,7 @@ public final class BlockDominionManager {
     private static void fireManualShot(ServerPlayer player, PlayerState st, int burstIndex) {
         if (st.reserve.isEmpty()) return;
         BlockState block = st.reserve.remove(st.reserve.size() - 1);
+        if (st.reserve.isEmpty()) st.conjuredReserve = false;
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getViewVector(1.0f).normalize();
         Vec3 right = look.cross(Math.abs(look.y) < 0.95 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0)).normalize();
@@ -1233,20 +1359,31 @@ public final class BlockDominionManager {
 
     private static void fireAutoSingle(ServerPlayer player, PlayerState st) {
         ServerLevel world = player.serverLevel();
-        BlockPos found = findNearestAutoBlock(world, player, BlockDominionRules.AUTO_SCAN_RADIUS);
-        if (found == null) {
-            return;
+        BlockState block;
+        double fx, fy, fz;
+        if (!canModifyTerrain()) {
+            block = conjurePaletteBlock(world, player.blockPosition().below(), (int) (world.getGameTime() & 31));
+            fx = player.getX();
+            fy = player.getY() + 1.2;
+            fz = player.getZ();
+        } else {
+            BlockPos found = findNearestAutoBlock(world, player, BlockDominionRules.AUTO_SCAN_RADIUS);
+            if (found == null) {
+                return;
+            }
+            block = world.getBlockState(found);
+            if (!world.setBlock(found, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS)) {
+                return;
+            }
+            fx = found.getX() + 0.5;
+            fy = found.getY() + 0.5;
+            fz = found.getZ() + 0.5;
+            world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, block), fx, fy, fz, 10, 0.2, 0.2, 0.2, 0.1);
         }
-        BlockState block = world.getBlockState(found);
-        if (!world.setBlock(found, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS)) {
-            return;
-        }
-        world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, block),
-                found.getX() + 0.5, found.getY() + 0.5, found.getZ() + 0.5, 10, 0.2, 0.2, 0.2, 0.1);
         Vec3 look = player.getViewVector(1.0f).normalize();
         Vec3 spawnPos = player.getEyePosition().add(look.scale(1.45));
         launchProjectile(player, block, spawnPos, look, false);
-        sync(player, st, BlockDominionRules.EVENT_FIRE, found.getX() + 0.5, found.getY() + 0.5, found.getZ() + 0.5, Block.getId(block));
+        sync(player, st, BlockDominionRules.EVENT_FIRE, fx, fy, fz, Block.getId(block));
     }
 
     private static void launchProjectile(ServerPlayer player, BlockState state, Vec3 origin, Vec3 direction, boolean volley) {
@@ -1281,7 +1418,7 @@ public final class BlockDominionManager {
         BlockDominionRules.AbsorbResult decision = BlockDominionRules.decideAbsorb(
                 mode,
                 st == null ? 0 : st.reserve.size(),
-                autoPos != null,
+                autoPos != null || !canModifyTerrain(),
                 bypasses,
                 alreadyInvuln,
                 ownDamage,
@@ -1297,14 +1434,19 @@ public final class BlockDominionManager {
         BlockState parriedState;
         if (decision == BlockDominionRules.AbsorbResult.CONSUME_RESERVE) {
             parriedState = st.reserve.remove(st.reserve.size() - 1);
+            if (st.reserve.isEmpty()) st.conjuredReserve = false;
         } else {
             // CONSUME_AUTO_BLOCK
-            parriedState = world.getBlockState(autoPos);
-            if (!world.setBlock(autoPos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS)) {
-                return false;
+            if (!canModifyTerrain()) {
+                parriedState = conjurePaletteBlock(world, player.blockPosition().below(), (int) (now & 31));
+            } else {
+                parriedState = world.getBlockState(autoPos);
+                if (!world.setBlock(autoPos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS)) {
+                    return false;
+                }
+                world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, parriedState),
+                        autoPos.getX() + 0.5, autoPos.getY() + 0.5, autoPos.getZ() + 0.5, 10, 0.25, 0.25, 0.25, 0.1);
             }
-            world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, parriedState),
-                    autoPos.getX() + 0.5, autoPos.getY() + 0.5, autoPos.getZ() + 0.5, 10, 0.25, 0.25, 0.25, 0.1);
         }
 
         st.postParryInvulnUntil = now + BlockDominionRules.PARRY_INVULN_TICKS;
@@ -1578,8 +1720,10 @@ public final class BlockDominionManager {
                             CinematicFxPayload.EVENT_FOV_PUNCH, landPos.x, landPos.y, landPos.z, 1.07f, 7));
                     world.playSound(null, landPos.x, landPos.y, landPos.z,
                             SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.15f, 0.65f);
-                    // Real-terrain rolling seismic aftershock wave: rips actual surrounding ground & trees upward, then snaps them back!
-                    startSeismicWave(st, world, landPos, 1.55, 8.2, 0.85, 1.0, 240);
+                    // Real-terrain rolling seismic aftershock wave (strictly gated by terrain-damage config!)
+                    if (canModifyTerrain()) {
+                        startSeismicWave(st, world, landPos, 1.55, 8.2, 0.85, 1.0, 240);
+                    }
                     mobilityEvent = BlockDominionRules.EVENT_HERO_LAND;
                     mobEy = player.getY() + 0.1;
                 } else {
@@ -1975,7 +2119,28 @@ public final class BlockDominionManager {
     private static void dropReserveSpiral(ServerPlayer player, PlayerState st, boolean died) {
         ServerLevel world = player.serverLevel();
         int count = st.reserve.size();
-        if (count == 0) return;
+        if (count == 0) {
+            st.conjuredReserve = false;
+            return;
+        }
+
+        // Safe Mode or conjured reserve: dissolve cleanly into particles (never place/dupe blocks in world!)
+        if (!canModifyTerrain() || st.conjuredReserve) {
+            int bursts = Math.min(count, 12);
+            for (int i = 0; i < bursts; i++) {
+                BlockState bs = st.reserve.get((i * count) / bursts);
+                double ang = (Math.PI * 2.0 * i) / bursts;
+                world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, bs),
+                        player.getX() + Math.cos(ang) * 1.4, player.getY() + 1.1, player.getZ() + Math.sin(ang) * 1.4,
+                        5, 0.25, 0.25, 0.25, 0.12);
+            }
+            st.reserve.clear();
+            st.conjuredReserve = false;
+            st.recall = null;
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    UNFOLD_SFX, SoundSource.PLAYERS, 0.72f, 0.78f);
+            return;
+        }
 
         int[][] offsets = BlockDominionRules.spiralDropOffsets(count);
         BlockPos origin = player.blockPosition();
@@ -2061,7 +2226,7 @@ public final class BlockDominionManager {
     private static int tryRecallBlocks(ServerPlayer player, PlayerState st) {
         RecallSnapshot snap = st.recall;
         st.recall = null;
-        if (snap == null) return 0;
+        if (snap == null || !canModifyTerrain()) return 0;
         ServerLevel world = player.serverLevel();
         if (!snap.dimension().equals(world.dimension())) return 0;
         if (!BlockDominionRules.canRecall(world.getGameTime(), snap.deactivatedAtTick(), snap.died())) return 0;

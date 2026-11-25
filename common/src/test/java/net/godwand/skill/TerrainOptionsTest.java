@@ -28,6 +28,12 @@ class TerrainOptionsTest {
             GodWandConfig.SERVER.stoneCannonTerrainDamage=false;
             var cannon=StoneCannonManager.class.getDeclaredMethod("excavateImpact",net.godwand.entity.StoneCannonProjectileEntity.class,Vec3.class,Vec3.class);
             cannon.setAccessible(true);assertEquals(Vec3.ZERO,cannon.invoke(null,null,Vec3.ZERO,new Vec3(10,0,0)));
+            GodWandConfig.SERVER.terrainDamage=true;GodWandConfig.SERVER.blockDominionTerrainDamage=true;
+            assertTrue(BlockDominionManager.canModifyTerrain());
+            GodWandConfig.SERVER.blockDominionTerrainDamage=false;
+            assertFalse(BlockDominionManager.canModifyTerrain());
+            GodWandConfig.SERVER.blockDominionTerrainDamage=true;GodWandConfig.SERVER.terrainDamage=false;
+            assertFalse(BlockDominionManager.canModifyTerrain());
         } finally {GodWandConfig.SERVER=previous;}
     }
 }

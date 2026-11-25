@@ -70,8 +70,8 @@
       "after": "            return 0;\n        }\n        ServerLevel world = player.level();\n        long now = world.getGameTime();\n        if (now - st.lastSurgeTick < BlockDominionRules.SURGE_COOLDOWN_TICKS) {\n"
     },
     {
-      "before": "        int r = BlockDominionRules.SURGE_RADIUS;\n        List<BlockPos> candidates = new ArrayList<>();\n        int minY = Math.max(world.getMinBuildHeight(), feet.getY() - 5);\n        int maxY = Math.min(world.getMaxBuildHeight() - 1, feet.getY() + 3);\n\n        for (int dx = -r; dx <= r; dx++) {\n",
-      "after": "        int r = BlockDominionRules.SURGE_RADIUS;\n        List<BlockPos> candidates = new ArrayList<>();\n        int minY = Math.max(world.getMinY(), feet.getY() - 5);\n        int maxY = Math.min((world.getMaxY() + 1) - 1, feet.getY() + 3);\n\n        for (int dx = -r; dx <= r; dx++) {\n"
+      "before": "        BlockPos under2 = under1.below();\n        int r = BlockDominionRules.SURGE_RADIUS;\n        int minY = Math.max(world.getMinBuildHeight(), feet.getY() - 5);\n        int maxY = Math.min(world.getMaxBuildHeight() - 1, feet.getY() + 3);\n\n        // Safe Mode (terrainDamage or blockDominionTerrainDamage is OFF):\n",
+      "after": "        BlockPos under2 = under1.below();\n        int r = BlockDominionRules.SURGE_RADIUS;\n        int minY = Math.max(world.getMinY(), feet.getY() - 5);\n        int maxY = Math.min((world.getMaxY() + 1) - 1, feet.getY() + 3);\n\n        // Safe Mode (terrainDamage or blockDominionTerrainDamage is OFF):\n"
     },
     {
       "before": "    /** Shift + Left Click: cleanly toggles Block Dominion OFF <-> ON (no Auto mode, no auto-recall of old blocks). */\n    public static void cycleMode(ServerPlayer player) {\n        ServerLevel world = player.serverLevel();\n        PlayerState st = stateOf(player.getUUID());\n        BlockDominionRules.Mode previous = st.mode;\n",
@@ -90,8 +90,8 @@
       "after": "            if (st.reserve.size() < BlockDominionRules.MIN_FLIGHT_BLOCKS) {\n                // Safe landing cushion for 4 seconds if Orbital Barrage emptied wings\n                st.safeFallUntil = player.level().getGameTime() + 80;\n            }\n        } else {\n"
     },
     {
-      "before": "\n    private static void fireAutoSingle(ServerPlayer player, PlayerState st) {\n        ServerLevel world = player.serverLevel();\n        BlockPos found = findNearestAutoBlock(world, player, BlockDominionRules.AUTO_SCAN_RADIUS);\n        if (found == null) {\n",
-      "after": "\n    private static void fireAutoSingle(ServerPlayer player, PlayerState st) {\n        ServerLevel world = player.level();\n        BlockPos found = findNearestAutoBlock(world, player, BlockDominionRules.AUTO_SCAN_RADIUS);\n        if (found == null) {\n"
+      "before": "\n    private static void fireAutoSingle(ServerPlayer player, PlayerState st) {\n        ServerLevel world = player.serverLevel();\n        BlockState block;\n        double fx, fy, fz;\n",
+      "after": "\n    private static void fireAutoSingle(ServerPlayer player, PlayerState st) {\n        ServerLevel world = player.level();\n        BlockState block;\n        double fx, fy, fz;\n"
     },
     {
       "before": "        PlayerState st = STATES.get(player.getUUID());\n        BlockDominionRules.Mode mode = st == null ? BlockDominionRules.Mode.OFF : st.mode;\n        ServerLevel world = player.serverLevel();\n        long now = world.getGameTime();\n        boolean inPostParry = st != null && st.postParryInvulnUntil >= now;\n",
@@ -134,16 +134,16 @@
       "after": "        proj.setOwner(defender);\n        proj.setDeltaMovement(deflected);\n        proj.syncVelocity = true;\n        proj.syncVelocity = true;\n    }\n\n"
     },
     {
-      "before": "\n    private static void dropReserveSpiral(ServerPlayer player, PlayerState st, boolean died) {\n        ServerLevel world = player.serverLevel();\n        int count = st.reserve.size();\n        if (count == 0) return;\n",
-      "after": "\n    private static void dropReserveSpiral(ServerPlayer player, PlayerState st, boolean died) {\n        ServerLevel world = player.level();\n        int count = st.reserve.size();\n        if (count == 0) return;\n"
+      "before": "\n    private static void dropReserveSpiral(ServerPlayer player, PlayerState st, boolean died) {\n        ServerLevel world = player.serverLevel();\n        int count = st.reserve.size();\n        if (count == 0) {\n",
+      "after": "\n    private static void dropReserveSpiral(ServerPlayer player, PlayerState st, boolean died) {\n        ServerLevel world = player.level();\n        int count = st.reserve.size();\n        if (count == 0) {\n"
     },
     {
       "before": "    /** Finds a safe landing BlockPos near refY (works both outdoors and inside caves/buildings without forcing chunks). */\n    private static BlockPos findDropLandingPos(ServerLevel world, int x, int z, int refY) {\n        int minY = Math.max(world.getMinBuildHeight() + 1, refY - 16);\n        int maxY = Math.min(world.getMaxBuildHeight() - 2, refY + 6);\n        int startY = Mth.clamp(refY + 2, minY, maxY);\n        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(x, startY, z);\n",
       "after": "    /** Finds a safe landing BlockPos near refY (works both outdoors and inside caves/buildings without forcing chunks). */\n    private static BlockPos findDropLandingPos(ServerLevel world, int x, int z, int refY) {\n        int minY = Math.max(world.getMinY() + 1, refY - 16);\n        int maxY = Math.min((world.getMaxY() + 1) - 2, refY + 6);\n        int startY = Mth.clamp(refY + 2, minY, maxY);\n        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(x, startY, z);\n"
     },
     {
-      "before": "        st.recall = null;\n        if (snap == null) return 0;\n        ServerLevel world = player.serverLevel();\n        if (!snap.dimension().equals(world.dimension())) return 0;\n        if (!BlockDominionRules.canRecall(world.getGameTime(), snap.deactivatedAtTick(), snap.died())) return 0;\n",
-      "after": "        st.recall = null;\n        if (snap == null) return 0;\n        ServerLevel world = player.level();\n        if (!snap.dimension().equals(world.dimension())) return 0;\n        if (!BlockDominionRules.canRecall(world.getGameTime(), snap.deactivatedAtTick(), snap.died())) return 0;\n"
+      "before": "        st.recall = null;\n        if (snap == null || !canModifyTerrain()) return 0;\n        ServerLevel world = player.serverLevel();\n        if (!snap.dimension().equals(world.dimension())) return 0;\n        if (!BlockDominionRules.canRecall(world.getGameTime(), snap.deactivatedAtTick(), snap.died())) return 0;\n",
+      "after": "        st.recall = null;\n        if (snap == null || !canModifyTerrain()) return 0;\n        ServerLevel world = player.level();\n        if (!snap.dimension().equals(world.dimension())) return 0;\n        if (!BlockDominionRules.canRecall(world.getGameTime(), snap.deactivatedAtTick(), snap.died())) return 0;\n"
     },
     {
       "before": "        BlockPos best = null;\n        double bestDistSq = Double.MAX_VALUE;\n        int minY = Math.max(world.getMinBuildHeight(), feet.getY() - 3);\n        int maxY = Math.min(world.getMaxBuildHeight() - 1, feet.getY() + 4);\n\n        for (int dx = -radius; dx <= radius; dx++) {\n",
