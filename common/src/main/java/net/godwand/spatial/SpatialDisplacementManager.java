@@ -650,6 +650,9 @@ public class SpatialDisplacementManager {
         // Exact 1:1 original BlockState and NBT restoration
         if (!world.setBlock(r.pos, r.originalState, Block.UPDATE_KNOWN_SHAPE | Block.UPDATE_CLIENTS)
                 && !world.getBlockState(r.pos).equals(r.originalState)) return false;
+        // Sand/gravel schedule a fall when placed; the block under them may come back a tick later, so they fell and were lost.
+        if (r.originalState.getBlock() instanceof net.minecraft.world.level.block.FallingBlock)
+            world.getBlockTicks().clearArea(new net.minecraft.world.level.levelgen.structure.BoundingBox(r.pos));
         if (r.blockEntityNbt != null) {
             BlockEntity be = world.getBlockEntity(r.pos);
             if (be != null) {
