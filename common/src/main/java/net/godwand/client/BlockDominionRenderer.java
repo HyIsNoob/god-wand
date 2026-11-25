@@ -246,60 +246,8 @@ public final class BlockDominionRenderer {
     /** Multi-tier Meteor Strike impact blast dome, rising thermal fire pillar & molten volcanic ground scorch! */
     private record MeteorBlast(Vec3 pos, int tier, long startTick) {}
 
-    /** Bright radial seismic ground shockwave flash under upheaved blocks on Hero Landing / Meteor Strike. */
+    /** Bright radial seismic ground shockwave flash under upheaved real terrain on Hero Landing / Meteor Strike. */
     private record LandingFlash(Vec3 pos, double maxRadius, long startTick, BlockDominionPalette palette, boolean meteor, int tier) {}
-
-    /**
-     * Real sampled terrain block violently upheaved into the air by a superhero landing or Meteor Strike:
-     * Act 1: Radial wavefront erupts the block upward & tilts it outward;
-     * Act 2: Dramatic telekinetic apex hang suspended midair in a halo around the player;
-     * Act 3: Hero Landing snaps the whole earth ring cleanly back into its ground sockets with a crisp thud;
-     *        Meteor Strike hurls the boulders outward in a fiery ballistic arc!
-     */
-    private static final class UpheavalBlock {
-        final BlockState state;
-        final Vec3 origin;
-        final Vec3 radialDir;
-        final double delayTicks;
-        final double peakHeight;
-        final double outwardDrift;
-        final float maxTiltDeg;
-        final float yawJitterDeg;
-        final float scale;
-        final long startTick;
-        final boolean meteor;
-        final int tier;
-        final BlockDominionPalette palette;
-        final int seed;
-        boolean launchSparked;
-        boolean slamSparked;
-
-        UpheavalBlock(BlockState state, Vec3 origin, Vec3 radialDir, double delayTicks,
-                      double peakHeight, double outwardDrift, float maxTiltDeg, float yawJitterDeg,
-                      float scale, long startTick, boolean meteor, int tier, BlockDominionPalette palette, int seed) {
-            this.state = state;
-            this.origin = origin;
-            this.radialDir = radialDir;
-            this.delayTicks = delayTicks;
-            this.peakHeight = peakHeight;
-            this.outwardDrift = outwardDrift;
-            this.maxTiltDeg = maxTiltDeg;
-            this.yawJitterDeg = yawJitterDeg;
-            this.scale = scale;
-            this.startTick = startTick;
-            this.meteor = meteor;
-            this.tier = tier;
-            this.palette = palette;
-            this.seed = seed;
-        }
-
-        double totalDuration() {
-            double launch = meteor ? 13.0 : 11.0;
-            double hang = meteor ? 7.0 : 14.0;
-            double fall = meteor ? 15.0 : 9.0;
-            return delayTicks + launch + hang + fall;
-        }
-    }
 
     /** Deferred projectile Mach cone & wake queued by DominionBlockEntityRenderer under Iris/Oculus shaders. */
     private record ProjectileWake(Vec3 worldPos, Vec3 dir, boolean volley, int entityId, BlockDominionPalette palette) {}
@@ -312,7 +260,6 @@ public final class BlockDominionRenderer {
     private static final List<ImpaledMonument> IMPALED_MONUMENTS = new ArrayList<>();
     private static final List<MuzzleTracer> MUZZLE_TRACERS = new ArrayList<>();
     private static final List<MeteorBlast> METEOR_BLASTS = new ArrayList<>();
-    private static final List<UpheavalBlock> UPHEAVAL_BLOCKS = new ArrayList<>();
     private static final List<LandingFlash> LANDING_FLASHES = new ArrayList<>();
     private static final List<ProjectileWake> PROJECTILE_WAKES = new ArrayList<>();
     private static DeferredVolumetric deferredVolumetric;
@@ -340,7 +287,6 @@ public final class BlockDominionRenderer {
         IMPALED_MONUMENTS.clear();
         MUZZLE_TRACERS.clear();
         METEOR_BLASTS.clear();
-        UPHEAVAL_BLOCKS.clear();
         LANDING_FLASHES.clear();
         PROJECTILE_WAKES.clear();
         deferredVolumetric = null;
@@ -881,83 +827,12 @@ public final class BlockDominionRenderer {
         WAVES.add(new WaveBurst(playerId, axis, maxRadius, duration, now, pal));
     }
 
-    /**
-     * Samples real surface terrain blocks around {@code center} in concentric rings and launches them upward
-     * in a rolling radial seismic shockwave -> dramatic telekinetic apex hang -> crisp snap-slam (Hero Land)
-     * or explosive ballistic scatter (Meteor Strike)!
-     */
+    /** Queues the crisp bright radial ground shockwave flash beneath the server-side real-terrain aftershock wave. */
     private static void spawnSeismicUpheaval(Vec3 center, long now, BlockDominionPalette pal, boolean meteor, int tier) {
         if (world == null) return;
-        double maxR = meteor ? (5.8 + tier * 2.1) : 6.0;
+        double maxR = meteor ? (6.4 + tier * 2.2) : 8.4;
         if (LANDING_FLASHES.size() >= 8) LANDING_FLASHES.remove(0);
-        LANDING_FLASHES.add(new LandingFlash(center, maxR * 1.18, now, pal, meteor, tier));
-
-        int rings = meteor ? 4 : 3;
-        double minR = meteor ? 2.2 : 1.75;
-        Set<Long> usedColumns = new HashSet<>();
-        int seedBase = (int) (now * 31L);
-        int spawned = 0;
-        int maxCount = meteor ? (48 + tier * 14) : 40;
-
-        for (int rIdx = 0; rIdx < rings && spawned < maxCount; rIdx++) {
-            double rFrac = rings <= 1 ? 0.5 : (rIdx / (double) (rings - 1));
-            double ringR = Mth.lerp(rFrac, minR, maxR);
-            int slots = (meteor ? 12 : 10) + rIdx * 5;
-            for (int s = 0; s < slots && spawned < maxCount; s++) {
-                int sd = seedBase + rIdx * 97 + s * 17;
-                double angJitter = (DominionShader.hash(sd) - 0.5) * (Math.PI * 1.2 / slots);
-                double radJitter = (DominionShader.hash(sd + 1) - 0.5) * 0.72;
-                double ang = (Math.PI * 2.0 * s / slots) + rIdx * 0.37 + angJitter;
-                double dist = Math.max(1.35, ringR + radJitter);
-                double wx = center.x + Math.cos(ang) * dist;
-                double wz = center.z + Math.sin(ang) * dist;
-                int bx = Mth.floor(wx);
-                int bz = Mth.floor(wz);
-                if (!world.getChunkSource().hasChunk(bx >> 4, bz >> 4)) continue;
-                long colKey = (((long) bx) << 32) | (bz & 0xffffffffL);
-                if (!usedColumns.add(colKey)) continue;
-
-                int groundY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz);
-                if (Math.abs(groundY - center.y) > (meteor ? 10.0 : 5.5)) continue;
-                BlockPos samplePos = new BlockPos(bx, groundY - 1, bz);
-                BlockState state = world.getBlockState(samplePos);
-                if (state.isAir() || !state.getFluidState().isEmpty() || !state.isCollisionShapeFullBlock(world, samplePos)) {
-                    BlockPos below = samplePos.below();
-                    BlockState belowState = world.getBlockState(below);
-                    if (!belowState.isAir() && belowState.getFluidState().isEmpty() && belowState.isCollisionShapeFullBlock(world, below)) {
-                        samplePos = below;
-                        state = belowState;
-                    } else {
-                        continue;
-                    }
-                }
-                if (meteor && tier >= 2 && DominionShader.hash(sd + 7) < (tier == 3 ? 0.30 : 0.16)) {
-                    state = DominionShader.hash(sd + 9) < 0.55
-                            ? Blocks.MAGMA_BLOCK.defaultBlockState()
-                            : Blocks.BASALT.defaultBlockState();
-                }
-
-                Vec3 origin = new Vec3(samplePos.getX() + 0.5, samplePos.getY() + 0.5, samplePos.getZ() + 0.5);
-                Vec3 radial = new Vec3(Math.cos(ang), 0.0, Math.sin(ang));
-                double delay = (dist - minR * 0.7) * (meteor ? 0.40 : 0.52);
-                delay = Math.max(0.0, delay);
-                double heightBias = 1.0 - rFrac * 0.34;
-                double peakH = meteor
-                        ? ((3.0 + tier * 1.15) * heightBias + DominionShader.hash(sd + 2) * (1.8 + tier * 0.5))
-                        : ((1.85 + DominionShader.hash(sd + 2) * 1.75) * heightBias);
-                double drift = meteor
-                        ? (1.75 + tier * 0.85 + DominionShader.hash(sd + 3) * 1.65)
-                        : (0.34 + DominionShader.hash(sd + 3) * 0.44);
-                float tilt = (float) (24.0 + DominionShader.hash(sd + 4) * 32.0);
-                float yawJit = (float) ((DominionShader.hash(sd + 5) - 0.5) * 44.0);
-                float sc = (float) (0.86 + DominionShader.hash(sd + 6) * 0.14);
-
-                if (UPHEAVAL_BLOCKS.size() >= 160) UPHEAVAL_BLOCKS.remove(0);
-                UPHEAVAL_BLOCKS.add(new UpheavalBlock(state, origin, radial, delay, peakH, drift, tilt, yawJit,
-                        sc, now, meteor, tier, pal, sd));
-                spawned++;
-            }
-        }
+        LANDING_FLASHES.add(new LandingFlash(center, maxR * 1.15, now, pal, meteor, tier));
     }
 
     private static void updateAmbientLoop(int pid, BlockDominionRules.Mode mode, ClientFormation f) {
@@ -1132,42 +1007,6 @@ public final class BlockDominionRenderer {
         MUZZLE_TRACERS.removeIf(m -> now - m.startTick > 7);
         METEOR_BLASTS.removeIf(b -> now - b.startTick > 38);
         LANDING_FLASHES.removeIf(lf -> now - lf.startTick > (lf.meteor ? 18 : 14));
-        UPHEAVAL_BLOCKS.removeIf(ub -> (now - ub.startTick) > ub.totalDuration() + 2.0);
-        int slamThudsThisTick = 0;
-        for (UpheavalBlock ub : UPHEAVAL_BLOCKS) {
-            double localAge = (now - ub.startTick) - ub.delayTicks;
-            double launchDur = ub.meteor ? 13.0 : 11.0;
-            double hangDur = ub.meteor ? 7.0 : 14.0;
-            double fallDur = ub.meteor ? 15.0 : 9.0;
-            if (!ub.launchSparked && localAge >= 0.0) {
-                ub.launchSparked = true;
-                DominionParticles.spawn(ub.origin.add(0, 0.55, 0),
-                        ub.radialDir.scale(0.10).add(0, 0.16, 0),
-                        ub.meteor ? 0.22f : 0.15f, 12, 0.88, 0.006,
-                        ub.palette.hotR, ub.palette.hotG, ub.palette.hotB,
-                        ub.meteor ? DominionParticles.STYLE_EMBER : DominionParticles.STYLE_SHARD);
-            }
-            if (localAge >= launchDur && localAge < launchDur + hangDur && ((now + ub.seed) % 5 == 0)) {
-                // Subtle shimmering dust motes drifting beneath the levitating terrain halo!
-                DominionParticles.spawn(
-                        ub.origin.add(ub.radialDir.scale(ub.outwardDrift * 0.7)).add(0, ub.peakHeight * 0.9, 0),
-                        new Vec3(0, 0.03, 0), 0.11f, 10, 0.90, 0.0,
-                        ub.palette.primaryR, ub.palette.primaryG, ub.palette.primaryB, DominionParticles.STYLE_STAR);
-            }
-            if (!ub.slamSparked && localAge >= launchDur + hangDur + fallDur - 1.2) {
-                ub.slamSparked = true;
-                Vec3 settlePos = ub.meteor
-                        ? ub.origin.add(ub.radialDir.scale(ub.outwardDrift)).add(0, 0.2, 0)
-                        : ub.origin.add(0, 0.55, 0);
-                DominionParticles.spawnSmoke(settlePos, ub.radialDir.scale(0.06).add(0, 0.04, 0),
-                        ub.meteor ? 0.55f : 0.34f, 12,
-                        ub.palette.midR, ub.palette.midG, ub.palette.midB, 90);
-                if (!ub.meteor && slamThudsThisTick < 2 && (ub.seed % 4 == 0)) {
-                    slamThudsThisTick++;
-                    BlockDominionSounds.play(settlePos, SoundEvents.DEEPSLATE_STEP, 0.42f, 0.72f + (ub.seed & 3) * 0.06f);
-                }
-            }
-        }
         ACTIVE_CAGES.entrySet().removeIf(e -> now - e.getValue().startTick > BlockDominionRules.CAGE_DURATION_TICKS + 6);
         IMPALED_MONUMENTS.removeIf(m -> now - m.startTick > BlockDominionRules.CAGE_MONUMENT_TICKS);
         if (now % 3 == 0 && !IMPALED_MONUMENTS.isEmpty()) {
@@ -1667,8 +1506,7 @@ public final class BlockDominionRenderer {
             reset();
             world = client.level;
         }
-        if (FORMATIONS.isEmpty() && ACTIVE_CAGES.isEmpty() && IMPALED_MONUMENTS.isEmpty()
-                && PARRIES.isEmpty() && UPHEAVAL_BLOCKS.isEmpty()) return;
+        if (FORMATIONS.isEmpty() && ACTIVE_CAGES.isEmpty() && IMPALED_MONUMENTS.isEmpty() && PARRIES.isEmpty()) return;
 
         Vec3 camPos = camera.getPosition();
         double time = world.getGameTime() + tickDelta;
@@ -1934,75 +1772,6 @@ public final class BlockDominionRenderer {
                 renderStoneLance(matrices, bufferSource, blockRenderer, anchor, dir, camPos,
                         (float) (0.96 * fade), tipMat, shaftMat, light);
             }
-        }
-
-        // 2d. Render Seismic Upheaval ground blocks (real terrain ripped into the sky -> apex hang -> snap-slam / ballistic crash!)
-        for (UpheavalBlock ub : UPHEAVAL_BLOCKS) {
-            if (ub.origin.distanceToSqr(camPos) > 110.0 * 110.0) continue;
-            double localAge = (time - ub.startTick) - ub.delayTicks;
-            double launchDur = ub.meteor ? 13.0 : 11.0;
-            double hangDur = ub.meteor ? 7.0 : 14.0;
-            double fallDur = ub.meteor ? 15.0 : 9.0;
-            double totalDur = launchDur + hangDur + fallDur;
-            if (localAge < 0.0 || localAge >= totalDur) continue;
-
-            double liftY;
-            double outDist;
-            float tiltDeg;
-            float tumbleExtra = 0f;
-            float sc = ub.scale;
-
-            if (localAge < launchDur) {
-                // Act 1: Explosive radial wavefront eruption upward!
-                double u = localAge / launchDur;
-                double easeOut = 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u);
-                liftY = ub.peakHeight * easeOut;
-                outDist = ub.outwardDrift * (ub.meteor ? (0.45 * easeOut) : easeOut);
-                tiltDeg = (float) (ub.maxTiltDeg * easeOut);
-            } else if (localAge < launchDur + hangDur) {
-                // Act 2: Dramatic telekinetic zero-gravity hang suspended midair!
-                double u = (localAge - launchDur) / hangDur;
-                double bob = Math.sin(u * Math.PI) * 0.14;
-                liftY = ub.peakHeight + bob;
-                outDist = ub.outwardDrift * (ub.meteor ? (0.45 + 0.10 * u) : (1.0 + 0.06 * Math.sin(u * Math.PI)));
-                tiltDeg = ub.maxTiltDeg + (float) (Math.sin(u * Math.PI) * 7.0);
-            } else {
-                // Act 3: Hero Landing -> crisp telekinetic snap-slam straight back into the earth!
-                //        Meteor Strike -> violent ballistic crash outward into the crater rim!
-                double u = (localAge - launchDur - hangDur) / fallDur;
-                if (!ub.meteor) {
-                    double snap = u * u * u;
-                    liftY = ub.peakHeight * (1.0 - snap);
-                    outDist = ub.outwardDrift * (1.0 - snap);
-                    tiltDeg = (float) (ub.maxTiltDeg * (1.0 - snap));
-                } else {
-                    double drop = u * u;
-                    liftY = ub.peakHeight * (1.0 - drop) - 0.55 * drop;
-                    outDist = ub.outwardDrift * (0.55 + 0.65 * u);
-                    tiltDeg = ub.maxTiltDeg;
-                    tumbleExtra = (float) (u * 195.0);
-                    if (u > 0.72) {
-                        sc *= (float) Mth.clamp((1.0 - u) / 0.28, 0.0, 1.0);
-                    }
-                }
-            }
-            if (sc <= 0.04f) continue;
-
-            Vec3 renderPos = ub.origin.add(ub.radialDir.scale(outDist)).add(0, liftY, 0);
-            int light = sampleLight(renderPos, client.player);
-            // Tilt axis is horizontal tangent perpendicular to radial outward direction -> pitches block outward!
-            Vector3f tiltAxis = new Vector3f((float) -ub.radialDir.z, 0.0f, (float) ub.radialDir.x);
-            if (tiltAxis.lengthSquared() < 1e-4f) tiltAxis.set(1f, 0f, 0f);
-            else tiltAxis.normalize();
-
-            matrices.pushPose();
-            matrices.translate(renderPos.x - camPos.x, renderPos.y - camPos.y, renderPos.z - camPos.z);
-            matrices.mulPose(new Quaternionf().rotationAxis((float) Math.toRadians(tiltDeg + tumbleExtra), tiltAxis));
-            matrices.mulPose(Axis.YP.rotationDegrees(ub.yawJitterDeg * (tiltDeg / Math.max(1f, ub.maxTiltDeg))));
-            matrices.scale(sc, sc, sc);
-            matrices.translate(-0.5, -0.5, -0.5);
-            blockRenderer.renderSingleBlock(ub.state, matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
-            matrices.popPose();
         }
     }
 

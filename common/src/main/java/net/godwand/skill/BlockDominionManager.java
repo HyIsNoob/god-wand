@@ -8,8 +8,12 @@ import net.godwand.network.BlockDominionStatePayload;
 import net.godwand.network.CannonPressurePayload;
 import net.godwand.network.CinematicFxPayload;
 import net.godwand.platform.Services;
+import net.godwand.spatial.DisplacedBlockRecord;
 import net.godwand.spatial.DisplacementPersistentState;
 import net.godwand.spatial.SpatialDisplacementManager;
+import net.minecraft.world.level.levelgen.Heightmap;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -112,8 +116,35 @@ public final class BlockDominionManager {
         long safeFallUntil = -1;
         Vec3 flightVel = Vec3.ZERO;
         final List<ActiveCage> activeCages = new ArrayList<>();
+        final List<SeismicWave> seismicWaves = new ArrayList<>();
         final ArrayDeque<QueuedShot> volleyQueue = new ArrayDeque<>();
         RecallSnapshot recall;
+    }
+
+    /** Rolling real-terrain aftershock wave that rips actual ground blocks & trees skyward via SpatialDisplacementManager. */
+    private static final class SeismicWave {
+        final ResourceKey<Level> dimension;
+        final Vec3 center;
+        final double minRadius;
+        final double maxRadius;
+        final double waveSpeed;
+        final double strength;
+        final int maxBlocks;
+        final Set<Long> visitedCols = new HashSet<>();
+        double currentRadius;
+        int displacedCount;
+
+        SeismicWave(ResourceKey<Level> dimension, Vec3 center, double minRadius, double maxRadius,
+                    double waveSpeed, double strength, int maxBlocks) {
+            this.dimension = dimension;
+            this.center = center;
+            this.minRadius = minRadius;
+            this.maxRadius = maxRadius;
+            this.waveSpeed = waveSpeed;
+            this.strength = strength;
+            this.maxBlocks = maxBlocks;
+            this.currentRadius = minRadius;
+        }
     }
 
     private static final class ActiveCage {
@@ -364,10 +395,13 @@ public final class BlockDominionManager {
         }
 
         // Tier-scaled volcanic crater (Tier I shallow 3m -> Tier II volcanic 5.4m -> Tier III CATACLYSM 9.0m burning bowl!)
+        double craterR = t == 3 ? (8.4 + charge * 1.0) : (t == 2 ? (4.8 + charge * 0.8) : 2.9);
         if (cfg.terrain(cfg.blockDominionTerrainDamage)) {
-            double craterR = t == 3 ? (8.4 + charge * 1.0) : (t == 2 ? (4.8 + charge * 0.8) : 2.9);
             carveVolcanicCrater(world, impactPos, craterR, t, player);
         }
+        // Launch rolling real-terrain aftershock wave around the crater rim (heaves real rim blocks & trees skyward!)
+        double rimStart = cfg.terrain(cfg.blockDominionTerrainDamage) ? Math.max(2.0, craterR - 0.3) : 1.8;
+        startSeismicWave(st, world, impactPos, rimStart, rimStart + 5.2 + t * 1.4, 0.95, 1.15 + t * 0.28, 220 + t * 40);
 
         BlockState groundState = world.getBlockState(player.blockPosition().below());
         if (groundState.isAir()) {
@@ -464,6 +498,101 @@ public final class BlockDominionManager {
             }
         }
         if (removedDisplacement) DisplacementPersistentState.getServerState(world).setDirty();
+    }
+
+    /** Queues a rolling real-terrain aftershock wave that temporarily lifts actual ground & trees into the air. */
+    private static void startSeismicWave(PlayerState st, ServerLevel world, Vec3 center,
+                                         double minRadius, double maxRadius, double waveSpeed, double strength, int maxBlocks) {
+        if (st.seismicWaves.size() >= 3) st.seismicWaves.remove(0);
+        SeismicWave wave = new SeismicWave(world.dimension(), center, minRadius, maxRadius, waveSpeed, strength, maxBlocks);
+        st.seismicWaves.add(wave);
+        // Kick off the innermost ring immediately on touchdown tick so there is zero frame delay!
+        advanceSeismicWave(world, wave, null);
+    }
+
+    private static void tickSeismicWaves(ServerPlayer player, PlayerState st, ServerLevel world) {
+        Iterator<SeismicWave> it = st.seismicWaves.iterator();
+        while (it.hasNext()) {
+            SeismicWave wave = it.next();
+            if (!world.dimension().equals(wave.dimension)) {
+                it.remove();
+                continue;
+            }
+            if (advanceSeismicWave(world, wave, player.getUUID())) {
+                it.remove();
+            }
+        }
+    }
+
+    /** Advances one tick of a rolling seismic wave; returns true when the wave finishes. */
+    private static boolean advanceSeismicWave(ServerLevel world, SeismicWave wave, UUID ownerUuid) {
+        double prevR = wave.currentRadius;
+        double nextR = Math.min(wave.maxRadius, prevR + wave.waveSpeed);
+        wave.currentRadius = nextR;
+
+        int cx = Mth.floor(wave.center.x);
+        int cz = Mth.floor(wave.center.z);
+        int scanR = Mth.ceil(nextR) + 1;
+        int minY = world.getMinBuildHeight() + 1;
+        int maxY = world.getMaxBuildHeight() - 1;
+
+        for (int dx = -scanR; dx <= scanR && wave.displacedCount < wave.maxBlocks; dx++) {
+            for (int dz = -scanR; dz <= scanR && wave.displacedCount < wave.maxBlocks; dz++) {
+                double dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist < wave.minRadius || dist < prevR - 0.15 || dist > nextR) continue;
+                int bx = cx + dx;
+                int bz = cz + dz;
+                long colKey = (((long) bx) << 32) | (bz & 0xffffffffL);
+                if (!wave.visitedCols.add(colKey)) continue;
+                if (!world.getChunkSource().hasChunk(bx >> 4, bz >> 4)) continue;
+
+                int groundY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz);
+                int surfY = world.getHeight(Heightmap.Types.WORLD_SURFACE, bx, bz);
+                if (Math.abs(groundY - wave.center.y) > 7.0) continue;
+
+                int topY = Math.min(maxY, Math.min(groundY + 7, Math.max(groundY, surfY) - 1));
+                int botY = Math.max(minY, groundY - 1);
+                if (topY < botY) continue;
+
+                double radialFrac = Mth.clamp((dist - wave.minRadius) / Math.max(1.0, wave.maxRadius - wave.minRadius), 0.0, 1.0);
+                double ang = Math.atan2(dz, dx);
+                Vec3 radial = new Vec3(Math.cos(ang), 0.0, Math.sin(ang));
+                // Cohesive tectonic slab variation so adjacent blocks rise in natural fractured plates!
+                double plate = 0.82 + 0.34 * Math.sin(ang * 5.0 + wave.center.x * 0.25) * Math.cos(dist * 0.65);
+                float liftY = (float) (Mth.lerp(radialFrac, 3.25, 0.95) * wave.strength * plate);
+                float outDist = (float) (Mth.lerp(radialFrac, 0.48, 0.16) * wave.strength);
+                Vector3f disp = new Vector3f((float) (radial.x * outDist), liftY, (float) (radial.z * outDist));
+
+                int colHeight = topY - botY + 1;
+                float tiltDeg = (float) Mth.lerp(radialFrac, colHeight > 2 ? 12.0 : 28.0, colHeight > 2 ? 5.0 : 10.0);
+                Vector3f tiltAxis = new Vector3f((float) -radial.z, 0.0f, (float) radial.x);
+                if (tiltAxis.lengthSquared() < 1e-4f) tiltAxis.set(1f, 0f, 0f);
+                else tiltAxis.normalize();
+                Quaternionf rot = new Quaternionf().rotationAxis((float) Math.toRadians(tiltDeg), tiltAxis);
+                int lifetime = (int) Mth.lerp(radialFrac, 22.0, 15.0);
+
+                // Displace TOP-DOWN so attached grass/flowers/leaves/logs lift safely BEFORE the earth block beneath!
+                boolean liftedAny = false;
+                BlockState sampleForDust = null;
+                for (int y = topY; y >= botY && wave.displacedCount < wave.maxBlocks; y--) {
+                    BlockPos pos = new BlockPos(bx, y, bz);
+                    BlockState st = world.getBlockState(pos);
+                    if (st.isAir() || !st.getFluidState().isEmpty() || world.getBlockEntity(pos) != null) continue;
+                    if (!SpatialDisplacementManager.canDisplace(world, pos, st)) continue;
+                    SpatialDisplacementManager.displaceBlock(world, pos, new Vector3f(disp), new Quaternionf(rot),
+                            new Vector3f(1.0f, 1.0f, 1.0f), lifetime, -1, true,
+                            DisplacedBlockRecord.DisplacementMode.TIMED_LIFECYCLE, ownerUuid, null, 0.0);
+                    wave.displacedCount++;
+                    liftedAny = true;
+                    if (sampleForDust == null) sampleForDust = st;
+                }
+                if (liftedAny && sampleForDust != null && ((bx + bz) & 3) == 0) {
+                    world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, sampleForDust),
+                            bx + 0.5, botY + 0.85, bz + 0.5, 4, 0.30, 0.18, 0.30, 0.14);
+                }
+            }
+        }
+        return nextR >= wave.maxRadius - 1e-4 || wave.displacedCount >= wave.maxBlocks;
     }
 
     private static void stopWingFlightInternal(ServerPlayer player, PlayerState st, boolean broadcast) {
@@ -1362,13 +1491,18 @@ public final class BlockDominionManager {
         ServerLevel world = player.serverLevel();
         long now = world.getGameTime();
 
+        // Advance any active rolling real-terrain aftershock waves even after mode toggles
+        if (!st.seismicWaves.isEmpty()) {
+            tickSeismicWaves(player, st, world);
+        }
+
         // Expire old recall snapshots quietly
         if (st.recall != null && !BlockDominionRules.canRecall(now, st.recall.deactivatedAtTick(), st.recall.died())) {
             st.recall = null;
         }
 
         if (st.mode == BlockDominionRules.Mode.OFF && st.volleyQueue.isEmpty()) {
-            if (st.recall == null) STATES.remove(player.getUUID());
+            if (st.recall == null && st.seismicWaves.isEmpty()) STATES.remove(player.getUUID());
             return;
         }
 
@@ -1482,6 +1616,8 @@ public final class BlockDominionManager {
                             CinematicFxPayload.EVENT_FOV_PUNCH, landPos.x, landPos.y, landPos.z, 1.07f, 7));
                     world.playSound(null, landPos.x, landPos.y, landPos.z,
                             SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.15f, 0.65f);
+                    // Real-terrain rolling seismic aftershock wave: rips actual surrounding ground & trees upward, then snaps them back!
+                    startSeismicWave(st, world, landPos, 1.55, 8.2, 0.85, 1.0, 240);
                     mobilityEvent = BlockDominionRules.EVENT_HERO_LAND;
                     mobEy = player.getY() + 0.1;
                 } else {
