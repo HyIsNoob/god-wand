@@ -231,5 +231,14 @@ class BlockDominionBrainTest {
             assertEquals(1.0, sp.length(), 1e-4);
             assertTrue(sp.y < -0.45, "Spears angle cleanly downward into the earth (y=" + sp.y + ")");
         }
+
+        // Progressive Meteor Dive wing folding: higher foldFrac (Tier III Cataclysm) tucks wings significantly tighter!
+        double tier1Span = 0, tier3Span = 0;
+        for (int i = 6; i < 36; i++) {
+            tier1Span = Math.max(tier1Span, Math.abs(BlockDominionBrain.meteorDivePose(i, 36, 10.0, look, 150f, 0f, 0.30f).offset().x));
+            tier3Span = Math.max(tier3Span, Math.abs(BlockDominionBrain.meteorDivePose(i, 36, 10.0, look, 150f, 0f, 1.00f).offset().x));
+        }
+        assertTrue(tier3Span < tier1Span * 0.55,
+                "Full Cataclysm dive folds wings dramatically tighter than Tier I (" + tier3Span + " vs " + tier1Span + ")");
     }
 }

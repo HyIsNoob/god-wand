@@ -307,16 +307,36 @@ public final class BlockDominionRules {
     public static Vec3 stepFlightVelocity(Vec3 currentVel, Vec3 lookDir,
                                           int forwardInput, int strafeInput, int verticalInput, boolean boost,
                                           int blockCount) {
+        return stepFlightVelocity(currentVel, lookDir, null, forwardInput, strafeInput, verticalInput, boost, blockCount);
+    }
+
+    /**
+     * Pure per-tick 3D free-flight velocity integrator scaled by {@code blockCount}, using an explicit
+     * gimbal-lock-free horizontal {@code yawForward} so pressing A/D while diving straight down never snaps sideways/backwards.
+     */
+    public static Vec3 stepFlightVelocity(Vec3 currentVel, Vec3 lookDir, Vec3 yawForward,
+                                          int forwardInput, int strafeInput, int verticalInput, boolean boost,
+                                          int blockCount) {
         Vec3 cur = currentVel == null ? Vec3.ZERO : currentVel;
         Vec3 look = lookDir == null || lookDir.lengthSqr() < 1e-6 ? new Vec3(0, 0, 1) : lookDir.normalize();
-        Vec3 horizFwd = new Vec3(look.x, 0, look.z);
+        Vec3 horizFwd = (yawForward != null && yawForward.horizontalDistanceSqr() > 1e-5)
+                ? new Vec3(yawForward.x, 0, yawForward.z).normalize()
+                : new Vec3(look.x, 0, look.z);
         if (horizFwd.lengthSqr() < 1e-5) horizFwd = new Vec3(0, 0, 1);
         else horizFwd = horizFwd.normalize();
         Vec3 right = new Vec3(-horizFwd.z, 0, horizFwd.x);
 
+        boolean steepDive = look.y < -0.68 && cur.y < -0.55;
         Vec3 wish = Vec3.ZERO;
         if (forwardInput != 0) wish = wish.add(look.scale(Mth.clamp(forwardInput, -1, 1)));
-        if (strafeInput != 0) wish = wish.add(right.scale(Mth.clamp(strafeInput, -1, 1)));
+        if (strafeInput != 0) {
+            double strafeGain = steepDive ? 0.32 : 1.0;
+            wish = wish.add(right.scale(Mth.clamp(strafeInput, -1, 1) * strafeGain));
+            if (steepDive && forwardInput == 0) {
+                // Keep diving smoothly downward while trimming left/right with A/D instead of stalling sideways!
+                wish = wish.add(look.scale(0.95));
+            }
+        }
         if (verticalInput != 0) wish = wish.add(0, Mth.clamp(verticalInput, -1, 1), 0);
 
         if (wish.lengthSqr() > 1e-5) {
@@ -349,7 +369,7 @@ public final class BlockDominionRules {
      * Backward-compatible overload assuming full 48-block reserve.
      */
     public static Vec3 stepGlideVelocity(Vec3 currentVel, Vec3 lookDir, int strafeInput, boolean boost) {
-        return stepGlideVelocity(currentVel, lookDir, strafeInput, boost, DEFAULT_CAPACITY);
+        return stepGlideVelocity(currentVel, lookDir, null, strafeInput, boost, DEFAULT_CAPACITY);
     }
 
     /**
@@ -357,13 +377,24 @@ public final class BlockDominionRules {
      * carrying more orbiting blocks visibly boosts both Jet top speed and dive velocity.
      */
     public static Vec3 stepGlideVelocity(Vec3 currentVel, Vec3 lookDir, int strafeInput, boolean boost, int blockCount) {
+        return stepGlideVelocity(currentVel, lookDir, null, strafeInput, boost, blockCount);
+    }
+
+    /**
+     * Gimbal-lock-free Elytra-style gliding physics using explicit horizontal {@code yawForward} so A/D banking
+     * during vertical Meteor Dives steers gently along true player-right instead of snapping diagonally backward.
+     */
+    public static Vec3 stepGlideVelocity(Vec3 currentVel, Vec3 lookDir, Vec3 yawForward,
+                                         int strafeInput, boolean boost, int blockCount) {
         Vec3 cur = currentVel == null ? Vec3.ZERO : currentVel;
         Vec3 look = lookDir == null || lookDir.lengthSqr() < 1e-6 ? new Vec3(0, 0, 1) : lookDir.normalize();
-        Vec3 horizLook = new Vec3(look.x, 0, look.z);
-        double horizLookLen = horizLook.length();
-        Vec3 right = horizLookLen > 1e-4
-                ? new Vec3(-horizLook.z / horizLookLen, 0, horizLook.x / horizLookLen)
-                : new Vec3(1, 0, 0);
+        Vec3 horizFwd = (yawForward != null && yawForward.horizontalDistanceSqr() > 1e-5)
+                ? new Vec3(yawForward.x, 0, yawForward.z).normalize()
+                : new Vec3(look.x, 0, look.z);
+        double horizLen = horizFwd.length();
+        Vec3 right = horizLen > 1e-4
+                ? new Vec3(-horizFwd.z / horizLen, 0, horizFwd.x / horizLen)
+                : new Vec3(-1, 0, 0);
 
         double scale = wingSpeedScale(blockCount);
         double minSpeed = GLIDE_MIN_SPEED * (0.85 + 0.15 * scale);
@@ -382,10 +413,12 @@ public final class BlockDominionRules {
         double maxSpeed = (look.y < -0.55 ? GLIDE_DIVE_MAX_SPEED : GLIDE_MAX_SPEED) * scale;
         speed = Mth.clamp(speed, minSpeed, maxSpeed);
 
-        // Blend velocity direction smoothly toward 3D look vector + optional horizontal banking from A/D
+        // Blend velocity direction smoothly toward 3D look vector + damped horizontal banking from A/D during steep dives
         Vec3 desiredDir = look;
         if (strafeInput != 0) {
-            desiredDir = desiredDir.add(right.scale(Mth.clamp(strafeInput, -1, 1) * 0.42)).normalize();
+            double steepness = Mth.clamp((-look.y - 0.45) / 0.50, 0.0, 1.0);
+            double bankAmt = Mth.lerp(steepness, 0.40, 0.16);
+            desiredDir = desiredDir.add(right.scale(Mth.clamp(strafeInput, -1, 1) * bankAmt)).normalize();
         }
         Vec3 curDir = curSpeed > 0.05 ? cur.scale(1.0 / curSpeed) : desiredDir;
         double steerRate = boost ? 0.34 : 0.22;

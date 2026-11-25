@@ -121,6 +121,9 @@ public class GodWandConfigScreen extends Screen {
             @Override protected void updateMessage() { setMessage(Component.translatable("gui.godwand.config.sound_volume", (int) (this.value * 100))); }
             @Override protected void applyValue() { GodWandConfig.CLIENT.soundVolume = (float) this.value; }
         });
+        addRenderableWidget(CycleButton.onOffBuilder(GodWandConfig.CLIENT.dominionGuide)
+                .create(right, y, columnWidth, 20, Component.translatable("gui.godwand.config.dominion_guide"),
+                        (button, value) -> GodWandConfig.CLIENT.dominionGuide = value));
 
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> {
             onClose();

@@ -160,6 +160,9 @@ class GodWandConfigTest {
         var client = GodWandConfig.read(file, GodWandConfig.Client.class, new GodWandConfig.Client());
         client.validate();
         assertTrue(client.postEffects && client.impactFrames && client.targetMarker);
+        assertTrue(client.skillHud && client.dominionGuide);
+        client.skillHud = false;
+        assertTrue(client.dominionGuide, "Controls Guide toggle must stay independent from Skill HUD");
         assertEquals(0, client.cameraShake);
         assertEquals(8, client.bloomDownsample);
         assertEquals(0, client.bloomStrength);

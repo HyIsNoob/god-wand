@@ -462,21 +462,28 @@ public final class BlockDominionBrain {
 
     /**
      * Meteor Strike Dive formation: vanguard stone ring spirals tightly around the diving comet nose
-     * while the remaining blocks tuck into razor-swept peregrine/arrowhead delta wings aligned along the plunge!
+     * while the remaining blocks progressively fold tighter into a peregrine-falcon bullet silhouette
+     * as {@code foldFrac} escalates from Tier I (~0.32) -> Tier II (~0.66) -> Tier III Cataclysm (1.0)!
      */
     public static WingPose meteorDivePose(int index, int count, double time, Vec3 lookDir,
                                           float bodyPitchDeg, float bankRollDeg) {
+        return meteorDivePose(index, count, time, lookDir, bodyPitchDeg, bankRollDeg, 0.35f);
+    }
+
+    public static WingPose meteorDivePose(int index, int count, double time, Vec3 lookDir,
+                                          float bodyPitchDeg, float bankRollDeg, float foldFrac) {
         Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
         if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
         else forward = forward.normalize();
         Vec3 right = new Vec3(-forward.z, 0, forward.x);
         Vec3 up = new Vec3(0, 1, 0);
+        float fold = Mth.clamp(foldFrac, 0f, 1f);
 
         int noseCount = count >= 16 ? 6 : 0;
         if (index < noseCount) {
-            // Fast-spinning hexagonal re-entry stone crown swirling around the diving torso/head!
-            double ang = (Math.PI * 2.0 * index / noseCount) + time * 0.34;
-            double rad = 1.02 + Math.sin(time * 0.55 + index) * 0.08;
+            // Fast-spinning hexagonal re-entry stone crown tightening slightly at higher Meteor Tiers
+            double ang = (Math.PI * 2.0 * index / noseCount) + time * (0.34 + fold * 0.14);
+            double rad = Mth.lerp(fold, 1.02, 0.80) + Math.sin(time * 0.55 + index) * 0.06;
             double spinePos = 0.42 - (index % 2) * 0.24;
             Vec3 localPos = right.scale(Math.cos(ang) * rad)
                     .add(forward.scale(Math.sin(ang) * rad))
@@ -494,22 +501,60 @@ public final class BlockDominionBrain {
             return new WingPose(off, new Vec3(0.30, 0.72, 0.20), rx, ry, rz, 0);
         }
 
-        // Remaining blocks tuck tightly into a sharp swept-back arrowhead delta wing behind the diving comet
+        // Remaining blocks fold progressively tighter along the diving torso as Meteor Dive tier climbs!
         int wingIdx = index - noseCount;
         int wingTotal = Math.max(1, count - noseCount);
         WingPose base = wingPoseInternal(wingIdx, wingTotal, time, forward, true, 1.0f);
-        // Compress lateral wingspan slightly (0.76x) and sweep sharply backward along -spine for high-speed dive silhouette!
         double cR = base.offset().dot(right);
         double cU = base.offset().dot(up);
         double cF = base.offset().dot(forward);
-        Vec3 tucked = right.scale(cR * 0.76)
-                .add(up.scale(cU * 1.12 - 0.28 - Math.abs(cR) * 0.24))
-                .add(forward.scale(cF * 0.82));
+        double spanMul = Mth.lerp(fold, 0.80, 0.28);
+        double sweepMul = Mth.lerp(fold, 0.22, 0.76);
+        double backLift = Mth.lerp(fold, -0.22, -0.56);
+        Vec3 tucked = right.scale(cR * spanMul)
+                .add(up.scale(cU * Mth.lerp(fold, 1.08, 0.96) + backLift - Math.abs(cR) * sweepMul))
+                .add(forward.scale(cF * Mth.lerp(fold, 0.86, 0.68) - fold * 0.14));
+
+        // Pivot each wing's feathers inward around the forward axis so blades fold physically flush along the spine!
+        double sideSign = cR < -0.02 ? -1.0 : (cR > 0.02 ? 1.0 : 0.0);
+        double foldRad = sideSign * Math.toRadians(Mth.lerp(fold, 10.0, 44.0));
+        Vec3 fx = rotateAroundAxis(base.axisX(), forward, foldRad);
+        Vec3 fy = rotateAroundAxis(base.axisY(), forward, foldRad);
+
         Vec3 off = rotateWingVec(tucked, forward, bodyPitchDeg, bankRollDeg);
-        Vec3 rx = rotateWingVec(base.axisX(), forward, bodyPitchDeg, bankRollDeg).normalize();
-        Vec3 ry = rotateWingVec(base.axisY(), forward, bodyPitchDeg, bankRollDeg).normalize();
+        Vec3 rx = rotateWingVec(fx, forward, bodyPitchDeg, bankRollDeg).normalize();
+        Vec3 ry = rotateWingVec(fy, forward, bodyPitchDeg, bankRollDeg).normalize();
         Vec3 rz = rx.cross(ry).normalize();
         return new WingPose(off, base.scale(), rx, ry, rz, base.tier());
+    }
+
+    /** Exact wingtip offset during Meteor Dive matching progressive {@code foldFrac} so twin comet trails hug the folded tips! */
+    public static Vec3 meteorWingTipOffset(boolean left, double time, Vec3 lookDir,
+                                           float bodyPitchDeg, float bankRollDeg, float foldFrac) {
+        Vec3 forward = new Vec3(lookDir.x, 0, lookDir.z);
+        if (forward.lengthSqr() < 1e-4) forward = new Vec3(0, 0, 1);
+        else forward = forward.normalize();
+        Vec3 right = new Vec3(-forward.z, 0, forward.x);
+        Vec3 up = new Vec3(0, 1, 0);
+        float fold = Mth.clamp(foldFrac, 0f, 1f);
+
+        Vec3 tip = wingFeatherTip(left, 1.0, time, forward, true, 1.0f);
+        double cR = tip.dot(right);
+        double cU = tip.dot(up);
+        double cF = tip.dot(forward);
+        double spanMul = Mth.lerp(fold, 0.80, 0.28);
+        double sweepMul = Mth.lerp(fold, 0.22, 0.76);
+        double backLift = Mth.lerp(fold, -0.22, -0.56);
+        Vec3 tucked = right.scale(cR * spanMul)
+                .add(up.scale(cU * Mth.lerp(fold, 1.08, 0.96) + backLift - Math.abs(cR) * sweepMul))
+                .add(forward.scale(cF * Mth.lerp(fold, 0.86, 0.68) - fold * 0.14));
+        return rotateWingVec(tucked, forward, bodyPitchDeg, bankRollDeg);
+    }
+
+    private static Vec3 rotateAroundAxis(Vec3 v, Vec3 axis, double angleRad) {
+        if (Math.abs(angleRad) < 1e-5) return v;
+        double c = Math.cos(angleRad), s = Math.sin(angleRad);
+        return v.scale(c).add(axis.cross(v).scale(s)).add(axis.scale(axis.dot(v) * (1.0 - c)));
     }
 
     /** Wingtip offset aligned to live body pitch & bank roll so contrails stream straight off horizontal Glide wingtips! */

@@ -131,6 +131,11 @@ public class GodWandFabricClientMod implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(CinematicFxPayload.ID, (payload, context) ->
                 context.client().execute(() -> GodWandCinematicEngine.onCinematicEvent(payload)));
 
+        WorldRenderEvents.AFTER_ENTITIES.register(context -> {
+            float tickDelta = context.tickCounter().getGameTimeDeltaPartialTick(false);
+            net.godwand.client.BlockDominionRenderer.renderBlocks(context.matrixStack(), context.camera(), context.consumers(), tickDelta);
+        });
+
         WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> {
             PoseStack matrices = context.matrixStack();
             Camera camera = context.camera();
@@ -140,7 +145,9 @@ public class GodWandFabricClientMod implements ClientModInitializer {
             ImpactDebrisRenderer.render(matrices, camera, tickDelta);
             SingularityThreadRenderer.render(matrices, camera, tickDelta);
             SpatialAuraRenderer.render(matrices, camera, tickDelta);
-            net.godwand.client.BlockDominionRenderer.render(matrices, camera, tickDelta);
+            if (!net.godwand.client.BlockDominionRenderer.deferForShaderPack(matrices, camera, tickDelta)) {
+                net.godwand.client.BlockDominionRenderer.renderVolumetric(matrices, camera, tickDelta);
+            }
             StoneCannonChargeRenderer.render(matrices, camera, tickDelta);
             ArcaneOrbChargeRenderer.render(matrices, camera, tickDelta);
             SupernovaAccretionRenderer.render(matrices, camera, tickDelta);

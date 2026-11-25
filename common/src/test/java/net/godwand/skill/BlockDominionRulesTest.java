@@ -291,4 +291,22 @@ class BlockDominionRulesTest {
         assertTrue(half < almost && almost < 48, "Partial charge keeps remaining blocks (" + half + " -> " + almost + ")");
         assertEquals(48, full, "Full charge unleashes all 48 blocks");
     }
+
+    @Test
+    void steepDiveStrafeUsesYawForwardWithoutGimbalLockOrBackwardKick() {
+        // Looking straight down (pitch = 90 deg) while facing East (+X): true right is South (+Z), NOT world +X!
+        Vec3 straightDown = new Vec3(0.0, -1.0, 0.0);
+        Vec3 yawEast = new Vec3(1.0, 0.0, 0.0);
+        Vec3 diveVel = new Vec3(0.0, -1.8, 0.0);
+
+        Vec3 glideRight = BlockDominionRules.stepGlideVelocity(diveVel, straightDown, yawEast, 1, true, 48);
+        assertTrue(glideRight.y < -1.5, "Glide dive stays plunging strongly downward when pressing D");
+        assertTrue(glideRight.z > 0.05 && Math.abs(glideRight.x) < 0.05,
+                "Pressing D while facing East steers purely South (+Z), zero backward kick: " + glideRight);
+
+        Vec3 hoverRight = BlockDominionRules.stepFlightVelocity(diveVel, straightDown, yawEast, 0, 1, 0, true, 48);
+        assertTrue(hoverRight.y < -1.5, "Hover dive keeps downward plunge when tapping D");
+        assertTrue(hoverRight.z > 0.05 && Math.abs(hoverRight.x) < 0.05,
+                "Hover dive strafe respects player yaw with zero backward drift: " + hoverRight);
+    }
 }

@@ -1477,19 +1477,21 @@ public final class BlockDominionManager {
                 boolean wasBoosting = st.wingBoosting;
                 int prevMeteorTier = st.meteorDiveTier;
                 int blockCount = st.reserve.size();
+                float yawRad = (float) Math.toRadians(player.getYRot());
+                Vec3 yawFwd = new Vec3(-Mth.sin(yawRad), 0.0, Mth.cos(yawRad));
                 if (st.volleyCharging) {
                     // Lock into regal midair hover while charging Aerial Orbital Meteor Barrage
                     st.flightVel = BlockDominionRules.stepFlightVelocity(
-                            st.flightVel, player.getViewVector(1.0f), 0, 0, Math.max(0, st.flightVertical), false, blockCount);
+                            st.flightVel, player.getViewVector(1.0f), yawFwd, 0, 0, Math.max(0, st.flightVertical), false, blockCount);
                     st.wingBoosting = false;
                 } else if (st.wingGlideMode) {
                     boolean glideBoost = st.flightBoostInput || st.flightVertical > 0;
                     st.flightVel = BlockDominionRules.stepGlideVelocity(
-                            st.flightVel, player.getViewVector(1.0f), st.flightStrafe, glideBoost, blockCount);
+                            st.flightVel, player.getViewVector(1.0f), yawFwd, st.flightStrafe, glideBoost, blockCount);
                     st.wingBoosting = glideBoost && st.flightVel.lengthSqr() > 0.65 * 0.65;
                 } else {
                     st.flightVel = BlockDominionRules.stepFlightVelocity(
-                            st.flightVel, player.getViewVector(1.0f),
+                            st.flightVel, player.getViewVector(1.0f), yawFwd,
                             st.flightForward, st.flightStrafe, st.flightVertical, st.flightBoostInput, blockCount);
                     st.wingBoosting = st.flightBoostInput && st.flightVel.lengthSqr() > 0.55 * 0.55;
                 }

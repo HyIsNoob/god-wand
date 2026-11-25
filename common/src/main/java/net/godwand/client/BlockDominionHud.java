@@ -154,6 +154,92 @@ public final class BlockDominionHud {
         }
     }
 
+    /**
+     * Compact miniature controls cheat-sheet in the top-right corner for Block Dominion.
+     * Gated independently by {@link GodWandConfig.Client#dominionGuide} (separate from {@code skillHud}).
+     */
+    public static void renderGuide(GuiGraphics g, boolean active, boolean flying, BlockDominionPalette palette) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null || !GodWandConfig.CLIENT.dominionGuide
+                || mc.options.hideGui || mc.screen != null) {
+            return;
+        }
+        if (AtomicCinematic.active() || FugaCinematic.active()
+                || SilentGateCinematic.active() || PurpleCinematic.active()) {
+            return;
+        }
+        boolean holding = BlockDominionInput.eligible(mc.player);
+        if (!holding && !active) return;
+
+        BlockDominionPalette pal = palette != null ? palette : BlockDominionPalette.SOVEREIGN_GOLD;
+        int accent = 0xFF000000 | pal.hexAccent;
+        int accentSoft = 0x88000000 | pal.hexAccent;
+        int hot = 0xFF000000 | ((pal.hotR << 16) | (pal.hotG << 8) | pal.hotB);
+
+        String[][] rows = flying
+                ? new String[][]{
+                        {"Shift+Space", "Hover / Glide"},
+                        {"Ctrl / Space", "Mach Boost"},
+                        {"Dive Down", "Meteor Dive"},
+                        {"Shift+RMB", "Orbital Volley"},
+                        {"2x Space", "Land Wings"}
+                }
+                : new String[][]{
+                        {"Shift+LMB", active ? "Turn Off" : "Turn On"},
+                        {"LMB Block", "Lift Block"},
+                        {"LMB Air", "Earthen Surge"},
+                        {"LMB Mob", "Cage (8)"},
+                        {"RMB / Hold", "Fire / Volley"},
+                        {"2x Space", "Block Wings"}
+                };
+
+        Font font = mc.font;
+        String header = flying ? "Block Wings" : "Block Dominion";
+        int maxKeyW = 0;
+        int maxDescW = 0;
+        for (String[] row : rows) {
+            maxKeyW = Math.max(maxKeyW, font.width(row[0]));
+            maxDescW = Math.max(maxDescW, font.width(row[1]));
+        }
+        int padX = 6;
+        int padY = 5;
+        int colGap = 8;
+        int rowH = 10;
+        int contentW = Math.max(font.width(header) + 10, maxKeyW + colGap + maxDescW);
+        int boxW = contentW + padX * 2;
+        int boxH = padY * 2 + 12 + rows.length * rowH;
+
+        float scale = 0.72f;
+        int margin = 7;
+        float screenX = g.guiWidth() - margin - boxW * scale;
+        float screenY = margin;
+
+        g.pose().pushPose();
+        g.pose().translate(screenX, screenY, 0.0f);
+        g.pose().scale(scale, scale, 1.0f);
+
+        // Soft frameless translucent obsidian card + delicate 1px resonant left accent bar
+        g.fill(0, 0, boxW, boxH, 0x860A0B12);
+        g.fill(0, 0, 1, boxH, accent);
+        g.fill(1, 0, boxW, 1, 0x33FFFFFF);
+        g.fill(1, boxH - 1, boxW, boxH, 0x22000000);
+
+        // Header with tiny diamond emblem
+        drawSmallDiamond(g, padX + 1, padY + 4, hot);
+        g.drawString(font, header, padX + 7, padY, accent, true);
+        g.fill(padX, padY + 10, boxW - padX, padY + 11, accentSoft);
+
+        int y = padY + 13;
+        for (String[] row : rows) {
+            g.drawString(font, row[0], padX, y, hot, false);
+            int dw = font.width(row[1]);
+            g.drawString(font, row[1], boxW - padX - dw, y, 0xFFDCD8CE, false);
+            y += rowH;
+        }
+
+        g.pose().popPose();
+    }
+
     private static void drawDiamond(GuiGraphics g, int cx, int cy, int rim, int core) {
         g.fill(cx, cy - 2, cx + 1, cy + 3, rim);
         g.fill(cx - 2, cy, cx + 3, cy + 1, rim);

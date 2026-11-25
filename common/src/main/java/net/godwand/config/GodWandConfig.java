@@ -32,8 +32,10 @@ public final class GodWandConfig {
         public boolean purpleCutscene = true;
         /** The mod's own sounds (godwand:*), 0..1, on top of the game's own volume sliders. */
         public float soundVolume = 1;
-        /** The Blue/Red rings round the crosshair. */
+        /** The Blue/Red rings round the crosshair and Block Dominion reserve gauge. */
         public boolean skillHud = true;
+        /** Compact Block Dominion controls cheat-sheet in the corner (independent from skillHud). */
+        public boolean dominionGuide = true;
         /** The bare hand in first person for Purple and Fuga (off: the wand, as for the other skills). */
         public boolean bareHand = true;
         /** A fully charged Red throws its shooter back. */

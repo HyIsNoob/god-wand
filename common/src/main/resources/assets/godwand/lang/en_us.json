@@ -49,6 +49,7 @@
   "gui.godwand.config.bluered_third_person": "Purple: Third Person",
   "gui.godwand.config.cutscenes": "Cutscenes",
   "gui.godwand.config.skill_hud": "Skill HUD",
+  "gui.godwand.config.dominion_guide": "Controls Guide",
   "gui.godwand.config.bare_hand": "Bare Hand",
   "gui.godwand.config.red_recoil": "Red Recoil",
   "gui.godwand.config.sound_volume": "Skill Sounds: %s%%",

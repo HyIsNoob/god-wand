@@ -187,16 +187,18 @@ public final class BlockDominionInput {
                     ? (sprintDown || jumpDown)
                     : (sprintDown && (fwd != 0 || strafe != 0 || vert != 0)));
 
+            float yawRad = (float) Math.toRadians(player.getYRot());
+            Vec3 yawFwd = new Vec3(-net.minecraft.util.Mth.sin(yawRad), 0.0, net.minecraft.util.Mth.cos(yawRad));
             if (chargingOrbital) {
                 // Hold regal midair hover while charging Shift+RMB Orbital Meteor Barrage!
                 localFlightVel = BlockDominionRules.stepFlightVelocity(
-                        localFlightVel, player.getViewVector(1.0f), 0, 0, Math.max(0, vert), false, localBlocks);
+                        localFlightVel, player.getViewVector(1.0f), yawFwd, 0, 0, Math.max(0, vert), false, localBlocks);
             } else if (localGlide) {
                 localFlightVel = BlockDominionRules.stepGlideVelocity(
-                        localFlightVel, player.getViewVector(1.0f), strafe, boost, localBlocks);
+                        localFlightVel, player.getViewVector(1.0f), yawFwd, strafe, boost, localBlocks);
             } else {
                 localFlightVel = BlockDominionRules.stepFlightVelocity(
-                        localFlightVel, player.getViewVector(1.0f), fwd, strafe, vert, boost, localBlocks);
+                        localFlightVel, player.getViewVector(1.0f), yawFwd, fwd, strafe, vert, boost, localBlocks);
             }
             player.setNoGravity(true);
             player.fallDistance = 0.0f;

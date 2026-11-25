@@ -47,7 +47,7 @@ import java.util.*;
  * - Compact resonant BlockDominionHud beside hotbar + crosshair volley arc.
  */
 public final class BlockDominionRenderer {
-    private static final int WING_TRAIL_LEN = 14;
+    private static final int WING_TRAIL_LEN = 18;
 
     private static final class VisualBlock {
         BlockState state;
@@ -162,6 +162,8 @@ public final class BlockDominionRenderer {
         boolean sovereignPerch;
         boolean meteorDiving;
         int meteorTier;
+        float meteorFold;
+        float prevMeteorFold;
         int volleyTicks;
         long unfoldStartTick = -1000;
         long shieldStartTick = -1000;
@@ -244,11 +246,19 @@ public final class BlockDominionRenderer {
     /** Multi-tier Meteor Strike impact blast dome, rising thermal fire pillar & molten volcanic ground scorch! */
     private record MeteorBlast(Vec3 pos, int tier, long startTick) {}
 
+    /** Deferred projectile Mach cone & wake queued by DominionBlockEntityRenderer under Iris/Oculus shaders. */
+    private record ProjectileWake(Vec3 worldPos, Vec3 dir, boolean volley, int entityId, BlockDominionPalette palette) {}
+
+    /** Captured world matrices for drawing volumetric GLSL VFX after Iris/Oculus finishes the level pass. */
+    private record DeferredVolumetric(Matrix4f pose, Matrix4f modelView, Matrix4f projection, Camera camera, float tickDelta) {}
+
     private static final Map<Integer, ClientFormation> FORMATIONS = new HashMap<>();
     private static final Map<Long, ClientCage> ACTIVE_CAGES = new HashMap<>();
     private static final List<ImpaledMonument> IMPALED_MONUMENTS = new ArrayList<>();
     private static final List<MuzzleTracer> MUZZLE_TRACERS = new ArrayList<>();
     private static final List<MeteorBlast> METEOR_BLASTS = new ArrayList<>();
+    private static final List<ProjectileWake> PROJECTILE_WAKES = new ArrayList<>();
+    private static DeferredVolumetric deferredVolumetric;
     private static final List<ParryBurst> PARRIES = new ArrayList<>();
     private static final List<WaveBurst> WAVES = new ArrayList<>();
     private static final List<StepFlash> STEP_FLASHES = new ArrayList<>();
@@ -273,6 +283,8 @@ public final class BlockDominionRenderer {
         IMPALED_MONUMENTS.clear();
         MUZZLE_TRACERS.clear();
         METEOR_BLASTS.clear();
+        PROJECTILE_WAKES.clear();
+        deferredVolumetric = null;
         PARRIES.clear();
         WAVES.clear();
         STEP_FLASHES.clear();
@@ -824,9 +836,19 @@ public final class BlockDominionRenderer {
         }
     }
 
-    /** Gimbal-lock-free horizontal facing vector from entity yaw (never flips even when looking straight up/down!). */
+    /** Gimbal-lock-free horizontal facing vector matching the entity's rendered 3D torso yaw (yBodyRot for LivingEntity). */
     private static Vec3 yawForward(Entity owner) {
-        float yawRad = (float) Math.toRadians(owner.getYRot());
+        float yaw = owner instanceof net.minecraft.world.entity.LivingEntity living ? living.yBodyRot : owner.getYRot();
+        float yawRad = (float) Math.toRadians(yaw);
+        return new Vec3(-Mth.sin(yawRad), 0.0, Mth.cos(yawRad));
+    }
+
+    /** Sub-frame interpolated horizontal torso facing vector so wings stay locked frame-for-frame to the player's back! */
+    private static Vec3 liveBodyYawForward(Entity owner, float tickDelta) {
+        float yaw = owner instanceof net.minecraft.world.entity.LivingEntity living
+                ? Mth.rotLerp(tickDelta, living.yBodyRotO, living.yBodyRot)
+                : Mth.rotLerp(tickDelta, owner.yRotO, owner.getYRot());
+        float yawRad = (float) Math.toRadians(yaw);
         return new Vec3(-Mth.sin(yawRad), 0.0, Mth.cos(yawRad));
     }
 
@@ -1059,6 +1081,12 @@ public final class BlockDominionRenderer {
                 BlockDominionPose.tickEntity(living, f.flying, f.glideMode, f.boosting, f.volleyCharging,
                         f.meteorDiving || f.formation.isMeteorDive(), now);
             }
+            f.prevMeteorFold = f.meteorFold;
+            float targetFold = f.formation.isMeteorDive()
+                    ? (f.meteorTier >= 3 ? 1.0f : (f.meteorTier == 2 ? 0.66f : 0.34f))
+                    : 0.0f;
+            f.meteorFold = Mth.lerp(0.20f, f.meteorFold, targetFold);
+
             Vec3 yawFwd = yawForward(owner);
             boolean perch = f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH;
             float wingPitchDeg = perch ? 0f : BlockDominionPose.bodyPitchDegrees(owner.getId(), 1.0f);
@@ -1089,7 +1117,7 @@ public final class BlockDominionRenderer {
                     targetScale = wp.scale();
                 } else if (f.formation.isMeteorDive()) {
                     BlockDominionBrain.WingPose wp = BlockDominionBrain.meteorDivePose(
-                            i, count, now, yawFwd, wingPitchDeg, wingRollDeg);
+                            i, count, now, yawFwd, wingPitchDeg, wingRollDeg, f.meteorFold);
                     target = wingAnchor.add(wp.offset());
                     targetScale = wp.scale();
                 } else if (f.formation.isWings()) {
@@ -1144,7 +1172,8 @@ public final class BlockDominionRenderer {
                 } else {
                     vb.pickupOrigin = null;
                     vb.morphOrigin = null;
-                    if (isLiveFootStep) {
+                    if (isLiveFootStep || f.formation.isWings()) {
+                        // Lock wings directly to target so leaving flight launches cleanly from the exact live wing position!
                         vb.vel = target.subtract(vb.pos);
                         vb.pos = target;
                     } else if (vb.pos.distanceToSqr(target) > 48.0 * 48.0) {
@@ -1155,14 +1184,11 @@ public final class BlockDominionRenderer {
                         // Critically-damped smooth exponential follow (silky glide, ZERO bouncy spring overshoot!)
                         double carry = isAheadStep ? 0.90
                                 : isAnchoredStep ? 0.0
-                                : f.formation.isWings() ? 0.96
                                 : (f.formation.isShield() || f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING ? 0.90 : 0.76);
                         vb.pos = vb.pos.add(ownerDelta.scale(carry));
 
                         double follow = isAheadStep ? 0.68
                                 : isAnchoredStep ? 0.48
-                                : (f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST || f.formation.isMeteorDive()) ? 0.50
-                                : f.formation.isWings() ? 0.36
                                 : f.formation.isShield() ? 0.44
                                 : f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING ? 0.46
                                 : f.volleyCharging ? 0.30
@@ -1172,7 +1198,7 @@ public final class BlockDominionRenderer {
                         vb.pos = vb.pos.add(vb.vel);
                     }
                 }
-                vb.scale = vb.scale.lerp(targetScale, 0.26);
+                vb.scale = vb.scale.lerp(targetScale, f.formation.isWings() ? 0.36 : 0.26);
                 vb.spinPhase += f.stowed ? 0.06f : (f.volleyCharging ? 0.11f : 0.036f);
 
                 // Smooth quaternion slerp for every block so formation changes never snap rotation in 1 frame!
@@ -1182,6 +1208,8 @@ public final class BlockDominionRenderer {
                     vb.rot.set(targetRot);
                     vb.prevRot.set(targetRot);
                     vb.rotInit = true;
+                } else if (f.formation.isWings() && vb.morphOrigin == null && vb.pickupOrigin == null) {
+                    vb.rot.set(targetRot);
                 } else {
                     float rotRate = f.formation.isWings() || f.formation.isShield() ? 0.36f : 0.24f;
                     vb.rot.slerp(targetRot, rotRate);
@@ -1262,21 +1290,18 @@ public final class BlockDominionRenderer {
             if (f.formation.isWings() && f.formation != BlockDominionBrain.FormationKind.SOVEREIGN_PERCH) {
                 boolean meteor = f.formation.isMeteorDive();
                 boolean boosted = f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST || meteor;
-                if (meteor) {
-                    f.leftWingTrail.clear();
-                    f.rightWingTrail.clear();
-                } else {
-                    Vec3 lTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(true, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
-                    Vec3 rTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(false, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
-                    pushTrail(f.leftWingTrail, lTip);
-                    pushTrail(f.rightWingTrail, rTip);
-                }
+                Vec3 lTip = meteor
+                        ? wingAnchor.add(BlockDominionBrain.meteorWingTipOffset(true, now, yawFwd, wingPitchDeg, wingRollDeg, f.meteorFold))
+                        : wingAnchor.add(BlockDominionBrain.wingTipOffset(true, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
+                Vec3 rTip = meteor
+                        ? wingAnchor.add(BlockDominionBrain.meteorWingTipOffset(false, now, yawFwd, wingPitchDeg, wingRollDeg, f.meteorFold))
+                        : wingAnchor.add(BlockDominionBrain.wingTipOffset(false, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
+                pushTrail(f.leftWingTrail, lTip);
+                pushTrail(f.rightWingTrail, rTip);
 
                 Vec3 wake = owner.getDeltaMovement().scale(-0.32);
                 if (!meteor) {
                     if (boosted || now % 2 == 0) {
-                        Vec3 lTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(true, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
-                        Vec3 rTip = wingAnchor.add(BlockDominionBrain.wingTipOffset(false, now, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
                         DominionParticles.spawn(lTip, wake.add((Math.random() - 0.5) * 0.04, (Math.random() - 0.5) * 0.04, (Math.random() - 0.5) * 0.04),
                                 boosted ? 0.16f : 0.11f, boosted ? 10 : 12, 0.88, 0.0,
                                 boosted ? hr : pr, boosted ? hg : pg, boosted ? hb : pb, DominionParticles.STYLE_STAR);
@@ -1386,6 +1411,9 @@ public final class BlockDominionRenderer {
                     local.volleyCharging, vp, local.palette,
                     mc.player.getDeltaMovement().length(), local.meteorTier, localActiveCageCount());
         }
+        boolean manualActive = local != null && local.mode == BlockDominionRules.Mode.MANUAL && !local.hiddenInCutscene;
+        BlockDominionHud.renderGuide(graphics, manualActive, manualActive && local.flying,
+                local != null ? local.palette : BlockDominionPalette.SOVEREIGN_GOLD);
 
         if (impactFrameTicks <= 0 || !GodWandConfig.CLIENT.impactFrames || DominionPostFx.ready()) return;
         int w = graphics.guiWidth(), h = graphics.guiHeight();
@@ -1418,28 +1446,44 @@ public final class BlockDominionRenderer {
         }
     }
 
+    /** Queues a DominionBlockProjectileEntity's Mach cone & wake for the deferred volumetric pass under Iris/Oculus shaders. */
+    public static void queueProjectileWake(Vec3 worldPos, Vec3 dir, boolean volley, int entityId, BlockDominionPalette palette) {
+        if (PROJECTILE_WAKES.size() >= 64) PROJECTILE_WAKES.remove(0);
+        PROJECTILE_WAKES.add(new ProjectileWake(worldPos, dir, volley, entityId, palette));
+    }
+
+    /** Legacy combined entry point (renders opaque blocks + flushes + volumetric pass). */
     public static void render(PoseStack matrices, Camera camera, float tickDelta) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.level == null) return;
+        MultiBufferSource.BufferSource bufferSource = client.renderBuffers().bufferSource();
+        renderBlocks(matrices, camera, bufferSource, tickDelta);
+        bufferSource.endBatch();
+        renderVolumetric(matrices, camera, tickDelta);
+    }
+
+    /**
+     * Renders all solid 3D blocks (orbiting reserve, body-locked Block Wings, shields, parry blocks,
+     * Monolith Cages, and stone lances) during AFTER_ENTITIES so Iris/Oculus shaderpacks shade them in the
+     * native opaque gbuffer pass with full lighting, shadows, and depth (ZERO see-through blocks!).
+     */
+    public static void renderBlocks(PoseStack matrices, Camera camera, MultiBufferSource consumers, float tickDelta) {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.level == null) return;
         if (client.level != world) {
             reset();
             world = client.level;
         }
-        if (FORMATIONS.isEmpty() && ACTIVE_CAGES.isEmpty() && IMPALED_MONUMENTS.isEmpty()
-                && MUZZLE_TRACERS.isEmpty() && METEOR_BLASTS.isEmpty() && PARRIES.isEmpty()
-                && WAVES.isEmpty() && STEP_FLASHES.isEmpty()) return;
+        if (FORMATIONS.isEmpty() && ACTIVE_CAGES.isEmpty() && IMPALED_MONUMENTS.isEmpty() && PARRIES.isEmpty()) return;
 
         Vec3 camPos = camera.getPosition();
         double time = world.getGameTime() + tickDelta;
         boolean localCutscene = AtomicCinematic.active() || FugaCinematic.active()
                 || SilentGateCinematic.active() || PurpleCinematic.active();
         BlockRenderDispatcher blockRenderer = client.getBlockRenderer();
-        MultiBufferSource.BufferSource bufferSource = client.renderBuffers().bufferSource();
+        MultiBufferSource bufferSource = consumers != null ? consumers : client.renderBuffers().bufferSource();
 
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(true);
-
-        // 1. Render solid reserve blocks + terrifying satellite shattered stone swarm!
+        // 1. Render solid reserve blocks + subtle idle satellite stone swarm!
         for (var entry : FORMATIONS.entrySet()) {
             Entity owner = world.getEntity(entry.getKey());
             if (owner == null || owner.distanceToSqr(camPos) > 96.0 * 96.0) continue;
@@ -1447,27 +1491,55 @@ public final class BlockDominionRenderer {
             boolean isLocal = client.player != null && owner.getId() == client.player.getId();
             if (f.hiddenInCutscene || (isLocal && localCutscene)) continue;
             boolean firstPerson = isLocal && !camera.isDetached();
-            Vec3 chest = owner.getPosition(tickDelta).add(0, 1.25, 0);
-            Vec3 look = owner.getViewVector(tickDelta);
+            Vec3 interpPos = owner.getPosition(tickDelta);
+            Vec3 chest = interpPos.add(0, 1.25, 0);
 
             if (f.mode == BlockDominionRules.Mode.MANUAL) {
                 int count = f.blocks.size();
                 Vec3 camLook = new Vec3(camera.getLookVector().x(), camera.getLookVector().y(), camera.getLookVector().z());
+                boolean isWings = f.formation.isWings();
+                boolean perch = f.formation == BlockDominionBrain.FormationKind.SOVEREIGN_PERCH;
+                Vec3 liveYawFwd = isWings ? liveBodyYawForward(owner, tickDelta) : Vec3.ZERO;
+                float livePitch = (isWings && !perch) ? BlockDominionPose.bodyPitchDegrees(owner.getId(), tickDelta) : 0f;
+                float liveRoll = (isWings && !perch) ? BlockDominionPose.bodyRollDegrees(owner.getId(), tickDelta) : 0f;
+                float liveAero = (isWings && !perch) ? BlockDominionPose.glideWeight(owner.getId(), tickDelta) : 0f;
+                float liveFold = isWings ? Mth.lerp(tickDelta, f.prevMeteorFold, f.meteorFold) : 0f;
+                Vec3 liveWingAnchor = interpPos.add(0, Mth.lerp(liveAero, 1.25, 0.95), 0);
+
                 for (int i = 0; i < count; i++) {
                     VisualBlock vb = f.blocks.get(i);
                     Vec3 renderWorld;
-                    if (i == 0 && f.formation == BlockDominionBrain.FormationKind.AIR_STAIRS && f.stepSlots[0] != null) {
-                        // Frame-exact under-boot lock for Air-Stairs (Liquid Stride stays cleanly grid-snapped!)
-                        Vec3 interpFeet = owner.getPosition(tickDelta);
-                        renderWorld = new Vec3(interpFeet.x, interpFeet.y - 0.18, interpFeet.z);
+                    Quaternionf renderRot;
+                    Vec3 sc = vb.prevScale.lerp(vb.scale, tickDelta);
+
+                    if (isWings && vb.pickupOrigin == null && vb.morphOrigin == null) {
+                        // Frame-exact body-locked wing pose so wings NEVER detach or lag behind sharp turns / Mach dives!
+                        BlockDominionBrain.WingPose wp;
+                        if (perch) {
+                            wp = BlockDominionBrain.sovereignPerchPose(i, count, time, liveYawFwd);
+                            renderWorld = chest.add(wp.offset());
+                        } else if (f.formation.isMeteorDive()) {
+                            wp = BlockDominionBrain.meteorDivePose(i, count, time, liveYawFwd, livePitch, liveRoll, liveFold);
+                            renderWorld = liveWingAnchor.add(wp.offset());
+                        } else {
+                            wp = BlockDominionBrain.wingPose(i, count, time, liveYawFwd,
+                                    f.formation == BlockDominionBrain.FormationKind.WINGS_BOOST,
+                                    livePitch, liveRoll, liveAero);
+                            renderWorld = liveWingAnchor.add(wp.offset());
+                        }
+                        Matrix3f basisMat = new Matrix3f(
+                                (float) wp.axisX().x, (float) wp.axisX().y, (float) wp.axisX().z,
+                                (float) wp.axisY().x, (float) wp.axisY().y, (float) wp.axisY().z,
+                                (float) wp.axisZ().x, (float) wp.axisZ().y, (float) wp.axisZ().z
+                        );
+                        renderRot = new Quaternionf().setFromNormalized(basisMat);
                     } else {
                         renderWorld = vb.prevPos.lerp(vb.pos, tickDelta);
+                        renderRot = new Quaternionf(vb.prevRot).slerp(vb.rot, tickDelta);
                     }
-                    Vec3 sc = vb.prevScale.lerp(vb.scale, tickDelta);
                     if (firstPerson && isObstructingFirstPerson(renderWorld, camPos, camLook, f.formation, i)) continue;
 
                     int light = sampleLight(renderWorld, owner);
-                    Quaternionf renderRot = new Quaternionf(vb.prevRot).slerp(vb.rot, tickDelta);
                     matrices.pushPose();
                     matrices.translate(renderWorld.x - camPos.x, renderWorld.y - camPos.y, renderWorld.z - camPos.z);
                     matrices.mulPose(renderRot);
@@ -1505,7 +1577,7 @@ public final class BlockDominionRenderer {
             matrices.popPose();
         }
 
-        // 2b. Render active Monolith Cages: Architectural Hexagonal Iron-Maiden Jail + 6 Converging 3-Piece Execution Lances!
+        // 2b. Render active Monolith Cages: Steady Rock-Solid Hexagonal Jail (NO spinning!) + 6 Converging Stone Lances!
         for (ClientCage cage : ACTIVE_CAGES.values()) {
             Entity target = world.getEntity(cage.targetId);
             Vec3 center = target != null && target.isAlive()
@@ -1523,42 +1595,39 @@ public final class BlockDominionRenderer {
             double shatterEase = 1.0 - (1.0 - shatterT) * (1.0 - shatterT);
             float shatterScale = (float) Math.max(0.0, 1.0 - shatterT * 0.85);
 
-            // Slow tightening compression during Phase 1 -> 2 for palpable dread tension!
-            double compressFrac = Mth.clamp((age - 8.0) / 28.0, 0.0, 1.0);
-            double lockRadius = Mth.lerp(compressFrac, 1.28, 1.12);
-            double barSpin = time * (0.024 + compressFrac * 0.018) + cage.yawOffset;
+            // Steady fixed orientation (zero continuous spinning!) — cleanly seals, locks, and impales!
+            double lockRadius = 1.22;
+            double baseYaw = cage.yawOffset;
 
             // 6 carved vertical monolith pillars + interlocking top & bottom horizontal shackle beams!
             if (shatterScale > 0.06f) {
                 for (int i = 0; i < 6; i++) {
-                    double ang = barSpin + (Math.PI / 3.0) * i;
+                    double ang = baseYaw + (Math.PI / 3.0) * i;
                     double barAge = Math.max(0.0, age - i * 0.42);
                     double flyT = Mth.clamp(barAge / 6.2, 0.0, 1.0);
                     double flyEase = 1.0 - (1.0 - flyT) * (1.0 - flyT) * (1.0 - flyT);
                     double lockT = Mth.clamp((barAge - 4.8) / 2.6, 0.0, 1.0);
                     double lockEase = 1.0 - (1.0 - lockT) * (1.0 - lockT);
-                    // Crisp elastic overshoot bounce right as each monolith slams into lock!
-                    double snapBounce = (lockT > 0.0 && lockT < 1.0) ? -Math.sin(lockT * Math.PI) * 0.14 : 0.0;
+                    double snapBounce = (lockT > 0.0 && lockT < 1.0) ? -Math.sin(lockT * Math.PI) * 0.12 : 0.0;
 
                     Vec3 radialOut = new Vec3(Math.cos(ang), 0.0, Math.sin(ang));
                     Vec3 finalPos = center.add(radialOut.scale(lockRadius + snapBounce + shatterEase * 2.85))
                             .add(0, shatterEase * (0.65 - (i % 2) * 0.45), 0);
                     Vec3 origin = cage.launchOrigins.get(i % originsN);
-                    Vec3 preLockPos = center.add(radialOut.scale(2.55));
-                    Vec3 arcMid = origin.lerp(preLockPos, 0.48).add(radialOut.scale(1.35)).add(0, 0.85, 0);
+                    Vec3 preLockPos = center.add(radialOut.scale(2.45));
+                    Vec3 arcMid = origin.lerp(preLockPos, 0.48).add(radialOut.scale(1.15)).add(0, 0.72, 0);
                     Vec3 flightPos = origin.lerp(arcMid, flyEase).lerp(arcMid.lerp(preLockPos, flyEase), flyEase);
                     Vec3 p = flyT < 1.0 ? flightPos : preLockPos.lerp(finalPos, lockEase);
 
                     float sx = (float) Mth.lerp(flyEase, 0.50, 0.25) * shatterScale;
                     float sy = (float) Mth.lerp(flyEase, 0.50, 2.32) * shatterScale;
                     float sz = (float) Mth.lerp(flyEase, 0.50, 0.23) * shatterScale;
-                    float tumble = (float) ((1.0 - flyEase) * 240.0 * ((i & 1) == 0 ? 1.0 : -1.0));
-                    float shatterSpin = (float) (shatterEase * 195.0 * ((i & 1) == 0 ? 1.0 : -1.0));
+                    float shatterTilt = (float) (shatterEase * 120.0 * ((i & 1) == 0 ? 1.0 : -1.0));
 
                     matrices.pushPose();
                     matrices.translate(p.x - camPos.x, p.y - camPos.y, p.z - camPos.z);
-                    matrices.mulPose(Axis.YP.rotationDegrees((float) (-Math.toDegrees(ang) + 90.0) + tumble + shatterSpin));
-                    matrices.mulPose(Axis.XP.rotationDegrees(tumble * 0.55f + shatterSpin * 0.7f));
+                    matrices.mulPose(Axis.YP.rotationDegrees((float) (-Math.toDegrees(ang) + 90.0)));
+                    if (shatterT > 0.01) matrices.mulPose(Axis.XP.rotationDegrees(shatterTilt));
                     matrices.scale(sx, sy, sz);
                     matrices.translate(-0.5, -0.5, -0.5);
                     blockRenderer.renderSingleBlock(cage.blocks.get(i % n), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
@@ -1566,7 +1635,7 @@ public final class BlockDominionRenderer {
 
                     // Interlocking horizontal shackle collar beams locking top & bottom rims between adjacent pillars!
                     if (lockT > 0.25) {
-                        double nextAng = barSpin + (Math.PI / 3.0) * ((i + 1) % 6);
+                        double nextAng = baseYaw + (Math.PI / 3.0) * ((i + 1) % 6);
                         double midAng = (ang + nextAng) * 0.5;
                         Vec3 midRad = new Vec3(Math.cos(midAng), 0.0, Math.sin(midAng));
                         double beamR = (lockRadius * 0.88) + shatterEase * 2.4;
@@ -1576,7 +1645,7 @@ public final class BlockDominionRenderer {
                             Vec3 bp = center.add(midRad.scale(beamR)).add(0, rimY, 0);
                             matrices.pushPose();
                             matrices.translate(bp.x - camPos.x, bp.y - camPos.y, bp.z - camPos.z);
-                            matrices.mulPose(Axis.YP.rotationDegrees((float) (-Math.toDegrees(midAng)) + shatterSpin * 0.6f));
+                            matrices.mulPose(Axis.YP.rotationDegrees((float) (-Math.toDegrees(midAng))));
                             matrices.scale(0.18f * beamScale, 0.18f * beamScale, (float) (lockRadius * 1.02) * beamScale);
                             matrices.translate(-0.5, -0.5, -0.5);
                             blockRenderer.renderSingleBlock(cage.blocks.get((i + rim + 1) % n), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
@@ -1585,7 +1654,7 @@ public final class BlockDominionRenderer {
                     }
                 }
 
-                // Top & bottom hexagonal prison seal plates slamming shut vertically!
+                // Top & bottom hexagonal prison seal plates slamming shut cleanly without spinning!
                 for (int cap = 0; cap < 2; cap++) {
                     double capY = cap == 0 ? 1.18 : -1.08;
                     double capAge = Math.max(0.0, age - (2.4 + cap * 0.8));
@@ -1606,7 +1675,7 @@ public final class BlockDominionRenderer {
                     for (int k = 0; k < 2; k++) {
                         matrices.pushPose();
                         matrices.translate(pos.x - camPos.x, pos.y - camPos.y, pos.z - camPos.z);
-                        matrices.mulPose(Axis.YP.rotationDegrees((float) (Math.toDegrees(barSpin) * (cap == 0 ? 1 : -1) + k * 45.0 + (1.0 - flyEase) * 180.0)));
+                        matrices.mulPose(Axis.YP.rotationDegrees((float) (Math.toDegrees(baseYaw) + k * 45.0)));
                         matrices.scale(platW, platH, platW);
                         matrices.translate(-0.5, -0.5, -0.5);
                         blockRenderer.renderSingleBlock(cage.blocks.get((6 + cap) % n), matrices, bufferSource, light, OverlayTexture.NO_OVERLAY);
@@ -1672,12 +1741,79 @@ public final class BlockDominionRenderer {
                         (float) (0.96 * fade), tipMat, shaftMat, light);
             }
         }
+    }
 
-        bufferSource.endBatch();
+    /**
+     * Under an Iris/Oculus shaderpack, immediate custom GLSL geometry drawn during AFTER_TRANSLUCENT gets
+     * swallowed or repainted by the shaderpack pipeline. Record the world matrices here and draw cleanly
+     * in {@link #flushDeferred()} right after the level pass completes!
+     */
+    public static boolean deferForShaderPack(PoseStack matrices, Camera camera, float tickDelta) {
+        if (!AtomicPostFx.shaderPackActive()) return false;
+        if (FORMATIONS.isEmpty() && ACTIVE_CAGES.isEmpty() && MUZZLE_TRACERS.isEmpty()
+                && METEOR_BLASTS.isEmpty() && PARRIES.isEmpty() && WAVES.isEmpty()
+                && STEP_FLASHES.isEmpty() && PROJECTILE_WAKES.isEmpty()) {
+            return true;
+        }
+        deferredVolumetric = new DeferredVolumetric(
+                new Matrix4f(matrices.last().pose()),
+                new Matrix4f(RenderSystem.getModelViewMatrix()),
+                new Matrix4f(RenderSystem.getProjectionMatrix()),
+                camera, tickDelta);
+        return true;
+    }
 
-        // 3. Purple-grade TWO-PASS Volumetric GLSL VFX tinted by live Material Resonance!
-        renderVolumetricPass(matrices, camera, time, tickDelta, client, localCutscene, true);
-        renderVolumetricPass(matrices, camera, time, tickDelta, client, localCutscene, false);
+    /** Flushes deferred volumetric GLSL VFX onto the main render target after Iris/Oculus finishes the level pass. */
+    public static void flushDeferred() {
+        DeferredVolumetric d = deferredVolumetric;
+        deferredVolumetric = null;
+        if (d == null) {
+            PROJECTILE_WAKES.clear();
+            return;
+        }
+        Minecraft.getInstance().getMainRenderTarget().bindWrite(false);
+        var stack = RenderSystem.getModelViewStack();
+        stack.pushMatrix();
+        stack.set(d.modelView());
+        RenderSystem.applyModelViewMatrix();
+        RenderSystem.backupProjectionMatrix();
+        RenderSystem.setProjectionMatrix(d.projection(), com.mojang.blaze3d.vertex.VertexSorting.DISTANCE_TO_ORIGIN);
+        PoseStack pose = new PoseStack();
+        pose.last().pose().set(d.pose());
+        try {
+            renderVolumetric(pose, d.camera(), d.tickDelta());
+        } finally {
+            RenderSystem.restoreProjectionMatrix();
+            stack.popMatrix();
+            RenderSystem.applyModelViewMatrix();
+        }
+    }
+
+    /** Renders the two-pass custom GLSL volumetric VFX (wingtip contrails, Mach cones, Meteor fireballs, sparks, wakes). */
+    public static void renderVolumetric(PoseStack matrices, Camera camera, float tickDelta) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.level == null) {
+            PROJECTILE_WAKES.clear();
+            return;
+        }
+        if (client.level != world) {
+            reset();
+            world = client.level;
+        }
+        if (FORMATIONS.isEmpty() && ACTIVE_CAGES.isEmpty() && MUZZLE_TRACERS.isEmpty()
+                && METEOR_BLASTS.isEmpty() && PARRIES.isEmpty() && WAVES.isEmpty()
+                && STEP_FLASHES.isEmpty() && PROJECTILE_WAKES.isEmpty()) {
+            return;
+        }
+        double time = world.getGameTime() + tickDelta;
+        boolean localCutscene = AtomicCinematic.active() || FugaCinematic.active()
+                || SilentGateCinematic.active() || PurpleCinematic.active();
+        try {
+            renderVolumetricPass(matrices, camera, time, tickDelta, client, localCutscene, true);
+            renderVolumetricPass(matrices, camera, time, tickDelta, client, localCutscene, false);
+        } finally {
+            PROJECTILE_WAKES.clear();
+        }
     }
 
     private static int sampleLight(Vec3 worldPos, Entity owner) {
@@ -1686,36 +1822,23 @@ public final class BlockDominionRenderer {
         return LevelRenderer.getLightColor(world, lightPos);
     }
 
-    /** Keeps first-person crosshair & forward sightline completely clear while keeping peripheral blocks & underfoot stairs visible. */
+    /**
+     * Never hides blocks in front of the player (owner preference: render all orbiting/shield/railgun/volley blocks normally!).
+     * Only skips blocks literally clipping inside the camera eyeball near-plane.
+     */
     private static boolean isObstructingFirstPerson(Vec3 pos, Vec3 camPos, Vec3 camLook,
                                                     BlockDominionBrain.FormationKind form, int index) {
-        Vec3 delta = pos.subtract(camPos);
-        double distSq = delta.lengthSqr();
-        if (form.isStepping() && index < 7) {
-            return distSq < 1.05 * 1.05;
-        }
-        if (form == BlockDominionBrain.FormationKind.RAIN_UMBRELLA && index < 7) {
-            return distSq < 1.15 * 1.15;
-        }
+        double distSq = pos.distanceToSqr(camPos);
         if (form.isWings()) {
-            // Keep first-person wing flight completely clear of wings/feathers intruding into the viewport!
-            if (distSq < 3.2 * 3.2) return true;
-            if (distSq < 5.8 * 5.8 && delta.normalize().dot(camLook) > 0.22) return true;
-            return false;
+            return distSq < 0.85 * 0.85;
         }
-        if (distSq < 1.75 * 1.75) return true;
-        if (distSq < 4.4 * 4.4) {
-            double dot = delta.normalize().dot(camLook);
-            double cone = form.isShield() ? 0.56 : 0.72;
-            if (dot > cone) return true;
-        }
-        return false;
+        return distSq < 0.42 * 0.42;
     }
 
-    private static void renderSatelliteStoneSwarm(PoseStack matrices, MultiBufferSource.BufferSource bufferSource,
+    private static void renderSatelliteStoneSwarm(PoseStack matrices, MultiBufferSource bufferSource,
                                                   BlockRenderDispatcher blockRenderer, ClientFormation f,
                                                   Entity owner, Vec3 camPos, Vec3 camLook, double time, float tickDelta, boolean firstPerson) {
-        // Keep sculpted silhouettes (Wings, Stairs, Bridge, Shields, Railgun, Perch) razor-sharp without noisy crumb clutter!
+        // Keep sculpted silhouettes (Wings, Shields, Railgun, Perch) razor-sharp without noisy crumb clutter!
         if (f.formation != BlockDominionBrain.FormationKind.IDLE) return;
         double distSq = owner.distanceToSqr(camPos);
         if (distSq > 40.0 * 40.0) return;
@@ -1732,11 +1855,7 @@ public final class BlockDominionRenderer {
             double rad = 0.50 + 0.40 * DominionShader.hash(sd + 2);
             double vert = Math.sin(ang * 1.4 + sd) * 0.28;
             Vec3 pos = host.add(Math.cos(ang) * rad, vert, Math.sin(ang) * rad);
-            if (firstPerson) {
-                Vec3 d = pos.subtract(camPos);
-                double d2 = d.lengthSqr();
-                if (d2 < 2.6 * 2.6 || (d2 < 6.0 * 6.0 && d.normalize().dot(camLook) > 0.52)) continue;
-            }
+            if (firstPerson && pos.distanceToSqr(camPos) < 0.55 * 0.55) continue;
             float s = (float) (0.14 + 0.08 * DominionShader.hash(sd + 3));
             int light = sampleLight(pos, owner);
             matrices.pushPose();
@@ -1818,7 +1937,7 @@ public final class BlockDominionRenderer {
             return new Quaternionf().setFromNormalized(basisMat);
         } else if (f.formation.isMeteorDive()) {
             BlockDominionBrain.WingPose wp = BlockDominionBrain.meteorDivePose(
-                    index, count, time, yawFwd, wingPitchDeg, wingRollDeg);
+                    index, count, time, yawFwd, wingPitchDeg, wingRollDeg, f.meteorFold);
             Matrix3f basisMat = new Matrix3f(
                     (float) wp.axisX().x, (float) wp.axisX().y, (float) wp.axisX().z,
                     (float) wp.axisY().x, (float) wp.axisY().y, (float) wp.axisY().z,
@@ -1850,13 +1969,13 @@ public final class BlockDominionRenderer {
      * Renders a sculpted 3-piece 3D Stone Lance (diamond spearhead + carved cross-guard + elongated shaft)
      * with magnetic piece-by-piece interlocking assembly ({@code assembleT = 0..1}).
      */
-    private static void renderStoneLance(PoseStack matrices, MultiBufferSource.BufferSource bufferSource,
+    private static void renderStoneLance(PoseStack matrices, MultiBufferSource bufferSource,
                                          BlockRenderDispatcher blockRenderer, Vec3 anchor, Vec3 dir, Vec3 camPos,
                                          float scaleMul, BlockState tipMat, BlockState shaftMat, int light) {
         renderStoneLance(matrices, bufferSource, blockRenderer, anchor, dir, camPos, scaleMul, 1.0f, tipMat, shaftMat, light);
     }
 
-    private static void renderStoneLance(PoseStack matrices, MultiBufferSource.BufferSource bufferSource,
+    private static void renderStoneLance(PoseStack matrices, MultiBufferSource bufferSource,
                                          BlockRenderDispatcher blockRenderer, Vec3 anchor, Vec3 dir, Vec3 camPos,
                                          float scaleMul, float assembleT, BlockState tipMat, BlockState shaftMat, int light) {
         if (scaleMul <= 0.04f) return;
@@ -1969,10 +2088,8 @@ public final class BlockDominionRenderer {
                         emitVolleyVfx(buffer, mat, f, chest, look, camRight, camUp, time, tickDelta, camPos, bodyPass);
                         emitted = true;
                     } else if (f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING) {
-                        if (!firstPerson) {
-                            emitRailgunVfx(buffer, mat, f, chest, look, camRight, camUp, time, tickDelta, camPos, bodyPass);
-                            emitted = true;
-                        }
+                        emitRailgunVfx(buffer, mat, f, chest, look, camRight, camUp, time, tickDelta, camPos, bodyPass);
+                        emitted = true;
                     } else if (f.formation.isStepping()) {
                         emitAirStairsVfx(buffer, mat, f, camRight, camUp, time, tickDelta, camPos, bodyPass);
                         emitted = true;
@@ -2156,6 +2273,32 @@ public final class BlockDominionRenderer {
                 }
             }
 
+            // Queued projectile Mach cones & wakes (deferred here under Iris/Oculus shaders so they stay 100% visible!)
+            for (ProjectileWake wake : PROJECTILE_WAKES) {
+                Vec3 rel = wake.worldPos.subtract(camPos);
+                if (rel.lengthSqr() > 128.0 * 128.0) continue;
+                double length = wake.volley ? 4.4 : 3.0;
+                Vec3[] wakePts = new Vec3[6];
+                for (int i = 0; i < 6; i++) {
+                    double u = i / 5.0;
+                    wakePts[i] = rel.add(wake.dir.scale(-length * (1.0 - u) + 0.15 * u));
+                }
+                if (bodyPass) {
+                    DominionShader.emitTrail(buffer, mat, wakePts, wake.volley ? 0.42 : 0.28,
+                            DominionShader.FX_BRUSH, wake.entityId & 63,
+                            wake.palette.darkR, wake.palette.darkG, wake.palette.darkB, 92);
+                } else {
+                    DominionShader.emitFresnelCone(buffer, mat, rel.add(wake.dir.scale(0.58)), wake.dir,
+                            wake.volley ? 2.8 : 2.0, wake.volley ? 0.92 : 0.68,
+                            16, 6, wake.entityId & 31,
+                            wake.palette.primaryR, wake.palette.primaryG, wake.palette.primaryB, 175);
+                    DominionShader.emitTrail(buffer, mat, wakePts, wake.volley ? 0.28 : 0.18,
+                            DominionShader.FX_PLASMA, (wake.entityId + 17) & 63,
+                            wake.palette.hotR, wake.palette.hotG, wake.palette.hotB, 165);
+                }
+                emitted = true;
+            }
+
             if (DominionParticles.emitPass(buffer, mat, camera, tickDelta, bodyPass)) {
                 emitted = true;
             }
@@ -2208,15 +2351,21 @@ public final class BlockDominionRenderer {
         float wingPitchDeg = BlockDominionPose.bodyPitchDegrees(owner.getId(), tickDelta);
         float wingRollDeg = BlockDominionPose.bodyRollDegrees(owner.getId(), tickDelta);
         float wingAeroFrac = BlockDominionPose.glideWeight(owner.getId(), tickDelta);
-        Vec3 yawFwd = yawForward(owner);
+        float liveFold = Mth.lerp(tickDelta, f.prevMeteorFold, f.meteorFold);
+        Vec3 yawFwd = liveBodyYawForward(owner, tickDelta);
         Vec3 wingAnchor = chest.add(0, Mth.lerp(wingAeroFrac, 0.0, -0.30), 0);
+        Vec3 liveLeftTip = meteor
+                ? wingAnchor.add(BlockDominionBrain.meteorWingTipOffset(true, time, yawFwd, wingPitchDeg, wingRollDeg, liveFold))
+                : wingAnchor.add(BlockDominionBrain.wingTipOffset(true, time, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
+        Vec3 liveRightTip = meteor
+                ? wingAnchor.add(BlockDominionBrain.meteorWingTipOffset(false, time, yawFwd, wingPitchDeg, wingRollDeg, liveFold))
+                : wingAnchor.add(BlockDominionBrain.wingTipOffset(false, time, yawFwd, boosted, wingPitchDeg, wingRollDeg, wingAeroFrac));
 
-        // Keep 1st-person sky 100% unobstructed: never draw body-wrapping cones or wingtip smears over the player's eyes!
+        // Keep 1st-person sky unobstructed: draw wingtip trails & aerodynamic cones in 3rd-person!
         if (!firstPerson) {
-            if (!meteor) {
-                emitWingTrail(v, m, f, f.leftWingTrail, camPos, boosted ? 0.16 : 0.09, 41, boosted, false);
-                emitWingTrail(v, m, f, f.rightWingTrail, camPos, boosted ? 0.16 : 0.09, 42, boosted, false);
-            }
+            double trailW = meteor ? (0.30 + mTier * 0.04) : (boosted ? 0.34 : 0.20);
+            emitWingTrail(v, m, f, f.leftWingTrail, liveLeftTip, camPos, trailW, 41, boosted, meteor);
+            emitWingTrail(v, m, f, f.rightWingTrail, liveRightTip, camPos, trailW, 42, boosted, meteor);
 
             if (meteor) {
                 Vec3 bodyAxis = BlockDominionBrain.rotateWingVec(new Vec3(0, 1, 0), yawFwd, wingPitchDeg, wingRollDeg);
@@ -2339,12 +2488,14 @@ public final class BlockDominionRenderer {
         DominionShader.emitGroundPool(v, m, feet.add(0, 0.03, 0), pulseR, 36, f.pr(), f.pg(), f.pb(), pulseA);
     }
 
-    private static void emitWingTrail(VertexConsumer v, Matrix4f m, ClientFormation f, ArrayDeque<Vec3> trail, Vec3 camPos,
-                                      double width, int seed, boolean boosted, boolean meteor) {
+    private static void emitWingTrail(VertexConsumer v, Matrix4f m, ClientFormation f, ArrayDeque<Vec3> trail,
+                                      Vec3 liveTipCamRel, Vec3 camPos, double width, int seed, boolean boosted, boolean meteor) {
         if (trail.size() < 2) return;
-        Vec3[] pts = new Vec3[trail.size()];
+        Vec3[] pts = new Vec3[trail.size() + 1];
         int i = 0;
         for (Vec3 p : trail) pts[i++] = p.subtract(camPos);
+        // Pin the leading head vertex dead-exact onto the live interpolated wingtip (ZERO detachment gap!)
+        pts[i] = liveTipCamRel;
         // 2x Chaikin corner-cutting subdivision -> silky curved aerodynamic contrail with ZERO polygonal kinks!
         for (int pass = 0; pass < 2 && pts.length >= 3; pass++) {
             Vec3[] next = new Vec3[(pts.length - 1) * 2];
@@ -2357,10 +2508,16 @@ public final class BlockDominionRenderer {
             next[w] = pts[pts.length - 1];
             pts = next;
         }
-        int r = meteor ? 255 : (boosted ? f.hr() : f.pr());
-        int g = meteor ? 128 : (boosted ? f.hg() : f.pg());
-        int b = meteor ? 28 : (boosted ? f.hb() : f.pb());
-        DominionShader.emitTrail(v, m, pts, width, DominionShader.FX_PLASMA, seed,
-                r, g, b, meteor ? 200 : (boosted ? 125 : 75));
+        // Rich dual-layer luminous contrail: wide resonant outer slipstream aura + bright hot inner plasma core!
+        int outR = meteor ? 255 : f.pr();
+        int outG = meteor ? 112 : f.pg();
+        int outB = meteor ? 24 : f.pb();
+        int coreR = meteor ? 255 : f.hr();
+        int coreG = meteor ? 236 : f.hg();
+        int coreB = meteor ? 158 : f.hb();
+        int outAlpha = meteor ? 195 : (boosted ? 165 : 112);
+        int coreAlpha = meteor ? 245 : (boosted ? 232 : 165);
+        DominionShader.emitTrail(v, m, pts, width, DominionShader.FX_PLASMA, seed, outR, outG, outB, outAlpha);
+        DominionShader.emitTrail(v, m, pts, width * 0.42, DominionShader.FX_PLASMA, seed + 19, coreR, coreG, coreB, coreAlpha);
     }
 }

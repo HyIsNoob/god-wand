@@ -72,42 +72,47 @@ public class DominionBlockEntityRenderer extends EntityRenderer<DominionBlockPro
             }
 
             // 3. True 3D Volumetric Fresnel Mach Cone + Gossamer Vapor Wake (Material-Resonant!)
-            double length = entity.isVolley() ? 4.4 : 3.0;
-            Matrix4f mat = matrices.last().pose();
-            Vec3[] wakePts = new Vec3[6];
-            for (int i = 0; i < 6; i++) {
-                double u = i / 5.0; // 0 = tail, 1 = block
-                wakePts[i] = dir.scale(-length * (1.0 - u) + 0.15 * u);
-            }
+            // Under an Iris/Oculus shaderpack, queue to BlockDominionRenderer so it renders cleanly after the level pass!
+            if (AtomicPostFx.shaderPackActive()) {
+                BlockDominionRenderer.queueProjectileWake(entity.getPosition(tickDelta), dir, entity.isVolley(), entity.getId(), pal);
+            } else {
+                double length = entity.isVolley() ? 4.4 : 3.0;
+                Matrix4f mat = matrices.last().pose();
+                Vec3[] wakePts = new Vec3[6];
+                for (int i = 0; i < 6; i++) {
+                    double u = i / 5.0; // 0 = tail, 1 = block
+                    wakePts[i] = dir.scale(-length * (1.0 - u) + 0.15 * u);
+                }
 
-            RenderSystem.enableBlend();
-            RenderSystem.disableCull();
-            RenderSystem.depthMask(false);
-            DominionShader.bind(time / 20.0f);
-            try {
-                // Pass 1 (BODY): soft dark-resonant dust slipstream
-                RenderSystem.defaultBlendFunc();
-                var bodyBuf = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-                DominionShader.emitTrail(bodyBuf, mat, wakePts, entity.isVolley() ? 0.42 : 0.28,
-                        DominionShader.FX_BRUSH, entity.getId() & 63, pal.darkR, pal.darkG, pal.darkB, 92);
-                var bodyMesh = bodyBuf.build();
-                if (bodyMesh != null) BufferUploader.drawWithShader(bodyMesh);
+                RenderSystem.enableBlend();
+                RenderSystem.disableCull();
+                RenderSystem.depthMask(false);
+                DominionShader.bind(time / 20.0f);
+                try {
+                    // Pass 1 (BODY): soft dark-resonant dust slipstream
+                    RenderSystem.defaultBlendFunc();
+                    var bodyBuf = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+                    DominionShader.emitTrail(bodyBuf, mat, wakePts, entity.isVolley() ? 0.42 : 0.28,
+                            DominionShader.FX_BRUSH, entity.getId() & 63, pal.darkR, pal.darkG, pal.darkB, 92);
+                    var bodyMesh = bodyBuf.build();
+                    if (bodyMesh != null) BufferUploader.drawWithShader(bodyMesh);
 
-                // Pass 2 (GLOW): 3D Fresnel aerodynamic Mach cone + soft resonant vapor trail
-                RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-                var glowBuf = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-                DominionShader.emitFresnelCone(glowBuf, mat, dir.scale(0.58), dir,
-                        entity.isVolley() ? 2.8 : 2.0, entity.isVolley() ? 0.92 : 0.68,
-                        16, 6, entity.getId() & 31, pal.primaryR, pal.primaryG, pal.primaryB, 175);
-                DominionShader.emitTrail(glowBuf, mat, wakePts, entity.isVolley() ? 0.28 : 0.18,
-                        DominionShader.FX_PLASMA, (entity.getId() + 17) & 63, pal.hotR, pal.hotG, pal.hotB, 165);
-                var glowMesh = glowBuf.build();
-                if (glowMesh != null) BufferUploader.drawWithShader(glowMesh);
-            } finally {
-                RenderSystem.depthMask(true);
-                RenderSystem.enableCull();
-                RenderSystem.defaultBlendFunc();
-                RenderSystem.disableBlend();
+                    // Pass 2 (GLOW): 3D Fresnel aerodynamic Mach cone + soft resonant vapor trail
+                    RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+                    var glowBuf = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+                    DominionShader.emitFresnelCone(glowBuf, mat, dir.scale(0.58), dir,
+                            entity.isVolley() ? 2.8 : 2.0, entity.isVolley() ? 0.92 : 0.68,
+                            16, 6, entity.getId() & 31, pal.primaryR, pal.primaryG, pal.primaryB, 175);
+                    DominionShader.emitTrail(glowBuf, mat, wakePts, entity.isVolley() ? 0.28 : 0.18,
+                            DominionShader.FX_PLASMA, (entity.getId() + 17) & 63, pal.hotR, pal.hotG, pal.hotB, 165);
+                    var glowMesh = glowBuf.build();
+                    if (glowMesh != null) BufferUploader.drawWithShader(glowMesh);
+                } finally {
+                    RenderSystem.depthMask(true);
+                    RenderSystem.enableCull();
+                    RenderSystem.defaultBlendFunc();
+                    RenderSystem.disableBlend();
+                }
             }
         }
 

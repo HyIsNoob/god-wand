@@ -106,6 +106,7 @@ public final class AtomicPostFx {
         // that deferred it, even when the post effect has nothing to do or failed, or the fire would drop out of frames.
         FugaRenderer.flushDeferred();
         SilentGateRenderer.flushDeferred();
+        BlockDominionRenderer.flushDeferred();
         BlueRedRenderer.flushPostFx();
         Frame context = pending; pending = null;
         if (context == null || failed) return;
