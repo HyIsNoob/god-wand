@@ -62,6 +62,10 @@ public final class BlockDominionRenderer {
         boolean rotInit;
         Vec3 pickupOrigin;
         long pickupStartTick = -1000;
+        int pickupDelay = 0;
+        int pickupDuration = 11;
+        boolean surgeTech = false;
+        boolean lockSparked = false;
         Vec3 morphOrigin;
         long morphStartTick = -1000;
         int morphDuration = 8;
@@ -494,17 +498,29 @@ public final class BlockDominionRenderer {
             boolean isPickup = (payload.eventKind() == BlockDominionRules.EVENT_PICKUP || isSurgeEvent);
             Vec3 spawnPos;
             if (isSurgeEvent) {
-                double ang = (Math.PI * 2.0 * idx / addedCount) + (now * 0.17);
-                double rad = 2.6 + (idx % 4) * 1.4;
-                spawnPos = new Vec3(payload.eventX() + Math.cos(ang) * rad, payload.eventY() - 0.2, payload.eventZ() + Math.sin(ang) * rad);
+                // Concentric expanding spiral ring so blocks erupt sequentially like modular armor plates
+                double frac = addedCount <= 1 ? 0.0 : (double) idx / (addedCount - 1);
+                double ang = (idx * 2.3999632) + (now * 0.17);
+                double rad = 2.2 + frac * 3.4 + ((idx % 2) * 0.45);
+                spawnPos = new Vec3(payload.eventX() + Math.cos(ang) * rad, payload.eventY() - 0.18, payload.eventZ() + Math.sin(ang) * rad);
             } else {
                 spawnPos = isPickup ? new Vec3(payload.eventX(), payload.eventY(), payload.eventZ()) : ownerPos;
             }
-            float startScale = isPickup ? 0.94f : 0.25f;
+            float startScale = isSurgeEvent ? 0.0f : (isPickup ? 0.94f : 0.25f);
             VisualBlock vb = new VisualBlock(st, spawnPos, startScale, ((f.blocks.size() + idx) * 1.37f) % 6.283f);
             if (isPickup) {
                 vb.pickupOrigin = spawnPos;
                 vb.pickupStartTick = now;
+                vb.lockSparked = false;
+                if (isSurgeEvent) {
+                    vb.surgeTech = true;
+                    vb.pickupDelay = addedCount <= 1 ? 0 : (idx * 15) / (addedCount - 1);
+                    vb.pickupDuration = 10;
+                } else {
+                    vb.surgeTech = false;
+                    vb.pickupDelay = 0;
+                    vb.pickupDuration = 11;
+                }
             }
             f.blocks.add(vb);
         }
@@ -934,13 +950,15 @@ public final class BlockDominionRenderer {
             VisualBlock vb = f.blocks.get(i);
             vb.morphOrigin = vb.pos;
             vb.morphStartTick = now;
+            vb.lockSparked = false;
             if (f.formation.isWings()) {
-                vb.morphDelay = Math.min(4, (i * 5) / Math.max(1, n));
-                vb.morphDuration = 8;
-                vb.morphArcLift = 0.58;
+                // Inner spine -> shoulder -> outer wingtip mechanical suit-up cascade
+                vb.morphDelay = Math.min(10, (i * 11) / Math.max(1, n));
+                vb.morphDuration = 7;
+                vb.morphArcLift = 0.64;
             } else if (f.formation.isVolley()) {
-                vb.morphDelay = Math.min(4, (i * 5) / Math.max(1, n));
-                vb.morphDuration = 8;
+                vb.morphDelay = Math.min(6, (i * 7) / Math.max(1, n));
+                vb.morphDuration = 7;
                 vb.morphArcLift = 0.72;
             } else if (f.formation == BlockDominionBrain.FormationKind.RAILGUN_RING) {
                 vb.morphDelay = i < 5 ? (i / 2) : 2;
@@ -955,7 +973,7 @@ public final class BlockDominionRenderer {
                 vb.morphDuration = 6;
                 vb.morphArcLift = 0.30;
             } else {
-                vb.morphDelay = Math.min(3, (i * 4) / Math.max(1, n));
+                vb.morphDelay = Math.min(4, (i * 5) / Math.max(1, n));
                 vb.morphDuration = 7;
                 vb.morphArcLift = 0.34;
             }
@@ -1167,8 +1185,83 @@ public final class BlockDominionRenderer {
 
                 long pickupAge = now - vb.pickupStartTick;
                 long morphAge = now - vb.morphStartTick;
-                if (vb.pickupOrigin != null && pickupAge >= 0 && pickupAge < 11) {
-                    if (pickupAge < 2) {
+                boolean surgeQueued = false;
+                boolean surgeStage1 = false;
+                boolean surgeStage2 = false;
+                if (vb.pickupOrigin != null && pickupAge >= 0 && pickupAge < vb.pickupDelay + vb.pickupDuration) {
+                    if (vb.surgeTech) {
+                        long localAge = pickupAge - vb.pickupDelay;
+                        if (localAge < 0) {
+                            // Queued in ground: stays hidden until its sequential launch tick
+                            surgeQueued = true;
+                            vb.pos = vb.pickupOrigin;
+                            vb.prevPos = vb.pickupOrigin;
+                            vb.vel = Vec3.ZERO;
+                            vb.scale = Vec3.ZERO;
+                            vb.prevScale = Vec3.ZERO;
+                        } else {
+                            Vec3 radialOut = target.subtract(chest);
+                            Vec3 outDir = radialOut.lengthSqr() > 0.04 ? radialOut.normalize() : new Vec3(0, 1, 0);
+                            Vec3 stagePos = target.add(outDir.scale(1.18)).add(0.0, 0.36, 0.0);
+                            int stage1Ticks = Math.max(1, vb.pickupDuration - 4);
+                            if (localAge == 0) {
+                                // Crisp emergence flash from ground
+                                vb.pos = vb.pickupOrigin;
+                                vb.prevPos = vb.pickupOrigin;
+                                vb.scale = targetScale.scale(0.45);
+                                vb.prevScale = Vec3.ZERO;
+                                DominionParticles.spawn(vb.pickupOrigin.add(0, 0.25, 0),
+                                        new Vec3(0, 0.14, 0), 0.16f, 8, 0.85, 0.0,
+                                        f.pr(), f.pg(), f.pb(), DominionParticles.STYLE_SHARD);
+                                if (i % 3 == 0) {
+                                    float frac = count <= 1 ? 0.0f : (float) i / (count - 1);
+                                    BlockDominionSounds.play(vb.pickupOrigin, SoundEvents.STONE_BUTTON_CLICK_ON,
+                                            0.18f, 0.92f + frac * 0.55f);
+                                }
+                            }
+                            if (localAge < stage1Ticks) {
+                                // Stage 1: vertical launch & rapid alignment hover outside target slot
+                                surgeStage1 = true;
+                                double u = (localAge + 1.0) / stage1Ticks;
+                                double ease = 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u);
+                                Vec3 mid = vb.pickupOrigin.lerp(stagePos, 0.5).add(outDir.scale(0.65)).add(0.0, 1.15, 0.0);
+                                Vec3 a = vb.pickupOrigin.lerp(mid, ease);
+                                Vec3 b = mid.lerp(stagePos, ease);
+                                Vec3 nextPos = a.lerp(b, ease);
+                                vb.vel = nextPos.subtract(vb.pos);
+                                vb.pos = nextPos;
+                            } else {
+                                // Stage 2: high-speed magnetic snap-lock straight into the exact slot!
+                                surgeStage2 = true;
+                                int stage2Ticks = Math.max(1, vb.pickupDuration - stage1Ticks);
+                                double v = Mth.clamp((localAge - stage1Ticks + 1.0) / stage2Ticks, 0.0, 1.0);
+                                double snap = Math.pow(v, 1.65);
+                                Vec3 nextPos = stagePos.lerp(target, snap);
+                                vb.vel = nextPos.subtract(vb.pos);
+                                vb.pos = nextPos;
+                                if (localAge == vb.pickupDuration - 1 && !vb.lockSparked) {
+                                    vb.lockSparked = true;
+                                    vb.scale = targetScale.scale(1.18);
+                                    for (int sp = 0; sp < 3; sp++) {
+                                        double sa = (Math.PI * 2.0 * sp) / 3.0 + i * 0.7;
+                                        Vec3 spVel = outDir.scale(0.08).add(Math.cos(sa) * 0.07, 0.05, Math.sin(sa) * 0.07);
+                                        DominionParticles.spawn(target, spVel, 0.14f, 8, 0.84, 0.0,
+                                                f.hr(), f.hg(), f.hb(), DominionParticles.STYLE_STAR);
+                                    }
+                                    float frac = count <= 1 ? 1.0f : (float) i / (count - 1);
+                                    if (i % 2 == 0 || i == count - 1) {
+                                        BlockDominionSounds.play(target, SoundEvents.IRON_TRAPDOOR_CLOSE,
+                                                0.20f, 1.15f + frac * 0.65f);
+                                    }
+                                    if (i == count - 1) {
+                                        BlockDominionSounds.play(chest, BlockDominionSounds.SHIELD_LOCK, 0.42f, 1.38f);
+                                        DominionParticles.spawnRingBurst(chest, new Vec3(0, 1, 0), 1.65, 18, 0.20,
+                                                f.hr(), f.hg(), f.hb(), DominionParticles.STYLE_STAR);
+                                    }
+                                }
+                            }
+                        }
+                    } else if (pickupAge < 2) {
                         double j = (pickupAge == 0 ? 0.05 : -0.05);
                         vb.pos = vb.pickupOrigin.add(j, 0.06 * pickupAge, -j);
                         vb.vel = Vec3.ZERO;
@@ -1185,12 +1278,17 @@ public final class BlockDominionRenderer {
                 } else if (vb.morphOrigin != null && !isLiveFootStep
                         && morphAge >= 0 && morphAge < vb.morphDelay + vb.morphDuration) {
                     vb.pickupOrigin = null;
+                    vb.surgeTech = false;
                     if (morphAge < vb.morphDelay) {
                         vb.morphOrigin = vb.morphOrigin.add(ownerDelta.scale(0.85));
                         vb.pos = vb.pos.add(ownerDelta.scale(0.85));
                     } else {
-                        double u = Mth.clamp((morphAge - vb.morphDelay + 1.0) / Math.max(1.0, vb.morphDuration), 0.0, 1.0);
-                        double ease = 1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u);
+                        long localMorph = morphAge - vb.morphDelay;
+                        double u = Mth.clamp((localMorph + 1.0) / Math.max(1.0, vb.morphDuration), 0.0, 1.0);
+                        boolean techSnap = f.formation.isWings() || f.formation.isVolley();
+                        double ease = techSnap
+                                ? (u < 0.65 ? (1.0 - Math.pow(1.0 - u / 0.65, 2.2)) * 0.72 : 0.72 + Math.pow((u - 0.65) / 0.35, 1.5) * 0.28)
+                                : (1.0 - (1.0 - u) * (1.0 - u) * (1.0 - u));
                         Vec3 startPos = vb.morphOrigin;
                         Vec3 radial = startPos.subtract(chest);
                         Vec3 pushDir = radial.lengthSqr() > 0.04 ? radial.normalize() : new Vec3(0, 1, 0);
@@ -1200,9 +1298,21 @@ public final class BlockDominionRenderer {
                         Vec3 nextPos = a.lerp(b, ease);
                         vb.vel = nextPos.subtract(vb.pos);
                         vb.pos = nextPos;
+                        if (techSnap && localMorph == vb.morphDuration - 1 && !vb.lockSparked) {
+                            vb.lockSparked = true;
+                            vb.scale = targetScale.scale(1.14);
+                            DominionParticles.spawn(target, pushDir.scale(0.08), 0.13f, 7, 0.84, 0.0,
+                                    f.hr(), f.hg(), f.hb(), DominionParticles.STYLE_STAR);
+                            if (i % 3 == 0 || i == count - 1) {
+                                float frac = count <= 1 ? 1.0f : (float) i / (count - 1);
+                                BlockDominionSounds.play(target, SoundEvents.IRON_TRAPDOOR_CLOSE,
+                                        0.16f, 1.22f + frac * 0.58f);
+                            }
+                        }
                     }
                 } else {
                     vb.pickupOrigin = null;
+                    vb.surgeTech = false;
                     vb.morphOrigin = null;
                     if (isLiveFootStep || f.formation.isWings()) {
                         // Lock wings directly to target so leaving flight launches cleanly from the exact live wing position!
@@ -1230,7 +1340,9 @@ public final class BlockDominionRenderer {
                         vb.pos = vb.pos.add(vb.vel);
                     }
                 }
-                vb.scale = vb.scale.lerp(targetScale, f.formation.isWings() ? 0.36 : 0.26);
+                if (!surgeQueued) {
+                    vb.scale = vb.scale.lerp(targetScale, f.formation.isWings() ? 0.36 : 0.26);
+                }
                 vb.spinPhase += f.stowed ? 0.06f : (f.volleyCharging ? 0.11f : 0.036f);
 
                 // Smooth quaternion slerp for every block so formation changes never snap rotation in 1 frame!
@@ -1240,6 +1352,12 @@ public final class BlockDominionRenderer {
                     vb.rot.set(targetRot);
                     vb.prevRot.set(targetRot);
                     vb.rotInit = true;
+                } else if (surgeStage1) {
+                    // Rapid mechanical armor-plate tumble while flying to staging point
+                    vb.rot.rotateY(0.46f).rotateX(0.28f);
+                } else if (surgeStage2) {
+                    // Crisp magnetic rotation snap into exact target orientation
+                    vb.rot.slerp(targetRot, 0.62f);
                 } else if (f.formation.isWings() && vb.morphOrigin == null && vb.pickupOrigin == null) {
                     vb.rot.set(targetRot);
                 } else {
@@ -1552,6 +1670,7 @@ public final class BlockDominionRenderer {
                     Vec3 renderWorld;
                     Quaternionf renderRot;
                     Vec3 sc = vb.prevScale.lerp(vb.scale, tickDelta);
+                    if (sc.x < 0.04 && sc.y < 0.04 && sc.z < 0.04) continue;
 
                     if (isWings && vb.pickupOrigin == null && vb.morphOrigin == null) {
                         // Frame-exact body-locked wing pose so wings NEVER detach or lag behind sharp turns / Mach dives!

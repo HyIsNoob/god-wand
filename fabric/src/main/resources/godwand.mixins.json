@@ -5,6 +5,7 @@
   "mixins": [
     "EntityMixin",
     "LivingEntityMixin",
+    "BlockDominionFlightExhaustionMixin",
     "FlowableFluidMixin",
     "AtomicMovementMixin",
     "DisplayLifecycleMixin",
