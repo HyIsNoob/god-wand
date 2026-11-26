@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>God Wand Wiki — Player &amp; Server Guide v1.6.0</title>
-  <meta name="description" content="Official wiki for Minecraft mod God Wand v1.6.0: nine skills (including Purple, Silent Gate &amp; Fuga), pet protection, advancements, cutscenes, and complete server/client configuration.">
-  <meta name="keywords" content="Minecraft, God Wand, Minecraft mod, Purple, Silent Gate, Fuga, I am Atomic, Supernova, Fabric, NeoForge, Forge, Minecraft 1.21.1, 1.20.1, 1.21.11, 26.1.2, 26.3">
+  <title>God Wand Wiki — Player &amp; Server Guide v1.7.0</title>
+  <meta name="description" content="Official wiki for Minecraft mod God Wand v1.7.0: ten skills (including Block Dominion, Purple, Silent Gate &amp; Fuga), pet protection, Safe Mode, 16 advancements, cutscenes, and complete server/client configuration.">
+  <meta name="keywords" content="Minecraft, God Wand, Minecraft mod, Block Dominion, Block Wings, Purple, Silent Gate, Fuga, I am Atomic, Supernova, Fabric, NeoForge, Forge, Minecraft 1.21.1, 1.20.1, 1.21.11, 26.1.2, 26.3">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <link rel="canonical" href="https://god-wand-wiki.vercel.app/">
 
@@ -14,8 +14,8 @@
   <link rel="alternate" type="text/plain" href="llms-full.txt" title="Full LLM Context (Complete Knowledge Base)">
 
   <!-- Open Graph -->
-  <meta property="og:title" content="God Wand Wiki — Player &amp; Server Guide v1.6.0">
-  <meta property="og:description" content="Official wiki for God Wand v1.6.0: nine skills including Purple, pet protection by default, advancements, cutscenes, and every server &amp; client setting explained.">
+  <meta property="og:title" content="God Wand Wiki — Player &amp; Server Guide v1.7.0">
+  <meta property="og:description" content="Official wiki for God Wand v1.7.0: ten skills including Block Dominion and Purple, Safe Mode, pet protection by default, 16 advancements, cutscenes, and every server &amp; client setting explained.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://god-wand-wiki.vercel.app/">
   <meta property="og:image" content="assets/god-wand-avatar.png">
@@ -34,8 +34,8 @@
     "name": "God Wand",
     "applicationCategory": "GameMod",
     "operatingSystem": "Java",
-    "softwareVersion": "1.6.0",
-    "description": "Minecraft magic mod featuring nine skills (Spatial Path, Singularity, Earth Drill, Supernova, Stone Cannon, I am Atomic, Fuga, Silent Gate, and Purple), pet protection, advancements, custom wand appearances, and full server/client configuration.",
+    "softwareVersion": "1.7.0",
+    "description": "Minecraft magic mod featuring ten skills (Spatial Path, Singularity, Earth Drill, Supernova, Stone Cannon, I am Atomic, Fuga, Silent Gate, Purple, and Block Dominion), pet protection, Safe Mode, 16 advancements, custom wand appearances, and full server/client configuration.",
     "url": "https://god-wand-wiki.vercel.app/",
     "author": {
       "@type": "Person",
@@ -68,7 +68,7 @@
       <a href="#top" class="brand">
         <img src="assets/god-wand-avatar.png" alt="God Wand" class="brand-avatar">
         <span class="brand-title">God Wand</span>
-        <span class="brand-badge">v1.6.0</span>
+        <span class="brand-badge">v1.7.0</span>
       </a>
     </div>
 
@@ -92,7 +92,7 @@
 
     <div class="header-actions">
       <!-- Primary Config Builder Launch Button -->
-      <button type="button" class="builder-launch-btn open-config-builder" data-builder-file="server" aria-label="Open Full Config Builder" title="Edit all 70 server & 18 client settings visually and copy full JSON">
+      <button type="button" class="builder-launch-btn open-config-builder" data-builder-file="server" aria-label="Open Full Config Builder" title="Edit all 78 server & 19 client settings visually and copy full JSON">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
         <span class="lang-en">Config Builder</span>
         <span class="lang-vi">Tạo Config</span>
@@ -150,7 +150,7 @@
         </div>
         <ul class="sidebar-nav">
           <li><a href="#whats-new" class="active">
-            <span><span class="lang-en">What's New in 1.6.0</span><span class="lang-vi">Có gì mới ở 1.6.0</span><span class="lang-zh">1.6.0 更新内容</span></span>
+            <span><span class="lang-en">What's New in 1.7.0</span><span class="lang-vi">Có gì mới ở 1.7.0</span><span class="lang-zh">1.7.0 更新内容</span></span>
           </a></li>
           <li><a href="#overview">
             <span><span class="lang-en">Overview &amp; Controls</span><span class="lang-vi">Tổng quan &amp; Điều khiển</span><span class="lang-zh">概览与控制按键</span></span>
@@ -169,19 +169,22 @@
         </div>
         <ul class="sidebar-nav">
           <li><a href="#skills">
-            <span><span class="lang-en">Nine Skills</span><span class="lang-vi">Chín kỹ năng</span><span class="lang-zh">九大技能</span></span>
-            <span class="sidebar-count">9</span>
+            <span><span class="lang-en">Ten Skills</span><span class="lang-vi">Mười kỹ năng</span><span class="lang-zh">十大技能</span></span>
+            <span class="sidebar-count">10</span>
           </a></li>
           <li><a href="#skill-purple">
             <span><span class="lang-en">9. Purple</span><span class="lang-vi">9. Purple</span><span class="lang-zh">9. 紫</span></span>
-            <span class="badge-new" style="font-size: 0.62rem;">1.6</span>
+          </a></li>
+          <li><a href="#skill-dominion">
+            <span><span class="lang-en">10. Block Dominion</span><span class="lang-vi">10. Block Dominion</span><span class="lang-zh">10. 方块支配</span></span>
+            <span class="badge-new" style="font-size: 0.62rem;">1.7</span>
           </a></li>
           <li><a href="#cutscenes">
             <span><span class="lang-en">Cutscenes</span><span class="lang-vi">Cutscene</span><span class="lang-zh">过场动画</span></span>
           </a></li>
           <li><a href="#advancements">
             <span><span class="lang-en">Advancements</span><span class="lang-vi">Thành tựu</span><span class="lang-zh">进度成就</span></span>
-            <span class="sidebar-count">15</span>
+            <span class="sidebar-count">16</span>
           </a></li>
           <li><a href="#skins">
             <span><span class="lang-en">Wand Appearances</span><span class="lang-vi">Ngoại hình trượng</span><span class="lang-zh">法杖外观</span></span>
@@ -201,11 +204,11 @@
           </a></li>
           <li><a href="#server-tables">
             <span>godwand-server.json</span>
-            <span class="sidebar-count">71</span>
+            <span class="sidebar-count">78</span>
           </a></li>
           <li><a href="#client-config">
             <span>godwand-client.json</span>
-            <span class="sidebar-count">18</span>
+            <span class="sidebar-count">19</span>
           </a></li>
           <li><a href="#presets">
             <span><span class="lang-en">Presets &amp; JSON</span><span class="lang-vi">Preset &amp; JSON</span><span class="lang-zh">预设与 JSON</span></span>
@@ -244,25 +247,25 @@
       <!-- Hero Banner -->
       <div class="hero-banner">
         <div class="hero-top-row">
-          <span class="hero-tag">Handbook v1.6.0</span>
+          <span class="hero-tag">Handbook v1.7.0</span>
           <div class="hero-quick-stats">
-            <span class="stat-chip"><span class="lang-en">9 skills</span><span class="lang-vi">9 kỹ năng</span><span class="lang-zh">9 技能</span></span>
-            <span class="stat-chip"><span class="lang-en">15 advancements</span><span class="lang-vi">15 thành tựu</span><span class="lang-zh">15 成就</span></span>
-            <span class="stat-chip"><span class="lang-en">71 + 18 config keys</span><span class="lang-vi">71 + 18 key cấu hình</span><span class="lang-zh">71 + 18 配置项</span></span>
+            <span class="stat-chip"><span class="lang-en">10 skills</span><span class="lang-vi">10 kỹ năng</span><span class="lang-zh">10 技能</span></span>
+            <span class="stat-chip"><span class="lang-en">16 advancements</span><span class="lang-vi">16 thành tựu</span><span class="lang-zh">16 成就</span></span>
+            <span class="stat-chip"><span class="lang-en">78 + 19 config keys</span><span class="lang-vi">78 + 19 key cấu hình</span><span class="lang-zh">78 + 19 配置项</span></span>
           </div>
         </div>
         <h1 class="hero-title">God Wand Wiki</h1>
         <p class="hero-desc lang-en">
-          <strong>One wand. Nine skills. Choose the spell, charge it, and decide when to release.</strong>
-          Version 1.6.0 adds <strong>Purple</strong> (with Blue and Red), keeps your pets safe by default, adds 15 in-game advancements, and gives server owners simple switches for terrain damage, PvP and spell targets.
+          <strong>One wand. Ten skills. Choose the spell, charge it, and decide when to release.</strong>
+          Version 1.7.0 introduces <strong>Block Dominion</strong> — command up to 48 orbiting blocks to form Block Wings, slash mobs at high speed, lock enemies in a Monolith Cage, and slam down in a Meteor Dive, with full Safe Mode when terrain damage is off.
         </p>
         <p class="hero-desc lang-vi">
-          <strong>Một cây trượng. Chín kỹ năng. Chọn chiêu, tụ lực và tự quyết định lúc tung ra.</strong>
-          Phiên bản 1.6.0 bổ sung kỹ năng thứ 9 <strong>Purple</strong> (gồm Blue và Red), bảo vệ thú cưng mặc định, thêm 15 thành tựu trong game cùng các công tắc đơn giản cho chủ server chỉnh phá địa hình, PvP và mục tiêu phép thuật.
+          <strong>Một cây trượng. Mười kỹ năng. Chọn chiêu, tụ lực và tự quyết định lúc tung ra.</strong>
+          Phiên bản 1.7.0 mang đến kỹ năng thứ 10 <strong>Block Dominion</strong> — điều khiển tối đa 48 khối bay quanh người để tạo Đôi Cánh Khối, bay lướt chém xuyên mob ở tốc độ cao, nhốt địch vào Lồng Đá và lao Meteor Dive từ trên trời, kèm Chế độ An toàn trọn vẹn khi tắt phá địa hình.
         </p>
         <p class="hero-desc lang-zh">
-          <strong>一根法杖，九大技能。选择法术、蓄力，并由你决定释放的时机。</strong>
-          1.6.0 版本新增第九技能<strong>紫</strong>（包含蓝与红），默认保护你的宠物，加入 15 项游戏内进度成就，并为服主提供地形破坏、PvP 与法术目标的直观开关。
+          <strong>一根法杖，十大技能。选择法术、蓄力，并由你决定释放的时机。</strong>
+          1.7.0 版本全新加入第十技能<strong>方块支配</strong>——操控多达 48 个环绕方块化作方块之翼、高速掠过斩击怪物、以石笼囚禁敌人并发动陨石俯冲，关闭地形破坏时自动启用无伤建筑的安全模式。
         </p>
 
         <!-- Primary Action Strip -->
@@ -294,51 +297,51 @@
         </p>
       </div>
 
-      <!-- Section 0: What's New in 1.6.0 -->
+      <!-- Section 0: What's New in 1.7.0 -->
       <section id="whats-new" class="doc-section">
         <div class="section-header">
           <h2 class="section-title">
-            <span class="lang-en">What's New in 1.6.0</span>
-            <span class="lang-vi">Có Gì Mới Trong 1.6.0</span>
-            <span class="lang-zh">1.6.0 更新亮点</span>
+            <span class="lang-en">What's New in 1.7.0</span>
+            <span class="lang-vi">Có Gì Mới Trong 1.7.0</span>
+            <span class="lang-zh">1.7.0 更新亮点</span>
           </h2>
-          <p class="section-lead lang-en">Summary of changes introduced in God Wand 1.6.0.</p>
-          <p class="section-lead lang-vi">Tóm tắt các tính năng và thay đổi chính trong God Wand 1.6.0.</p>
-          <p class="section-lead lang-zh">God Wand 1.6.0 版本的主要新增功能与调整。</p>
+          <p class="section-lead lang-en">Summary of new features and improvements in God Wand 1.7.0.</p>
+          <p class="section-lead lang-vi">Tóm tắt các tính năng mới và cải tiến trong God Wand 1.7.0.</p>
+          <p class="section-lead lang-zh">God Wand 1.7.0 版本的主要新增功能与体验优化。</p>
         </div>
 
         <div class="cards-grid">
           <div class="card">
             <div class="card-title">
-              <span class="lang-en">Important: Pets Are Now Safe</span>
-              <span class="lang-vi">Quan trọng: Thú cưng được bảo vệ mặc định</span>
-              <span class="lang-zh">重要改动：宠物默认受到保护</span>
+              <span class="lang-en">New Skill: 10. Block Dominion</span>
+              <span class="lang-vi">Kỹ năng mới: 10. Block Dominion</span>
+              <span class="lang-zh">全新技能：10. 方块支配</span>
             </div>
-            <p class="lang-en">By default, spells no longer hurt or push tamed animals, mobs with a name tag, or mobs on a lead. Everything else is hit as before. Server owners can choose between protecting pets (default), hitting everything, or hitting monsters only via <code>spellTargets</code>.</p>
-            <p class="lang-vi">Mặc định, mọi chiêu thức sẽ không làm tổn thương hay đẩy/hút thú cưng đã thuần hóa, mob có thẻ tên (name tag) hoặc mob đang buộc dây (lead). Mọi sinh vật khác vẫn trúng đòn như cũ. Chủ server có thể chọn bảo vệ thú cưng (mặc định), đánh tất cả, hoặc chỉ đánh quái vật bằng <code>spellTargets</code>.</p>
-            <p class="lang-zh">默认情况下，法术不再伤害、吸引或击退已驯服的宠物、带命名牌的生物或拴绳牵引的生物，其余生物照常受影响。服主可通过 <code>spellTargets</code> 在“保护宠物（默认）”、“全部命中”和“仅敌对怪物”之间切换。</p>
+            <p class="lang-en">Press <strong>Shift + Left-click</strong> to command up to 48 nearby blocks. Spread <strong>Block Wings</strong> (double-tap Space), slash through mobs at high speed, rain blocks from the sky, trap mobs in a <strong>Monolith Cage</strong>, parry and reflect projectiles, or slam down in a 3-tier <strong>Meteor Dive</strong>. <a href="#skill-dominion" style="color: var(--accent-gold);">See full guide &rarr;</a></p>
+            <p class="lang-vi">Bấm <strong>Shift + Chuột trái</strong> để điều khiển tới 48 khối xung quanh. Bung <strong>Đôi Cánh Khối</strong> (bấm đúp Space), bay lướt chém xuyên mob khi tốc độ cao, trút mưa khối từ trên trời, nhốt mob vào <strong>Lồng Đá</strong>, tự chắn đòn và bật ngược mũi tên, hoặc lao <strong>Meteor Dive</strong> 3 cấp. <a href="#skill-dominion" style="color: var(--accent-gold);">Xem chi tiết &rarr;</a></p>
+            <p class="lang-zh">按 <strong>Shift + 左键</strong>操控周围多达 48 个方块。双击空格展开<strong>方块之翼</strong>，高速掠过即可斩伤怪物、从空中倾泻方块雨、用<strong>石笼</strong>囚禁目标、格挡并反弹箭矢，或从高空发动三阶<strong>陨石俯冲</strong>。<a href="#skill-dominion" style="color: var(--accent-gold);">查看完整说明 &rarr;</a></p>
           </div>
 
           <div class="card">
             <div class="card-title">
-              <span class="lang-en">New Skill: 9. Purple</span>
-              <span class="lang-vi">Kỹ năng mới: 9. Purple</span>
-              <span class="lang-zh">全新技能：9. 紫</span>
+              <span class="lang-en">Safe Mode, Controls Guide &amp; HUD</span>
+              <span class="lang-vi">Chế độ An toàn, Hướng dẫn phím &amp; HUD</span>
+              <span class="lang-zh">安全模式、按键指南与 HUD</span>
             </div>
-            <p class="lang-en">Hold left-click for <strong>Blue</strong>, hold right-click for <strong>Red</strong>, crash a full Red into a ready Blue for <strong>Purple</strong> (even across players!), hit an unready Blue for a <strong>Small Purple</strong>, or hold both buttons to form and fire a <strong>Purple sphere</strong>. <a href="#skill-purple" style="color: var(--accent-gold);">See full guide &rarr;</a></p>
-            <p class="lang-vi">Giữ chuột trái tạo <strong>Blue</strong>, giữ chuột phải tụ <strong>Red</strong>, bắn Red đầy lực vào Blue đã sẵn sàng để kích hoạt <strong>Purple</strong> (dùng chung giữa nhiều người chơi được!), bắn vào Blue chưa sẵn sàng tạo <strong>Small Purple</strong>, hoặc giữ cả hai chuột để tụ và bắn <strong>quả cầu Purple</strong>. <a href="#skill-purple" style="color: var(--accent-gold);">Xem chi tiết &rarr;</a></p>
-            <p class="lang-zh">按住左键召唤<strong>蓝</strong>，按住右键蓄力<strong>红</strong>；用蓄满的红击中就绪的蓝即可触发<strong>紫</strong>（支持跨玩家配合！）；击中未就绪的蓝会触发<strong>小紫</strong>；同时按住左右键可凝聚并发射<strong>紫球</strong>。<a href="#skill-purple" style="color: var(--accent-gold);">查看完整说明 &rarr;</a></p>
+            <p class="lang-en">Turn off terrain damage and Block Dominion enters <strong>Safe Mode</strong>: it summons temporary blocks without taking or breaking anything in your world. Includes a clean block counter, a bottom-left <strong>Controls Guide</strong> (both toggleable in <kbd>K</kbd>), the <strong>Sovereign of Stone</strong> advancement, and 7 server settings.</p>
+            <p class="lang-vi">Khi tắt phá địa hình, Block Dominion tự vào <strong>Chế độ An toàn</strong>: tự tạo khối tạm mà không lấy hay phá block nào trong thế giới. Kèm bộ đếm khối gọn gàng, bảng <strong>Hướng dẫn phím</strong> góc dưới trái (bật/tắt riêng trong menu <kbd>K</kbd>), thành tựu mới <strong>Sovereign of Stone</strong> và 7 tùy chọn server.</p>
+            <p class="lang-zh">关闭地形破坏时，方块支配自动进入<strong>安全模式</strong>：召唤临时方块，绝不拿取或破坏建筑。自带简洁的方块计数与左下角<strong>操作指南</strong>（可在 <kbd>K</kbd> 菜单分别开关），新增<strong>岩石主宰</strong>成就及 7 项服务端设置。</p>
           </div>
 
           <div class="card">
             <div class="card-title">
-              <span class="lang-en">Advancements &amp; New Settings</span>
-              <span class="lang-vi">Thành tựu &amp; Cài đặt mới</span>
-              <span class="lang-zh">进度成就与新设置</span>
+              <span class="lang-en">Multiplayer Feel, Shaders &amp; 1.6.x Fixes</span>
+              <span class="lang-vi">Chơi mạng, Shader &amp; Bản sửa lỗi 1.6.x</span>
+              <span class="lang-zh">联机体验、光影与 1.6.x 修复</span>
             </div>
-            <p class="lang-en">Adds 15 <a href="#advancements" style="color: var(--accent-gold);">advancements</a> across all nine skills. In the <kbd>K</kbd> menu: one <strong>Cutscenes</strong> switch for all four cutscenes, a <strong>Skill Sounds</strong> volume slider, <strong>Skill HUD</strong> crosshair rings, <strong>Bare Hand</strong> mode for Purple and Fuga, <strong>Red Recoil</strong>, and optional <strong>Purple: Third Person</strong>. On servers: master <code>terrainDamage</code> switch, <code>pvp</code>, <code>spellTargets</code>, and <code>disabledSkills</code> to turn off specific skills server-wide.</p>
-            <p class="lang-vi">Thêm 15 <a href="#advancements" style="color: var(--accent-gold);">thành tựu</a> cho cả chín kỹ năng. Trong menu <kbd>K</kbd>: một nút <strong>Cutscenes</strong> bật/tắt cùng lúc cả 4 cutscene, thanh âm lượng riêng cho mod, vòng tâm <strong>Skill HUD</strong>, chế độ <strong>Bare Hand</strong> tay trần cho Purple và Fuga, <strong>Red Recoil</strong> và tùy chọn góc nhìn thứ ba cho Blue/Red. Trên server: công tắc tổng <code>terrainDamage</code>, <code>pvp</code>, <code>spellTargets</code> và <code>disabledSkills</code> để tắt riêng từng skill.</p>
-            <p class="lang-zh">新增覆盖全部九大技能的 15 项<a href="#advancements" style="color: var(--accent-gold);">进度成就</a>。<kbd>K</kbd> 键设置菜单新增：一键开关全部四段过场动画的总开关、模组独立音效音量滑块、准星环提示、紫与 Fuga 的空手模式、红的后坐力以及可选第三人称视角。服务端新增总地形破坏开关 <code>terrainDamage</code>、<code>pvp</code>、<code>spellTargets</code> 以及禁用指定技能的 <code>disabledSkills</code>。</p>
+            <p class="lang-en">Nearby players now feel ground-slam and meteor shockwaves based on distance, and Block Dominion works smoothly with Iris, Oculus, and OptiFine shaders. Also includes all 1.6.1–1.6.3 updates: controller Next/Previous skill binds, Spatial Path falling-block safety, and faster Silent Gate performance.</p>
+            <p class="lang-vi">Người chơi đứng gần nay cảm nhận rõ độ rung mặt đất khi đáp và lao thiên thạch theo khoảng cách, đồng thời Block Dominion chạy mượt với Iris, Oculus và OptiFine. Tích hợp trọn vẹn các bản sửa 1.6.1–1.6.3: phím chuyển skill cho tay cầm, Spatial Path không làm rơi cát/sỏi và tối ưu FPS cho Silent Gate.</p>
+            <p class="lang-zh">附近联机玩家现在能按距离感受到重踏与陨石落地的震感，且全面兼容 Iris、Oculus 与 OptiFine 光影。同时包含 1.6.1–1.6.3 全部改进：手柄切技能快捷键、空间之径沙砾保护与静默之门帧率优化。</p>
           </div>
         </div>
       </section>
@@ -351,9 +354,9 @@
             <span class="lang-vi">Tổng Quan &amp; Điều Khiển</span>
             <span class="lang-zh">概览与控制按键</span>
           </h2>
-          <p class="section-lead lang-en">Supported Minecraft versions (10 builds), controls for all nine skills, admin commands, and survival crafting.</p>
-          <p class="section-lead lang-vi">Các phiên bản Minecraft được hỗ trợ (10 bản build), điều khiển cho cả chín kỹ năng, lệnh quản trị và công thức chế tạo.</p>
-          <p class="section-lead lang-zh">支持的 Minecraft 版本（10 个构建包）、九大技能操作说明、管理员指令与生存合成配方。</p>
+          <p class="section-lead lang-en">Supported Minecraft versions (10 builds), controls for all ten skills, admin commands, and survival crafting.</p>
+          <p class="section-lead lang-vi">Các phiên bản Minecraft được hỗ trợ (10 bản build), điều khiển cho cả mười kỹ năng, lệnh quản trị và công thức chế tạo.</p>
+          <p class="section-lead lang-zh">支持的 Minecraft 版本（10 个构建包）、十大技能操作说明、管理员指令与生存合成配方。</p>
         </div>
 
         <div class="table-wrapper">
@@ -370,32 +373,32 @@
               <tr>
                 <td><strong>26.3</strong></td>
                 <td>Java 25</td>
-                <td><code>godwand-fabric-26.3-1.6.0.jar</code></td>
-                <td><code>godwand-neoforge-26.3-1.6.0.jar</code></td>
+                <td><code>godwand-fabric-26.3-1.7.0.jar</code></td>
+                <td><code>godwand-neoforge-26.3-1.7.0.jar</code></td>
               </tr>
               <tr>
                 <td><strong>26.1.2</strong></td>
                 <td>Java 25</td>
-                <td><code>godwand-fabric-26.1.2-1.6.0.jar</code></td>
-                <td><code>godwand-neoforge-26.1.2-1.6.0.jar</code></td>
+                <td><code>godwand-fabric-26.1.2-1.7.0.jar</code></td>
+                <td><code>godwand-neoforge-26.1.2-1.7.0.jar</code></td>
               </tr>
               <tr>
                 <td><strong>1.21.11</strong></td>
                 <td>Java 21</td>
-                <td><code>godwand-fabric-1.21.11-1.6.0.jar</code></td>
-                <td><code>godwand-neoforge-1.21.11-1.6.0.jar</code></td>
+                <td><code>godwand-fabric-1.21.11-1.7.0.jar</code></td>
+                <td><code>godwand-neoforge-1.21.11-1.7.0.jar</code></td>
               </tr>
               <tr>
                 <td><strong>1.21.1</strong></td>
                 <td>Java 21</td>
-                <td><code>godwand-fabric-1.6.0.jar</code></td>
-                <td><code>godwand-neoforge-1.6.0.jar</code></td>
+                <td><code>godwand-fabric-1.7.0.jar</code></td>
+                <td><code>godwand-neoforge-1.7.0.jar</code></td>
               </tr>
               <tr>
                 <td><strong>1.20.1</strong></td>
                 <td>Java 17</td>
-                <td><code>godwand-fabric-1.20.1-1.6.0.jar</code></td>
-                <td><code>godwand-forge-1.20.1-1.6.0.jar</code></td>
+                <td><code>godwand-fabric-1.20.1-1.7.0.jar</code></td>
+                <td><code>godwand-forge-1.20.1-1.7.0.jar</code></td>
               </tr>
             </tbody>
           </table>
@@ -404,39 +407,39 @@
         <div class="cards-grid">
           <div class="card">
             <div class="card-title"><kbd>V</kbd> <span class="lang-en">(Hold)</span><span class="lang-vi">(Giữ)</span><span class="lang-zh">(按住)</span></div>
-            <p class="lang-en">Open the skill wheel while holding the wand to switch between all nine skills.</p>
-            <p class="lang-vi">Mở vòng tròn kỹ năng khi đang cầm trượng để chọn nhanh giữa cả chín chiêu.</p>
-            <p class="lang-zh">手持神之杖时按住打开技能轮盘，在全部九种技能间快速切换。</p>
+            <p class="lang-en">Open the skill wheel while holding the wand to switch between all ten skills (or bind <strong>Next skill</strong> / <strong>Previous skill</strong> in Controls for keyboard/gamepad).</p>
+            <p class="lang-vi">Mở vòng tròn kỹ năng khi đang cầm trượng để chọn nhanh giữa cả mười chiêu (hoặc gán phím <strong>Next skill</strong> / <strong>Previous skill</strong> trong Controls cho bàn phím/tay cầm).</p>
+            <p class="lang-zh">手持神之杖时按住打开技能轮盘，在全部十种技能间快速切换（也可在按键设置中绑定“上一个/下一个技能”供键盘或手柄使用）。</p>
           </div>
           <div class="card">
             <div class="card-title"><span class="lang-en">Right-Click</span><span class="lang-vi">Chuột phải</span><span class="lang-zh">鼠标右键</span></div>
-            <p class="lang-en">Use the selected skill: tap or hold to charge, command Silent Gate while it waits, or hold to charge <strong>Red</strong> when Purple is selected.</p>
-            <p class="lang-vi">Dùng kỹ năng đang chọn: bấm hoặc giữ để tụ lực, ra lệnh cho Silent Gate khi cổng đang chờ, hoặc giữ để tụ <strong>Red</strong> khi đang chọn Purple.</p>
-            <p class="lang-zh">释放当前技能：点击或按住蓄力，在静默之门待命时下达开火指令，或在选中<strong>紫</strong>时按住蓄力<strong>红</strong>。</p>
+            <p class="lang-en">Use the selected skill: tap or hold to charge, command Silent Gate while it waits, hold for <strong>Red</strong> in Purple mode, or fire blocks / hold for a rapid volley in <strong>Block Dominion</strong>.</p>
+            <p class="lang-vi">Dùng kỹ năng đang chọn: bấm hoặc giữ để tụ lực, ra lệnh cho Silent Gate khi cổng đang chờ, giữ tụ <strong>Red</strong> ở chế độ Purple, hoặc bắn khối / giữ xả liên thanh trong <strong>Block Dominion</strong>.</p>
+            <p class="lang-zh">释放当前技能：点击或按住蓄力、在静默之门待命时下达开火指令、在<strong>紫</strong>模式下蓄力<strong>红</strong>，或在<strong>方块支配</strong>中单发/长按连射方块。</p>
           </div>
           <div class="card">
-            <div class="card-title"><span class="lang-en">Left-Click (Purple / Melee)</span><span class="lang-vi">Chuột trái (Purple / Cận chiến)</span><span class="lang-zh">鼠标左键（紫 / 近战）</span></div>
-            <p class="lang-en">In <strong>Purple</strong> mode: hold for <strong>Blue</strong>, or hold together with Right-Click to form the <strong>Purple sphere</strong>. In all other modes: normal melee attack dealing 5 damage.</p>
-            <p class="lang-vi">Ở chế độ <strong>Purple</strong>: giữ để gọi <strong>Blue</strong>, hoặc giữ cùng chuột phải để tụ <strong>quả cầu Purple</strong>. Ở các chiêu khác: đánh cận chiến gây 5 sát thương.</p>
-            <p class="lang-zh">选中<strong>紫</strong>时：按住召唤<strong>蓝</strong>，或与右键同时按住凝聚<strong>紫球</strong>。其他技能模式下为 5 点伤害的普通近战攻击。</p>
+            <div class="card-title"><span class="lang-en">Left-Click (Purple / Block Dominion / Melee)</span><span class="lang-vi">Chuột trái (Purple / Block Dominion / Cận chiến)</span><span class="lang-zh">鼠标左键（紫 / 方块支配 / 近战）</span></div>
+            <p class="lang-en">In <strong>Purple</strong>: hold for Blue, or hold with Right-Click for the Purple sphere. In <strong>Block Dominion</strong>: <strong>Shift + Left-Click</strong> toggles it on/off, Left-Click lifts a block, pulls up to 24 blocks (air), or traps a mob in a Monolith Cage. Other modes: 5 melee damage.</p>
+            <p class="lang-vi">Ở <strong>Purple</strong>: giữ gọi Blue, giữ cùng chuột phải tạo quả cầu Purple. Ở <strong>Block Dominion</strong>: <strong>Shift + Chuột trái</strong> bật/tắt, Chuột trái nhấc 1 khối, kéo tới 24 khối (nhìn trời), hoặc nhốt mob vào Lồng Đá. Các chiêu khác: đánh cận chiến 5 sát thương.</p>
+            <p class="lang-zh"><strong>紫</strong>模式：按住召唤蓝，或左右键同按凝聚紫球。<strong>方块支配</strong>：<strong>Shift + 左键</strong>开关，左键抓取单块、对空拉起最多 24 块，或对怪物施放石笼。其余模式为 5 点伤害普通近战。</p>
           </div>
           <div class="card">
             <div class="card-title"><kbd>K</kbd> <span class="lang-en">(Press)</span><span class="lang-vi">(Bấm)</span><span class="lang-zh">(按下)</span></div>
-            <p class="lang-en">Open the settings menu: wand appearance, Cutscenes switch, Skill Sounds volume, Skill HUD, Bare Hand, Red Recoil, Purple: Third Person, and visual effects.</p>
-            <p class="lang-vi">Mở menu cài đặt cá nhân: ngoại hình trượng, công tắc Cutscenes, âm lượng Skill Sounds, vòng tâm Skill HUD, tay trần Bare Hand, Red Recoil, góc nhìn thứ ba và hiệu ứng hình ảnh.</p>
-            <p class="lang-zh">打开客户端设置菜单：调整法杖外观、过场动画总开关、技能音效音量、技能准星提示、空手模式、红的后坐力、紫第三人称及画面特效。</p>
+            <p class="lang-en">Open the settings menu: wand appearance, Cutscenes switch, Skill Sounds volume, Skill HUD, Controls Guide, Bare Hand, Red Recoil, Purple: Third Person, and visual effects.</p>
+            <p class="lang-vi">Mở menu cài đặt cá nhân: ngoại hình trượng, công tắc Cutscenes, âm lượng Skill Sounds, Skill HUD, bảng hướng dẫn phím, tay trần Bare Hand, Red Recoil, góc nhìn thứ ba và hiệu ứng hình ảnh.</p>
+            <p class="lang-zh">打开客户端设置菜单：调整法杖外观、过场动画总开关、技能音效音量、技能 HUD、操作指南、空手模式、红的后坐力、紫第三人称及画面特效。</p>
           </div>
           <div class="card">
-            <div class="card-title"><kbd>Shift</kbd> / <kbd>Esc</kbd> / <kbd>F5</kbd></div>
-            <p class="lang-en">Hold <kbd>Shift</kbd> to form a temporary bridge in Spatial Path, cancel Silent Gate while forming, or cancel a charging Red. Press <kbd>Esc</kbd> or <kbd>F5</kbd> during a cutscene to skip its camera.</p>
-            <p class="lang-vi">Nhấn <kbd>Shift</kbd> để tạo cầu tạm khi bật Spatial Path, hủy Silent Gate khi đang dựng, hoặc hủy Red đang tụ. Bấm <kbd>Esc</kbd> hoặc <kbd>F5</kbd> trong cutscene để bỏ qua góc quay.</p>
-            <p class="lang-zh">开启空间之径时按 <kbd>Shift</kbd> 铺设临时桥梁，或在静默之门构筑、红蓄力时潜行取消；过场动画中按 <kbd>Esc</kbd> 或 <kbd>F5</kbd> 跳过镜头。</p>
+            <div class="card-title"><kbd>Space</kbd> / <kbd>Shift</kbd> / <kbd>Esc</kbd> / <kbd>F5</kbd></div>
+            <p class="lang-en"><strong>Double-tap Space</strong> (Block Dominion, 6+ blocks) to fly on Block Wings (<kbd>Shift</kbd>+<kbd>Space</kbd> toggles Hover/Glide). Hold <kbd>Shift</kbd> for Spatial Path bridge, or to cancel Silent Gate / charging Red. Press <kbd>Esc</kbd> or <kbd>F5</kbd> during a cutscene to skip its camera.</p>
+            <p class="lang-vi"><strong>Bấm đúp Space</strong> (Block Dominion, từ 6 khối) để bung Đôi Cánh Khối (<kbd>Shift</kbd>+<kbd>Space</kbd> đổi Bay lơ lửng/Lượn). Giữ <kbd>Shift</kbd> dựng cầu Spatial Path, hủy Silent Gate hoặc Red. Bấm <kbd>Esc</kbd>/<kbd>F5</kbd> để bỏ qua góc quay cutscene.</p>
+            <p class="lang-zh">在方块支配中（6 块以上）<strong>双击空格</strong>展开方块之翼（<kbd>Shift</kbd>+<kbd>Space</kbd> 切换悬停/滑翔）。按 <kbd>Shift</kbd> 铺设空间之径桥梁或取消静默之门/红；过场中按 <kbd>Esc</kbd>/<kbd>F5</kbd> 跳过镜头。</p>
           </div>
           <div class="card">
             <div class="card-title"><span class="lang-en">/godwand Admin Commands</span><span class="lang-vi">Lệnh Quản Trị /godwand</span><span class="lang-zh">/godwand 管理员指令</span></div>
-            <p class="lang-en"><code>/godwand lock &lt;skill&gt;</code> &amp; <code>/godwand unlock</code> (OP Lv.2) lock or unlock the held wand to a single skill. <code>/godwand reset_cooldowns [players]</code> (OP Lv.4) clears every skill cooldown immediately.</p>
-            <p class="lang-vi"><code>/godwand lock &lt;skill&gt;</code> và <code>/godwand unlock</code> (OP cấp 2) khóa hoặc mở khóa cây trượng đang cầm vào 1 chiêu. <code>/godwand reset_cooldowns [players]</code> (OP cấp 4) xóa sạch toàn bộ hồi chiêu ngay lập tức.</p>
-            <p class="lang-zh"><code>/godwand lock &lt;skill&gt;</code> 与 <code>/godwand unlock</code>（权限 2）将手持法杖锁定或解锁为单一技能；<code>/godwand reset_cooldowns [players]</code>（权限 4）立即清除全部技能冷却。</p>
+            <p class="lang-en"><code>/godwand lock &lt;skill&gt;</code> &amp; <code>/godwand unlock</code> (OP Lv.2) lock or unlock the held wand to a single skill (including <code>block_dominion</code>). <code>/godwand reset_cooldowns [players]</code> (OP Lv.4) clears every skill cooldown immediately.</p>
+            <p class="lang-vi"><code>/godwand lock &lt;skill&gt;</code> và <code>/godwand unlock</code> (OP cấp 2) khóa hoặc mở khóa cây trượng đang cầm vào 1 chiêu (gồm cả <code>block_dominion</code>). <code>/godwand reset_cooldowns [players]</code> (OP cấp 4) xóa sạch toàn bộ hồi chiêu ngay lập tức.</p>
+            <p class="lang-zh"><code>/godwand lock &lt;skill&gt;</code> 与 <code>/godwand unlock</code>（权限 2）将手持法杖锁定或解锁为单一技能（含 <code>block_dominion</code>）；<code>/godwand reset_cooldowns [players]</code>（权限 4）立即清除全部技能冷却。</p>
           </div>
         </div>
 
@@ -462,25 +465,25 @@
         </div>
       </section>
 
-      <!-- Section 2: Nine Skills -->
+      <!-- Section 2: Ten Skills -->
       <section id="skills" class="doc-section">
         <div class="section-header">
           <h2 class="section-title">
-            <span class="lang-en">Nine Skills</span>
-            <span class="lang-vi">Chín Kỹ Năng</span>
-            <span class="lang-zh">九大技能</span>
+            <span class="lang-en">Ten Skills</span>
+            <span class="lang-vi">Mười Kỹ Năng</span>
+            <span class="lang-zh">十大技能</span>
           </h2>
           <p class="section-lead lang-en">What each spell does, default timings (in seconds), and how they behave.</p>
           <p class="section-lead lang-vi">Cách hoạt động của từng kỹ năng, thông số mặc định (tính bằng giây và block) và lưu ý khi dùng.</p>
-          <p class="section-lead lang-zh">九大法术的玩法机制、默认数值（以秒与格为单位）与实用技巧。</p>
+          <p class="section-lead lang-zh">十大法术的玩法机制、默认数值（以秒与格为单位）与实用技巧。</p>
         </div>
 
         <!-- In-Page Skill Quick Filter Tabs -->
         <div class="skill-tabs">
           <button class="skill-tab-btn active" data-filter="all">
-            <span class="lang-en">All 9 Skills</span>
-            <span class="lang-vi">Cả 9 kỹ năng</span>
-            <span class="lang-zh">全部 9 项技能</span>
+            <span class="lang-en">All 10 Skills</span>
+            <span class="lang-vi">Cả 10 kỹ năng</span>
+            <span class="lang-zh">全部 10 项技能</span>
           </button>
           <button class="skill-tab-btn" data-filter="spatial">1. Spatial Path</button>
           <button class="skill-tab-btn" data-filter="singularity">2. Singularity</button>
@@ -490,7 +493,8 @@
           <button class="skill-tab-btn" data-filter="atomic">6. I am Atomic</button>
           <button class="skill-tab-btn" data-filter="fuga">7. Fuga</button>
           <button class="skill-tab-btn" data-filter="gate">8. Silent Gate</button>
-          <button class="skill-tab-btn" data-filter="purple">9. Purple (1.6.0)</button>
+          <button class="skill-tab-btn" data-filter="purple">9. Purple</button>
+          <button class="skill-tab-btn" data-filter="dominion">10. Block Dominion (1.7.0)</button>
         </div>
 
         <!-- Skill 1 -->
@@ -725,7 +729,7 @@
           </div>
         </div>
 
-        <!-- Skill 9: Purple (NEW in 1.6.0) -->
+        <!-- Skill 9: Purple -->
         <div id="skill-purple" class="skill-card featured-purple" data-skill="purple">
           <div class="skill-header">
             <div class="skill-name">
@@ -733,7 +737,7 @@
               <span class="lang-vi">9. Purple</span>
               <span class="lang-zh">9. 紫 (Purple)</span>
             </div>
-            <span class="badge-new">New in 1.6.0 &bull; Blue + Red &bull; Co-op</span>
+            <span class="badge">Blue + Red &bull; Co-op</span>
           </div>
           <p class="lang-en">Two orbs, one in each hand. Summon <strong>Blue</strong> with left-click, charge <strong>Red</strong> with right-click, crash them together into <strong>Purple</strong> (solo or with a friend), or hold both buttons to launch a <strong>Purple sphere</strong>. In first person, your bare hand is shown by default (toggleable via <code>bareHand</code>).</p>
           <p class="lang-vi">Hai quả cầu, mỗi tay một lực. Giữ chuột trái gọi <strong>Blue</strong>, giữ chuột phải tụ <strong>Red</strong>, cho chúng va vào nhau để tạo <strong>Purple</strong> (một mình hoặc phối hợp với bạn bè), hoặc giữ cả hai nút chuột để bắn <strong>quả cầu Purple</strong>. Ở góc nhìn thứ nhất, game mặc định hiện tay trần (bật/tắt bằng <code>bareHand</code>).</p>
@@ -1052,6 +1056,79 @@
           </div>
         </div>
 
+        <!-- Skill 10: Block Dominion (NEW in 1.7.0) -->
+        <div id="skill-dominion" class="skill-card" data-skill="dominion">
+          <div class="skill-header">
+            <div class="skill-name">
+              <span class="lang-en">10. Block Dominion</span>
+              <span class="lang-vi">10. Block Dominion (Chúa Tể Khối)</span>
+              <span class="lang-zh">10. 方块支配 (Block Dominion)</span>
+            </div>
+            <span class="badge-new">New in 1.7.0</span>
+          </div>
+          <p class="lang-en">
+            Lift and control up to <strong>48 blocks</strong> around you — stone, iron, gold, obsidian, and more — to fight, fly on sculpted wings, trap mobs in stone cages, block hits, and crash down from the sky.
+          </p>
+          <p class="lang-vi">
+            Nhấc và điều khiển tối đa <strong>48 khối</strong> xung quanh — đá, sắt, vàng, hắc diện thạch và nhiều loại khác — để chiến đấu, bay bằng Đôi Cánh Khối, nhốt mob trong Lồng Đá, tự chắn đòn và lao thiên thạch từ trên trời xuống.
+          </p>
+          <p class="lang-zh">
+            操控周围多达 <strong>48 个方块</strong>（石块、铁块、金块、黑曜石等），自由发射攻击、化作方块之翼飞行、用石笼囚禁敌人、自动格挡反弹并发动高空陨石俯冲。
+          </p>
+
+          <ul class="mechanics-list">
+            <li>
+              <span class="lang-en"><strong>Turn on &amp; gather:</strong> Press <strong>Shift + Left-click</strong> to activate or deactivate. Left-click a block to lift it into orbit, or left-click the air to pull up to <strong>24 blocks</strong> out of the ground at once.</span>
+              <span class="lang-vi"><strong>Bật &amp; gom khối:</strong> Bấm <strong>Shift + Chuột trái</strong> để bật hoặc tắt. Chuột trái vào một khối để nhấc lên, hoặc chuột trái vào không trung để kéo liền một lúc tối đa <strong>24 khối</strong> từ mặt đất lên.</span>
+              <span class="lang-zh"><strong>开启与抓取：</strong>按 <strong>Shift + 左键</strong>开关技能。左键点击方块可单个抓起，对空左键可一口气从地面拉起最多 <strong>24 个方块</strong>。</span>
+            </li>
+            <li>
+              <span class="lang-en"><strong>Block Wings &amp; Wing Blade Slash:</strong> <strong>Double-tap Space</strong> (with 6+ blocks) to form wings. Press <strong>Shift + Space</strong> to switch between <strong>Hover</strong> and <strong>Glide</strong>, hold <strong>Ctrl</strong> or <strong>Space</strong> to boost, and hold <strong>Shift + Right-click</strong> to rain blocks down on enemies below. Flying past mobs at high speed slashes right through them with your wings.</span>
+              <span class="lang-vi"><strong>Đôi Cánh Khối &amp; Lưỡi Dao Cánh:</strong> <strong>Bấm đúp Space</strong> (từ 6 khối trở lên) để tạo cánh. Bấm <strong>Shift + Space</strong> đổi giữa <strong>Bay lơ lửng</strong> và <strong>Lượn</strong>, giữ <strong>Ctrl</strong> hoặc <strong>Space</strong> để tăng tốc, giữ <strong>Shift + Chuột phải</strong> để trút mưa khối xuống dưới. Khi bay lướt qua mob ở tốc độ cao, đôi cánh sẽ chém xuyên qua chúng như lưỡi dao.</span>
+              <span class="lang-zh"><strong>方块之翼与高速斩击：</strong>持有 6 个以上方块时<strong>双击空格</strong>展开双翼。按 <strong>Shift + 空格</strong>切换<strong>悬停</strong>与<strong>滑翔</strong>，按住 <strong>Ctrl</strong> 或 <strong>空格</strong>加速，按住 <strong>Shift + 右键</strong>倾泻方块雨；高速掠过怪物时双翼会直接斩伤目标。</span>
+            </li>
+            <li>
+              <span class="lang-en"><strong>Hero Landing &amp; 3-Tier Meteor Dive:</strong> Landing from flight triggers a shockwave that launches nearby ground blocks into the air before slamming them back down. Look straight down while flying to dive — your wings fold tighter the higher you dive, charging through three impact levels up to a volcanic <strong>Cataclysm</strong> slam.</span>
+              <span class="lang-vi"><strong>Cú Đáp Chấn Động &amp; Meteor Dive 3 Cấp:</strong> Đáp xuống đất từ khi bay tạo sóng xung kích hất tung các khối đất xung quanh lên trời rồi đập xuống. Cúi thẳng mặt xuống đất khi đang bay để lao — càng từ trên cao cánh càng khép gọn, tích qua 3 cấp va chạm lên đến cú nổ núi lửa <strong>Cataclysm</strong>.</span>
+              <span class="lang-zh"><strong>震撼落地与三阶陨石俯冲：</strong>飞行落地时会震起周围地面方块并重重砸下。飞行中垂直俯视即可进入俯冲，高度越高双翼收拢越紧，依次蓄积三阶冲击，最高触发火山级<strong>天灾 (Cataclysm)</strong> 巨震。</span>
+            </li>
+            <li>
+              <span class="lang-en"><strong>Monolith Cage:</strong> Left-click a mob (uses 8 blocks) to lift and lock it inside a stone cage in mid-air, then skewer it from six sides with stone lances.</span>
+              <span class="lang-vi"><strong>Lồng Đá (Monolith Cage):</strong> Chuột trái vào một mob (tốn 8 khối) để nhấc bổng và nhốt nó trong lồng đá giữa không trung, rồi đâm xuyên từ 6 hướng bằng 6 ngọn giáo đá.</span>
+              <span class="lang-zh"><strong>石笼处决 (Monolith Cage)：</strong>左键点击怪物（消耗 8 个方块）将其吊起并锁入空中石笼，随后从六个方向发射石矛贯穿目标。</span>
+            </li>
+            <li>
+              <span class="lang-en"><strong>Block Shots, Volley &amp; Passive Shield:</strong> Right-click to fire a single block, or hold right-click for a rapid volley. Orbiting blocks automatically shield you from incoming hits and bounce projectiles back at the attacker — heavier hits break more blocks, and attacks stronger than your remaining blocks can break through your guard.</span>
+              <span class="lang-vi"><strong>Bắn khối, Liên thanh &amp; Lá chắn tự động:</strong> Chuột phải bắn từng khối, giữ chuột phải xả liên thanh. Các khối quay quanh người sẽ tự chặn sát thương và bật ngược mũi tên/đạn về phía kẻ tấn công — đòn càng mạnh càng tốn nhiều khối, và đòn quá mạnh vượt số khối còn lại có thể phá vỡ phòng thủ.</span>
+              <span class="lang-zh"><strong>方块射击、连射与自动护盾：</strong>右键发射单块，按住右键高速连射。环绕的方块会自动格挡伤害并反弹箭矢等弹射物——攻击越重消耗越多方块，超出剩余方块承受力的重击会击穿防御。</span>
+            </li>
+            <li>
+              <span class="lang-en"><strong>Safe Mode:</strong> When terrain damage is disabled (<code>terrainDamage: false</code> or <code>blockDominionTerrainDamage: false</code>), Block Dominion never mines or breaks world blocks. It summons temporary blocks instead, deals full combat damage with zero craters, and vanishes cleanly when turned off.</span>
+              <span class="lang-vi"><strong>Chế độ An toàn (Safe Mode):</strong> Khi tắt phá địa hình (<code>terrainDamage: false</code> hoặc <code>blockDominionTerrainDamage: false</code>), Block Dominion hoàn toàn không lấy hay phá block trong thế giới — tự tạo khối tạm để dùng, vẫn gây đủ sát thương mà không tạo hố, và biến mất sạch sẽ khi tắt.</span>
+              <span class="lang-zh"><strong>安全模式：</strong>关闭地形破坏（<code>terrainDamage: false</code> 或 <code>blockDominionTerrainDamage: false</code>）时，方块支配不会拿取或破坏任何世界方块，改为召唤临时方块作战、不留弹坑，关闭后无痕消散。</span>
+            </li>
+          </ul>
+
+          <div class="skill-specs">
+            <div>
+              <span class="spec-title"><span class="lang-en">Cooldown</span><span class="lang-vi">Hồi chiêu</span><span class="lang-zh">冷却时间</span></span>
+              <span class="spec-data">4 s (80 ticks)</span>
+            </div>
+            <div>
+              <span class="spec-title"><span class="lang-en">Max Orbiting Blocks</span><span class="lang-vi">Số khối tối đa</span><span class="lang-zh">最大环绕方块</span></span>
+              <span class="spec-data">48 (4 &ndash; 96)</span>
+            </div>
+            <div>
+              <span class="spec-title"><span class="lang-en">Base Damage</span><span class="lang-vi">Sát thương gốc</span><span class="lang-zh">基础伤害</span></span>
+              <span class="spec-data">45.0</span>
+            </div>
+            <div>
+              <span class="spec-title"><span class="lang-en">HUD &amp; Guide</span><span class="lang-vi">HUD &amp; Hướng dẫn</span><span class="lang-zh">界面与指南</span></span>
+              <span class="spec-data"><span class="lang-en">Block counter + <kbd>K</kbd> Controls Guide</span><span class="lang-vi">Bộ đếm khối + Hướng dẫn (<kbd>K</kbd>)</span><span class="lang-zh">方块计数 + <kbd>K</kbd> 键操作指南</span></span>
+            </div>
+          </div>
+        </div>
+
         <!-- Shared Cutscenes Subsection -->
         <div id="cutscenes" class="callout tip" style="margin-top: 2rem;">
           <div class="callout-title">
@@ -1070,22 +1147,21 @@
           </p>
         </div>
 
-        <!-- Advancements Subsection (NEW in 1.6.0) -->
+        <!-- Advancements Subsection -->
         <div id="advancements" style="margin-top: 2.5rem;">
           <h3 class="subsection-title">
             <span class="lang-en">Advancements</span>
             <span class="lang-vi">Thành Tựu (Advancements)</span>
             <span class="lang-zh">进度成就 (Advancements)</span>
-            <span class="badge-new">New in 1.6.0</span>
           </h3>
           <p class="section-lead lang-en" style="margin-bottom: 1rem;">
-            God Wand 1.6.0 adds 15 advancements under its own tab. Skill-use advancements pop up once the spell finishes playing (after its cutscene), so they do not interrupt cinematics.
+            God Wand includes 16 advancements under its own tab (including <strong>Sovereign of Stone</strong> for Block Dominion in 1.7.0). Skill-use advancements pop up once the spell finishes playing (after its cutscene), so they do not interrupt cinematics.
           </p>
           <p class="section-lead lang-vi" style="margin-bottom: 1rem;">
-            God Wand 1.6.0 bổ sung 15 thành tựu trong tab riêng. Các thành tựu dùng kỹ năng sẽ hiện ra sau khi chiêu thức (và cutscene) chạy xong để không che mất hình ảnh.
+            God Wand có 16 thành tựu trong tab riêng (gồm thành tựu mới <strong>Sovereign of Stone</strong> cho Block Dominion ở 1.7.0). Các thành tựu dùng kỹ năng sẽ hiện ra sau khi chiêu thức (và cutscene) chạy xong để không che mất hình ảnh.
           </p>
           <p class="section-lead lang-zh" style="margin-bottom: 1rem;">
-            God Wand 1.6.0 新增独立分页下的 15 项进度成就。释放技能类成就会在法术（含过场动画）结束后弹出，不会打断演出画面。
+            God Wand 在独立分页下共有 16 项进度成就（含 1.7.0 为方块支配新增的<strong>岩石主宰</strong>）。释放技能类成就会在法术（含过场动画）结束后弹出，不会打断演出画面。
           </p>
 
           <pre class="adv-tree">God Wand (root)
@@ -1099,10 +1175,11 @@
 ├── The Shadow Steps Out (use_5 — I am Atomic)
 ├── Open. (use_6 — Fuga)
 ├── In Perfect Silence (use_7 — Silent Gate)
-└── Lapse (blue — Summon Blue)
-    └── Reversal (red — Fire Red)
-        ├── Imaginary Mass (purple — Small Purple / Purple sphere) [Goal]
-        └── Nah, I'd Win (purple_kill — Kill with full Purple) [Challenge]</pre>
+├── Lapse (blue — Summon Blue)
+│   └── Reversal (red — Fire Red)
+│       ├── Imaginary Mass (purple — Small Purple / Purple sphere) [Goal]
+│       └── Nah, I'd Win (purple_kill — Kill with full Purple) [Challenge]
+└── Sovereign of Stone (use_9 — Block Dominion)</pre>
 
           <div class="table-wrapper">
             <table class="data-table">
@@ -1265,6 +1342,16 @@
                     <span class="lang-zh">用紫击倒目标（以完整紫引爆击杀生物）。</span>
                   </td>
                 </tr>
+                <tr>
+                  <td><strong><span class="lang-en">Sovereign of Stone</span><span class="lang-vi">Sovereign of Stone</span><span class="lang-zh">岩石主宰</span></strong> <span class="badge-new">New in 1.7.0</span></td>
+                  <td><code>use_9</code> &bull; <span class="frame-badge frame-task">Task</span></td>
+                  <td><code>root</code></td>
+                  <td>
+                    <span class="lang-en">Awaken Block Dominion.</span>
+                    <span class="lang-vi">Kích hoạt kỹ năng Block Dominion.</span>
+                    <span class="lang-zh">唤醒方块支配（开启方块支配技能）。</span>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -1278,13 +1365,13 @@
             <span class="lang-zh">法杖外观与近战伤害</span>
           </h3>
           <p class="section-lead lang-en" style="margin-bottom: 1rem;">
-            Pick an appearance in the <kbd>K</kbd> menu or use <strong>AUTO</strong> to swap with your active skill. All appearances deal <strong>5 Melee Damage</strong> on normal left-click attacks (outside Purple mode). With <strong>Bare Hand</strong> enabled, Purple and Fuga show your empty hand in first person.
+            Pick an appearance in the <kbd>K</kbd> menu or use <strong>AUTO</strong> to swap with your active skill. All appearances deal <strong>5 Melee Damage</strong> on normal left-click attacks (outside Purple and active Block Dominion). With <strong>Bare Hand</strong> enabled, Purple and Fuga show your empty hand in first person.
           </p>
           <p class="section-lead lang-vi" style="margin-bottom: 1rem;">
-            Chọn ngoại hình trong menu <kbd>K</kbd> hoặc để <strong>AUTO</strong> tự đổi theo kỹ năng. Mọi ngoại hình đều gây <strong>5 sát thương cận chiến</strong> khi đánh thường bằng chuột trái (trừ lúc đang chọn Purple). Khi bật <strong>Bare Hand</strong>, Purple và Fuga sẽ hiện tay trần ở góc nhìn thứ nhất.
+            Chọn ngoại hình trong menu <kbd>K</kbd> hoặc để <strong>AUTO</strong> tự đổi theo kỹ năng. Mọi ngoại hình đều gây <strong>5 sát thương cận chiến</strong> khi đánh thường bằng chuột trái (trừ lúc dùng Purple hoặc đang bật Block Dominion). Khi bật <strong>Bare Hand</strong>, Purple và Fuga sẽ hiện tay trần ở góc nhìn thứ nhất.
           </p>
           <p class="section-lead lang-zh" style="margin-bottom: 1rem;">
-            在 <kbd>K</kbd> 键菜单中自选法杖外观，或选择 <strong>AUTO</strong> 随技能自动切换。所有外观的普通左键近战伤害均为 <strong>5 点</strong>（紫模式除外）。开启<strong>空手</strong>后，紫与 Fuga 在第一人称下会隐藏法杖、以空手施法。
+            在 <kbd>K</kbd> 键菜单中自选法杖外观，或选择 <strong>AUTO</strong> 随技能自动切换。所有外观的普通左键近战伤害均为 <strong>5 点</strong>（紫与开启方块支配时除外）。开启<strong>空手</strong>后，紫与 Fuga 在第一人称下会隐藏法杖、以空手施法。
           </p>
         </div>
 
@@ -1303,9 +1390,9 @@
                 <td><code>AUTO</code></td>
                 <td><span class="lang-en">Auto (Thematic)</span><span class="lang-vi">Tự động theo chiêu</span><span class="lang-zh">自动（按技能主题）</span></td>
                 <td>
-                  <span class="lang-en">Earth Drill &amp; Stone Cannon: Aqua Heartia; I am Atomic: Shadow Blade; Silent Gate: Silent Witch Staff; all others (Spatial Path, Singularity, Supernova, Fuga, Purple): Eclipse</span>
-                  <span class="lang-vi">Earth Drill &amp; Stone Cannon: Aqua Heartia; I am Atomic: Shadow Blade; Silent Gate: Silent Witch Staff; các chiêu còn lại (Spatial Path, Singularity, Supernova, Fuga, Purple): Eclipse</span>
-                  <span class="lang-zh">大地钻击与石炮：水之心；吾即原子：暗影之刃；静默之门：沉默魔女之杖；其余技能（空间之径、奇点、超新星、Fuga、紫）：魔导科技法杖 (Eclipse)</span>
+                  <span class="lang-en">Earth Drill &amp; Stone Cannon: Aqua Heartia; I am Atomic: Shadow Blade; Silent Gate: Silent Witch Staff; all others (Spatial Path, Singularity, Supernova, Fuga, Purple, Block Dominion): Eclipse</span>
+                  <span class="lang-vi">Earth Drill &amp; Stone Cannon: Aqua Heartia; I am Atomic: Shadow Blade; Silent Gate: Silent Witch Staff; các chiêu còn lại (Spatial Path, Singularity, Supernova, Fuga, Purple, Block Dominion): Eclipse</span>
+                  <span class="lang-zh">大地钻击与石炮：水之心；吾即原子：暗影之刃；静默之门：沉默魔女之杖；其余技能（空间之径、奇点、超新星、Fuga、紫、方块支配）：魔导科技法杖 (Eclipse)</span>
                 </td>
                 <td>5 DMG</td>
               </tr>
@@ -1387,7 +1474,7 @@
         <div class="cards-grid two-col">
           <!-- Box 1: spellTargets -->
           <div class="card">
-            <div class="card-title"><code>spellTargets</code> <span class="badge-new">New in 1.6.0</span></div>
+            <div class="card-title"><code>spellTargets</code></div>
             <p class="lang-en"><strong>Default: <code>"no_pets"</code></strong> &mdash; chooses which creatures spells can hurt <strong>and</strong> push or pull (a protected pet won't be pulled into Blue either):</p>
             <p class="lang-vi"><strong>Mặc định: <code>"no_pets"</code></strong> &mdash; quyết định sinh vật nào bị chiêu thức gây sát thương <strong>lẫn</strong> hút hoặc đẩy (thú cưng được bảo vệ cũng không bị Blue hút vào):</p>
             <p class="lang-zh"><strong>默认：<code>"no_pets"</code></strong> &mdash; 控制法术会伤害<strong>以及</strong>吸引或击退哪些生物（受保护的宠物也不会被蓝吸走）：</p>
@@ -1417,7 +1504,7 @@
 
           <!-- Box 2: pvp -->
           <div class="card">
-            <div class="card-title"><code>pvp</code> <span class="badge-new">New in 1.6.0</span></div>
+            <div class="card-title"><code>pvp</code></div>
             <p class="lang-en"><strong>Default: <code>true</code></strong> &mdash; controls whether your spells can hurt or push other players. Set to <code>false</code> for friendly co-op servers so nobody accidentally blasts a teammate. You can never hurt yourself with your own spells.</p>
             <p class="lang-vi"><strong>Mặc định: <code>true</code></strong> &mdash; quyết định phép thuật có làm tổn thương hay đẩy người chơi khác không. Đặt <code>false</code> cho server co-op để tránh đánh nhầm đồng đội. Người thi triển không bao giờ tự trúng chiêu của chính mình.</p>
             <p class="lang-zh"><strong>默认：<code>true</code></strong> &mdash; 控制法术是否会伤害或击退其他玩家。合作服可设为 <code>false</code> 防止误伤队友。施法者永远不会被自己的法术伤害。</p>
@@ -1425,10 +1512,10 @@
 
           <!-- Box 3: terrainDamage -->
           <div class="card">
-            <div class="card-title"><code>terrainDamage</code> <span class="badge-new">New in 1.6.0</span></div>
-            <p class="lang-en"><strong>Default: <code>true</code></strong> &mdash; one master switch for the whole mod. When <code>false</code>, no skill breaks or lifts blocks (including Earth Drill/Supernova block lift and Singularity block pulling), whatever the per-skill switches say. Spatial Path's temporary auto-restoring path still works. When <code>true</code>, each skill's own <code>...TerrainDamage</code> / <code>...BlockLift</code> switch decides.</p>
-            <p class="lang-vi"><strong>Mặc định: <code>true</code></strong> &mdash; một công tắc tổng cho toàn bộ mod. Khi đặt <code>false</code>, không kỹ năng nào phá hay nhấc khối (kể cả bốc khối của Earth Drill/Supernova hay kéo khối của Singularity), bất kể công tắc từng chiêu đặt gì. Lối đi tạm tự khôi phục của Spatial Path vẫn hoạt động. Khi đặt <code>true</code>, công tắc riêng của từng chiêu sẽ quyết định.</p>
-            <p class="lang-zh"><strong>默认：<code>true</code></strong> &mdash; 全局地形破坏总开关。设为 <code>false</code> 时，无论各技能单独开关如何设置，所有技能都不会破坏或抓取方块（含大地钻击/超新星的抓块与奇点移块；空间之径的自动复原通道仍正常可用）。设为 <code>true</code> 时由各技能自己的 <code>...TerrainDamage</code> / <code>...BlockLift</code> 决定。</p>
+            <div class="card-title"><code>terrainDamage</code></div>
+            <p class="lang-en"><strong>Default: <code>true</code></strong> &mdash; one master switch for the whole mod. When <code>false</code>, no skill breaks or lifts blocks (including Earth Drill/Supernova block lift and Singularity block pulling), and <strong>Block Dominion</strong> switches to Safe Mode (summoning temporary blocks without breaking or taking world blocks). Spatial Path's temporary auto-restoring path still works. When <code>true</code>, each skill's own <code>...TerrainDamage</code> / <code>...BlockLift</code> switch decides.</p>
+            <p class="lang-vi"><strong>Mặc định: <code>true</code></strong> &mdash; một công tắc tổng cho toàn bộ mod. Khi đặt <code>false</code>, không kỹ năng nào phá hay nhấc khối (kể cả bốc khối của Earth Drill/Supernova hay kéo khối của Singularity), còn <strong>Block Dominion</strong> tự vào Chế độ An toàn (tạo khối tạm, không lấy hay phá block thế giới). Lối đi tạm tự khôi phục của Spatial Path vẫn hoạt động. Khi đặt <code>true</code>, công tắc riêng của từng chiêu sẽ quyết định.</p>
+            <p class="lang-zh"><strong>默认：<code>true</code></strong> &mdash; 全局地形破坏总开关。设为 <code>false</code> 时，所有技能均不会破坏或抓取方块（含大地钻击/超新星抓块与奇点移块），<strong>方块支配</strong>也会自动进入安全模式（召唤临时方块而不破坏世界）；空间之径的自动复原通道仍正常可用。设为 <code>true</code> 时由各技能自己的开关决定。</p>
           </div>
 
           <!-- Box 4: damageMultiplier & cooldownMultiplier -->
@@ -1449,10 +1536,10 @@
 
           <!-- Box 5b: disabledSkills -->
           <div class="card">
-            <div class="card-title"><code>disabledSkills</code> <span class="badge-new">New in 1.6.0</span></div>
-            <p class="lang-en"><strong>Default: <code>[]</code></strong> &mdash; turns specific skills off server-wide (server config only, not in the <kbd>K</kbd> menu), e.g. <code>["fuga", "atomic"]</code>. Valid names match <code>/godwand lock</code>: <code>spatial_path</code>, <code>singularity</code>, <code>earth_drill</code>, <code>supernova</code>, <code>stone_cannon</code>, <code>atomic</code>, <code>fuga</code>, <code>silent_gate</code>, <code>purple</code>.</p>
-            <p class="lang-vi"><strong>Mặc định: <code>[]</code></strong> &mdash; tắt hẳn các kỹ năng chỉ định trên toàn server (chỉ sửa trong file config server, không có trong menu <kbd>K</kbd>), ví dụ <code>["fuga", "atomic"]</code>. Tên skill giống lệnh <code>/godwand lock</code>: <code>spatial_path</code>, <code>singularity</code>, <code>earth_drill</code>, <code>supernova</code>, <code>stone_cannon</code>, <code>atomic</code>, <code>fuga</code>, <code>silent_gate</code>, <code>purple</code>.</p>
-            <p class="lang-zh"><strong>默认：<code>[]</code></strong> &mdash; 在全服禁用指定技能（仅在服务端配置文件中修改，不在 <kbd>K</kbd> 菜单中），例如 <code>["fuga", "atomic"]</code>。技能名与 <code>/godwand lock</code> 相同：<code>spatial_path</code>、<code>singularity</code>、<code>earth_drill</code>、<code>supernova</code>、<code>stone_cannon</code>、<code>atomic</code>、<code>fuga</code>、<code>silent_gate</code>、<code>purple</code>。</p>
+            <div class="card-title"><code>disabledSkills</code></div>
+            <p class="lang-en"><strong>Default: <code>[]</code></strong> &mdash; turns specific skills off server-wide (server config only, not in the <kbd>K</kbd> menu), e.g. <code>["fuga", "atomic"]</code>. Valid names match <code>/godwand lock</code>: <code>spatial_path</code>, <code>singularity</code>, <code>earth_drill</code>, <code>supernova</code>, <code>stone_cannon</code>, <code>atomic</code>, <code>fuga</code>, <code>silent_gate</code>, <code>purple</code>, <code>block_dominion</code>.</p>
+            <p class="lang-vi"><strong>Mặc định: <code>[]</code></strong> &mdash; tắt hẳn các kỹ năng chỉ định trên toàn server (chỉ sửa trong file config server, không có trong menu <kbd>K</kbd>), ví dụ <code>["fuga", "atomic"]</code>. Tên skill giống lệnh <code>/godwand lock</code>: <code>spatial_path</code>, <code>singularity</code>, <code>earth_drill</code>, <code>supernova</code>, <code>stone_cannon</code>, <code>atomic</code>, <code>fuga</code>, <code>silent_gate</code>, <code>purple</code>, <code>block_dominion</code>.</p>
+            <p class="lang-zh"><strong>默认：<code>[]</code></strong> &mdash; 在全服禁用指定技能（仅在服务端配置文件中修改，不在 <kbd>K</kbd> 菜单中），例如 <code>["fuga", "atomic"]</code>。技能名与 <code>/godwand lock</code> 相同：<code>spatial_path</code>、<code>singularity</code>、<code>earth_drill</code>、<code>supernova</code>、<code>stone_cannon</code>、<code>atomic</code>、<code>fuga</code>、<code>silent_gate</code>、<code>purple</code>、<code>block_dominion</code>。</p>
             <ul class="mechanics-list">
               <li>
                 <span class="lang-en">Disabled skills are hidden from the skill wheel, cannot be selected or cast, and show a notice that the skill is turned off on the server.</span>
@@ -1465,9 +1552,9 @@
                 <span class="lang-zh">若法杖当前正选中被禁用的技能，会自动切换至可用技能；由管理员锁定的单技能法杖保持不变。</span>
               </li>
               <li>
-                <span class="lang-en">If all 9 skills are listed, the list is ignored so wands never become unusable.</span>
-                <span class="lang-vi">Nếu ghi tên cả 9 skill thì mod sẽ bỏ qua danh sách để cây gậy không thành vô dụng.</span>
-                <span class="lang-zh">如果将全部 9 个技能都列入其中，模组会忽略该列表以免法杖彻底失效。</span>
+                <span class="lang-en">If all 10 skills are listed, the list is ignored so wands never become unusable.</span>
+                <span class="lang-vi">Nếu ghi tên cả 10 skill thì mod sẽ bỏ qua danh sách để cây gậy không thành vô dụng.</span>
+                <span class="lang-zh">如果将全部 10 个技能都列入其中，模组会忽略该列表以免法杖彻底失效。</span>
               </li>
             </ul>
           </div>
@@ -1481,14 +1568,14 @@
             </div>
             <ul class="mechanics-list">
               <li>
-                <span class="lang-en"><code>preserve-terrain.json</code>: turns off permanent craters and block lifting so spells only hurt mobs without changing terrain (in 1.6.0, setting <code>"terrainDamage": false</code> does this for every skill including Purple).</span>
-                <span class="lang-vi"><code>preserve-terrain.json</code>: tắt phá hố và bốc khối để chiêu chỉ gây sát thương mà không làm đổi địa hình (ở 1.6.0, chỉ cần đặt <code>"terrainDamage": false</code> là áp dụng cho cả 9 chiêu kể cả Purple).</span>
-                <span class="lang-zh"><code>preserve-terrain.json</code>：关闭永久破坏与方块抓取，使法术只造成伤害而不改变地形（1.6.0 中直接设置 <code>"terrainDamage": false</code> 即可一键涵盖包括紫在内的全部技能）。</span>
+                <span class="lang-en"><code>preserve-terrain.json</code>: turns off permanent craters and block lifting so spells only hurt mobs without changing terrain (setting <code>"terrainDamage": false</code> does this for all 10 skills, and puts Block Dominion in Safe Mode).</span>
+                <span class="lang-vi"><code>preserve-terrain.json</code>: tắt phá hố và bốc khối để chiêu chỉ gây sát thương mà không làm đổi địa hình (chỉ cần đặt <code>"terrainDamage": false</code> là áp dụng cho cả 10 chiêu và bật Chế độ An toàn cho Block Dominion).</span>
+                <span class="lang-zh"><code>preserve-terrain.json</code>：关闭永久破坏与方块抓取，使法术只造成伤害而不改变地形（设置 <code>"terrainDamage": false</code> 即可一键涵盖全部 10 项技能并让方块支配进入安全模式）。</span>
               </li>
               <li>
-                <span class="lang-en"><code>reversible-block-effects.json</code>: keeps Earth Drill and Supernova lifting blocks temporarily (restoring them afterward) while turning off all permanent terrain destruction.</span>
-                <span class="lang-vi"><code>reversible-block-effects.json</code>: giữ lại hiệu ứng bốc khối tạm thời của Earth Drill và Supernova (tự hoàn trả sau khi xong) nhưng tắt toàn bộ phá hủy vĩnh viễn.</span>
-                <span class="lang-zh"><code>reversible-block-effects.json</code>：保留大地钻击与超新星的临时抓块特效（施法后方块自动归位），同时关闭所有永久地形破坏。</span>
+                <span class="lang-en"><code>reversible-block-effects.json</code>: keeps Earth Drill and Supernova lifting blocks temporarily (restoring them afterward) while turning off all permanent terrain destruction (and enabling Safe Mode for Block Dominion).</span>
+                <span class="lang-vi"><code>reversible-block-effects.json</code>: giữ lại hiệu ứng bốc khối tạm thời của Earth Drill và Supernova (tự hoàn trả sau khi xong) nhưng tắt toàn bộ phá hủy vĩnh viễn (và bật Chế độ An toàn cho Block Dominion).</span>
+                <span class="lang-zh"><code>reversible-block-effects.json</code>：保留大地钻击与超新星的临时抓块特效（施法后方块自动归位），同时关闭所有永久地形破坏并开启方块支配安全模式。</span>
               </li>
             </ul>
           </div>
@@ -1497,9 +1584,9 @@
         <!-- Server Tables -->
         <div id="server-tables" style="margin-top: 2.5rem;">
           <h3 class="subsection-title">
-            <span class="lang-en">Server Settings (<code>config/godwand-server.json</code> &mdash; 71 Keys)</span>
-            <span class="lang-vi">Cài Đặt Máy Chủ (<code>config/godwand-server.json</code> &mdash; 71 Keys)</span>
-            <span class="lang-zh">服务端配置详表（<code>config/godwand-server.json</code> &mdash; 共 71 项）</span>
+            <span class="lang-en">Server Settings (<code>config/godwand-server.json</code> &mdash; 78 Keys)</span>
+            <span class="lang-vi">Cài Đặt Máy Chủ (<code>config/godwand-server.json</code> &mdash; 78 Keys)</span>
+            <span class="lang-zh">服务端配置详表（<code>config/godwand-server.json</code> &mdash; 共 78 项）</span>
           </h3>
           <p class="section-lead lang-en" style="margin-bottom: 0.9rem;">Filter by group or click any key name to copy it to your clipboard.</p>
           <p class="section-lead lang-vi" style="margin-bottom: 0.9rem;">Lọc nhanh theo nhóm hoặc bấm trực tiếp vào tên key để sao chép.</p>
@@ -1507,13 +1594,16 @@
 
           <div class="config-filter-bar" role="group" aria-label="Filter server settings">
             <button class="filter-pill active" data-config-filter="all">
-              <span class="lang-en">All (71)</span><span class="lang-vi">Tất cả (71)</span><span class="lang-zh">全部 (71)</span>
+              <span class="lang-en">All (78)</span><span class="lang-vi">Tất cả (78)</span><span class="lang-zh">全部 (78)</span>
             </button>
             <button class="filter-pill" data-config-filter="new">
-              <span class="lang-en">New in 1.6.0 (28)</span><span class="lang-vi">Mới ở 1.6.0 (28)</span><span class="lang-zh">1.6.0 新增 (28)</span>
+              <span class="lang-en">New in 1.7.0 (7)</span><span class="lang-vi">Mới ở 1.7.0 (7)</span><span class="lang-zh">1.7.0 新增 (7)</span>
             </button>
             <button class="filter-pill" data-config-filter="general-safety">
               <span class="lang-en">General &amp; Safety</span><span class="lang-vi">Chung &amp; An toàn</span><span class="lang-zh">全局与安全</span>
+            </button>
+            <button class="filter-pill" data-config-filter="dominion">
+              <span class="lang-en">10. Block Dominion</span><span class="lang-vi">10. Block Dominion</span><span class="lang-zh">10. 方块支配</span>
             </button>
             <button class="filter-pill" data-config-filter="purple">
               <span class="lang-en">9. Purple</span><span class="lang-vi">9. Purple</span><span class="lang-zh">9. 紫</span>
@@ -1585,13 +1675,13 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>disabledSkills</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>disabledSkills</code></td>
                   <td><code>[]</code></td>
                   <td><code>String[]</code> (skill IDs)</td>
                   <td>
-                    <span class="lang-en">Skills turned off server-wide (e.g. <code>["fuga", "atomic"]</code>). Uses the same names as <code>/godwand lock</code> (<code>spatial_path</code>, <code>singularity</code>, <code>earth_drill</code>, <code>supernova</code>, <code>stone_cannon</code>, <code>atomic</code>, <code>fuga</code>, <code>silent_gate</code>, <code>purple</code>). Hidden from the wheel; wands on a disabled skill auto-switch to an allowed one (admin-locked wands keep their lock). Listing all 9 skills is ignored so the wand stays usable.</span>
-                    <span class="lang-vi">Danh sách skill bị tắt trên toàn server (ví dụ <code>["fuga", "atomic"]</code>). Dùng đúng tên trong lệnh <code>/godwand lock</code> (<code>spatial_path</code>, <code>singularity</code>, <code>earth_drill</code>, <code>supernova</code>, <code>stone_cannon</code>, <code>atomic</code>, <code>fuga</code>, <code>silent_gate</code>, <code>purple</code>). Skill bị tắt sẽ ẩn khỏi vòng chọn; gậy đang chọn skill bị tắt tự chuyển sang skill còn dùng được (gậy admin lock giữ nguyên). Ghi đủ cả 9 tên sẽ bị bỏ qua để gậy không vô dụng.</span>
-                    <span class="lang-zh">全服禁用的技能列表（如 <code>["fuga", "atomic"]</code>），名称同 <code>/godwand lock</code>（<code>spatial_path</code>、<code>singularity</code>、<code>earth_drill</code>、<code>supernova</code>、<code>stone_cannon</code>、<code>atomic</code>、<code>fuga</code>、<code>silent_gate</code>、<code>purple</code>）。被禁用技能将从轮盘隐藏且无法施放；正选中该技能的法杖会自动切换到可用技能（管理员锁定的法杖保持不变）；列入全部 9 项时会被忽略以免法杖失效。</span>
+                    <span class="lang-en">Skills turned off server-wide (e.g. <code>["fuga", "atomic"]</code>). Uses the same names as <code>/godwand lock</code> (<code>spatial_path</code>, <code>singularity</code>, <code>earth_drill</code>, <code>supernova</code>, <code>stone_cannon</code>, <code>atomic</code>, <code>fuga</code>, <code>silent_gate</code>, <code>purple</code>, <code>block_dominion</code>). Hidden from the wheel; wands on a disabled skill auto-switch to an allowed one (admin-locked wands keep their lock). Listing all 10 skills is ignored so the wand stays usable.</span>
+                    <span class="lang-vi">Danh sách skill bị tắt trên toàn server (ví dụ <code>["fuga", "atomic"]</code>). Dùng đúng tên trong lệnh <code>/godwand lock</code> (<code>spatial_path</code>, <code>singularity</code>, <code>earth_drill</code>, <code>supernova</code>, <code>stone_cannon</code>, <code>atomic</code>, <code>fuga</code>, <code>silent_gate</code>, <code>purple</code>, <code>block_dominion</code>). Skill bị tắt sẽ ẩn khỏi vòng chọn; gậy đang chọn skill bị tắt tự chuyển sang skill còn dùng được (gậy admin lock giữ nguyên). Ghi đủ cả 10 tên sẽ bị bỏ qua để gậy không vô dụng.</span>
+                    <span class="lang-zh">全服禁用的技能列表（如 <code>["fuga", "atomic"]</code>），名称同 <code>/godwand lock</code>（<code>spatial_path</code>、<code>singularity</code>、<code>earth_drill</code>、<code>supernova</code>、<code>stone_cannon</code>、<code>atomic</code>、<code>fuga</code>、<code>silent_gate</code>、<code>purple</code>、<code>block_dominion</code>）。被禁用技能将从轮盘隐藏且无法施放；正选中该技能的法杖会自动切换到可用技能（管理员锁定的法杖保持不变）；列入全部 10 项时会被忽略以免法杖失效。</span>
                   </td>
                 </tr>
               </tbody>
@@ -1605,7 +1695,7 @@
             <span class="lang-en">Terrain and Safety</span>
             <span class="lang-vi">Địa hình và An toàn (Terrain &amp; Safety)</span>
             <span class="lang-zh">地形与安全设置 (Terrain &amp; Safety)</span>
-            <span class="badge-new">New in 1.6.0</span>
+           
           </h4>
           <div class="table-wrapper">
             <table class="data-table">
@@ -1619,7 +1709,7 @@
               </thead>
               <tbody>
                 <tr>
-                  <td><code>terrainDamage</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>terrainDamage</code></td>
                   <td><code>true</code></td>
                   <td><code>true</code> / <code>false</code></td>
                   <td>
@@ -1629,7 +1719,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>pvp</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>pvp</code></td>
                   <td><code>true</code></td>
                   <td><code>true</code> / <code>false</code></td>
                   <td>
@@ -1639,7 +1729,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>spellTargets</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>spellTargets</code></td>
                   <td><code>"no_pets"</code></td>
                   <td><code>"no_pets"</code>, <code>"all"</code>, <code>"hostile"</code></td>
                   <td>
@@ -2227,13 +2317,13 @@
           </div>
         </div>
 
-        <!-- Group 11: 9. Purple (24 Keys — All New in 1.6.0) -->
+        <!-- Group 11: 9. Purple (24 Keys) -->
         <div id="cfg-purple" class="config-group" data-config-group="purple">
           <h4 class="config-group-title">
             <span class="lang-en">9. Purple</span>
             <span class="lang-vi">9. Purple</span>
             <span class="lang-zh">9. 紫 (Purple)</span>
-            <span class="badge-new">New in 1.6.0</span>
+           
           </h4>
           <div class="table-wrapper">
             <table class="data-table">
@@ -2247,7 +2337,7 @@
               </thead>
               <tbody>
                 <tr>
-                  <td><code>blueCooldownTicks</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>blueCooldownTicks</code></td>
                   <td><code>60</code></td>
                   <td><code>0 &ndash; 72000</code> ticks</td>
                   <td>
@@ -2257,7 +2347,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>redCooldownTicks</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>redCooldownTicks</code></td>
                   <td><code>80</code></td>
                   <td><code>0 &ndash; 72000</code> ticks</td>
                   <td>
@@ -2267,7 +2357,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>purpleCooldownTicks</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>purpleCooldownTicks</code></td>
                   <td><code>1200</code></td>
                   <td><code>0 &ndash; 72000</code> ticks</td>
                   <td>
@@ -2277,7 +2367,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>blueReadyDamage</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>blueReadyDamage</code></td>
                   <td><code>50.0</code></td>
                   <td><code>1.0 &ndash; 1,000,000.0</code></td>
                   <td>
@@ -2287,7 +2377,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>blueReadyKills</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>blueReadyKills</code></td>
                   <td><code>3</code></td>
                   <td><code>1 &ndash; 1000</code></td>
                   <td>
@@ -2297,7 +2387,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>blueCoreDamage</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>blueCoreDamage</code></td>
                   <td><code>20.0</code></td>
                   <td><code>0.0 &ndash; 1,000,000.0</code></td>
                   <td>
@@ -2307,7 +2397,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>bluePullRadius</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>bluePullRadius</code></td>
                   <td><code>8</code></td>
                   <td><code>2 &ndash; 16</code> blocks</td>
                   <td>
@@ -2317,7 +2407,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>blueEatRadius</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>blueEatRadius</code></td>
                   <td><code>5</code></td>
                   <td><code>0 &ndash; 8</code> blocks</td>
                   <td>
@@ -2327,7 +2417,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>blueChargeTicks</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>blueChargeTicks</code></td>
                   <td><code>160</code></td>
                   <td><code>20 &ndash; 600</code> ticks</td>
                   <td>
@@ -2337,7 +2427,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>blueAnchorTicks</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>blueAnchorTicks</code></td>
                   <td><code>160</code></td>
                   <td><code>20 &ndash; 1200</code> ticks</td>
                   <td>
@@ -2347,7 +2437,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>redChargeTicks</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>redChargeTicks</code></td>
                   <td><code>50</code></td>
                   <td><code>10 &ndash; 200</code> ticks</td>
                   <td>
@@ -2357,7 +2447,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>redDamage</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>redDamage</code></td>
                   <td><code>500.0</code></td>
                   <td><code>0.0 &ndash; 1,000,000.0</code></td>
                   <td>
@@ -2367,7 +2457,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>redRange</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>redRange</code></td>
                   <td><code>100</code></td>
                   <td><code>8 &ndash; 160</code> blocks</td>
                   <td>
@@ -2377,7 +2467,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>redTunnelRadius</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>redTunnelRadius</code></td>
                   <td><code>2</code></td>
                   <td><code>0 &ndash; 4</code> blocks</td>
                   <td>
@@ -2387,7 +2477,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>redCraterRadius</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>redCraterRadius</code></td>
                   <td><code>5</code></td>
                   <td><code>0 &ndash; 8</code> blocks</td>
                   <td>
@@ -2397,7 +2487,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>purpleRadius</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>purpleRadius</code></td>
                   <td><code>48</code></td>
                   <td><code>0 &ndash; 64</code> blocks</td>
                   <td>
@@ -2407,7 +2497,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>purpleDamage</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>purpleDamage</code></td>
                   <td><code>9999.0</code></td>
                   <td><code>0.0 &ndash; 1,000,000.0</code></td>
                   <td>
@@ -2417,7 +2507,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>blueTerrainDamage</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>blueTerrainDamage</code></td>
                   <td><code>true</code></td>
                   <td><code>true</code> / <code>false</code></td>
                   <td>
@@ -2427,7 +2517,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>redTerrainDamage</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>redTerrainDamage</code></td>
                   <td><code>true</code></td>
                   <td><code>true</code> / <code>false</code></td>
                   <td>
@@ -2437,7 +2527,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>purpleTerrainDamage</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>purpleTerrainDamage</code></td>
                   <td><code>true</code></td>
                   <td><code>true</code> / <code>false</code></td>
                   <td>
@@ -2447,7 +2537,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>smallPurple</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>smallPurple</code></td>
                   <td><code>true</code></td>
                   <td><code>true</code> / <code>false</code></td>
                   <td>
@@ -2457,7 +2547,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>smallPurpleStrength</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>smallPurpleStrength</code></td>
                   <td><code>1.0</code></td>
                   <td><code>&ge; 0.0</code> (float)</td>
                   <td>
@@ -2467,7 +2557,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>purpleAssist</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>purpleAssist</code></td>
                   <td><code>2.0</code></td>
                   <td><code>&ge; 0.0</code> blocks</td>
                   <td>
@@ -2477,7 +2567,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td><code>purpleNeedsFullRed</code> <span class="badge-new">New in 1.6.0</span></td>
+                  <td><code>purpleNeedsFullRed</code></td>
                   <td><code>true</code></td>
                   <td><code>true</code> / <code>false</code></td>
                   <td>
@@ -2491,14 +2581,108 @@
           </div>
         </div>
 
+        <!-- Group 12: 10. Block Dominion (7 keys — New in 1.7.0) -->
+        <div id="cfg-dominion" class="config-group" data-config-group="dominion">
+          <h4 class="config-group-title">
+            <span class="lang-en">10. Block Dominion (7 Keys)</span>
+            <span class="lang-vi">10. Block Dominion (7 Keys)</span>
+            <span class="lang-zh">10. 方块支配 (7 项)</span>
+            <span class="badge-new">New in 1.7.0</span>
+          </h4>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th><span class="lang-en">Default</span><span class="lang-vi">Mặc định</span><span class="lang-zh">默认值</span></th>
+                  <th><span class="lang-en">Allowed Range / Values</span><span class="lang-vi">Phạm vi / Giá trị</span><span class="lang-zh">允许范围 / 取值</span></th>
+                  <th><span class="lang-en">What It Does</span><span class="lang-vi">Tác dụng</span><span class="lang-zh">说明</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>blockDominionCooldownTicks</code> <span class="badge-new">New in 1.7.0</span></td>
+                  <td><code>80</code> (4.0 s)</td>
+                  <td><code>0 &ndash; 72000</code> ticks</td>
+                  <td>
+                    <span class="lang-en">Cooldown after turning Block Dominion off.</span>
+                    <span class="lang-vi">Hồi chiêu sau khi tắt Block Dominion.</span>
+                    <span class="lang-zh">关闭方块支配后的冷却时间。</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>blockDominionCapacity</code> <span class="badge-new">New in 1.7.0</span></td>
+                  <td><code>48</code></td>
+                  <td><code>4 &ndash; 96</code> blocks</td>
+                  <td>
+                    <span class="lang-en">Maximum number of orbiting blocks you can control at once.</span>
+                    <span class="lang-vi">Số khối bay quanh người tối đa có thể giữ cùng lúc.</span>
+                    <span class="lang-zh">同时可操控的最大环绕方块数量。</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>blockDominionDamage</code> <span class="badge-new">New in 1.7.0</span></td>
+                  <td><code>45.0</code></td>
+                  <td><code>0.0 &ndash; 1,000,000.0</code></td>
+                  <td>
+                    <span class="lang-en">Base damage for fired blocks, Hero Landing, Meteor Dive, wing slashes, and Monolith Cage.</span>
+                    <span class="lang-vi">Sát thương gốc cho đạn khối, cú đáp chấn động, Meteor Dive, chém cánh và Lồng Đá.</span>
+                    <span class="lang-zh">发射方块、震撼落地、陨石俯冲、飞掠斩击与石笼的基础伤害。</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>blockDominionBlastRadius</code> <span class="badge-new">New in 1.7.0</span></td>
+                  <td><code>2.5</code></td>
+                  <td><code>0.0 &ndash; 16.0</code> blocks</td>
+                  <td>
+                    <span class="lang-en">Splash damage radius when fired blocks hit.</span>
+                    <span class="lang-vi">Bán kính nổ lan khi khối bắn ra va chạm.</span>
+                    <span class="lang-zh">发射方块命中时的溅射伤害半径。</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>blockDominionCraterRadius</code> <span class="badge-new">New in 1.7.0</span></td>
+                  <td><code>1.8</code></td>
+                  <td><code>0.0 &ndash; 8.0</code> blocks</td>
+                  <td>
+                    <span class="lang-en">Crater size when fired blocks hit (requires <code>terrainDamage</code> and <code>blockDominionTerrainDamage</code> on).</span>
+                    <span class="lang-vi">Bán kính hố nổ khi khối chạm đất (cần bật <code>terrainDamage</code> và <code>blockDominionTerrainDamage</code>).</span>
+                    <span class="lang-zh">方块命中时炸出的弹坑半径（需同时开启 <code>terrainDamage</code> 与 <code>blockDominionTerrainDamage</code>）。</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>blockDominionProjectileSpeed</code> <span class="badge-new">New in 1.7.0</span></td>
+                  <td><code>3.2</code></td>
+                  <td><code>0.5 &ndash; 10.0</code></td>
+                  <td>
+                    <span class="lang-en">Flight speed of fired blocks.</span>
+                    <span class="lang-vi">Tốc độ bay của các khối bắn ra.</span>
+                    <span class="lang-zh">发射方块的飞行速度。</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>blockDominionTerrainDamage</code> <span class="badge-new">New in 1.7.0</span></td>
+                  <td><code>true</code></td>
+                  <td><code>true</code> / <code>false</code></td>
+                  <td>
+                    <span class="lang-en">When <code>false</code>, enters Safe Mode: summons temporary blocks without taking or breaking any world blocks, leaves no craters, and vanishes cleanly when turned off.</span>
+                    <span class="lang-vi">Khi <code>false</code>, bật Chế độ An toàn: tự tạo khối tạm mà không lấy hay phá block nào trong thế giới, không tạo hố và biến mất sạch sẽ khi tắt.</span>
+                    <span class="lang-zh">设为 <code>false</code> 时开启安全模式：召唤临时方块，绝不拿取或破坏任何世界方块，不留弹坑，关闭后无痕消散。</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         </div><!-- /#server-tables -->
 
         <!-- Client Config -->
         <div id="client-config" style="margin-top: 3rem;">
           <h3 class="subsection-title">
-            <span class="lang-en">Client Settings (<code>config/godwand-client.json</code> &mdash; 18 Keys)</span>
-            <span class="lang-vi">Cài Đặt Cá Nhân (<code>config/godwand-client.json</code> &mdash; 18 Keys)</span>
-            <span class="lang-zh">客户端配置（<code>config/godwand-client.json</code> &mdash; 共 18 项）</span>
+            <span class="lang-en">Client Settings (<code>config/godwand-client.json</code> &mdash; 19 Keys)</span>
+            <span class="lang-vi">Cài Đặt Cá Nhân (<code>config/godwand-client.json</code> &mdash; 19 Keys)</span>
+            <span class="lang-zh">客户端配置（<code>config/godwand-client.json</code> &mdash; 共 19 项）</span>
           </h3>
           <p class="section-lead lang-en" style="margin-bottom: 1rem;">
             Personal visuals and sound. Most options can be changed in-game by pressing <kbd>K</kbd> &mdash; including the new <strong>Cutscenes</strong> switch that turns all four cutscenes (<code>atomicCutscene</code>, <code>fugaCutscene</code>, <code>gateCutscene</code>, <code>purpleCutscene</code>) on or off at once. Individual cutscene toggles and <code>bloomDownsample</code> are edited in the JSON file.
@@ -2613,7 +2797,7 @@
                     </td>
                   </tr>
                   <tr>
-                    <td><code>purpleCutscene</code> <span class="badge-new">New in 1.6.0</span></td>
+                    <td><code>purpleCutscene</code></td>
                     <td><code>true</code></td>
                     <td><code>true</code> / <code>false</code></td>
                     <td>
@@ -2623,7 +2807,7 @@
                     </td>
                   </tr>
                   <tr>
-                    <td><code>soundVolume</code> <span class="badge-new">New in 1.6.0</span></td>
+                    <td><code>soundVolume</code></td>
                     <td><code>1.0</code></td>
                     <td><code>0.0 &ndash; 1.0</code></td>
                     <td>
@@ -2633,17 +2817,27 @@
                     </td>
                   </tr>
                   <tr>
-                    <td><code>skillHud</code> <span class="badge-new">New in 1.6.0</span></td>
+                    <td><code>skillHud</code></td>
                     <td><code>true</code></td>
                     <td><code>true</code> / <code>false</code></td>
                     <td>
-                      <span class="lang-en"><strong>Skill HUD</strong> &mdash; shows the Blue (inner) and Red (outer) charge rings around your crosshair in Purple mode.</span>
-                      <span class="lang-vi"><strong>Skill HUD</strong> &mdash; hiện hai vòng chỉ báo tụ lực Blue (trong) và Red (ngoài) quanh tâm ngắm khi dùng Purple.</span>
-                      <span class="lang-zh"><strong>技能准星提示</strong> &mdash; 在紫模式下于准星周围显示蓝（内环）与红（外环）的蓄力进度环。</span>
+                      <span class="lang-en"><strong>Skill HUD</strong> &mdash; shows the Blue/Red crosshair charge rings in Purple mode and the block counter in Block Dominion.</span>
+                      <span class="lang-vi"><strong>Skill HUD</strong> &mdash; hiện vòng chỉ báo tụ lực Blue/Red quanh tâm ngắm và bộ đếm khối của Block Dominion.</span>
+                      <span class="lang-zh"><strong>技能 HUD</strong> &mdash; 在紫模式下显示蓝/红准星蓄力环，在方块支配中显示方块计数条。</span>
                     </td>
                   </tr>
                   <tr>
-                    <td><code>bareHand</code> <span class="badge-new">New in 1.6.0</span></td>
+                    <td><code>dominionGuide</code> <span class="badge-new">New in 1.7.0</span></td>
+                    <td><code>true</code></td>
+                    <td><code>true</code> / <code>false</code></td>
+                    <td>
+                      <span class="lang-en"><strong>Controls Guide</strong> &mdash; shows the compact Block Dominion controls guide in the bottom-left corner (toggle independently of Skill HUD in <kbd>K</kbd>).</span>
+                      <span class="lang-vi"><strong>Hướng dẫn phím</strong> &mdash; hiện bảng hướng dẫn phím gọn cho Block Dominion ở góc dưới bên trái (bật/tắt độc lập với Skill HUD trong menu <kbd>K</kbd>).</span>
+                      <span class="lang-zh"><strong>操作指南</strong> &mdash; 在左下角显示简洁的方块支配按键指南（可在 <kbd>K</kbd> 菜单中独立于技能 HUD 开关）。</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>bareHand</code></td>
                     <td><code>true</code></td>
                     <td><code>true</code> / <code>false</code></td>
                     <td>
@@ -2653,7 +2847,7 @@
                     </td>
                   </tr>
                   <tr>
-                    <td><code>redRecoil</code> <span class="badge-new">New in 1.6.0</span></td>
+                    <td><code>redRecoil</code></td>
                     <td><code>true</code></td>
                     <td><code>true</code> / <code>false</code></td>
                     <td>
@@ -2663,7 +2857,7 @@
                     </td>
                   </tr>
                   <tr>
-                    <td><code>blueRedThirdPerson</code> <span class="badge-new">New in 1.6.0</span></td>
+                    <td><code>blueRedThirdPerson</code></td>
                     <td><code>false</code></td>
                     <td><code>true</code> / <code>false</code></td>
                     <td>
@@ -2717,17 +2911,17 @@
             <span class="lang-vi">Preset &amp; File JSON Mẫu Đầy Đủ</span>
             <span class="lang-zh">常用预设与完整示例 JSON</span>
           </h2>
-          <p class="section-lead lang-en">Switch tabs below for ready-to-paste snippets or the complete grouped 1.6.0 defaults.</p>
-          <p class="section-lead lang-vi">Chọn tab bên dưới để xem nhanh các preset chép sẵn hoặc toàn bộ cấu hình mặc định 1.6.0 theo nhóm.</p>
-          <p class="section-lead lang-zh">切换下方标签查看即拷即用的预设，或完整的 1.6.0 分组默认配置。</p>
+          <p class="section-lead lang-en">Switch tabs below for ready-to-paste snippets or the complete grouped 1.7.0 defaults.</p>
+          <p class="section-lead lang-vi">Chọn tab bên dưới để xem nhanh các preset chép sẵn hoặc toàn bộ cấu hình mặc định 1.7.0 theo nhóm.</p>
+          <p class="section-lead lang-zh">切换下方标签查看即拷即用的预设，或完整的 1.7.0 分组默认配置。</p>
         </div>
 
         <div class="builder-callout">
           <div class="builder-callout-text">
             <h3>
-              <span class="lang-en">Full Visual Config Builder (All 71 Server + 18 Client Keys)</span>
-              <span class="lang-vi">Trình Tạo Config Trực Quan Đầy Đủ (71 Server + 18 Client Keys)</span>
-              <span class="lang-zh">完整可视化配置生成器（全部 71 项服务端 + 18 项客户端）</span>
+              <span class="lang-en">Full Visual Config Builder (All 78 Server + 19 Client Keys)</span>
+              <span class="lang-vi">Trình Tạo Config Trực Quan Đầy Đủ (78 Server + 19 Client Keys)</span>
+              <span class="lang-zh">完整可视化配置生成器（全部 78 项服务端 + 19 项客户端）</span>
             </h3>
             <p class="lang-en">Edit every cooldown, damage, radius and safety switch visually, then copy or download the complete ready-to-paste JSON file.</p>
             <p class="lang-vi">Chỉnh mọi hồi chiêu, sát thương, bán kính và công tắc an toàn rồi bấm Copy (hoặc tải file) trọn bộ JSON đầy đủ, Ctrl+A Ctrl+V dùng ngay.</p>
@@ -2754,17 +2948,17 @@
             <span class="lang-en">Comfort / Low-End PC</span><span class="lang-vi">Nhẹ máy &amp; giảm chói</span><span class="lang-zh">低配与护眼</span>
           </button>
           <button class="preset-tab-btn" role="tab" data-preset="full-server">
-            <span class="lang-en">Full Server JSON (71)</span><span class="lang-vi">Server JSON đầy đủ (71)</span><span class="lang-zh">服务端完整 JSON (71)</span>
+            <span class="lang-en">Full Server JSON (78)</span><span class="lang-vi">Server JSON đầy đủ (78)</span><span class="lang-zh">服务端完整 JSON (78)</span>
           </button>
           <button class="preset-tab-btn" role="tab" data-preset="full-client">
-            <span class="lang-en">Full Client JSON (18)</span><span class="lang-vi">Client JSON đầy đủ (18)</span><span class="lang-zh">客户端完整 JSON (18)</span>
+            <span class="lang-en">Full Client JSON (19)</span><span class="lang-vi">Client JSON đầy đủ (19)</span><span class="lang-zh">客户端完整 JSON (19)</span>
           </button>
         </div>
 
         <div class="preset-panel active" data-preset-panel="coop">
-          <p class="preset-desc lang-en">Protects builds, teammates and pets across all nine skills with just three lines.</p>
-          <p class="preset-desc lang-vi">Bảo vệ công trình, đồng đội và thú cưng cho cả chín kỹ năng chỉ với ba dòng.</p>
-          <p class="preset-desc lang-zh">只需三行，即可在全部九大技能下保护建筑、队友与宠物。</p>
+          <p class="preset-desc lang-en">Protects builds, teammates and pets across all ten skills with just three lines (Block Dominion enters Safe Mode automatically).</p>
+          <p class="preset-desc lang-vi">Bảo vệ công trình, đồng đội và thú cưng cho cả mười kỹ năng chỉ với ba dòng (Block Dominion tự động vào Chế độ An toàn).</p>
+          <p class="preset-desc lang-zh">只需三行，即可在全部十大技能下保护建筑、队友与宠物（方块支配自动进入安全模式）。</p>
           <div class="code-box">
             <div class="code-header">
               <span>config/godwand-server.json (Safe Co-op)</span>
@@ -2783,9 +2977,9 @@
         </div>
 
         <div class="preset-panel" data-preset-panel="reversible">
-          <p class="preset-desc lang-en">Keeps <code>terrainDamage: true</code> so Earth Drill and Supernova still lift blocks temporarily and restore them afterward, while disabling every permanent crater.</p>
-          <p class="preset-desc lang-vi">Giữ <code>terrainDamage: true</code> để Earth Drill và Supernova vẫn bốc khối rồi trả về chỗ cũ, đồng thời tắt toàn bộ phá hủy vĩnh viễn.</p>
-          <p class="preset-desc lang-zh">保持 <code>terrainDamage: true</code>，让大地钻击与超新星继续临时抓取并归位方块，同时关闭所有永久地形破坏。</p>
+          <p class="preset-desc lang-en">Keeps <code>terrainDamage: true</code> so Earth Drill and Supernova still lift blocks temporarily and restore them afterward, while disabling every permanent crater and enabling Block Dominion Safe Mode.</p>
+          <p class="preset-desc lang-vi">Giữ <code>terrainDamage: true</code> để Earth Drill và Supernova vẫn bốc khối rồi trả về chỗ cũ, đồng thời tắt toàn bộ phá hủy vĩnh viễn và bật Chế độ An toàn cho Block Dominion.</p>
+          <p class="preset-desc lang-zh">保持 <code>terrainDamage: true</code>，让大地钻击与超新星继续临时抓取并归位方块，同时关闭所有永久地形破坏并开启方块支配安全模式。</p>
           <div class="code-box">
             <div class="code-header">
               <span>config/godwand-server.json (Reversible Lift)</span>
@@ -2807,7 +3001,8 @@
   "gateTerrainDamage": false,
   "blueTerrainDamage": false,
   "redTerrainDamage": false,
-  "purpleTerrainDamage": false
+  "purpleTerrainDamage": false,
+  "blockDominionTerrainDamage": false
 }</code></pre>
           </div>
         </div>
@@ -2841,12 +3036,12 @@
         </div>
 
         <div class="preset-panel" data-preset-panel="full-server">
-          <p class="preset-desc lang-en">All 71 server keys in the grouped 1.6.0 layout with default values.</p>
-          <p class="preset-desc lang-vi">Đầy đủ 71 key máy chủ theo bố cục nhóm của 1.6.0 với giá trị mặc định.</p>
-          <p class="preset-desc lang-zh">按 1.6.0 分组排布的全部 71 项服务端默认配置。</p>
+          <p class="preset-desc lang-en">All 78 server keys in the grouped 1.7.0 layout with default values.</p>
+          <p class="preset-desc lang-vi">Đầy đủ 78 key máy chủ theo bố cục nhóm của 1.7.0 với giá trị mặc định.</p>
+          <p class="preset-desc lang-zh">按 1.7.0 分组排布的全部 78 项服务端默认配置。</p>
           <div class="code-box">
             <div class="code-header">
-              <span>config/godwand-server.json (Full 1.6.0 Grouped Layout — 71 Keys)</span>
+              <span>config/godwand-server.json (Full 1.7.0 Grouped Layout — 78 Keys)</span>
               <button class="copy-btn">
                 <span class="lang-en">Copy</span>
                 <span class="lang-vi">Sao chép</span>
@@ -2934,18 +3129,26 @@
   "purpleAssist": 2.0,
   "purpleNeedsFullRed": true,
 
+  "blockDominionCooldownTicks": 80,
+  "blockDominionCapacity": 48,
+  "blockDominionDamage": 45.0,
+  "blockDominionBlastRadius": 2.5,
+  "blockDominionCraterRadius": 1.8,
+  "blockDominionProjectileSpeed": 3.2,
+  "blockDominionTerrainDamage": true,
+
   "dimensionBlacklist": []
 }</code></pre>
           </div>
         </div>
 
         <div class="preset-panel" data-preset-panel="full-client">
-          <p class="preset-desc lang-en">All 18 client visual and audio keys with default values.</p>
-          <p class="preset-desc lang-vi">Đầy đủ 18 key đồ họa và âm thanh phía client với giá trị mặc định.</p>
-          <p class="preset-desc lang-zh">全部 18 项客户端画面与音效默认配置。</p>
+          <p class="preset-desc lang-en">All 19 client visual and audio keys with default values.</p>
+          <p class="preset-desc lang-vi">Đầy đủ 19 key đồ họa và âm thanh phía client với giá trị mặc định.</p>
+          <p class="preset-desc lang-zh">全部 19 项客户端画面与音效默认配置。</p>
           <div class="code-box">
             <div class="code-header">
-              <span>config/godwand-client.json (Full 18 Keys)</span>
+              <span>config/godwand-client.json (Full 19 Keys)</span>
               <button class="copy-btn">
                 <span class="lang-en">Copy</span>
                 <span class="lang-vi">Sao chép</span>
@@ -2966,6 +3169,7 @@
   "purpleCutscene": true,
   "soundVolume": 1.0,
   "skillHud": true,
+  "dominionGuide": true,
   "bareHand": true,
   "redRecoil": true,
   "cameraShake": 1.0,
@@ -3014,9 +3218,9 @@
               <span class="lang-vi">Mod Animation &amp; Shader</span>
               <span class="lang-zh">动作模组与光影</span>
             </div>
-            <p class="lang-en">Cutscene animations keep working alongside Emotecraft, Better Combat, Not Enough Animations, and Yes Steve Model. Compatible with Iris and Oculus shaderpacks (such as Complementary Unbound and BSL); an extra shaderpack is optional.</p>
-            <p class="lang-vi">Hoạt ảnh cutscene hoạt động tốt cùng Emotecraft, Better Combat, Not Enough Animations và Yes Steve Model. Tương thích shaderpack Iris và Oculus (như Complementary Unbound, BSL); không bắt buộc cài thêm shaderpack.</p>
-            <p class="lang-zh">过场动作兼容 Emotecraft、Better Combat、Not Enough Animations 与 Yes Steve Model；支持 Iris 与 Oculus 光影包（如 Complementary Unbound、BSL），无需额外光影亦可完整体验特效。</p>
+            <p class="lang-en">Cutscene animations keep working alongside Emotecraft, Better Combat, Not Enough Animations, and Yes Steve Model. Compatible with Iris, Oculus, and OptiFine shaderpacks (such as Complementary Unbound and BSL); an extra shaderpack is optional.</p>
+            <p class="lang-vi">Hoạt ảnh cutscene hoạt động tốt cùng Emotecraft, Better Combat, Not Enough Animations và Yes Steve Model. Tương thích shaderpack Iris, Oculus và OptiFine (như Complementary Unbound, BSL); không bắt buộc cài thêm shaderpack.</p>
+            <p class="lang-zh">过场动作兼容 Emotecraft、Better Combat、Not Enough Animations 与 Yes Steve Model；支持 Iris、Oculus 与 OptiFine 光影包（如 Complementary Unbound、BSL），无需额外光影亦可完整体验特效。</p>
           </div>
         </div>
       </section>
@@ -3029,17 +3233,17 @@
             <span class="lang-vi">Tích Hợp AI &amp; Trợ Lý Ảo</span>
             <span class="lang-zh">AI 与大语言模型集成</span>
           </h2>
-          <p class="section-lead lang-en">Plain-text reference files and a 1-click button to share God Wand 1.6.0 documentation with AI assistants.</p>
-          <p class="section-lead lang-vi">Tập tin văn bản thuần và nút bấm 1 chạm để gửi toàn bộ tài liệu God Wand 1.6.0 cho trợ lý AI.</p>
-          <p class="section-lead lang-zh">纯文本知识库与一键复制按钮，方便将 God Wand 1.6.0 完整说明提供给 AI 助手。</p>
+          <p class="section-lead lang-en">Plain-text reference files and a 1-click button to share God Wand 1.7.0 documentation with AI assistants.</p>
+          <p class="section-lead lang-vi">Tập tin văn bản thuần và nút bấm 1 chạm để gửi toàn bộ tài liệu God Wand 1.7.0 cho trợ lý AI.</p>
+          <p class="section-lead lang-zh">纯文本知识库与一键复制按钮，方便将 God Wand 1.7.0 完整说明提供给 AI 助手。</p>
         </div>
 
         <div class="cards-grid">
           <div class="card">
             <div class="card-title">1-Click Copy AI Context</div>
-            <p class="lang-en">Click <strong>Copy for AI</strong> in the top bar or banner to copy the full 1.6.0 reference to your clipboard, ready to paste into ChatGPT, Claude, or Gemini.</p>
-            <p class="lang-vi">Bấm nút <strong>Hỏi AI</strong> ở thanh trên cùng hoặc banner để chép toàn bộ tài liệu 1.6.0 vào bộ nhớ tạm, sẵn sàng dán vào ChatGPT, Claude hoặc Gemini.</p>
-            <p class="lang-zh">点击顶部或横幅中的<strong>复制给 AI</strong> 按钮，即可复制完整 1.6.0 文档，直接粘贴给 ChatGPT、Claude 或 Gemini。</p>
+            <p class="lang-en">Click <strong>Copy for AI</strong> in the top bar or banner to copy the full 1.7.0 reference to your clipboard, ready to paste into ChatGPT, Claude, or Gemini.</p>
+            <p class="lang-vi">Bấm nút <strong>Hỏi AI</strong> ở thanh trên cùng hoặc banner để chép toàn bộ tài liệu 1.7.0 vào bộ nhớ tạm, sẵn sàng dán vào ChatGPT, Claude hoặc Gemini.</p>
+            <p class="lang-zh">点击顶部或横幅中的<strong>复制给 AI</strong> 按钮，即可复制完整 1.7.0 文档，直接粘贴给 ChatGPT、Claude 或 Gemini。</p>
           </div>
           <div class="card">
             <div class="card-title"><code>llms.txt</code></div>
@@ -3049,15 +3253,15 @@
           </div>
           <div class="card">
             <div class="card-title"><code>llms-full.txt</code></div>
-            <p class="lang-en">Complete plain-text guide with every 1.6.0 skill, advancement and config key (with defaults and ranges) at <a href="llms-full.txt" target="_blank"><code>/llms-full.txt</code></a>.</p>
-            <p class="lang-vi">Tài liệu đầy đủ dạng văn bản thuần gồm mọi kỹ năng, thành tựu và toàn bộ key cấu hình 1.6.0 (kèm mặc định và giới hạn) tại <a href="llms-full.txt" target="_blank"><code>/llms-full.txt</code></a>.</p>
-            <p class="lang-zh">完整纯文本知识库，涵盖 1.6.0 全部技能、成就及所有配置项的默认值与范围，位于 <a href="llms-full.txt" target="_blank"><code>/llms-full.txt</code></a>。</p>
+            <p class="lang-en">Complete plain-text guide with every 1.7.0 skill, advancement and config key (with defaults and ranges) at <a href="llms-full.txt" target="_blank"><code>/llms-full.txt</code></a>.</p>
+            <p class="lang-vi">Tài liệu đầy đủ dạng văn bản thuần gồm mọi kỹ năng, thành tựu và toàn bộ key cấu hình 1.7.0 (kèm mặc định và giới hạn) tại <a href="llms-full.txt" target="_blank"><code>/llms-full.txt</code></a>.</p>
+            <p class="lang-zh">完整纯文本知识库，涵盖 1.7.0 全部技能、成就及所有配置项的默认值与范围，位于 <a href="llms-full.txt" target="_blank"><code>/llms-full.txt</code></a>。</p>
           </div>
         </div>
       </section>
 
       <footer class="doc-footer">
-        <div>God Wand 1.6.0 Documentation</div>
+        <div>God Wand 1.7.0 Documentation</div>
         <div>MIT License (Java Code) &bull; All Rights Reserved (Audio &amp; Visual Assets)</div>
       </footer>
       </div><!-- /.content-inner -->

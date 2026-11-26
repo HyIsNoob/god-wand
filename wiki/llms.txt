@@ -1,18 +1,18 @@
-# God Wand 1.6.0
+# God Wand 1.7.0
 
-> God Wand is a Minecraft magic mod with one wand and nine skills: Spatial Path, Singularity, Earth Drill, Supernova, Stone Cannon, I am Atomic, Fuga, Silent Gate, and Purple. Version 1.6.0 adds Purple (Blue + Red), protects pets by default, adds 15 advancements, and adds master switches for terrain damage, PvP and spell targets. Available across 10 builds (Fabric & NeoForge for 1.21.1, 1.21.11, 26.1.2, and 26.3; Fabric & Forge for 1.20.1).
+> God Wand is a Minecraft magic mod with one wand and ten skills: Spatial Path, Singularity, Earth Drill, Supernova, Stone Cannon, I am Atomic, Fuga, Silent Gate, Purple, and Block Dominion. Version 1.7.0 adds Block Dominion (48 orbiting blocks, Block Wings flight with high-speed flyby wing slashes, Hero Landing shockwave upheaval, 3-tier Meteor Dive, Monolith Cage, damage-scaled block shield & projectile deflect, and full Safe Mode when terrain damage is off), the Sovereign of Stone advancement, a toggleable Controls Guide, multiplayer shockwave feel, and all 1.6.x fixes. Available across 10 builds (Fabric & NeoForge for 1.21.1, 1.21.11, 26.1.2, and 26.3; Fabric & Forge for 1.20.1).
 
 ## Flash Warning
 This mod contains intense flashing lights and visual effects that may trigger seizures in people with photosensitive epilepsy. Impact Frames, Sky Blackout, Cutscenes and Camera Shake can be disabled in the in-game settings menu (K).
 
 ## Documentation Files
-- [Full LLM Knowledge Base](llms-full.txt): Complete plain-text guide with all nine skills, Purple mechanics & multiplayer table, cutscenes, all 15 advancements, presets, and every server (71 keys) and client (18 keys) config option with defaults and allowed ranges.
-- [Official Web Wiki](https://god-wand-wiki.vercel.app/): Interactive trilingual (English / Vietnamese / Simplified Chinese) wiki with dark/light theme, search, and copy buttons.
+- [Full LLM Knowledge Base](llms-full.txt): Complete plain-text guide with all ten skills, Purple & Block Dominion mechanics, cutscenes, all 16 advancements, presets, and every server (78 keys) and client (19 keys) config option with defaults and allowed ranges.
+- [Official Web Wiki](https://god-wand-wiki.vercel.app/): Interactive trilingual (English / Vietnamese / Simplified Chinese) wiki with dark/light theme, visual Config Builder, search, and copy buttons.
 - [CurseForge Page](https://www.curseforge.com/minecraft/mc-mods/god-wand): Mod downloads and release notes.
 - [GitHub Repository](https://github.com/HyIsNoob/god-wand): Source code and issue tracker.
 
-## Nine Skills
-- **1. Spatial Path:** Temporary tunnel through solid terrain; blocks restore behind you; shields projectiles; hold Shift for a temporary bridge. Cooldown: 1 s (20 ticks).
+## Ten Skills
+- **1. Spatial Path:** Temporary tunnel through solid terrain; blocks restore behind you (including sand/gravel); shields projectiles; hold Shift for a temporary bridge. Cooldown: 1 s (20 ticks).
 - **2. Singularity:** 3-tier gravity orb pulling enemies and blocks; right-click again to collapse early; terrain restores afterward. Cooldown: 3 s / 6 s / 10 s.
 - **3. Earth Drill:** 4-tier spinning drill of lifted blocks slammed into the ground; auto skin Aqua Heartia. Cooldown: 4 s / 7 s / 11 s / 16 s.
 - **4. Supernova:** 7-second charged black hole and 120-block blast; executes mobs <= 50 HP; merges XP orbs. Cooldown: 45 s (900 ticks).
@@ -20,19 +20,22 @@ This mod contains intense flashing lights and visual effects that may trigger se
 - **6. I am Atomic:** Invulnerable charged stance; release to detonate a 98-block light column (9,999 center DMG) and clear fluids; auto skin Shadow Blade. Cooldown: 60 s (1200 ticks).
 - **7. Fuga:** Draw a bow of flame; arrow becomes a phoenix, meteor and fire pillar (9,999 DMG) that slows enemies beneath. Cooldown: 60 s (1200 ticks).
 - **8. Silent Gate:** Giant sky circle and winged gate; right-click (or wait) to rain 80 DMG light beams and a 6x golden beam; auto skin Silent Witch Staff. Cooldown: 60 s (1200 ticks).
-- **9. Purple [NEW in 1.6.0]:** Blue (hold left-click, 3 s cooldown), Red (hold right-click, 4 s cooldown), Full Purple (full Red into ready Blue, cutscene, 48-block sphere, 9,999 DMG in 72 blocks, works across players, locks both 60 s), Small Purple (any other Red into Blue, 2.5 s delay, locks both 15 s), Purple sphere (hold both buttons for 2.5 s, fire straight ahead 90 blocks carving a 3-block tunnel, locks both 15 s).
+- **9. Purple:** Blue (hold left-click, 3 s cooldown), Red (hold right-click, 4 s cooldown), Full Purple (full Red into ready Blue, cutscene, 48-block sphere, 9,999 DMG in 72 blocks, works across players, locks both 60 s), Small Purple (any other Red into Blue, 2.5 s delay, locks both 15 s), Purple sphere (hold both buttons for 2.5 s, fire straight ahead 90 blocks carving a 3-block tunnel, locks both 15 s).
+- **10. Block Dominion [NEW in 1.7.0]:** Shift + Left-click to control up to 48 nearby blocks. Left-click a block to lift it, left-click air to pull up to 24 blocks from the ground, or left-click a mob (8 blocks) for a Monolith Cage skewered by 6 stone lances. Right-click to fire a block or hold for a rapid volley. Double-tap Space (6+ blocks) for Block Wings: Shift + Space toggles Hover/Glide, Ctrl/Space boosts, high-speed flyby slashes right through mobs, Shift + Right-click rains blocks from above, landing sends a shockwave launching ground blocks, and diving straight down builds a 3-tier Meteor Dive up to Cataclysm. Orbiting blocks shield you and reflect projectiles back (heavier hits break more blocks). Enters Safe Mode automatically when terrain damage is off. Cooldown: 4 s (80 ticks).
 
 ## Key Controls & Commands
-- Hold `V`: Skill wheel (9 skills).
-- `Right-Click`: Cast / charge selected skill (or hold for Red in Purple mode; command Silent Gate while waiting).
-- `Left-Click` (Purple only): Hold for Blue; hold with Right-Click for Purple sphere. (Other skills: 5 melee DMG.)
-- `K`: Settings menu (wand appearance, Cutscenes master switch, Skill Sounds volume, Skill HUD, Bare Hand, Red Recoil, Purple: Third Person, visual effects).
+- Hold `V`: Skill wheel (10 skills); or bind **Next skill** / **Previous skill** in Controls.
+- `Right-Click`: Cast / charge selected skill (Purple: Red; Block Dominion: fire block / hold for rapid volley; Silent Gate: command while waiting).
+- `Left-Click`: Purple (hold for Blue; hold with Right-Click for Purple sphere); Block Dominion (`Shift + Left-Click` toggle, Left-Click lift / pull / Monolith Cage); other skills: 5 melee DMG.
+- `Double-tap Space` (Block Dominion, 6+ blocks): Block Wings (`Shift + Space` Hover/Glide, `Ctrl`/`Space` Boost, `Shift + Right-Click` Orbital Volley).
+- `K`: Settings menu (wand appearance, Cutscenes master switch, Skill Sounds volume, Skill HUD, Controls Guide, Bare Hand, Red Recoil, Purple: Third Person, visual effects).
 - `Shift`: Bridge in Spatial Path; cancel Silent Gate while forming or Red while charging.
 - `Esc` or `F5`: Skip cutscene camera (Atomic, Fuga, Silent Gate, Purple).
 - `/godwand lock <skill>` & `/godwand unlock` (OP Level 2); `/godwand reset_cooldowns [players]` (OP Level 4).
 
-## Key 1.6.0 Server Defaults
+## Key Server Defaults
 - `spellTargets`: `"no_pets"` (spares tamed animals, named mobs, and leashed mobs from damage and pulls/knockback; also `"all"` or `"hostile"`).
 - `pvp`: `true` (controls whether spells hurt or push other players; caster is never hurt).
-- `terrainDamage`: `true` (master switch; set `false` to prevent all skills from breaking or lifting blocks).
-- `disabledSkills`: `[]` (list of skill IDs turned off server-wide, e.g. `["fuga", "atomic"]`; uses `/godwand lock` names; listing all 9 is ignored; admin-locked wands stay locked).
+- `terrainDamage`: `true` (master switch; set `false` to prevent all skills from breaking or lifting blocks, and put Block Dominion into Safe Mode).
+- `blockDominionTerrainDamage`: `true` (set `false` to put Block Dominion into Safe Mode independently).
+- `disabledSkills`: `[]` (list of skill IDs turned off server-wide, e.g. `["fuga", "atomic"]`; uses `/godwand lock` names including `block_dominion`; listing all 10 is ignored; admin-locked wands stay locked).

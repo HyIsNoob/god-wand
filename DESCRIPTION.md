@@ -68,14 +68,14 @@ Blue and Red each have their own cooldown; Purple puts both on cooldown.
 
 ### 10\. Block Dominion
 
-Take telekinetic control of up to 48 blocks around you — orbiting stone, iron, gold, obsidian, and more, shifting their aura to match the materials you gather.
+Lift and control up to 48 blocks around you — stone, iron, gold, obsidian, and more.
 
-*   **Toggle & gather:** **Shift + Left-click** to activate. Left-click a block to lift it into orbit, or left-click the air for **Earthen Surge** to rip up to 24 blocks from the ground at once.
-*   **Block Wings & Hero Landing:** **Double-tap Space** (with 6+ blocks) to shape your blocks into layered wings. Switch between Hover and Glide (**Shift + Space**), boost with **Ctrl / Space**, rain down an **Orbital Volley** (**Shift + Right-click**), or touch down with a seismic shockwave that heaves nearby terrain into the air before slamming it back down.
-*   **Meteor Dive:** pitch straight down while flying — your wings fold tighter the higher you dive, building through three impact tiers up to a volcanic **Cataclysm** slam.
-*   **Monolith Cage:** left-click a mob (8 blocks) to lock it inside an upright stone cage, then pierce it from six angles with converging block lances.
-*   **Railgun Shot, Volley & Shield Parry:** right-click to launch high-velocity blocks, hold right-click to unleash a continuous volley, and let orbiting blocks automatically intercept incoming attacks.
-*   **Zero-grief Safe Mode:** when terrain damage is turned off, Block Dominion conjures virtual blocks instead of breaking the world, creates no craters or terrain upheaval, and dissolves conjured blocks harmlessly when turned off.
+*   **Turn on & gather:** Press **Shift + Left-click** to activate. Left-click a block to pull it into orbit, or left-click the air to rip up to 24 blocks from the ground at once.
+*   **Block Wings & Hero Landing:** **Double-tap Space** (with 6+ blocks) to form wings. Switch between Hover and Glide (**Shift + Space**), boost with **Ctrl** or **Space**, slash right through mobs as you fly past at high speed, rain blocks down (**Shift + Right-click**), or land with a shockwave that launches nearby ground blocks into the air.
+*   **Meteor Dive:** Look straight down while flying — your wings fold tighter the higher you dive, building through three impact tiers up to a huge volcanic **Cataclysm** slam.
+*   **Monolith Cage:** Left-click a mob (uses 8 blocks) to lock it in the air inside a stone cage, then skewer it from six angles with stone lances.
+*   **Block Shots, Volley & Shield:** Right-click to fire a block, hold right-click for a rapid volley, and let orbiting blocks automatically block hits and reflect arrows back (heavier hits break more blocks, and huge attacks can shatter your guard).
+*   **Safe Mode:** When terrain destruction is turned off, Block Dominion summons temporary blocks instead of breaking your world, leaves no craters, and vanishes cleanly when turned off.
 
 More on the [wiki](https://god-wand-wiki.vercel.app/).
 
@@ -96,7 +96,7 @@ Choose one yourself, or use **AUTO** to switch with your skill: Aqua Heartia for
 
 Destructive spells can change a large area. **Terrain destruction is enabled by default.**
 
-*   **One switch turns off terrain damage for every skill.** Each skill also has its own switch — Earth Drill and Supernova can keep lifting blocks without permanent damage, and Block Dominion switches to full zero-grief Safe Mode (conjuring virtual blocks without breaking or placing anything in the world).
+*   **One switch turns off terrain damage for every skill.** Each skill also has its own switch — Earth Drill and Supernova can keep lifting blocks without permanent damage, and Block Dominion switches to Safe Mode, summoning temporary blocks instead of breaking or placing blocks in your world.
 *   **Your pets are safe by default.** Spells don't hurt or push tamed animals, mobs with a name tag or mobs on a lead. Server owners can make spells hit everything, or monsters only.
 *   **PvP can be turned off,** so spells never hurt other players.
 *   **Server owners can remove skills from the wand.** Removed skills disappear from the skill wheel and cannot be cast.

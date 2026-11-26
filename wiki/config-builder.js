@@ -11,28 +11,29 @@
     { id: 'atomic', en: '6. I am Atomic', vi: '6. I am Atomic', zh: '6. 吾即原子' },
     { id: 'fuga', en: '7. Fuga', vi: '7. Fuga', zh: '7. Fuga（开）' },
     { id: 'gate', en: '8. Silent Gate', vi: '8. Silent Gate', zh: '8. 静默之门' },
-    { id: 'purple', en: '9. Purple', vi: '9. Purple', zh: '9. 紫', isNew: true }
+    { id: 'purple', en: '9. Purple', vi: '9. Purple', zh: '9. 紫' },
+    { id: 'dominion', en: '10. Block Dominion', vi: '10. Block Dominion', zh: '10. 方块支配', isNew: true }
   ];
 
   const CLIENT_GROUPS = [
     { id: 'appearance', en: 'Appearance & Hands', vi: 'Ngoại hình & Tay', zh: '外观与手持' },
     { id: 'cutscenes', en: 'Cutscenes', vi: 'Cutscene', zh: '过场动画' },
-    { id: 'purple_ux', en: 'Purple & Audio', vi: 'Purple & Âm thanh', zh: '紫与音效' },
+    { id: 'purple_ux', en: 'HUD, Controls & Audio', vi: 'HUD, Phím & Âm thanh', zh: 'HUD、操作与音效' },
     { id: 'visuals', en: 'Visuals & Performance', vi: 'Đồ họa & Hiệu năng', zh: '画面与性能' }
   ];
 
-  // All 70 server keys with exact defaults & ranges from GodWandConfig.java
+  // All 78 server keys with exact defaults & ranges from GodWandConfig.java
   const SERVER_SCHEMA = [
     // General & Safety
-    { key: 'terrainDamage', group: 'general', type: 'bool', def: true, isNew: true,
-      en: 'Master switch: off disables block breaking and lifting for every skill.',
-      vi: 'Công tắc tổng: tắt sẽ chặn phá khối và bốc khối của mọi chiêu.',
-      zh: '总开关：关闭后所有技能均不破坏或抓取方块。' },
-    { key: 'pvp', group: 'general', type: 'bool', def: true, isNew: true,
+    { key: 'terrainDamage', group: 'general', type: 'bool', def: true,
+      en: 'Master switch: off disables block breaking and lifting for every skill (Block Dominion enters Safe Mode).',
+      vi: 'Công tắc tổng: tắt sẽ chặn phá khối và bốc khối của mọi chiêu (Block Dominion tự vào Chế độ An toàn).',
+      zh: '总开关：关闭后所有技能均不破坏或抓取方块（方块支配自动进入安全模式）。' },
+    { key: 'pvp', group: 'general', type: 'bool', def: true,
       en: 'Whether spells can hurt or push other players.',
       vi: 'Cho phép phép thuật gây sát thương hoặc đẩy người chơi khác.',
       zh: '法术是否可伤害或击退其他玩家。' },
-    { key: 'spellTargets', group: 'general', type: 'enum', def: 'no_pets', options: ['no_pets', 'all', 'hostile'], isNew: true,
+    { key: 'spellTargets', group: 'general', type: 'enum', def: 'no_pets', options: ['no_pets', 'all', 'hostile'],
       en: 'Who spells hit & pull: no_pets (spares tamed/named/leashed), all, or hostile only.',
       vi: 'Mục tiêu trúng chiêu: no_pets (tha thú thuần/có tên/buộc dây), all, hoặc hostile.',
       zh: '目标过滤：no_pets（保护宠物/命名/拴绳）、all 或 hostile。' },
@@ -48,10 +49,10 @@
       en: 'Dimension IDs where the wand cannot be used.',
       vi: 'Danh sách ID chiều không gian cấm dùng trượng.',
       zh: '禁止使用神之杖的维度 ID 列表。' },
-    { key: 'disabledSkills', group: 'general', type: 'skills', def: [], isNew: true,
-      en: 'Skills turned off on this server (hidden from wheel, cannot be cast). Selecting all 9 is ignored so the wand stays usable. Admin-locked wands are kept as-is.',
-      vi: 'Các skill bị tắt trên server (ẩn khỏi vòng chọn, không dùng được). Chọn cả 9 skill sẽ bị bỏ qua để gậy không vô dụng. Gậy bị admin lock giữ nguyên.',
-      zh: '在服务器中禁用的技能（从轮盘隐藏且无法施放）。若全选 9 项则列表会被忽略，以免法杖失效；管理员锁定的法杖保持不变。' },
+    { key: 'disabledSkills', group: 'general', type: 'skills', def: [],
+      en: 'Skills turned off on this server (hidden from wheel, cannot be cast). Selecting all 10 is ignored so the wand stays usable. Admin-locked wands are kept as-is.',
+      vi: 'Các skill bị tắt trên server (ẩn khỏi vòng chọn, không dùng được). Chọn cả 10 skill sẽ bị bỏ qua để gậy không vô dụng. Gậy bị admin lock giữ nguyên.',
+      zh: '在服务器中禁用的技能（从轮盘隐藏且无法施放）。若全选 10 项则列表会被忽略，以免法杖失效；管理员锁定的法杖保持不变。' },
     { key: 'cooldownDefaultsVersion', group: 'general', type: 'int', def: 3, min: 3, max: 3, readonly: true,
       en: 'Internal migration version (keep at 3).',
       vi: 'Phiên bản di trú nội bộ (giữ nguyên là 3).',
@@ -229,106 +230,136 @@
       vi: 'Bán kính hố của mỗi tia sáng.',
       zh: '每道光束的弹坑半径。' },
 
-    // 9. Purple (24 keys — all new in 1.6.0)
-    { key: 'blueCooldownTicks', group: 'purple', type: 'int', unit: 'ticks', def: 60, min: 0, max: 72000, isNew: true,
+    // 9. Purple (24 keys)
+    { key: 'blueCooldownTicks', group: 'purple', type: 'int', unit: 'ticks', def: 60, min: 0, max: 72000,
       en: 'Blue cooldown starting when Blue disappears.',
       vi: 'Hồi chiêu Blue tính từ lúc Blue biến mất.',
       zh: '蓝消失后开始的独立冷却。' },
-    { key: 'redCooldownTicks', group: 'purple', type: 'int', unit: 'ticks', def: 80, min: 0, max: 72000, isNew: true,
+    { key: 'redCooldownTicks', group: 'purple', type: 'int', unit: 'ticks', def: 80, min: 0, max: 72000,
       en: 'Red cooldown starting when Red fires.',
       vi: 'Hồi chiêu Red tính từ lúc bắn Red.',
       zh: '红发射时开始的独立冷却。' },
-    { key: 'purpleCooldownTicks', group: 'purple', type: 'int', unit: 'ticks', def: 1200, min: 0, max: 72000, isNew: true,
+    { key: 'purpleCooldownTicks', group: 'purple', type: 'int', unit: 'ticks', def: 1200, min: 0, max: 72000,
       en: 'Full Purple lock time (Small Purple & sphere lock for 1/4 of this).',
       vi: 'Khóa cả Blue & Red cho Purple đầy đủ (Small Purple & quả cầu khóa 1/4).',
       zh: '完整紫双锁时长（小紫与紫球锁定此值的 1/4）。' },
-    { key: 'blueReadyDamage', group: 'purple', type: 'float', def: 50.0, min: 1, max: 1000000, step: 5, isNew: true,
+    { key: 'blueReadyDamage', group: 'purple', type: 'float', def: 50.0, min: 1, max: 1000000, step: 5,
       en: 'Real damage Blue needs to become ready.',
       vi: 'Sát thương thực Blue cần để sẵn sàng.',
       zh: '蓝进入就绪所需的实际伤害。' },
-    { key: 'blueReadyKills', group: 'purple', type: 'int', def: 3, min: 1, max: 1000, isNew: true,
+    { key: 'blueReadyKills', group: 'purple', type: 'int', def: 3, min: 1, max: 1000,
       en: 'Mob kills Blue needs to become ready.',
       vi: 'Số mạng Blue cần hạ để sẵn sàng.',
       zh: '蓝进入就绪所需的击杀数。' },
-    { key: 'blueCoreDamage', group: 'purple', type: 'float', def: 20.0, min: 0, max: 1000000, step: 1, isNew: true,
+    { key: 'blueCoreDamage', group: 'purple', type: 'float', def: 20.0, min: 0, max: 1000000, step: 1,
       en: 'Damage every 5 ticks (0.25 s) inside Blue core.',
       vi: 'Sát thương mỗi 5 tick (0,25 s) trong lõi Blue.',
       zh: '蓝核心每 5 刻（0.25 秒）造成的伤害。' },
-    { key: 'bluePullRadius', group: 'purple', type: 'int', unit: 'blocks', def: 8, min: 2, max: 16, isNew: true,
+    { key: 'bluePullRadius', group: 'purple', type: 'int', unit: 'blocks', def: 8, min: 2, max: 16,
       en: 'Pull radius for creatures.',
       vi: 'Bán kính hút sinh vật của Blue.',
       zh: '蓝吸引生物的半径。' },
-    { key: 'blueEatRadius', group: 'purple', type: 'int', unit: 'blocks', def: 5, min: 0, max: 8, isNew: true,
+    { key: 'blueEatRadius', group: 'purple', type: 'int', unit: 'blocks', def: 5, min: 0, max: 8,
       en: 'Terrain eating radius.',
       vi: 'Bán kính bóc khối địa hình của Blue.',
       zh: '蓝吞噬周围方块的半径。' },
-    { key: 'blueChargeTicks', group: 'purple', type: 'int', unit: 'ticks', def: 160, min: 20, max: 600, isNew: true,
+    { key: 'blueChargeTicks', group: 'purple', type: 'int', unit: 'ticks', def: 160, min: 20, max: 600,
       en: 'Max hold time for Blue.',
       vi: 'Thời gian giữ Blue tối đa.',
       zh: '按住蓝的最长时长。' },
-    { key: 'blueAnchorTicks', group: 'purple', type: 'int', unit: 'ticks', def: 160, min: 20, max: 1200, isNew: true,
+    { key: 'blueAnchorTicks', group: 'purple', type: 'int', unit: 'ticks', def: 160, min: 20, max: 1200,
       en: 'How long an anchored ready Blue floats in place.',
       vi: 'Thời gian Blue sẵn sàng treo lơ lửng chờ Red.',
       zh: '就绪的蓝悬停等待红的时长。' },
-    { key: 'redChargeTicks', group: 'purple', type: 'int', unit: 'ticks', def: 50, min: 10, max: 200, isNew: true,
+    { key: 'redChargeTicks', group: 'purple', type: 'int', unit: 'ticks', def: 50, min: 10, max: 200,
       en: 'Hold time for Red to reach full charge.',
       vi: 'Thời gian giữ để Red tụ đầy lực.',
       zh: '红蓄满所需的按住时长。' },
-    { key: 'redDamage', group: 'purple', type: 'float', def: 500.0, min: 0, max: 1000000, step: 10, isNew: true,
+    { key: 'redDamage', group: 'purple', type: 'float', def: 500.0, min: 0, max: 1000000, step: 10,
       en: 'Full-charge Red damage (partial: 20%–100%).',
       vi: 'Sát thương Red tụ đầy (tụ một phần: 20%–100%).',
       zh: '蓄满红的伤害（未蓄满按 20%–100% 缩放）。' },
-    { key: 'redRange', group: 'purple', type: 'int', unit: 'blocks', def: 100, min: 8, max: 160, isNew: true,
+    { key: 'redRange', group: 'purple', type: 'int', unit: 'blocks', def: 100, min: 8, max: 160,
       en: 'Maximum flight distance of Red.',
       vi: 'Tầm bay tối đa của Red.',
       zh: '红的最大飞行射程。' },
-    { key: 'redTunnelRadius', group: 'purple', type: 'int', unit: 'blocks', def: 2, min: 0, max: 4, isNew: true,
+    { key: 'redTunnelRadius', group: 'purple', type: 'int', unit: 'blocks', def: 2, min: 0, max: 4,
       en: 'Radius of Red flight tunnel.',
       vi: 'Bán kính đường hầm Red khoét khi bay.',
       zh: '红飞行掘进隧道的半径。' },
-    { key: 'redCraterRadius', group: 'purple', type: 'int', unit: 'blocks', def: 5, min: 0, max: 8, isNew: true,
+    { key: 'redCraterRadius', group: 'purple', type: 'int', unit: 'blocks', def: 5, min: 0, max: 8,
       en: 'Crater radius when Red explodes.',
       vi: 'Bán kính hố nổ khi Red chạm đất/hết tầm.',
       zh: '红引爆时的弹坑半径。' },
-    { key: 'purpleRadius', group: 'purple', type: 'int', unit: 'blocks', def: 48, min: 0, max: 64, isNew: true,
+    { key: 'purpleRadius', group: 'purple', type: 'int', unit: 'blocks', def: 48, min: 0, max: 64,
       en: 'Full Purple erased sphere radius (damage reaches 1.5x).',
       vi: 'Bán kính quả cầu xóa địa hình Purple (sát thương xa 1,5 lần).',
       zh: '完整紫抹除球体半径（伤害范围 1.5 倍）。' },
-    { key: 'purpleDamage', group: 'purple', type: 'float', def: 9999.0, min: 0, max: 1000000, step: 50, isNew: true,
+    { key: 'purpleDamage', group: 'purple', type: 'float', def: 9999.0, min: 0, max: 1000000, step: 50,
       en: 'Full Purple damage (also base for Small Purple & sphere).',
       vi: 'Sát thương Purple đầy đủ (và gốc tính Small Purple / quả cầu).',
       zh: '完整紫伤害（同时作为小紫与紫球基础值）。' },
-    { key: 'blueTerrainDamage', group: 'purple', type: 'bool', def: true, isNew: true,
+    { key: 'blueTerrainDamage', group: 'purple', type: 'bool', def: true,
       en: 'Allow Blue to eat nearby blocks.',
       vi: 'Cho phép Blue bóc tách khối xung quanh.',
       zh: '允许蓝吞噬周围方块。' },
-    { key: 'redTerrainDamage', group: 'purple', type: 'bool', def: true, isNew: true,
+    { key: 'redTerrainDamage', group: 'purple', type: 'bool', def: true,
       en: 'Allow Red to carve tunnel and crater.',
       vi: 'Cho phép Red khoét hầm và tạo hố.',
       zh: '允许红掘出隧道与弹坑。' },
-    { key: 'purpleTerrainDamage', group: 'purple', type: 'bool', def: true, isNew: true,
+    { key: 'purpleTerrainDamage', group: 'purple', type: 'bool', def: true,
       en: 'Allow Purple, Small Purple and sphere to erase & stain terrain.',
       vi: 'Cho phép Purple, Small Purple và quả cầu xóa & nhuộm địa hình.',
       zh: '允许紫、小紫与紫球抹除及染紫地形。' },
-    { key: 'smallPurple', group: 'purple', type: 'bool', def: true, isNew: true,
+    { key: 'smallPurple', group: 'purple', type: 'bool', def: true,
       en: 'Enable Small Purple on unready Blue / partial Red.',
       vi: 'Bật Small Purple khi bắn vào Blue chưa sẵn sàng / Red chưa đầy.',
       zh: '开启未就绪蓝或未蓄满红触发小紫。' },
-    { key: 'smallPurpleStrength', group: 'purple', type: 'float', def: 1.0, min: 0, max: 10, step: 0.1, isNew: true,
+    { key: 'smallPurpleStrength', group: 'purple', type: 'float', def: 1.0, min: 0, max: 10, step: 0.1,
       en: 'Scales Small Purple size/damage and Purple sphere damage.',
       vi: 'Hệ số chỉnh cỡ hố/sát thương Small Purple và sát thương quả cầu Purple.',
       zh: '缩放小紫范围/伤害及紫球伤害。' },
-    { key: 'purpleAssist', group: 'purple', type: 'float', unit: 'blocks', def: 2.0, min: 0, max: 16, step: 0.5, isNew: true,
+    { key: 'purpleAssist', group: 'purple', type: 'float', unit: 'blocks', def: 2.0, min: 0, max: 16, step: 0.5,
       en: 'Extra reach a ready Blue uses to catch a passing Red.',
       vi: 'Tầm với thêm để Blue sẵn sàng bắt Red bay sượt qua.',
       zh: '就绪的蓝吸附擦肩红球的额外距离。' },
-    { key: 'purpleNeedsFullRed', group: 'purple', type: 'bool', def: true, isNew: true,
+    { key: 'purpleNeedsFullRed', group: 'purple', type: 'bool', def: true,
       en: 'Require a fully charged Red for full Purple.',
       vi: 'Bắt buộc Red tụ đầy mới kích hoạt Purple đầy đủ.',
-      zh: '触发完整紫是否必须蓄满红。' }
+      zh: '触发完整紫是否必须蓄满红。' },
+
+    // 10. Block Dominion (7 keys — new in 1.7.0)
+    { key: 'blockDominionCooldownTicks', group: 'dominion', type: 'int', unit: 'ticks', def: 80, min: 0, max: 72000, isNew: true,
+      en: 'Cooldown after turning Block Dominion off.',
+      vi: 'Hồi chiêu sau khi tắt Block Dominion.',
+      zh: '关闭方块支配后的冷却时间。' },
+    { key: 'blockDominionCapacity', group: 'dominion', type: 'int', unit: 'blocks', def: 48, min: 4, max: 96, isNew: true,
+      en: 'Maximum orbiting blocks you can control at once.',
+      vi: 'Số khối bay quanh người tối đa có thể điều khiển cùng lúc.',
+      zh: '同时环绕操控的最大方块数量。' },
+    { key: 'blockDominionDamage', group: 'dominion', type: 'float', def: 45.0, min: 0, max: 1000000, step: 5, isNew: true,
+      en: 'Base damage for fired blocks, landings, dives, and cages.',
+      vi: 'Sát thương gốc cho đạn khối, cú đáp, lao thiên thạch và lồng đá.',
+      zh: '方块发射、落地冲击、陨石俯冲与石笼的基础伤害。' },
+    { key: 'blockDominionBlastRadius', group: 'dominion', type: 'float', unit: 'blocks', def: 2.5, min: 0, max: 16, step: 0.5, isNew: true,
+      en: 'Splash damage radius when fired blocks hit.',
+      vi: 'Bán kính nổ lan khi khối bắn ra chạm mục tiêu.',
+      zh: '发射方块命中时的溅射伤害半径。' },
+    { key: 'blockDominionCraterRadius', group: 'dominion', type: 'float', unit: 'blocks', def: 1.8, min: 0, max: 8, step: 0.2, isNew: true,
+      en: 'Crater radius when fired blocks hit (when terrain damage is on).',
+      vi: 'Bán kính hố nổ khi khối chạm đất (khi bật phá địa hình).',
+      zh: '开启地形破坏时方块命中的弹坑半径。' },
+    { key: 'blockDominionProjectileSpeed', group: 'dominion', type: 'float', def: 3.2, min: 0.5, max: 10, step: 0.2, isNew: true,
+      en: 'Flight speed of fired blocks.',
+      vi: 'Tốc độ bay của các khối bắn ra.',
+      zh: '发射方块的飞行速度。' },
+    { key: 'blockDominionTerrainDamage', group: 'dominion', type: 'bool', def: true, isNew: true,
+      en: 'Off enables Safe Mode: summons temporary blocks without breaking or taking world blocks.',
+      vi: 'Tắt để bật Chế độ An toàn: tự tạo khối tạm, không lấy hay phá block trong thế giới.',
+      zh: '关闭后启用安全模式：召唤临时方块，不破坏或拿取世界中的方块。' }
   ];
 
-  // Canonical grouped output order matching GodWandConfig.java (1.5.0 grouped layout + 1.6.0 keys)
+  // Canonical grouped output order matching GodWandConfig.java (1.7.0 grouped layout)
   const SERVER_JSON_GROUPS = [
     ['cooldownDefaultsVersion', 'cooldownMultiplier', 'damageMultiplier', 'terrainDamage', 'pvp', 'spellTargets', 'disabledSkills'],
     ['spatialPathCooldownTicks'],
@@ -340,16 +371,17 @@
     ['fugaCooldownTicks', 'fugaDamage', 'fugaShockwaveDamageMultiplier', 'fugaIgniteEntities', 'fugaShockwaveKnockback', 'fugaSlowness', 'fugaTerrainDamage', 'fugaTerrainRadius'],
     ['gateCooldownTicks', 'gateBeamDamage', 'gateTargetMode', 'gateTargetRadius', 'gateBarrageTicks', 'gateWaitTicks', 'gateSkyCircles', 'gateTerrainDamage', 'gateCraterRadius'],
     ['blueCooldownTicks', 'redCooldownTicks', 'purpleCooldownTicks', 'blueReadyDamage', 'blueReadyKills', 'blueCoreDamage', 'bluePullRadius', 'blueEatRadius', 'blueChargeTicks', 'blueAnchorTicks', 'redChargeTicks', 'redDamage', 'redRange', 'redTunnelRadius', 'redCraterRadius', 'purpleRadius', 'purpleDamage', 'blueTerrainDamage', 'redTerrainDamage', 'purpleTerrainDamage', 'smallPurple', 'smallPurpleStrength', 'purpleAssist', 'purpleNeedsFullRed'],
+    ['blockDominionCooldownTicks', 'blockDominionCapacity', 'blockDominionDamage', 'blockDominionBlastRadius', 'blockDominionCraterRadius', 'blockDominionProjectileSpeed', 'blockDominionTerrainDamage'],
     ['dimensionBlacklist']
   ];
 
-  // All 18 client keys with exact defaults & ranges from GodWandConfig.Client
+  // All 19 client keys with exact defaults & ranges from GodWandConfig.Client
   const CLIENT_SCHEMA = [
     { key: 'wandSkin', group: 'appearance', type: 'enum', def: 'AUTO', options: ['AUTO', 'DEFAULT', 'AQUA_HEARTIA', 'SHADOW_BLADE', 'SILENT_WITCH'],
       en: 'Wand appearance model (AUTO switches per skill).',
       vi: 'Ngoại hình trượng (AUTO tự đổi theo kỹ năng).',
       zh: '法杖外观模型（AUTO 随技能切换）。' },
-    { key: 'bareHand', group: 'appearance', type: 'bool', def: true, isNew: true,
+    { key: 'bareHand', group: 'appearance', type: 'bool', def: true,
       en: 'Show bare hand instead of wand in first person for Purple & Fuga.',
       vi: 'Hiện tay trần thay cho trượng ở góc nhìn thứ nhất cho Purple & Fuga.',
       zh: '紫与 Fuga 第一人称下显示空手而非持杖。' },
@@ -366,24 +398,28 @@
       en: 'Cinematic camera for Silent Gate.',
       vi: 'Góc quay cutscene cho Silent Gate.',
       zh: '静默之门过场镜头。' },
-    { key: 'purpleCutscene', group: 'cutscenes', type: 'bool', def: true, isNew: true,
+    { key: 'purpleCutscene', group: 'cutscenes', type: 'bool', def: true,
       en: 'Cinematic camera for full Purple.',
       vi: 'Góc quay cutscene cho Purple đầy đủ.',
       zh: '完整紫过场镜头。' },
 
-    { key: 'soundVolume', group: 'purple_ux', type: 'float', def: 1.0, min: 0, max: 1, step: 0.05, isNew: true,
+    { key: 'soundVolume', group: 'purple_ux', type: 'float', def: 1.0, min: 0, max: 1, step: 0.05,
       en: 'Volume for God Wand sounds only (0.0 to 1.0).',
       vi: 'Âm lượng riêng cho âm thanh của mod (0.0 đến 1.0).',
       zh: '神之杖专属音效音量（0.0 至 1.0）。' },
-    { key: 'skillHud', group: 'purple_ux', type: 'bool', def: true, isNew: true,
-      en: 'Blue & Red charge rings around crosshair.',
-      vi: 'Vòng chỉ báo tụ lực Blue & Red quanh tâm ngắm.',
-      zh: '准星周围显示蓝与红蓄力环。' },
-    { key: 'redRecoil', group: 'purple_ux', type: 'bool', def: true, isNew: true,
+    { key: 'skillHud', group: 'purple_ux', type: 'bool', def: true,
+      en: 'Shows Blue & Red crosshair rings and the Block Dominion block counter.',
+      vi: 'Hiện vòng tụ lực Blue & Red quanh tâm ngắm và bộ đếm khối của Block Dominion.',
+      zh: '显示蓝与红准星蓄力环，以及方块支配的方块计数条。' },
+    { key: 'dominionGuide', group: 'purple_ux', type: 'bool', def: true, isNew: true,
+      en: 'Shows the compact Block Dominion controls guide in the bottom-left corner.',
+      vi: 'Hiện bảng hướng dẫn phím gọn cho Block Dominion ở góc dưới bên trái.',
+      zh: '在左下角显示简洁的方块支配按键指南。' },
+    { key: 'redRecoil', group: 'purple_ux', type: 'bool', def: true,
       en: 'Charged Red kicks the shooter backward.',
       vi: 'Bắn Red tụ lực đẩy giật người bắn về sau.',
       zh: '发射蓄力红时产生后坐力推退。' },
-    { key: 'blueRedThirdPerson', group: 'purple_ux', type: 'bool', def: false, isNew: true,
+    { key: 'blueRedThirdPerson', group: 'purple_ux', type: 'bool', def: false,
       en: 'Auto switch to third person while casting Blue/Red.',
       vi: 'Tự chuyển sang góc nhìn thứ ba khi dùng Blue/Red.',
       zh: '施放蓝或红时自动切换至第三人称。' },
@@ -425,7 +461,7 @@
   const CLIENT_JSON_ORDER = [
     'wandSkin', 'postEffects', 'impactFrames', 'cameraFov', 'skyBlackout', 'targetMarker',
     'atomicCutscene', 'fugaCutscene', 'gateCutscene', 'blueRedThirdPerson', 'purpleCutscene',
-    'soundVolume', 'skillHud', 'bareHand', 'redRecoil', 'cameraShake', 'bloomStrength', 'bloomDownsample'
+    'soundVolume', 'skillHud', 'dominionGuide', 'bareHand', 'redRecoil', 'cameraShake', 'bloomStrength', 'bloomDownsample'
   ];
 
   const SERVER_PRESETS = [
@@ -437,7 +473,8 @@
         terrainDamage: true, earthDrillBlockLift: true, earthDrillTerrainDamage: false,
         supernovaBlockLift: true, supernovaTerrainDamage: false, stoneCannonTerrainDamage: false,
         atomicTerrainDamage: false, fugaTerrainDamage: false, gateTerrainDamage: false,
-        blueTerrainDamage: false, redTerrainDamage: false, purpleTerrainDamage: false
+        blueTerrainDamage: false, redTerrainDamage: false, purpleTerrainDamage: false,
+        blockDominionTerrainDamage: false
       } },
     { id: 'fast_fun', en: 'Fast Cooldowns (0.5x)', vi: 'Hồi chiêu nhanh (0.5x)', zh: '快速冷却 (0.5x)',
       patch: { cooldownMultiplier: 0.5 } }
@@ -464,7 +501,8 @@
     { id: 'atomic', en: 'I am Atomic', vi: 'I am Atomic', zh: '吾即原子' },
     { id: 'fuga', en: 'Fuga', vi: 'Fuga', zh: 'Fuga（开）' },
     { id: 'silent_gate', en: 'Silent Gate', vi: 'Silent Gate', zh: '静默之门' },
-    { id: 'purple', en: 'Purple', vi: 'Purple', zh: '紫' }
+    { id: 'purple', en: 'Purple', vi: 'Purple', zh: '紫' },
+    { id: 'block_dominion', en: 'Block Dominion', vi: 'Block Dominion', zh: '方块支配' }
   ];
 
   const UI_TEXT = {
@@ -481,13 +519,13 @@
       modified: n => n === 0 ? 'All defaults' : `${n} modified`,
       copied: f => `Copied complete ${f} (ready to paste with Ctrl+A, Ctrl+V)`,
       downloaded: f => `Downloaded ${f}`,
-      resetDone: 'Reset to 1.6.0 defaults',
+      resetDone: 'Reset to 1.7.0 defaults',
       range: (a, b) => `Range: ${a} – ${b}`,
-      newTag: 'New 1.6.0',
+      newTag: 'New 1.7.0',
       allCutscenesOn: 'All Cutscenes On',
       allCutscenesOff: 'All Cutscenes Off',
       extraDimPlaceholder: 'Extra IDs (comma-separated, e.g. twilightforest:twilight_forest)',
-      allSkillsWarn: 'All 9 skills selected — the mod ignores the list so the wand stays usable.',
+      allSkillsWarn: 'All 10 skills selected — the mod ignores the list so the wand stays usable.',
       noMatch: 'No matching settings in this file.',
       resetKey: 'Reset to default'
     },
@@ -504,13 +542,13 @@
       modified: n => n === 0 ? 'Đang ở mặc định' : `Đã chỉnh ${n} mục`,
       copied: f => `Đã chép trọn bộ ${f} (Ctrl+A rồi Ctrl+V vào file là dùng ngay)`,
       downloaded: f => `Đã tải xuống ${f}`,
-      resetDone: 'Đã khôi phục mặc định 1.6.0',
+      resetDone: 'Đã khôi phục mặc định 1.7.0',
       range: (a, b) => `Giới hạn: ${a} – ${b}`,
-      newTag: 'Mới 1.6.0',
+      newTag: 'Mới 1.7.0',
       allCutscenesOn: 'Bật hết Cutscene',
       allCutscenesOff: 'Tắt hết Cutscene',
       extraDimPlaceholder: 'Thêm ID khác (cách nhau dấu phẩy, vd: twilightforest:twilight_forest)',
-      allSkillsWarn: 'Đã chọn cả 9 skill — mod sẽ bỏ qua danh sách để gậy không thành vô dụng.',
+      allSkillsWarn: 'Đã chọn cả 10 skill — mod sẽ bỏ qua danh sách để gậy không thành vô dụng.',
       noMatch: 'Không tìm thấy key phù hợp.',
       resetKey: 'Khôi phục mặc định'
     },
@@ -527,13 +565,13 @@
       modified: n => n === 0 ? '全部默认' : `已修改 ${n} 项`,
       copied: f => `已复制完整 ${f}（全选覆盖粘贴即可生效）`,
       downloaded: f => `已下载 ${f}`,
-      resetDone: '已恢复 1.6.0 默认值',
+      resetDone: '已恢复 1.7.0 默认值',
       range: (a, b) => `范围：${a} – ${b}`,
-      newTag: '1.6.0 新增',
+      newTag: '1.7.0 新增',
       allCutscenesOn: '全部开启过场',
       allCutscenesOff: '全部关闭过场',
       extraDimPlaceholder: '更多维度 ID（用逗号分隔，例如 twilightforest:twilight_forest）',
-      allSkillsWarn: '已全选 9 个技能——模组会忽略此列表以免法杖失效。',
+      allSkillsWarn: '已全选 10 个技能——模组会忽略此列表以免法杖失效。',
       noMatch: '当前文件中未找到匹配项。',
       resetKey: '恢复默认'
     }
@@ -998,10 +1036,10 @@
           <div class="cb-toolbar">
             <div class="cb-file-tabs" role="tablist">
               <button type="button" class="cb-file-tab ${state.file === 'server' ? 'active' : ''}" data-cb-file="server">
-                godwand-server.json <span class="cb-pill-num">71</span>
+                godwand-server.json <span class="cb-pill-num">78</span>
               </button>
               <button type="button" class="cb-file-tab ${state.file === 'client' ? 'active' : ''}" data-cb-file="client">
-                godwand-client.json <span class="cb-pill-num">18</span>
+                godwand-client.json <span class="cb-pill-num">19</span>
               </button>
             </div>
             <div class="cb-search-wrap">

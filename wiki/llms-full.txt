@@ -1,6 +1,6 @@
-# God Wand v1.6.0 — Complete Knowledge Base & Configuration Reference
+# God Wand v1.7.0 — Complete Knowledge Base & Configuration Reference
 
-This document is the complete plain-text reference for the Minecraft mod **God Wand** (version 1.6.0).
+This document is the complete plain-text reference for the Minecraft mod **God Wand** (version 1.7.0).
 Reminder: 20 game ticks = 1 second.
 
 ## Flash Warning
@@ -10,15 +10,15 @@ This mod contains intense flashing lights and visual effects that may trigger se
 
 ## 1. Overview & Supported Versions
 
-One wand (`godwand:god_wand`). Nine skills. Install God Wand on both the client and the server.
+One wand (`godwand:god_wand`). Ten skills. Install God Wand on both the client and the server.
 10 builds:
-- Minecraft 1.21.1: Fabric (+ Fabric API) & NeoForge (`godwand-fabric-1.6.0.jar`, `godwand-neoforge-1.6.0.jar`, Java 21)
-- Minecraft 1.20.1: Fabric (+ Fabric API) & Forge (`godwand-fabric-1.20.1-1.6.0.jar`, `godwand-forge-1.20.1-1.6.0.jar`, Java 17)
-- Minecraft 1.21.11: Fabric (+ Fabric API) & NeoForge (`godwand-fabric-1.21.11-1.6.0.jar`, `godwand-neoforge-1.21.11-1.6.0.jar`, Java 21)
-- Minecraft 26.1.2: Fabric (+ Fabric API) & NeoForge (`godwand-fabric-26.1.2-1.6.0.jar`, `godwand-neoforge-26.1.2-1.6.0.jar`, Java 25)
-- Minecraft 26.3: Fabric (+ Fabric API) & NeoForge (`godwand-fabric-26.3-1.6.0.jar`, `godwand-neoforge-26.3-1.6.0.jar`, Java 25)
+- Minecraft 1.21.1: Fabric (+ Fabric API) & NeoForge (`godwand-fabric-1.7.0.jar`, `godwand-neoforge-1.7.0.jar`, Java 21)
+- Minecraft 1.20.1: Fabric (+ Fabric API) & Forge (`godwand-fabric-1.20.1-1.7.0.jar`, `godwand-forge-1.20.1-1.7.0.jar`, Java 17)
+- Minecraft 1.21.11: Fabric (+ Fabric API) & NeoForge (`godwand-fabric-1.21.11-1.7.0.jar`, `godwand-neoforge-1.21.11-1.7.0.jar`, Java 21)
+- Minecraft 26.1.2: Fabric (+ Fabric API) & NeoForge (`godwand-fabric-26.1.2-1.7.0.jar`, `godwand-neoforge-26.1.2-1.7.0.jar`, Java 25)
+- Minecraft 26.3: Fabric (+ Fabric API) & NeoForge (`godwand-fabric-26.3-1.7.0.jar`, `godwand-neoforge-26.3-1.7.0.jar`, Java 25)
 
-Compatible with Iris/Oculus shaderpacks (extra shaderpack optional) and animation mods (Emotecraft, Better Combat, Not Enough Animations, Yes Steve Model).
+Compatible with Iris, Oculus, and OptiFine shaderpacks (extra shaderpack optional) and animation mods (Emotecraft, Better Combat, Not Enough Animations, Yes Steve Model).
 
 ### Survival Crafting Recipe (3x3 Crafting Table)
 - Top row: Echo Shard | Nether Star | Echo Shard
@@ -28,35 +28,39 @@ Unlocks automatically in the recipe book upon obtaining a Nether Star.
 
 ---
 
-## 2. What's New in 1.6.0
-1. **Pets are now safe by default:** Spells no longer hurt or push tamed animals, mobs with a name tag, or mobs on a lead. Villagers, golems, armor stands and all other mobs are still hit. Configurable via `spellTargets` (`"no_pets"`, `"all"`, `"hostile"`).
-2. **New skill: 9. Purple:** Blue (hold left-click), Red (hold right-click), Full Purple (full Red into ready Blue, works across players), Small Purple (any other Red into Blue), and Purple sphere (hold both buttons).
-3. **15 Advancements:** One root advancement, one per skill (`use_0` to `use_7`), two kill advancements (`kill_1`, `kill_2`), and four for Purple (`blue`, `red`, `purple`, `purple_kill`).
-4. **Settings improvements:** Single Cutscenes switch in the K menu (controlling all four cutscenes), `soundVolume` slider, `skillHud` crosshair rings, `bareHand` first-person mode for Purple and Fuga, `redRecoil`, `blueRedThirdPerson`, plus server master switches `terrainDamage`, `pvp`, and `spellTargets`.
+## 2. What's New in 1.7.0
+1. **New skill: 10. Block Dominion:** Command up to 48 nearby blocks around you. Spread **Block Wings** (double-tap Space), slash right through mobs at high speed, rain blocks from above, lock enemies in a **Monolith Cage** skewered by 6 stone lances, fire block shots / rapid volleys, let orbiting blocks shield you and reflect projectiles back (heavier hits break more blocks), and crash down from the sky with Hero Landing upheaval or a 3-tier **Meteor Dive** up to Cataclysm.
+2. **Full Safe Mode when terrain damage is off:** Setting `terrainDamage: false` or `blockDominionTerrainDamage: false` puts Block Dominion in Safe Mode — it summons temporary blocks without taking or breaking anything in the world, leaves no craters, and vanishes cleanly when turned off.
+3. **HUD, Controls Guide, Advancement & Server Settings:** Adds a bottom-right block counter (`skillHud`), a bottom-left **Controls Guide** (`dominionGuide`, toggleable independently in the K menu), the **Sovereign of Stone** advancement (`use_9`), and 7 `blockDominion*` server settings.
+4. **Multiplayer shockwaves, shaders & 1.6.x fixes:** Nearby players feel ground-slam and meteor shockwaves based on distance. Includes all 1.6.1–1.6.3 updates (controller Next/Previous skill binds, OptiFine/Iris/Oculus shader support, Spatial Path falling-block safety, and faster Silent Gate performance).
 
 ---
 
 ## 3. Controls & Commands
 
 ### Controls
-- **Hold V:** Open skill wheel (9 skills).
-- **Right-Click:** Use selected skill (tap/hold to charge; command Silent Gate while waiting; hold for Red in Purple mode).
-- **Left-Click (Purple only):** Hold for Blue; hold together with Right-Click for Purple sphere. (In all other modes: 5 melee attack damage.)
-- **K:** Open settings menu (wand appearance, Cutscenes, Skill Sounds volume, Skill HUD, Bare Hand, Red Recoil, Purple: Third Person, visual effects).
+- **Hold V:** Open skill wheel (10 skills). You can also bind **Next skill** and **Previous skill** in Options -> Controls -> Key Binds -> God Wand (for keyboard or gamepad).
+- **Right-Click:** Use selected skill (tap/hold to charge; command Silent Gate while waiting; hold for Red in Purple mode; fire blocks or hold for a rapid volley in Block Dominion).
+- **Left-Click:**
+  - In **Purple**: hold for Blue; hold together with Right-Click for Purple sphere.
+  - In **Block Dominion**: `Shift + Left-Click` toggles it on/off; Left-Click lifts a block, pulls up to 24 blocks from the ground (aiming at air), or traps a mob in a Monolith Cage (8 blocks).
+  - In all other modes: normal melee attack dealing 5 damage.
+- **Double-tap Space (Block Dominion, 6+ blocks):** Spread or fold Block Wings (`Shift + Space` switches Hover/Glide, `Ctrl` or `Space` boosts, `Shift + Right-Click` rains blocks down, look straight down while flying for Meteor Dive).
+- **K:** Open settings menu (wand appearance, Cutscenes, Skill Sounds volume, Skill HUD, Controls Guide, Bare Hand, Red Recoil, Purple: Third Person, visual effects).
 - **Shift:** Form temporary bridge in Spatial Path; cancel Silent Gate while forming; cancel charging Red.
 - **Esc or F5 during a cutscene:** Skip the cutscene camera.
 
 ### Admin Commands
-- `/godwand lock <skill>` (OP Level 2): Lock held wand to one skill.
+- `/godwand lock <skill>` (OP Level 2): Lock held wand to one skill (`spatial_path`, `singularity`, `earth_drill`, `supernova`, `stone_cannon`, `atomic`, `fuga`, `silent_gate`, `purple`, `block_dominion`).
 - `/godwand unlock` (OP Level 2): Unlock held wand.
 - `/godwand reset_cooldowns [players]` (OP Level 4): Clear all skill cooldowns immediately.
 
 ---
 
-## 4. Nine Skills
+## 4. Ten Skills
 
 ### 1. Spatial Path
-Temporary tunnel through solid terrain; blocks return behind you without breaking attached decorations. Deflects incoming projectiles and pushes nearby mobs/players away. Hold Shift to create a temporary bridge across gaps. Cooldown: 1 s (20 ticks).
+Temporary tunnel through solid terrain; blocks return behind you without breaking attached decorations or losing falling blocks (sand/gravel). Deflects incoming projectiles and pushes nearby mobs/players away. Hold Shift to create a temporary bridge across gaps. Cooldown: 1 s (20 ticks).
 
 ### 2. Singularity
 3-tier charged gravity orb that pulls enemies and blocks before collapsing. Right-click again mid-air to collapse early. Regular mobs under 50 HP are crushed immediately; displaced blocks return afterward. Cooldown: 3 s / 6 s / 10 s (`[60, 120, 200]` ticks).
@@ -79,13 +83,13 @@ Hold right-click to gather fire and draw a bow of flame; release to fire an arro
 ### 8. Silent Gate
 Raise the wand to draw a giant sky circle and lower a winged gate. Right-click again (or wait) to rain light beams (80 damage each) for 20 seconds from 220 sky circles, ending with a 6x golden beam (480 damage) on the strongest enemy. Sneak to cancel while forming. Auto appearance: Silent Witch Staff. Has its own cutscene. Cooldown: 60 s (1200 ticks).
 
-### 9. Purple [NEW in 1.6.0]
+### 9. Purple
 Two orbs, one in each hand:
 - **Blue (hold left-click):** Gravity orb 8 blocks along your aim with momentum. Pulls mobs in within `bluePullRadius` (8 blocks), deals `blueCoreDamage` (20) every 5 ticks (0.25 s) within its 3-block core, and eats loose terrain within `blueEatRadius` (5 blocks, when terrain damage is on). Becomes **ready** after dealing `blueReadyDamage` (50) real damage (no overkill) or `blueReadyKills` (3) kills; the inner crosshair ring turns solid cyan. Letting go before ready makes it vanish. Letting go when ready throws it gently forward; it drifts to a stop and anchors for `blueAnchorTicks` (8 s / 160 ticks). At the `blueChargeTicks` (8 s / 160 ticks) limit, a ready Blue anchors automatically while an unready one vanishes. Cooldown: `blueCooldownTicks` (3 s / 60 ticks), starting when Blue disappears.
 - **Red (hold right-click):** Charges to full in `redChargeTicks` (2.5 s / 50 ticks); outer crosshair ring fills clockwise and flashes when full. Keep holding as long as desired (tap < 0.3 s or sneak cancels with no cooldown). Release to fire: flies 3 blocks/tick up to `redRange` (100 blocks), carves a `redTunnelRadius` (2 blocks) tunnel, deals up to `redDamage` (500, scaled 20%-100% by charge) with a 3-tick hit-stop before knockback, and detonates into a `redCraterRadius` (5 blocks) crater on ground or at max range. Full Red kicks shooter back (`redRecoil`). Cooldown: `redCooldownTicks` (4 s / 80 ticks), starting when fired.
 - **Full Purple:** A fully charged Red (unless `purpleNeedsFullRed: false`) hitting a ready Blue. A ready Blue reaches out `purpleAssist` (2) extra blocks to catch a passing Red. Plays the Purple cutscene, rises 16 blocks, and detonates: erases a sphere of radius `purpleRadius` (48 blocks), stains the crater violet, and deals `purpleDamage` (9,999) within 1.5x radius (72 blocks). Works across players (Player A's Blue + Player B's Red). Locks both Blue and Red for `purpleCooldownTicks` (60 s / 1200 ticks).
 - **Small Purple:** Any other Red into a Blue (unready Blue or partial Red). No cutscene; explodes on the spot after 2.5 s (50 ticks). Crater size and damage grow with how charged the Blue was (0.4-0.8 factor, scaled by `smallPurpleStrength`). Disable with `smallPurple: false`. Quick combo: fire Red, then summon Blue right in its path. Locks both Blue and Red for 1/4 of `purpleCooldownTicks` (15 s / 300 ticks).
-- **Purple sphere (hold both buttons):** Hold left-click and right-click together. Two orbs rush straight in (meet at 0.9 s / 18 ticks) and form a 2-block purple sphere 2.4 blocks ahead at 2.5 s (50 ticks). Look around freely; release either button to fire straight ahead at 1.6 blocks/tick up to 90 blocks, carving a 3-block tunnel (`SHOT_CARVE`) and dealing `purpleDamage * 0.2 * smallPurpleStrength` (1,999.8 default). Releasing before 2.5 s cancels with no cooldown. Pressing both buttons within 0.3 s (6 ticks input grace) never flashes Blue or Red alone. Locks both Blue and Red for 1/4 of `purpleCooldownTicks` (15 s / 300 ticks).
+- **Purple sphere (hold both buttons):** Hold left-click and right-click together. Two orbs rush straight in (meet at 0.9 s / 18 ticks) and form a 2-block purple sphere 2.4 blocks ahead at 2.5 s (50 ticks). Look around freely; release either button to fire straight ahead at 1.6 blocks/tick up to 90 blocks, carving a 3-block tunnel and dealing `purpleDamage * 0.2 * smallPurpleStrength` (1,999.8 default). Releasing before 2.5 s cancels with no cooldown. Pressing both buttons within 0.3 s (6 ticks input grace) never flashes Blue or Red alone. Locks both Blue and Red for 1/4 of `purpleCooldownTicks` (15 s / 300 ticks).
 - **Cooldown HUD:** Shows `"Blue: 3s"` in blue, `"Red: 4s"` in red, or `"Purple: 15s"` in violet when Purple locked both.
 
 #### Purple Multiplayer (Player A's Blue + Player B's Red)
@@ -96,7 +100,16 @@ Two orbs, one in each hand:
 - Are A and B hurt: Full Purple = No | Small Purple = No
 - Other players: Only with `pvp` on (both)
 - Cooldown: Full Purple = Both locked 60 s | Small Purple = Both locked 15 s
-Everyone nearby sees the orbs, the merge and the sphere in first or third person.
+
+### 10. Block Dominion [NEW in 1.7.0]
+Lift and command up to `blockDominionCapacity` (48 default, 4–96) nearby blocks:
+- **Turn on & gather:** Press **Shift + Left-click** to activate or deactivate. Left-click a block to lift it into orbit, or left-click the air to pull up to 24 blocks out of the ground at once.
+- **Block Wings & Flyby Wing Slash:** **Double-tap Space** (with 6+ blocks) to form Block Wings. Press **Shift + Space** to switch between **Hover** and **Glide**, hold **Ctrl** or **Space** to boost, or hold **Shift + Right-click** to rain blocks down on enemies below. Flying past mobs at high speed slashes right through them with your wings.
+- **Hero Landing & 3-Tier Meteor Dive:** Landing from flight sends a shockwave that throws nearby ground blocks into the air before slamming them back down. Looking straight down while flying enters a dive — wings fold tighter the higher you dive, building through three impact tiers up to a volcanic **Cataclysm** crash. Nearby multiplayer players also feel the shockwave based on distance.
+- **Monolith Cage:** Left-click a mob (uses 8 blocks) to lift and lock it in mid-air inside a stone cage, then skewer it from six sides with stone lances.
+- **Block Shots, Volley & Passive Shield:** Right-click to fire a single block, or hold right-click for a rapid volley (base damage `blockDominionDamage` = 45.0, splash `blockDominionBlastRadius` = 2.5, crater `blockDominionCraterRadius` = 1.8, speed `blockDominionProjectileSpeed` = 3.2). Orbiting blocks automatically shield you from incoming hits and reflect projectiles back at the attacker — heavier hits consume more blocks, and attacks stronger than your remaining blocks break through your guard.
+- **Safe Mode:** When `terrainDamage: false` or `blockDominionTerrainDamage: false`, Block Dominion summons temporary blocks instead of taking or breaking world blocks, deals damage with no craters or terrain upheaval, and vanishes cleanly when turned off.
+- **Cooldown:** `blockDominionCooldownTicks` (4 s / 80 ticks) after turning Block Dominion off.
 
 ---
 
@@ -105,7 +118,7 @@ I am Atomic, Fuga, Silent Gate and Purple each have their own cutscene and sound
 
 ---
 
-## 6. Advancements (New in 1.6.0)
+## 6. Advancements (16 Total)
 Parent tree:
 - `godwand:root` — **God Wand** (Task, no parent): Hold a God Wand in your inventory.
   - `godwand:use_0` — **Where I Walk, There Is a Road** (Task, parent `root`): Walk the Spatial Path.
@@ -122,10 +135,11 @@ Parent tree:
     - `godwand:red` — **Reversal** (Task, parent `blue`): Fire Red.
       - `godwand:purple` — **Imaginary Mass** (Goal, parent `red`): Fire Red into a Blue before it is ready (Small Purple), or fire a Purple sphere.
       - `godwand:purple_kill` — **Nah, I'd Win** (Challenge, parent `red`): Take something down with a full Purple detonation.
+  - `godwand:use_9` — **Sovereign of Stone** (Task, parent `root`) [New in 1.7.0]: Awaken Block Dominion.
 
 ---
 
-## 7. Server Configuration (`config/godwand-server.json` — 71 Keys)
+## 7. Server Configuration (`config/godwand-server.json` — 78 Keys)
 
 On a server, lives in the server's `config/` folder; in single-player, in the game's `config/` folder (reopening a single-player world picks up edits). Existing files automatically receive new keys while preserving custom values.
 
@@ -134,12 +148,12 @@ On a server, lives in the server's `config/` folder; in single-player, in the ga
 - `cooldownMultiplier`: default `1.0`, range `0.1` to `10.0` — Multiplies every skill cooldown at once.
 - `damageMultiplier`: default `1.0`, range `0.0` to `100.0` — Multiplies spell damage for every skill at once.
 - `dimensionBlacklist`: default `[]`, range `String[]` — Dimension IDs where the wand cannot be used.
-- `disabledSkills` [New in 1.6.0]: default `[]`, range `String[]` (skill IDs: `spatial_path`, `singularity`, `earth_drill`, `supernova`, `stone_cannon`, `atomic`, `fuga`, `silent_gate`, `purple`) — Turns specific skills off server-wide (server config only, not in the K menu), e.g. `["fuga", "atomic"]`. Disabled skills are hidden from the skill wheel, cannot be selected or cast, and show a notice that the skill is turned off on the server. Wands currently set to a disabled skill automatically switch to an enabled skill (admin-locked wands keep their lock). Listing all 9 skills is ignored so wands never become unusable.
+- `disabledSkills`: default `[]`, range `String[]` (skill IDs: `spatial_path`, `singularity`, `earth_drill`, `supernova`, `stone_cannon`, `atomic`, `fuga`, `silent_gate`, `purple`, `block_dominion`) — Turns specific skills off server-wide (server config only, not in the K menu), e.g. `["fuga", "atomic"]`. Disabled skills are hidden from the skill wheel, cannot be selected or cast, and show a notice that the skill is turned off on the server. Wands currently set to a disabled skill automatically switch to an enabled skill (admin-locked wands keep their lock). Listing all 10 skills is ignored so wands never become unusable.
 
-### Terrain and Safety (3 keys — New in 1.6.0)
-- `terrainDamage` [New in 1.6.0]: default `true`, range `boolean` — Master switch. When `false`, no skill breaks or lifts blocks (including Earth Drill/Supernova block lift and Singularity block pulling; Spatial Path's auto-restoring path still works). When `true`, each skill's own switch decides.
-- `pvp` [New in 1.6.0]: default `true`, range `boolean` — Whether spells can hurt or push other players. Caster is never hurt.
-- `spellTargets` [New in 1.6.0]: default `"no_pets"`, values `"no_pets"` | `"all"` | `"hostile"` — Controls who spells hurt and push/pull. `"no_pets"` spares tamed animals, named mobs, and leashed mobs (villagers, golems, armor stands and other mobs are still hit); `"all"` hits everything; `"hostile"` hits monsters only. Other players follow `pvp`.
+### Terrain and Safety (3 keys)
+- `terrainDamage`: default `true`, range `boolean` — Master switch. When `false`, no skill breaks or lifts blocks (including Earth Drill/Supernova block lift and Singularity block pulling), and Block Dominion enters Safe Mode (summoning temporary blocks without breaking or taking world blocks). Spatial Path's auto-restoring path still works. When `true`, each skill's own switch decides.
+- `pvp`: default `true`, range `boolean` — Whether spells can hurt or push other players. Caster is never hurt.
+- `spellTargets`: default `"no_pets"`, values `"no_pets"` | `"all"` | `"hostile"` — Controls who spells hurt and push/pull. `"no_pets"` spares tamed animals, named mobs, and leashed mobs (villagers, golems, armor stands and other mobs are still hit); `"all"` hits everything; `"hostile"` hits monsters only. Other players follow `pvp`.
 
 ### 1. Spatial Path (1 key)
 - `spatialPathCooldownTicks`: default `20` (1.0 s), range `0` to `72000` ticks — Toggle cooldown.
@@ -196,35 +210,44 @@ On a server, lives in the server's `config/` folder; in single-player, in the ga
 - `gateTerrainDamage`: default `true`, range `boolean` — Small craters on beam hits (requires `terrainDamage: true`).
 - `gateCraterRadius`: default `3`, range `0` to `6` blocks — Crater radius per beam.
 
-### 9. Purple (24 keys — All New in 1.6.0)
-- `blueCooldownTicks` [New in 1.6.0]: default `60` (3.0 s), range `0` to `72000` ticks — Blue cooldown starting when Blue disappears.
-- `redCooldownTicks` [New in 1.6.0]: default `80` (4.0 s), range `0` to `72000` ticks — Red cooldown starting when Red fires.
-- `purpleCooldownTicks` [New in 1.6.0]: default `1200` (60.0 s), range `0` to `72000` ticks — Full Purple locks Blue and Red for this entire time; Small Purple and Purple sphere lock both for 1/4 of this value (default 300 ticks / 15 s).
-- `blueReadyDamage` [New in 1.6.0]: default `50.0`, range `1.0` to `1,000,000.0` — Real damage Blue must deal (overkill excluded) to turn ready.
-- `blueReadyKills` [New in 1.6.0]: default `3`, range `1` to `1000` — Mob kills Blue needs to turn ready.
-- `blueCoreDamage` [New in 1.6.0]: default `20.0`, range `0.0` to `1,000,000.0` — Damage every 5 ticks (0.25 s) inside Blue's 3-block core.
-- `bluePullRadius` [New in 1.6.0]: default `8`, range `2` to `16` blocks — Pull radius for creatures.
-- `blueEatRadius` [New in 1.6.0]: default `5`, range `0` to `8` blocks — Terrain block eating radius.
-- `blueChargeTicks` [New in 1.6.0]: default `160` (8.0 s), range `20` to `600` ticks — Max hold time for Blue.
-- `blueAnchorTicks` [New in 1.6.0]: default `160` (8.0 s), range `20` to `1200` ticks — Time an anchored ready Blue floats in place.
-- `redChargeTicks` [New in 1.6.0]: default `50` (2.5 s), range `10` to `200` ticks — Hold time for Red to reach full charge.
-- `redDamage` [New in 1.6.0]: default `500.0`, range `0.0` to `1,000,000.0` — Full-charge Red damage (partial charge scales 20%-100%).
-- `redRange` [New in 1.6.0]: default `100`, range `8` to `160` blocks — Max flight range of Red.
-- `redTunnelRadius` [New in 1.6.0]: default `2`, range `0` to `4` blocks — Radius of Red's flight tunnel.
-- `redCraterRadius` [New in 1.6.0]: default `5`, range `0` to `8` blocks — Radius of Red's impact/end crater.
-- `purpleRadius` [New in 1.6.0]: default `48`, range `0` to `64` blocks — Full Purple crater sphere radius (damage reaches 1.5x = 72 blocks).
-- `purpleDamage` [New in 1.6.0]: default `9999.0`, range `0.0` to `1,000,000.0` — Full Purple detonation damage (and base for Small Purple / Purple sphere).
-- `blueTerrainDamage` [New in 1.6.0]: default `true`, range `boolean` — Lets Blue eat terrain blocks (requires `terrainDamage: true`).
-- `redTerrainDamage` [New in 1.6.0]: default `true`, range `boolean` — Lets Red carve tunnel and crater (requires `terrainDamage: true`).
-- `purpleTerrainDamage` [New in 1.6.0]: default `true`, range `boolean` — Lets Purple, Small Purple and Purple sphere erase terrain, lift ground chunks and stain the crater (requires `terrainDamage: true`).
-- `smallPurple` [New in 1.6.0]: default `true`, range `boolean` — Enables Small Purple when Red hits an unready Blue or partial Red hits Blue; off means Red passes by.
-- `smallPurpleStrength` [New in 1.6.0]: default `1.0`, range `>= 0.0` (float) — Scales Small Purple crater/damage and Purple sphere damage.
-- `purpleAssist` [New in 1.6.0]: default `2.0`, range `>= 0.0` blocks (float) — Extra catch distance a ready Blue reaches out for a passing Red.
-- `purpleNeedsFullRed` [New in 1.6.0]: default `true`, range `boolean` — Full Purple requires a fully charged Red (false allows any Red into a ready Blue).
+### 9. Purple (24 keys)
+- `blueCooldownTicks`: default `60` (3.0 s), range `0` to `72000` ticks — Blue cooldown starting when Blue disappears.
+- `redCooldownTicks`: default `80` (4.0 s), range `0` to `72000` ticks — Red cooldown starting when Red fires.
+- `purpleCooldownTicks`: default `1200` (60.0 s), range `0` to `72000` ticks — Full Purple locks Blue and Red for this entire time; Small Purple and Purple sphere lock both for 1/4 of this value (default 300 ticks / 15 s).
+- `blueReadyDamage`: default `50.0`, range `1.0` to `1,000,000.0` — Real damage Blue must deal (overkill excluded) to turn ready.
+- `blueReadyKills`: default `3`, range `1` to `1000` — Mob kills Blue needs to turn ready.
+- `blueCoreDamage`: default `20.0`, range `0.0` to `1,000,000.0` — Damage every 5 ticks (0.25 s) inside Blue's 3-block core.
+- `bluePullRadius`: default `8`, range `2` to `16` blocks — Pull radius for creatures.
+- `blueEatRadius`: default `5`, range `0` to `8` blocks — Terrain block eating radius.
+- `blueChargeTicks`: default `160` (8.0 s), range `20` to `600` ticks — Max hold time for Blue.
+- `blueAnchorTicks`: default `160` (8.0 s), range `20` to `1200` ticks — Time an anchored ready Blue floats in place.
+- `redChargeTicks`: default `50` (2.5 s), range `10` to `200` ticks — Hold time for Red to reach full charge.
+- `redDamage`: default `500.0`, range `0.0` to `1,000,000.0` — Full-charge Red damage (partial charge scales 20%-100%).
+- `redRange`: default `100`, range `8` to `160` blocks — Max flight range of Red.
+- `redTunnelRadius`: default `2`, range `0` to `4` blocks — Radius of Red's flight tunnel.
+- `redCraterRadius`: default `5`, range `0` to `8` blocks — Radius of Red's impact/end crater.
+- `purpleRadius`: default `48`, range `0` to `64` blocks — Full Purple crater sphere radius (damage reaches 1.5x = 72 blocks).
+- `purpleDamage`: default `9999.0`, range `0.0` to `1,000,000.0` — Full Purple detonation damage (and base for Small Purple / Purple sphere).
+- `blueTerrainDamage`: default `true`, range `boolean` — Lets Blue eat terrain blocks (requires `terrainDamage: true`).
+- `redTerrainDamage`: default `true`, range `boolean` — Lets Red carve tunnel and crater (requires `terrainDamage: true`).
+- `purpleTerrainDamage`: default `true`, range `boolean` — Lets Purple, Small Purple and Purple sphere erase terrain, lift ground chunks and stain the crater (requires `terrainDamage: true`).
+- `smallPurple`: default `true`, range `boolean` — Enables Small Purple when Red hits an unready Blue or partial Red hits Blue; off means Red passes by.
+- `smallPurpleStrength`: default `1.0`, range `>= 0.0` (float) — Scales Small Purple crater/damage and Purple sphere damage.
+- `purpleAssist`: default `2.0`, range `>= 0.0` blocks (float) — Extra catch distance a ready Blue reaches out for a passing Red.
+- `purpleNeedsFullRed`: default `true`, range `boolean` — Full Purple requires a fully charged Red (false allows any Red into a ready Blue).
+
+### 10. Block Dominion (7 keys — All New in 1.7.0)
+- `blockDominionCooldownTicks` [New in 1.7.0]: default `80` (4.0 s), range `0` to `72000` ticks — Cooldown after turning Block Dominion off.
+- `blockDominionCapacity` [New in 1.7.0]: default `48`, range `4` to `96` blocks — Maximum number of orbiting blocks you can control at once.
+- `blockDominionDamage` [New in 1.7.0]: default `45.0`, range `0.0` to `1,000,000.0` — Base damage for fired blocks, Hero Landing, Meteor Dive, wing slashes, and Monolith Cage.
+- `blockDominionBlastRadius` [New in 1.7.0]: default `2.5`, range `0.0` to `16.0` blocks — Splash damage radius when fired blocks hit.
+- `blockDominionCraterRadius` [New in 1.7.0]: default `1.8`, range `0.0` to `8.0` blocks — Crater radius when fired blocks hit (requires `terrainDamage` and `blockDominionTerrainDamage` enabled).
+- `blockDominionProjectileSpeed` [New in 1.7.0]: default `3.2`, range `0.5` to `10.0` — Flight speed of fired blocks.
+- `blockDominionTerrainDamage` [New in 1.7.0]: default `true`, range `boolean` — When `false`, enters Safe Mode: summons temporary blocks without taking or breaking any world blocks, leaves no craters, and vanishes cleanly when turned off.
 
 ---
 
-## 8. Client Configuration (`config/godwand-client.json` — 18 Keys)
+## 8. Client Configuration (`config/godwand-client.json` — 19 Keys)
 
 Most options are also in the in-game settings menu (**K**). The **Cutscenes** switch in the K menu toggles `atomicCutscene`, `fugaCutscene`, `gateCutscene` and `purpleCutscene` all at once.
 
@@ -237,12 +260,13 @@ Most options are also in the in-game settings menu (**K**). The **Cutscenes** sw
 - `atomicCutscene`: default `true`, range `boolean` — I am Atomic cutscene (JSON per-skill switch).
 - `fugaCutscene`: default `true`, range `boolean` — Fuga cutscene (JSON per-skill switch).
 - `gateCutscene`: default `true`, range `boolean` — Silent Gate cutscene (JSON per-skill switch).
-- `purpleCutscene` [New in 1.6.0]: default `true`, range `boolean` — Purple cutscene (JSON per-skill switch).
-- `soundVolume` [New in 1.6.0]: default `1.0`, range `0.0` to `1.0` — Skill Sounds volume slider (mod sounds only).
-- `skillHud` [New in 1.6.0]: default `true`, range `boolean` — Skill HUD (Blue/Red crosshair rings).
-- `bareHand` [New in 1.6.0]: default `true`, range `boolean` — Bare Hand (first-person bare hand for Purple and Fuga).
-- `redRecoil` [New in 1.6.0]: default `true`, range `boolean` — Red Recoil (charged Red pushes shooter backward).
-- `blueRedThirdPerson` [New in 1.6.0]: default `false`, range `boolean` — Purple: Third Person (auto third-person while casting Blue/Red).
+- `blueRedThirdPerson`: default `false`, range `boolean` — Purple: Third Person (auto third-person while casting Blue/Red).
+- `purpleCutscene`: default `true`, range `boolean` — Purple cutscene (JSON per-skill switch).
+- `soundVolume`: default `1.0`, range `0.0` to `1.0` — Skill Sounds volume slider (mod sounds only).
+- `skillHud`: default `true`, range `boolean` — Skill HUD (Blue/Red crosshair rings and Block Dominion block counter).
+- `dominionGuide` [New in 1.7.0]: default `true`, range `boolean` — Controls Guide (compact Block Dominion controls guide in the bottom-left corner, independent from `skillHud`).
+- `bareHand`: default `true`, range `boolean` — Bare Hand (first-person bare hand for Purple and Fuga).
+- `redRecoil`: default `true`, range `boolean` — Red Recoil (charged Red pushes shooter backward).
 - `cameraShake`: default `1.0`, range `0.0` to `1.0` — Camera Shake intensity.
 - `bloomStrength`: default `0.85`, range `0.0` to `1.5` — Bloom Strength.
 - `bloomDownsample`: default `4`, range `2` to `8` (int) — JSON only; bloom quality step (8 for higher FPS).
@@ -250,5 +274,5 @@ Most options are also in the in-game settings menu (**K**). The **Cutscenes** sw
 ---
 
 ## 9. Terrain Presets (`docs/config-presets/`)
-- `preserve-terrain.json`: Disables permanent craters and block lifting so spells only damage creatures without changing the world (in 1.6.0, `"terrainDamage": false` does this for all 9 skills in one line).
-- `reversible-block-effects.json`: Keeps Earth Drill and Supernova lifting blocks temporarily (restoring them afterward) while disabling permanent terrain damage.
+- `preserve-terrain.json`: Disables permanent craters and block lifting so spells only damage creatures without changing the world (`"terrainDamage": false` does this for all 10 skills in one line and puts Block Dominion into Safe Mode).
+- `reversible-block-effects.json`: Keeps Earth Drill and Supernova lifting blocks temporarily (restoring them afterward) while disabling permanent terrain damage and enabling Block Dominion Safe Mode.

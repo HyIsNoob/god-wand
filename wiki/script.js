@@ -248,7 +248,8 @@ document.addEventListener('DOMContentLoaded', () => {
     atomic: { id: 'cfg-atomic', filter: 'atomic' },
     fuga: { id: 'cfg-fuga', filter: 'fuga' },
     gate: { id: 'cfg-gate', filter: 'gate' },
-    purple: { id: 'cfg-purple', filter: 'purple' }
+    purple: { id: 'cfg-purple', filter: 'purple' },
+    dominion: { id: 'cfg-dominion', filter: 'dominion' }
   };
 
   skillCards.forEach(card => {
@@ -290,6 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
       heading: sec.querySelector('.section-title')
     })),
     { id: 'skill-purple', heading: document.querySelector('#skill-purple .skill-name') },
+    { id: 'skill-dominion', heading: document.querySelector('#skill-dominion .skill-name') },
     { id: 'cutscenes', heading: document.querySelector('#cutscenes .callout-title') },
     { id: 'advancements', heading: document.querySelector('#advancements .subsection-title') },
     { id: 'skins', heading: document.querySelector('#skins .subsection-title') },
@@ -768,24 +770,24 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function getEmbeddedAiContext() {
-    return `# God Wand v1.6.0 — Player & Server Configuration Guide
+    return `# God Wand v1.7.0 — Player & Server Configuration Guide
 
-You are an assistant answering questions about the Minecraft mod "God Wand" (v1.6.0).
+You are an assistant answering questions about the Minecraft mod "God Wand" (v1.7.0).
 Use this reference to explain skills, controls, advancements, and server/client configuration files.
 
 ## Summary & Supported Versions
-- One wand (godwand:god_wand) with nine skills.
+- One wand (godwand:god_wand) with ten skills.
 - 10 builds: Fabric/NeoForge for 1.21.1, 1.21.11, 26.1.2, 26.3; Fabric/Forge for 1.20.1.
-- Install on both client and server. Compatible with Iris/Oculus shaders and animation mods (Emotecraft, Better Combat, Not Enough Animations, Yes Steve Model).
+- Install on both client and server. Compatible with Iris/Oculus/OptiFine shaders and animation mods (Emotecraft, Better Combat, Not Enough Animations, Yes Steve Model).
 - Crafting: 2 Echo Shards, 1 Nether Star, 2 Amethyst Shards, 1 Netherite Ingot, 1 Blaze Rod.
 
-## Safety Defaults (New in 1.6.0)
+## Safety Defaults
 - spellTargets = "no_pets" (default): protects tamed animals, mobs with a name tag, and mobs on a lead from both damage and pulls/knockback. Villagers, golems, armor stands and other mobs are still hit. Also supports "all" and "hostile".
 - pvp = true (default): controls whether spells can hurt or push other players (caster is never hurt).
-- terrainDamage = true (default): one master switch. When false, no skill breaks or lifts blocks regardless of per-skill switches.
-- disabledSkills = [] (default): server-wide list of disabled skill IDs (spatial_path, singularity, earth_drill, supernova, stone_cannon, atomic, fuga, silent_gate, purple). Hidden from wheel; wands auto-switch off disabled skills (admin-locked wands stay locked); listing all 9 is ignored.
+- terrainDamage = true (default): one master switch. When false, no skill breaks or lifts blocks (and Block Dominion enters Safe Mode, summoning temporary blocks instead of taking world blocks).
+- disabledSkills = [] (default): server-wide list of disabled skill IDs (spatial_path, singularity, earth_drill, supernova, stone_cannon, atomic, fuga, silent_gate, purple, block_dominion). Hidden from wheel; wands auto-switch off disabled skills (admin-locked wands stay locked); listing all 10 is ignored.
 
-## Nine Skills
+## Ten Skills
 1. Spatial Path: Temporary tunnel through terrain; blocks return behind you; blocks projectiles; Shift forms a bridge. Cooldown: 20 ticks (1s).
 2. Singularity: 3-tier gravity orb pulling enemies and blocks; right-click again to collapse early. Cooldown: [60, 120, 200] ticks (3s, 6s, 10s).
 3. Earth Drill: 4-tier spinning block drill slammed into the ground. Auto skin: Aqua Heartia. Cooldown: [80, 140, 220, 320] ticks (4s, 7s, 11s, 16s).
@@ -794,27 +796,33 @@ Use this reference to explain skills, controls, advancements, and server/client 
 6. I am Atomic: Hold to charge (invulnerable), release to detonate 9,999 DMG and 98-block crater. Auto skin: Shadow Blade. Cooldown: 1200 ticks (60s).
 7. Fuga: Draw a burning bow; arrow becomes a phoenix, meteor, and fire pillar (9,999 DMG). Cooldown: 1200 ticks (60s).
 8. Silent Gate: Giant sky circle and winged gate; right-click (or wait) to rain 80 DMG light beams and a 6x golden beam. Auto skin: Silent Witch Staff. Cooldown: 1200 ticks (60s).
-9. Purple [NEW in 1.6.0]:
+9. Purple:
    - Blue (hold left-click): Gravity orb following aim (pull 8b, 20 DMG every 0.25s, eats blocks in 5b). Ready at 50 real damage or 3 kills; release when ready to throw and anchor for 8s (max hold 8s). Cooldown: 3s (60 ticks).
    - Red (hold right-click): Charges in 2.5s (50 ticks), fires up to 100b, 2b tunnel, 500 DMG, 5b crater. Cooldown: 4s (80 ticks).
    - Full Purple: Fully charged Red into a ready Blue (2b catch assist). Cutscene + 48b crater, 9,999 DMG in 72b. Works across players. Locks Blue & Red for 60s (1200 ticks).
    - Small Purple: Any other Red into a Blue. Bursts on the spot after 2.5s; scales with Blue charge & smallPurpleStrength. Locks both for 15s (300 ticks).
    - Purple sphere (hold both buttons): Forms in 2.5s (0.3s input grace), release to fire straight ahead (1.6 b/tick, 90b range, 3b tunnel, 20% purpleDamage * smallPurpleStrength). Locks both for 15s (300 ticks).
+10. Block Dominion [NEW in 1.7.0]:
+   - Shift + Left-Click to turn on/off (up to 48 orbiting blocks by default). Left-click a block to lift it, left-click air to pull up to 24 blocks from the ground, or left-click a mob (8 blocks) to lock it in a Monolith Cage skewered by 6 stone lances.
+   - Right-click to fire a block; hold right-click for a rapid volley. Orbiting blocks passively shield you and reflect arrows/projectiles back (heavier hits cost more blocks; overwhelming hits break guard).
+   - Double-tap Space (6+ blocks) to spread Block Wings: Shift + Space toggles Hover/Glide, Ctrl/Space boosts, flying past mobs at high speed slashes right through them, Shift + Right-Click rains blocks from above, landing sends a shockwave that launches nearby ground blocks into the air, and diving straight down builds a 3-tier Meteor Dive up to Cataclysm.
+   - Safe Mode: When terrainDamage or blockDominionTerrainDamage is false, summons temporary blocks without breaking or taking world blocks, leaves no craters, and vanishes cleanly when turned off. Cooldown: 4s (80 ticks).
 
 ## Cutscenes
 Atomic, Fuga, Silent Gate, and Purple each have a cutscene and soundtrack. Press Esc or F5 to skip. The settings menu (K) has one Cutscenes switch for all four; individual switches live in config/godwand-client.json.
 
 ## Controls & Commands
-- Hold V: Skill wheel (9 skills)
-- Right-Click: Cast/charge skill (in Purple mode: Red)
-- Left-Click (Purple only): Hold for Blue; hold with Right-Click for Purple sphere (other modes: 5 melee DMG)
-- K: Client settings (wand appearance, Cutscenes, Skill Sounds volume, Skill HUD, Bare Hand, Red Recoil, Purple: Third Person, effects)
+- Hold V: Skill wheel (10 skills); or bind Next skill / Previous skill in Controls
+- Right-Click: Cast/charge skill (Purple: Red; Block Dominion: fire block / hold for volley)
+- Left-Click: Purple (hold for Blue; hold with Right-Click for Purple sphere); Block Dominion (Shift+LMB toggle, LMB lift/pull/Monolith Cage); other modes: 5 melee DMG
+- Double-tap Space (Block Dominion, 6+ blocks): Block Wings (Shift+Space Hover/Glide, Ctrl/Space Boost, Shift+RMB Orbital Volley)
+- K: Client settings (wand appearance, Cutscenes, Skill Sounds volume, Skill HUD, Controls Guide, Bare Hand, Red Recoil, Purple: Third Person, effects)
 - Shift: Bridge in Spatial Path; cancel Silent Gate / charging Red
 - Esc or F5: Skip cutscene camera
 - /godwand lock <skill>, /godwand unlock (OP Lv 2), /godwand reset_cooldowns [players] (OP Lv 4)
 
 ## Configuration
-- Server: config/godwand-server.json (71 keys grouped by skill; existing files gain new keys automatically).
-- Client: config/godwand-client.json (18 keys; most adjustable in K menu).`;
+- Server: config/godwand-server.json (78 keys grouped by skill; existing files gain new keys automatically).
+- Client: config/godwand-client.json (19 keys; most adjustable in K menu).`;
   }
 });
