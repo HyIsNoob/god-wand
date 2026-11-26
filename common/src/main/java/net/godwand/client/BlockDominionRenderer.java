@@ -1292,6 +1292,14 @@ public final class BlockDominionRenderer {
                     : (local.boosting ? Math.max(0.32f, speedFrac * 0.56f) : speedFrac * 0.28f);
             targetFov = 1.0f + speedFrac * (meteor ? (0.055f + mTier * 0.015f) : (local.boosting ? 0.085f : 0.045f));
             targetBloom = meteor ? (0.28f + mTier * 0.10f) : (local.boosting ? 0.30f : (speedFrac > 0.25f ? 0.12f : 0.0f));
+
+            // Tactile local-only flight rumble (zero extra packets in multiplayer; scales with client cameraShake setting)
+            if (meteor) {
+                float diveFloor = (mTier >= 3 ? 0.58f : (mTier == 2 ? 0.46f : 0.32f)) + local.meteorFold * 0.08f;
+                GodWandCinematicEngine.holdTrauma(diveFloor);
+            } else if (local.boosting) {
+                GodWandCinematicEngine.holdTrauma(0.18f + speedFrac * 0.12f);
+            }
         } else {
             lastPlayerYaw = player.getYRot();
         }
@@ -1300,6 +1308,7 @@ public final class BlockDominionRenderer {
             float vp = Mth.clamp(local.volleyTicks / (float) BlockDominionRules.VOLLEY_CHARGE_TICKS, 0f, 1f);
             targetFov = 1.0f - vp * 0.045f;
             targetBloom = Math.max(targetBloom, 0.16f + vp * 0.28f);
+            GodWandCinematicEngine.holdTrauma(0.14f + vp * 0.22f);
         } else if (local.formation == BlockDominionBrain.FormationKind.RAILGUN_RING) {
             targetBloom = Math.max(targetBloom, 0.20f);
         }

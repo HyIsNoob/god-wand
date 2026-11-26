@@ -448,12 +448,12 @@ public final class BlockDominionManager {
 
         Services.NETWORK.sendToNearby(world, impactPos, SYNC_RADIUS,
                 new CannonPressurePayload(impactPos.add(0, 0.2, 0), new Vec3(0, -1, 0), t >= 2 ? 3 : 2, new Vec3(0, 1, 0)));
-        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+        Services.NETWORK.sendToNearby(world, impactPos, 64.0, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_TRAUMA_SHAKE, impactPos.x, impactPos.y, impactPos.z,
-                t == 3 ? 0.58f : (t == 2 ? 0.44f : 0.32f), t == 3 ? 18 : (t == 2 ? 14 : 10)));
+                t == 3 ? 0.96f : (t == 2 ? 0.78f : 0.58f), t == 3 ? 24 : (t == 2 ? 18 : 14)));
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_FOV_PUNCH, impactPos.x, impactPos.y, impactPos.z,
-                t == 3 ? 1.12f : (t == 2 ? 1.08f : 1.05f), t == 3 ? 10 : 8));
+                t == 3 ? 1.18f : (t == 2 ? 1.12f : 1.07f), t == 3 ? 12 : 9));
 
         // Thunderous earth-shattering ground detonation layered with client Cataclysm explosion!
         world.playSound(null, impactPos.x, impactPos.y, impactPos.z,
@@ -849,8 +849,8 @@ public final class BlockDominionManager {
 
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_FOV_PUNCH, hitPos.x, hitPos.y, hitPos.z, 1.09f, 9));
-        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                CinematicFxPayload.EVENT_TRAUMA_SHAKE, hitPos.x, hitPos.y, hitPos.z, 0.42f, 11));
+        Services.NETWORK.sendToNearby(world, hitPos, 32.0, new CinematicFxPayload(
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE, hitPos.x, hitPos.y, hitPos.z, 0.58f, 12));
 
         int packed = (target.getId() << 1) | (killed ? 1 : 0);
         sync(player, st, BlockDominionRules.EVENT_CAGE_IMPALE, hitPos.x, hitPos.y, hitPos.z, packed);
@@ -950,8 +950,8 @@ public final class BlockDominionManager {
             st.conjuredReserve = true;
             st.lastSurgeTick = now;
             GodWandAdvancements.award(player, "use_9");
-            Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                    CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.36f, 10));
+            Services.NETWORK.sendToNearby(world, player.position(), 24.0, new CinematicFxPayload(
+                    CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.48f, 11));
             Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                     CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.07f, 8));
             sync(player, st, BlockDominionRules.EVENT_SURGE, player.getX(), player.getY(), player.getZ(), Block.getId(lastState));
@@ -1004,8 +1004,8 @@ public final class BlockDominionManager {
 
         st.lastSurgeTick = now;
         GodWandAdvancements.award(player, "use_9");
-        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.36f, 10));
+        Services.NETWORK.sendToNearby(world, player.position(), 24.0, new CinematicFxPayload(
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.48f, 11));
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                 CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.07f, 8));
         sync(player, st, BlockDominionRules.EVENT_SURGE, player.getX(), player.getY(), player.getZ(), Block.getId(lastState));
@@ -1759,10 +1759,10 @@ public final class BlockDominionManager {
                     }
                     Services.NETWORK.sendToNearby(world, landPos, SYNC_RADIUS,
                             new CannonPressurePayload(landPos.add(0, 0.15, 0), new Vec3(0, -1, 0), 2, new Vec3(0, 1, 0)));
+                    Services.NETWORK.sendToNearby(world, landPos, 48.0, new CinematicFxPayload(
+                            CinematicFxPayload.EVENT_TRAUMA_SHAKE, landPos.x, landPos.y, landPos.z, 0.56f, 14));
                     Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                            CinematicFxPayload.EVENT_TRAUMA_SHAKE, landPos.x, landPos.y, landPos.z, 0.30f, 10));
-                    Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                            CinematicFxPayload.EVENT_FOV_PUNCH, landPos.x, landPos.y, landPos.z, 1.07f, 7));
+                            CinematicFxPayload.EVENT_FOV_PUNCH, landPos.x, landPos.y, landPos.z, 1.09f, 8));
                     world.playSound(null, landPos.x, landPos.y, landPos.z,
                             SoundEvents.DEEPSLATE_BREAK, SoundSource.PLAYERS, 1.15f, 0.65f);
                     // Real-terrain rolling seismic aftershock wave (strictly gated by terrain-damage config!)
@@ -1825,21 +1825,23 @@ public final class BlockDominionManager {
                     mobilityChanged = true;
                     if (nextTier == 1 && prevMeteorTier == 0) {
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.04f, 6));
+                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.05f, 6));
+                        Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.28f, 6));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                                 METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.36f, 1.15f);
                     } else if (nextTier == 2 && prevMeteorTier < 2) {
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.05f, 7));
+                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.07f, 7));
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.12f, 5));
+                                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.40f, 8));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                                 METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.48f, 0.96f);
                     } else if (nextTier == 3 && prevMeteorTier < 3) {
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.06f, 8));
+                                CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.10f, 9));
                         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.16f, 6));
+                                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.54f, 10));
                         world.playSound(null, player.getX(), player.getY(), player.getZ(),
                                 METEOR_IGNITE_SFX, SoundSource.PLAYERS, 0.60f, 0.80f);
                     }
@@ -1884,7 +1886,7 @@ public final class BlockDominionManager {
                     Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                             CinematicFxPayload.EVENT_FOV_PUNCH, player.getX(), player.getY(), player.getZ(), 1.13f, 10));
                     Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                            CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.16f, 6));
+                            CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.34f, 7));
                 } else if (!st.wingBoosting && wasBoosting) {
                     mobilityChanged = true;
                 }
