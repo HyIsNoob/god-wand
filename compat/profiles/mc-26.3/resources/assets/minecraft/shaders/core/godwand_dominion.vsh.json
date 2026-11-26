@@ -3,7 +3,7 @@
   "changes": [
     {
       "before": "#version 150\n\nin vec3 Position;\nin vec2 UV0;\nin vec4 Color;\n\nuniform mat4 ModelViewMat;\nuniform mat4 ProjMat;\n\nout vec2 texCoord0;\nout vec4 vertexColor;\n",
-      "after": "#version 330\n\nin vec3 Position;\nin vec2 UV0;\nin vec4 Color;\n\nlayout(std140) uniform DynamicTransforms {\n    mat4 ModelViewMat;\n    vec4 ColorModulator;\n    vec3 ModelOffset;\n    mat4 TextureMat;\n};\nlayout(std140) uniform Projection {\n    mat4 ProjMat;\n};\n\nout vec2 texCoord0;\nout vec4 vertexColor;\n"
+      "after": "#version 330\n#extension GL_ARB_separate_shader_objects : require\n\nlayout(location = 0) in vec3 Position;\nlayout(location = 1) in vec2 UV0;\nlayout(location = 2) in vec4 Color;\n\nlayout(std140) uniform DynamicTransforms {\n    mat4 ModelViewMat;\n    mat4 TextureMat;\n    vec4 ColorModulator;\n    vec3 ModelOffset;\n};\nlayout(std140) uniform Projection {\n    mat4 ProjMat;\n};\n\nlayout(location = 0) out vec2 texCoord0;\nlayout(location = 1) out vec4 vertexColor;\n"
     }
   ]
 }
