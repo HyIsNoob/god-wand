@@ -21,12 +21,12 @@ public class GodWandConfigScreen extends Screen {
     @Override
     protected void init() {
         int cx = this.width / 2;
-        int y = 30;
+        int y = 28;
         int contentWidth = Math.min(310, this.width - 24);
         int left = cx - contentWidth / 2;
         int columnWidth = (contentWidth - 10) / 2;
         int right = left + columnWidth + 10;
-        int gap = Math.max(2, Math.min(6, (this.height - 160) / 4));
+        int gap = Math.max(1, Math.min(6, (this.height - 224) / 7));
 
         addRenderableWidget(CycleButton.<WandSkin>builder(WandSkin::getDisplayName)
                 .withValues(WandSkin.values())
@@ -127,7 +127,7 @@ public class GodWandConfigScreen extends Screen {
 
         addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> {
             onClose();
-        }).bounds(cx - Math.min(200,contentWidth)/2, this.height - 30, Math.min(200,contentWidth), 20).build());
+        }).bounds(cx - Math.min(200,contentWidth)/2, Math.max(y + 20 + gap, this.height - 26), Math.min(200,contentWidth), 20).build());
     }
 
     @Override

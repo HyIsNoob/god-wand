@@ -1015,6 +1015,9 @@ public final class BlockDominionManager {
         PlayerState st = stateOf(player.getUUID());
         BlockDominionRules.Mode previous = st.mode;
         BlockDominionRules.Mode next = previous.next();
+        if (next != BlockDominionRules.Mode.OFF && GodWandConfig.SERVER.skillDisabled(GodWandItem.MODE_BLOCK_DOMINION)) {
+            return;
+        }
 
         cancelVolleyInternal(player, st, false);
         stopWingFlightInternal(player, st, false);
@@ -1519,7 +1522,7 @@ public final class BlockDominionManager {
         if (owner != null) SELF_DAMAGE_CASTER.set(owner.getUUID());
         try {
             if (hit instanceof EntityHitResult ehr && ehr.getEntity() instanceof LivingEntity victim
-                    && !SpellDamage.isCaster(victim, owner) && projectile.markHit(victim)) {
+                    && !SpellDamage.isCaster(victim, owner) && SpellDamage.affects(victim, owner) && projectile.markHit(victim)) {
                 float dmg = baseDamage * (victim instanceof Mob ? 2.0f : 1.0f);
                 SpellDamage.hurt(victim, world.damageSources().fallingBlock(owner), dmg);
             }
