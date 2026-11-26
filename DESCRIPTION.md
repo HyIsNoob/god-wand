@@ -2,9 +2,9 @@
 
 [Wiki, controls and guides](https://god-wand-wiki.vercel.app/)
 
-**One wand. Nine skills. Choose the spell, charge it, and decide when to release.**
+**One wand. Ten skills. Choose the spell, charge it, and decide when to release.**
 
-Walk through mountains, pull enemies into a gravity orb, raise a drill from the ground, hold an Atomic blast until you are ready to let it go, draw a burning bow and fire Fuga's phoenix arrow, open a gate in the sky and rain light on an army, or crash a blue and a red orb together into Purple.
+Walk through mountains, pull enemies into a gravity orb, raise a drill from the ground, hold an Atomic blast until you are ready to let it go, draw a burning bow and fire Fuga's phoenix arrow, open a gate in the sky and rain light on an army, crash a blue and a red orb together into Purple, or command an armada of orbiting blocks in **Block Dominion** to soar on sculpted block wings and drop from the sky in a Meteor Dive.
 
 **⚠️ FLASH WARNING ⚠️**
 
@@ -20,7 +20,7 @@ Enjoying my mods? Consider supporting my work!
 
 [Ko-fi](https://ko-fi.com/hyisnoob) or [Momo (Vietnamese)](https://drive.google.com/file/d/1C86kZ2Dm68TlNuiFgbo9ZFAUy3jghPGv/view?usp=sharing)
 
-## Nine skills
+## Ten skills
 
 ### 1\. Spatial Path
 
@@ -64,7 +64,20 @@ Two orbs, one in each hand.
 *   **Fire any other Red into a Blue:** a smaller Purple explodes on the spot.
 *   **Hold both buttons:** form a purple sphere in front of you, then let go to fire it straight ahead.
 
-Blue and Red each have their own cooldown; Purple puts both on cooldown. More on the [wiki](https://god-wand-wiki.vercel.app/).
+Blue and Red each have their own cooldown; Purple puts both on cooldown.
+
+### 10\. Block Dominion
+
+Take telekinetic control of up to 48 blocks around you — orbiting stone, iron, gold, obsidian, and more, shifting their aura to match the materials you gather.
+
+*   **Toggle & gather:** **Shift + Left-click** to activate. Left-click a block to lift it into orbit, or left-click the air for **Earthen Surge** to rip up to 24 blocks from the ground at once.
+*   **Block Wings & Hero Landing:** **Double-tap Space** (with 6+ blocks) to shape your blocks into layered wings. Switch between Hover and Glide (**Shift + Space**), boost with **Ctrl / Space**, rain down an **Orbital Volley** (**Shift + Right-click**), or touch down with a seismic shockwave that heaves nearby terrain into the air before slamming it back down.
+*   **Meteor Dive:** pitch straight down while flying — your wings fold tighter the higher you dive, building through three impact tiers up to a volcanic **Cataclysm** slam.
+*   **Monolith Cage:** left-click a mob (8 blocks) to lock it inside an upright stone cage, then pierce it from six angles with converging block lances.
+*   **Railgun Shot, Volley & Shield Parry:** right-click to launch high-velocity blocks, hold right-click to unleash a continuous volley, and let orbiting blocks automatically intercept incoming attacks.
+*   **Zero-grief Safe Mode:** when terrain damage is turned off, Block Dominion conjures virtual blocks instead of breaking the world, creates no craters or terrain upheaval, and dissolves conjured blocks harmlessly when turned off.
+
+More on the [wiki](https://god-wand-wiki.vercel.app/).
 
 ### Cutscenes
 
@@ -83,7 +96,7 @@ Choose one yourself, or use **AUTO** to switch with your skill: Aqua Heartia for
 
 Destructive spells can change a large area. **Terrain destruction is enabled by default.**
 
-*   **One switch turns off terrain damage for every skill.** Each skill also has its own switch, and Earth Drill and Supernova can keep lifting blocks without leaving permanent damage.
+*   **One switch turns off terrain damage for every skill.** Each skill also has its own switch — Earth Drill and Supernova can keep lifting blocks without permanent damage, and Block Dominion switches to full zero-grief Safe Mode (conjuring virtual blocks without breaking or placing anything in the world).
 *   **Your pets are safe by default.** Spells don't hurt or push tamed animals, mobs with a name tag or mobs on a lead. Server owners can make spells hit everything, or monsters only.
 *   **PvP can be turned off,** so spells never hurt other players.
 *   **Server owners can remove skills from the wand.** Removed skills disappear from the skill wheel and cannot be cast.
@@ -92,15 +105,18 @@ Damage, cooldowns and terrain ranges can be adjusted for each skill. Existing se
 
 ## Controls
 
-| Key                                                 | Action                                                |
-| --------------------------------------------------- | ----------------------------------------------------- |
-| <strong>Hold V</strong>                             | Choose a skill while holding the wand                 |
-| <strong>Right-click</strong>                        | Use the selected skill; hold to charge where required |
-| <strong>Left-click (Purple)</strong>                | Hold for Blue; hold with right-click for the Purple sphere |
-| <strong>K</strong>                                  | Choose a wand appearance, cutscenes, effects and sound |
-| <strong>Shift while Spatial Path is active</strong> | Use the temporary bridge                              |
-| <strong>Right-click while Silent Gate waits</strong> | Command the gate to fire                             |
-| <strong>Esc or F5 during a cutscene</strong>        | Skip its camera                                       |
+| Key | Action |
+| --- | --- |
+| <strong>Hold V</strong> | Choose a skill while holding the wand |
+| <strong>Right-click</strong> | Use the selected skill; hold to charge where required |
+| <strong>Left-click (Purple)</strong> | Hold for Blue; hold with right-click for the Purple sphere |
+| <strong>Shift + Left-click (Block Dominion)</strong> | Toggle Block Dominion on or off |
+| <strong>Left-click (Block Dominion)</strong> | Lift block, Earthen Surge (air), or Monolith Cage (mob) |
+| <strong>Double-tap Space (Block Dominion)</strong> | Spread / fold Block Wings (6+ blocks); Shift + Space toggles Hover/Glide |
+| <strong>K</strong> | Wand appearance, cutscenes, HUD, controls guide, effects and sound |
+| <strong>Shift while Spatial Path is active</strong> | Use the temporary bridge |
+| <strong>Right-click while Silent Gate waits</strong> | Command the gate to fire |
+| <strong>Esc or F5 during a cutscene</strong> | Skip its camera |
 
 ## Crafting
 
@@ -115,7 +131,7 @@ Damage, cooldowns and terrain ranges can be adjusted for each skill. Existing se
 *   **Minecraft 1.20.1:** Fabric or Forge.
 *   Fabric requires **Fabric API**.
 *   Install God Wand on both your game and the server.
-*   An extra shaderpack is optional.
+*   An extra shaderpack is optional (Iris, Oculus and OptiFine shaders are supported).
 *   Cutscene animations work alongside animation mods such as Emotecraft, Better Combat and Not Enough Animations.
 
 ## Contributors

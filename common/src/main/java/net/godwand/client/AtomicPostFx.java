@@ -43,8 +43,18 @@ public final class AtomicPostFx {
                 iris = api.getMethod("getInstance").invoke(null);
                 irisInUse = api.getMethod("isShaderPackInUse");
             }
-            return irisInUse != null && (boolean) irisInUse.invoke(iris);
-        } catch (ReflectiveOperationException | LinkageError absent) { irisInUse = null; return false; }
+            if (irisInUse != null) return (boolean) irisInUse.invoke(iris);
+        } catch (ReflectiveOperationException | LinkageError absent) { irisInUse = null; }
+        return optifineShaders();
+    }
+    private static java.lang.reflect.Method optifineIsShaders;
+    private static boolean optifineChecked;
+    /** OptiFine's shaders (no Iris API) repaint the level pass the same way. */
+    private static boolean optifineShaders() {
+        try {
+            if (!optifineChecked) { optifineChecked = true; optifineIsShaders = Class.forName("net.optifine.Config").getMethod("isShaders"); }
+            return optifineIsShaders != null && (boolean) optifineIsShaders.invoke(null);
+        } catch (ReflectiveOperationException | LinkageError absent) { optifineIsShaders = null; return false; }
     }
     private static void create(Minecraft client) throws Exception {
         chain=new PostChain(client.getTextureManager(),client.getResourceManager(),client.getMainRenderTarget(),

@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.7.0]
+
+### New skill: Block Dominion
+
+- **Telekinetic block armada:** Press **Shift + Left-click** to activate and gather up to 48 orbiting blocks (configurable via `blockDominionCapacity`). Left-click a block to lift it, or left-click the air for **Earthen Surge** to pull up to 24 blocks from the ground at once.
+- **Sculpted Block Wings:** **Double-tap Space** (with 6+ blocks) to form layered wings with tight feathered geometry, luminous wingtip contrails, Hover/Glide switching (**Shift + Space**), boost (**Ctrl / Space**), and **Orbital Volley** (**Shift + Right-click**).
+- **Seismic Hero Landing & 3-Tier Meteor Dive:** Touching down from flight sends a shockwave that heaves nearby terrain into the air before slamming it back down. Diving straight down progressively folds your wings tighter and builds across three impact tiers up to a volcanic **Cataclysm** strike.
+- **Monolith Cage:** Left-click a mob (8 blocks, up to 3 active cages) to immobilize it inside a steady stone cage and impale it from six angles with converging block lances.
+- **Railgun Shot, Volley & Shield Parry:** Right-click to fire single high-velocity blocks, hold right-click for a continuous volley, and let orbiting blocks automatically intercept incoming attacks.
+- **Zero-grief Safe Mode:** Turning off terrain damage (`terrainDamage: false` or `blockDominionTerrainDamage: false`) prevents Block Dominion from breaking or mining world blocks — it conjures virtual blocks instead, deals damage without craters or terrain upheaval, and dissolves conjured blocks harmlessly when turned off.
+
+### Improvements
+
+- **Clean HUD & Controls Guide:** Added a compact Block Dominion reserve gauge in the bottom-right corner and a minimal vanilla-styled Controls Guide in the bottom-left corner (below chat), with separate switches in the settings menu (**K**) for HUD (`skillHud`) and Controls Guide (`dominionGuide`).
+- **Shaderpack & MC 26.3 polish:** Block Dominion blocks and volumetric effects render cleanly under Iris, Oculus and OptiFine shaderpacks, and the Minecraft 26.3 SPIR-V shader pipelines and NeoForge 26.3 metadata load with zero warnings.
+- **Config, commands & advancements:** Added `blockDominion` server settings (cooldown, capacity, damage, blast/crater radius, projectile speed, terrain damage), `/godwand lock block_dominion`, and the **Sovereign of Stone** advancement.
+- Includes all fixes and optimizations from **1.6.3**.
+
+## [1.6.3]
+
+### Fixed
+
+- With a shaderpack, Fuga and Silent Gate could lose parts of their effects (missing layers, Fuga's bridge gone) when the mod's post effects were switched off or failed to load.
+- OptiFine shaders are now detected like Iris/Oculus shaderpacks.
+- Spatial Path no longer loses sand, gravel and other falling blocks: they used to fall as the path closed behind you instead of returning to their place.
+- Silent Gate is lighter on the CPU: its scene is built once per frame instead of once for each of its layers, so the barrage runs at a higher frame rate. It looks exactly the same.
+
 ## [1.6.2]
 
 ### Added
