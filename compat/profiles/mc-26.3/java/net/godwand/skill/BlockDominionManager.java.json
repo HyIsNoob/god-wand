@@ -94,8 +94,8 @@
       "after": "\n    private static void fireAutoSingle(ServerPlayer player, PlayerState st) {\n        ServerLevel world = player.level();\n        BlockState block;\n        double fx, fy, fz;\n"
     },
     {
-      "before": "        PlayerState st = STATES.get(player.getUUID());\n        BlockDominionRules.Mode mode = st == null ? BlockDominionRules.Mode.OFF : st.mode;\n        ServerLevel world = player.serverLevel();\n        long now = world.getGameTime();\n        boolean inPostParry = st != null && st.postParryInvulnUntil >= now;\n",
-      "after": "        PlayerState st = STATES.get(player.getUUID());\n        BlockDominionRules.Mode mode = st == null ? BlockDominionRules.Mode.OFF : st.mode;\n        ServerLevel world = player.level();\n        long now = world.getGameTime();\n        boolean inPostParry = st != null && st.postParryInvulnUntil >= now;\n"
+      "before": "        PlayerState st = STATES.get(player.getUUID());\n        BlockDominionRules.Mode mode = st == null ? BlockDominionRules.Mode.OFF : st.mode;\n        ServerLevel world = player.serverLevel();\n        long now = world.getGameTime();\n        boolean inPostParry = st != null && st.postParryInvulnUntil >= now\n",
+      "after": "        PlayerState st = STATES.get(player.getUUID());\n        BlockDominionRules.Mode mode = st == null ? BlockDominionRules.Mode.OFF : st.mode;\n        ServerLevel world = player.level();\n        long now = world.getGameTime();\n        boolean inPostParry = st != null && st.postParryInvulnUntil >= now\n"
     },
     {
       "before": "        Vec3 dir = projectile.getDeltaMovement().lengthSqr() > 1e-6 ? projectile.getDeltaMovement().normalize() : new Vec3(0, -1, 0);\n        Vec3 surfaceNormal = hit instanceof BlockHitResult bhr\n                ? Vec3.atLowerCornerOf(bhr.getDirection().getNormal())\n                : dir.reverse();\n        Entity owner = projectile.getOwner();\n",

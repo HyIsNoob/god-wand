@@ -103,6 +103,16 @@ class BlockDominionRulesTest {
         // Off mode never absorbs
         assertEquals(BlockDominionRules.AbsorbResult.NONE,
                 BlockDominionRules.decideAbsorb(BlockDominionRules.Mode.OFF, 10, true, false, false, false, false));
+
+        // Damage-scaled parry cost: <=8 dmg = 1 block, heavier hits cost proportionally more, excess bleeds through
+        assertEquals(1, BlockDominionRules.parryBlockCost(1.0f));
+        assertEquals(1, BlockDominionRules.parryBlockCost(8.0f));
+        assertEquals(2, BlockDominionRules.parryBlockCost(12.0f));
+        assertEquals(3, BlockDominionRules.parryBlockCost(24.0f));
+        assertEquals(10, BlockDominionRules.parryBlockCost(80.0f));
+        assertEquals(0.0f, BlockDominionRules.parryBleedThroughDamage(24.0f, 3), 1e-4f);
+        assertEquals(8.0f, BlockDominionRules.parryBleedThroughDamage(24.0f, 2), 1e-4f);
+        assertEquals(116.0f, BlockDominionRules.parryBleedThroughDamage(500.0f, 48), 1e-4f);
     }
 
     @Test

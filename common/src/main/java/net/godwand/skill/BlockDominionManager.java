@@ -86,6 +86,7 @@ public final class BlockDominionManager {
         int rapidShotsFired;
         int nextRapidFireTick;
         long postParryInvulnUntil = -1;
+        float postParryBlockedAmount = 0.0f;
         long lastHeartbeatTick = -1;
         int volleySilenceLeft;
         BlockDominionBrain.FormationKind formation = BlockDominionBrain.FormationKind.IDLE;
@@ -170,7 +171,9 @@ public final class BlockDominionManager {
     }
 
     private static final Map<UUID, PlayerState> STATES = new ConcurrentHashMap<>();
+    private static final Map<Projectile, Boolean> DEFLECTED_PROJECTILES = java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
     private static final ThreadLocal<UUID> SELF_DAMAGE_CASTER = new ThreadLocal<>();
+    private static final ThreadLocal<UUID> SHIELD_BREAK_BYPASS = new ThreadLocal<>();
     private static final BlockState[] SAFE_CONJURE_PALETTE = {
             Blocks.STONE.defaultBlockState(),
             Blocks.DEEPSLATE.defaultBlockState(),
@@ -1400,6 +1403,7 @@ public final class BlockDominionManager {
     /** Damage defense called from LivingEntityMixin on LivingEntity.hurt(DamageSource, float). */
     public static boolean tryAbsorbDamage(ServerPlayer player, DamageSource source, float amount) {
         if (player == null || amount <= 0 || !player.isAlive()) return false;
+        if (player.getUUID().equals(SHIELD_BREAK_BYPASS.get())) return false;
 
         boolean bypasses = source.is(DamageTypeTags.BYPASSES_INVULNERABILITY);
         boolean alreadyInvuln = player.isCreative() || player.isSpectator() || player.getAbilities().invulnerable
@@ -1411,7 +1415,8 @@ public final class BlockDominionManager {
         BlockDominionRules.Mode mode = st == null ? BlockDominionRules.Mode.OFF : st.mode;
         ServerLevel world = player.serverLevel();
         long now = world.getGameTime();
-        boolean inPostParry = st != null && st.postParryInvulnUntil >= now;
+        boolean inPostParry = st != null && st.postParryInvulnUntil >= now
+                && amount <= Math.max(BlockDominionRules.PARRY_DAMAGE_PER_BLOCK, st.postParryBlockedAmount);
 
         BlockPos autoPos = null;
         if (mode == BlockDominionRules.Mode.AUTO && !bypasses && !alreadyInvuln && !ownDamage && !inPostParry) {
@@ -1431,12 +1436,36 @@ public final class BlockDominionManager {
         if (decision == BlockDominionRules.AbsorbResult.NONE) return false;
         if (decision == BlockDominionRules.AbsorbResult.FREE_INVULN) {
             mitigateStatusEffects(player, source);
+            // Shatter spam projectiles during i-frames so Vanilla AbstractArrow never bounces them back onto the player!
+            if (source.getDirectEntity() instanceof Projectile incoming && !(incoming instanceof DominionBlockProjectileEntity)) {
+                incoming.discard();
+            }
             return true;
         }
 
+        // Determine threat direction for shield flash & shatter bursts
+        Vec3 playerCenter = player.position().add(0, 1.15, 0);
+        Vec3 threatDir = player.getViewVector(1.0f).normalize();
+        if (source.getSourcePosition() != null) {
+            Vec3 delta = source.getSourcePosition().subtract(playerCenter);
+            if (delta.lengthSqr() > 1e-4) threatDir = delta.normalize();
+        } else if (source.getEntity() != null) {
+            Vec3 delta = source.getEntity().position().add(0, source.getEntity().getBbHeight() * 0.5, 0).subtract(playerCenter);
+            if (delta.lengthSqr() > 1e-4) threatDir = delta.normalize();
+        }
+
         BlockState parriedState;
+        int consumedCount = 1;
+        float bleedThrough = 0.0f;
         if (decision == BlockDominionRules.AbsorbResult.CONSUME_RESERVE) {
-            parriedState = st.reserve.remove(st.reserve.size() - 1);
+            int available = st.reserve.size();
+            int needed = BlockDominionRules.parryBlockCost(amount);
+            consumedCount = Math.min(available, needed);
+            bleedThrough = BlockDominionRules.parryBleedThroughDamage(amount, available);
+            parriedState = st.reserve.get(st.reserve.size() - 1);
+            for (int i = 0; i < consumedCount; i++) {
+                parriedState = st.reserve.remove(st.reserve.size() - 1);
+            }
             if (st.reserve.isEmpty()) st.conjuredReserve = false;
         } else {
             // CONSUME_AUTO_BLOCK
@@ -1452,24 +1481,41 @@ public final class BlockDominionManager {
             }
         }
 
-        st.postParryInvulnUntil = now + BlockDominionRules.PARRY_INVULN_TICKS;
-        mitigateStatusEffects(player, source);
-
-        // Determine threat direction for shield flash & auto-counter
-        Vec3 playerCenter = player.position().add(0, 1.15, 0);
-        Vec3 threatDir = player.getViewVector(1.0f).normalize();
-        if (source.getSourcePosition() != null) {
-            Vec3 delta = source.getSourcePosition().subtract(playerCenter);
-            if (delta.lengthSqr() > 1e-4) threatDir = delta.normalize();
-        } else if (source.getEntity() != null) {
-            Vec3 delta = source.getEntity().position().add(0, source.getEntity().getBbHeight() * 0.5, 0).subtract(playerCenter);
-            if (delta.lengthSqr() > 1e-4) threatDir = delta.normalize();
-        }
-
-        // Kinetic Deflect: reflect direct incoming hostile projectile straight back at shooter!
+        // Discard direct projectile reaching hurt() so Vanilla AbstractArrow's else-branch (vel * -0.1) never leaves hovering arrows!
         if (source.getDirectEntity() instanceof Projectile incoming && !(incoming instanceof DominionBlockProjectileEntity)) {
-            deflectProjectile(world, player, incoming);
+            incoming.discard();
         }
+
+        Vec3 parryPoint = playerCenter.add(threatDir.scale(1.35));
+        int burstParticles = Math.min(48, 14 + consumedCount * 4);
+        world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, parriedState),
+                parryPoint.x, parryPoint.y, parryPoint.z, burstParticles, 0.35, 0.35, 0.35, 0.20);
+        world.sendParticles(ParticleTypes.CRIT, parryPoint.x, parryPoint.y, parryPoint.z,
+                Math.min(24, 6 + consumedCount * 2), 0.25, 0.25, 0.25, 0.14);
+
+        // Guard Break: incoming hit exceeded total reserve capacity — shatter all blocks and bleed residual damage through!
+        if (bleedThrough > 0.0f) {
+            st.postParryInvulnUntil = -1;
+            st.postParryBlockedAmount = 0.0f;
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.SHIELD_BREAK, SoundSource.PLAYERS, 1.15f, 0.78f);
+            Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                    CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.45f, 9));
+            sync(player, st, BlockDominionRules.EVENT_PARRY, threatDir.x, threatDir.y, threatDir.z, Block.getId(parriedState));
+            UUID prevBypass = SHIELD_BREAK_BYPASS.get();
+            SHIELD_BREAK_BYPASS.set(player.getUUID());
+            try {
+                SpellDamage.hurt(player, source, bleedThrough);
+            } finally {
+                if (prevBypass == null) SHIELD_BREAK_BYPASS.remove();
+                else SHIELD_BREAK_BYPASS.set(prevBypass);
+            }
+            return true;
+        }
+
+        st.postParryInvulnUntil = now + BlockDominionRules.PARRY_INVULN_TICKS;
+        st.postParryBlockedAmount = amount;
+        mitigateStatusEffects(player, source);
 
         // Auto mode: counter-launch the parried block straight back at the attacker!
         if (decision == BlockDominionRules.AbsorbResult.CONSUME_AUTO_BLOCK
@@ -1485,13 +1531,9 @@ public final class BlockDominionManager {
             }
         }
 
-        // Parry VFX & audio (client plays custom CC0 dominion_parry on EVENT_PARRY)
-        Vec3 parryPoint = playerCenter.add(threatDir.scale(1.35));
-        world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, parriedState),
-                parryPoint.x, parryPoint.y, parryPoint.z, 18, 0.3, 0.3, 0.3, 0.18);
-        world.sendParticles(ParticleTypes.CRIT, parryPoint.x, parryPoint.y, parryPoint.z, 8, 0.2, 0.2, 0.2, 0.12);
+        float shake = Math.min(0.42f, 0.22f + consumedCount * 0.03f);
         Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
-                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.28f, 6));
+                CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), shake, 6));
         sync(player, st, BlockDominionRules.EVENT_PARRY, threatDir.x, threatDir.y, threatDir.z, Block.getId(parriedState));
         return true;
     }
@@ -1917,11 +1959,11 @@ public final class BlockDominionManager {
             ((net.godwand.mixin.ServerGamePacketListenerAccessor) player.connection).godwand$setAboveGroundTickCount(0);
         }
 
-        // Kinetic Deflect: when a shield formation is raised, proactively catch & reflect incoming hostile projectiles!
+        // Kinetic Deflect: when a shield formation is raised, proactively catch & reflect (or shatter) incoming hostile projectiles!
         if (st.mode == BlockDominionRules.Mode.MANUAL && st.formation.isShield()
                 && !st.hiddenInCutscene && !st.reserve.isEmpty()) {
             if (tryProactiveKineticDeflect(world, player, st, now)) {
-                return;
+                stateChanged = true;
             }
         }
 
@@ -1986,36 +2028,74 @@ public final class BlockDominionManager {
      */
     private static boolean tryProactiveKineticDeflect(ServerLevel world, ServerPlayer player, PlayerState st, long now) {
         Vec3 center = player.position().add(0, 1.15, 0);
-        AABB box = player.getBoundingBox().inflate(2.75);
+        AABB box = player.getBoundingBox().inflate(3.1);
+        boolean interceptedAny = false;
+        BlockState lastParriedState = null;
+        Vec3 lastThreatDir = null;
+
         for (Entity entity : world.getEntities(player, box, Entity::isAlive)) {
+            if (st.reserve.isEmpty()) break;
             if (!(entity instanceof Projectile proj)) continue;
             if (proj instanceof DominionBlockProjectileEntity) continue;
+            if (proj.onGround()) continue;
             if (SpellDamage.isCaster(proj.getOwner(), player)) continue;
             Vec3 vel = proj.getDeltaMovement();
             if (vel.lengthSqr() < 0.04) continue;
             Vec3 toPlayer = center.subtract(proj.position());
             if (toPlayer.dot(vel) <= 0.0) continue; // Moving away already!
+            // Require projectile to be within close intercept distance now or on its next tick
+            double distNowSq = toPlayer.lengthSqr();
+            double distNextSq = center.subtract(proj.position().add(vel)).lengthSqr();
+            if (distNowSq > 2.85 * 2.85 && distNextSq > 2.65 * 2.65) continue;
 
-            boolean free = st.postParryInvulnUntil >= now;
-            BlockState parriedState = free
-                    ? st.reserve.get(st.reserve.size() - 1)
-                    : st.reserve.remove(st.reserve.size() - 1);
+            float estDamage = estimateProjectileDamage(proj);
+            int cost = BlockDominionRules.parryBlockCost(estDamage);
+            boolean free = st.postParryInvulnUntil >= now
+                    && estDamage <= Math.max(BlockDominionRules.PARRY_DAMAGE_PER_BLOCK, st.postParryBlockedAmount);
+            if (!free && st.reserve.size() < cost) {
+                continue; // Let tryAbsorbDamage handle heavy Guard Break bleed-through cleanly
+            }
+
+            BlockState parriedState = st.reserve.get(st.reserve.size() - 1);
+            if (!free) {
+                for (int i = 0; i < cost && !st.reserve.isEmpty(); i++) {
+                    parriedState = st.reserve.remove(st.reserve.size() - 1);
+                }
+                if (st.reserve.isEmpty()) st.conjuredReserve = false;
+            }
             st.postParryInvulnUntil = now + BlockDominionRules.PARRY_INVULN_TICKS;
+            st.postParryBlockedAmount = Math.max(st.postParryBlockedAmount, estDamage);
 
             Vec3 threatDir = proj.position().subtract(center);
             threatDir = threatDir.lengthSqr() > 1e-4 ? threatDir.normalize() : player.getViewVector(1.0f);
-            deflectProjectile(world, player, proj);
+
+            // Prevent infinite 2-player PvP ping-pong: reflect at most once; shatter already-deflected projectiles cleanly!
+            if (DEFLECTED_PROJECTILES.containsKey(proj)) {
+                proj.discard();
+            } else {
+                DEFLECTED_PROJECTILES.put(proj, Boolean.TRUE);
+                deflectProjectile(world, player, proj);
+            }
 
             Vec3 parryPoint = center.add(threatDir.scale(1.35));
             world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, parriedState),
-                    parryPoint.x, parryPoint.y, parryPoint.z, 14, 0.25, 0.25, 0.25, 0.16);
-            world.sendParticles(ParticleTypes.CRIT, parryPoint.x, parryPoint.y, parryPoint.z, 8, 0.2, 0.2, 0.2, 0.14);
+                    parryPoint.x, parryPoint.y, parryPoint.z, 12, 0.25, 0.25, 0.25, 0.16);
+            world.sendParticles(ParticleTypes.CRIT, parryPoint.x, parryPoint.y, parryPoint.z, 6, 0.2, 0.2, 0.2, 0.14);
+            lastParriedState = parriedState;
+            lastThreatDir = threatDir;
+            interceptedAny = true;
+        }
+        if (interceptedAny && lastParriedState != null && lastThreatDir != null) {
             Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
                     CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.20f, 5));
-            sync(player, st, BlockDominionRules.EVENT_PARRY, threatDir.x, threatDir.y, threatDir.z, Block.getId(parriedState));
-            return true;
+            sync(player, st, BlockDominionRules.EVENT_PARRY, lastThreatDir.x, lastThreatDir.y, lastThreatDir.z, Block.getId(lastParriedState));
         }
-        return false;
+        return interceptedAny;
+    }
+
+    private static float estimateProjectileDamage(Projectile proj) {
+        double speed = proj.getDeltaMovement().length();
+        return (float) Math.max(4.0, Math.ceil(speed * 3.0));
     }
 
     private static void deflectProjectile(ServerLevel world, ServerPlayer defender, Projectile proj) {
@@ -2038,6 +2118,7 @@ public final class BlockDominionManager {
         for (Entity entity : world.getEntities(player, box, Entity::isAlive)) {
             if (entity.isSpectator()) continue;
             if (entity instanceof Projectile proj) {
+                if (proj.onGround()) continue;
                 if (proj instanceof DominionBlockProjectileEntity && SpellDamage.isCaster(proj.getOwner(), player)) continue;
                 if (SpellDamage.isCaster(proj.getOwner(), player)) continue;
                 if (BlockDominionBrain.isIncomingProjectile(center, proj.position(), proj.getDeltaMovement())) {
@@ -2116,7 +2197,9 @@ public final class BlockDominionManager {
 
     public static void clearAll() {
         STATES.clear();
+        DEFLECTED_PROJECTILES.clear();
         SELF_DAMAGE_CASTER.remove();
+        SHIELD_BREAK_BYPASS.remove();
     }
 
     private static void dropReserveSpiral(ServerPlayer player, PlayerState st, boolean died) {

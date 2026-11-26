@@ -36,6 +36,11 @@ public final class BlockDominionRules {
     public static final int VOLLEY_CHARGE_TICKS = 20;
     public static final int VOLLEY_SILENCE_TICKS = 4;
     public static final int PARRY_INVULN_TICKS = 10;
+    /** Damage absorbed per single orbiting block during Shield Parry (<= 8 dmg = 1 block, 24 dmg = 3 blocks, etc.). */
+    public static final float PARRY_DAMAGE_PER_BLOCK = 8.0f;
+    /** Entity tag stamped on projectiles already kinetically deflected once (a second shield shatters instead of ping-ponging). */
+    public static final String DEFLECTED_TAG = "godwand_deflected";
+    public static final double DEFLECT_MAX_SPEED = 2.6;
     public static final int RECALL_WINDOW_TICKS = 600;
     public static final int UNFOLD_TICKS = 8;
     public static final int AUTO_SCAN_RADIUS = 10;
@@ -203,6 +208,20 @@ public final class BlockDominionRules {
             }
         }
         return offsets;
+    }
+
+    /** Number of orbiting blocks consumed to fully block an incoming hit of {@code damage}. */
+    public static int parryBlockCost(float damage) {
+        if (!Float.isFinite(damage) || damage <= 0.0f) return 1;
+        return Math.max(1, Mth.ceil(damage / PARRY_DAMAGE_PER_BLOCK));
+    }
+
+    /** Residual damage that bleeds through when a heavy hit shatters all available reserve blocks (0 if fully blocked). */
+    public static float parryBleedThroughDamage(float damage, int availableBlocks) {
+        if (!Float.isFinite(damage) || damage <= 0.0f) return 0.0f;
+        int cost = parryBlockCost(damage);
+        if (availableBlocks >= cost) return 0.0f;
+        return Math.max(0.0f, damage - Math.max(0, availableBlocks) * PARRY_DAMAGE_PER_BLOCK);
     }
 
     /** Determines how incoming damage should be handled by Block Dominion defense. */
@@ -525,7 +544,7 @@ public final class BlockDominionRules {
      * along its incoming path when no shooter is available) with amplified kinetic speed.
      */
     public static Vec3 deflectVelocity(Vec3 incomingVel, Vec3 impactPos, Vec3 shooterPos, double minSpeed) {
-        double speed = Math.max(minSpeed, (incomingVel == null ? 0.0 : incomingVel.length()) * 1.35);
+        double speed = Math.min(DEFLECT_MAX_SPEED, Math.max(minSpeed, (incomingVel == null ? 0.0 : incomingVel.length()) * 1.35));
         Vec3 dir;
         if (shooterPos != null && impactPos != null && shooterPos.distanceToSqr(impactPos) > 0.25) {
             dir = shooterPos.subtract(impactPos).normalize();
