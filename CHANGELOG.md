@@ -5,7 +5,7 @@
 ### New skill: Block Dominion
 
 - **Telekinetic block armada:** Press **Shift + Left-click** to activate and gather up to 48 orbiting blocks (configurable via `blockDominionCapacity`). Left-click a block to lift it, or left-click the air for **Earthen Surge** to pull up to 24 blocks from the ground at once.
-- **Sculpted Block Wings:** **Double-tap Space** (with 6+ blocks) to form layered wings with tight feathered geometry, luminous wingtip contrails, Hover/Glide switching (**Shift + Space**), boost (**Ctrl / Space**), and **Orbital Volley** (**Shift + Right-click**).
+- **Sculpted Block Wings:** **Double-tap Space** (with 6+ blocks) to form layered wings with tight feathered geometry, luminous wingtip contrails, Hover/Glide switching (**Shift + Space**), boost (**Ctrl / Space**), high-speed wing-blade flyby slash damage against clipped mobs, and **Orbital Volley** (**Shift + Right-click**).
 - **Seismic Hero Landing & 3-Tier Meteor Dive:** Touching down from flight sends a shockwave that heaves nearby terrain into the air before slamming it back down. Diving straight down progressively folds your wings tighter and builds across three impact tiers up to a volcanic **Cataclysm** strike.
 - **Monolith Cage:** Left-click a mob (8 blocks, up to 3 active cages) to immobilize it inside a steady stone cage and impale it from six angles with converging block lances.
 - **Railgun Shot, Volley & Shield Parry:** Right-click to fire single high-velocity blocks, hold right-click for a continuous volley, and let orbiting blocks automatically intercept incoming attacks (block cost scales with incoming damage at 1 block per 8 damage, shattering into Guard Break on overwhelming hits; deflected projectiles reflect once and shatter cleanly against a second shield).

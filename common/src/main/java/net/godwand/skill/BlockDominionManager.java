@@ -120,6 +120,7 @@ public final class BlockDominionManager {
         final List<ActiveCage> activeCages = new ArrayList<>();
         final List<SeismicWave> seismicWaves = new ArrayList<>();
         final ArrayDeque<QueuedShot> volleyQueue = new ArrayDeque<>();
+        final Map<Integer, Long> wingSlashCooldowns = new HashMap<>();
         RecallSnapshot recall;
     }
 
@@ -1862,6 +1863,11 @@ public final class BlockDominionManager {
                             nextTier == 3 ? 3 : 2, 0.45, 0.15, 0.45, 0.03);
                 }
 
+                // High-speed Wing-Blade Flyby: swooping fast slices any target clipped by the wingspan!
+                if (!st.volleyCharging) {
+                    applyWingBladeSlash(world, player, st, now, yawFwd);
+                }
+
                 // Sovereign Perch: calm idle Hover for ~1.7s -> materialize floating stone pedestal & fold guardian wings!
                 boolean idleHover = !st.wingGlideMode && !st.volleyCharging && !st.wingBoosting && !st.meteorDiveActive
                         && st.flightForward == 0 && st.flightStrafe == 0 && st.flightVertical == 0
@@ -2028,6 +2034,82 @@ public final class BlockDominionManager {
      * Kinetic Deflect: proactively catches incoming hostile projectiles hitting the raised Block Shield
      * and fires them straight back toward their shooter!
      */
+    /** Slices mobs/enemies clipped by the Block Wings during high-speed flybys without altering wing geometry. */
+    private static void applyWingBladeSlash(ServerLevel world, ServerPlayer player, PlayerState st, long now, Vec3 yawFwd) {
+        int blockCount = st.reserve.size();
+        double halfSpan = BlockDominionRules.wingSlashHalfSpan(blockCount);
+        if (halfSpan <= 0.0) return;
+
+        double speed = Math.max(st.flightVel.length(), player.getDeltaMovement().length());
+        if (speed < BlockDominionRules.WING_SLASH_MIN_SPEED) {
+            if (!st.wingSlashCooldowns.isEmpty() && (now % 20 == 0)) {
+                st.wingSlashCooldowns.values().removeIf(until -> until <= now);
+            }
+            return;
+        }
+
+        if (!st.wingSlashCooldowns.isEmpty()) {
+            st.wingSlashCooldowns.values().removeIf(until -> until <= now);
+        }
+
+        Vec3 fwd = yawFwd.lengthSqr() > 1e-4 ? yawFwd.normalize() : new Vec3(0, 0, 1);
+        Vec3 right = new Vec3(-fwd.z, 0.0, fwd.x);
+        Vec3 wingCenter = player.position().add(0.0, 1.05, 0.0);
+        double minFwd = -2.2;
+        double maxFwd = 1.6 + speed * 0.85;
+        AABB scan = player.getBoundingBox().inflate(halfSpan + 0.8, 1.85, halfSpan + 0.8);
+
+        var cfg = GodWandConfig.SERVER;
+        BlockState wingMat = st.reserve.get(blockCount - 1);
+        boolean slicedAny = false;
+
+        UUID previousSelf = SELF_DAMAGE_CASTER.get();
+        SELF_DAMAGE_CASTER.set(player.getUUID());
+        try {
+            for (LivingEntity target : world.getEntitiesOfClass(LivingEntity.class, scan,
+                    e -> e.isAlive() && !SpellDamage.isCaster(e, player) && SpellDamage.affects(e, player))) {
+                Long readyAt = st.wingSlashCooldowns.get(target.getId());
+                if (readyAt != null && readyAt > now) continue;
+
+                Vec3 rel = target.position().add(0.0, target.getBbHeight() * 0.5, 0.0).subtract(wingCenter);
+                double lateral = rel.dot(right);
+                if (Math.abs(lateral) > halfSpan) continue;
+                double along = rel.dot(fwd);
+                if (along < minFwd || along > maxFwd) continue;
+                if (Math.abs(rel.y) > 1.75) continue;
+
+                float dmg = BlockDominionRules.wingSlashDamage(speed, cfg.blockDominionDamage, cfg.damageMultiplier, target instanceof Mob);
+                if (dmg <= 0.0f) continue;
+
+                SpellDamage.hurt(target, world.damageSources().fallingBlock(player), dmg);
+                st.wingSlashCooldowns.put(target.getId(), now + BlockDominionRules.WING_SLASH_HIT_COOLDOWN_TICKS);
+
+                // Clean outward slice knockback (cross-version safe via Entity.push)
+                double sideSign = lateral >= 0.0 ? 1.0 : -1.0;
+                Vec3 kick = right.scale(sideSign * 0.55).add(fwd.scale(0.35)).add(0.0, 0.28, 0.0);
+                target.push(kick.x, kick.y, kick.z);
+
+                Vec3 hitPos = target.position().add(0.0, target.getBbHeight() * 0.55, 0.0);
+                world.sendParticles(ParticleTypes.SWEEP_ATTACK, hitPos.x, hitPos.y, hitPos.z, 1, 0.0, 0.0, 0.0, 0.0);
+                world.sendParticles(ParticleTypes.CRIT, hitPos.x, hitPos.y, hitPos.z, 6, 0.35, 0.35, 0.35, 0.16);
+                world.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, wingMat),
+                        hitPos.x, hitPos.y, hitPos.z, 6, 0.30, 0.30, 0.30, 0.14);
+                slicedAny = true;
+            }
+        } finally {
+            if (previousSelf == null) SELF_DAMAGE_CASTER.remove();
+            else SELF_DAMAGE_CASTER.set(previousSelf);
+        }
+
+        if (slicedAny) {
+            float pitch = 1.05f + Mth.clamp((float) ((speed - 0.85) * 0.18), 0.0f, 0.30f);
+            world.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 0.95f, pitch);
+            Services.NETWORK.sendToPlayer(player, new CinematicFxPayload(
+                    CinematicFxPayload.EVENT_TRAUMA_SHAKE, player.getX(), player.getY(), player.getZ(), 0.22f, 4));
+        }
+    }
+
     private static boolean tryProactiveKineticDeflect(ServerLevel world, ServerPlayer player, PlayerState st, long now) {
         Vec3 center = player.position().add(0, 1.15, 0);
         AABB box = player.getBoundingBox().inflate(3.1);

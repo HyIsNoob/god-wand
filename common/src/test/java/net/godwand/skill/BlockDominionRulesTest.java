@@ -113,6 +113,15 @@ class BlockDominionRulesTest {
         assertEquals(0.0f, BlockDominionRules.parryBleedThroughDamage(24.0f, 3), 1e-4f);
         assertEquals(8.0f, BlockDominionRules.parryBleedThroughDamage(24.0f, 2), 1e-4f);
         assertEquals(116.0f, BlockDominionRules.parryBleedThroughDamage(500.0f, 48), 1e-4f);
+
+        // High-speed wing-blade flyby slash rules
+        assertEquals(0.0, BlockDominionRules.wingSlashHalfSpan(5), 1e-6);
+        assertTrue(BlockDominionRules.wingSlashHalfSpan(48) > BlockDominionRules.wingSlashHalfSpan(6));
+        assertEquals(0.0f, BlockDominionRules.wingSlashDamage(0.5, 45f, 1f, true), 1e-4f);
+        float swoopMob = BlockDominionRules.wingSlashDamage(1.1, 45f, 1f, true);
+        float machMob = BlockDominionRules.wingSlashDamage(2.4, 45f, 1f, true);
+        float machPlayer = BlockDominionRules.wingSlashDamage(2.4, 45f, 1f, false);
+        assertTrue(swoopMob > 15f && machMob > swoopMob && machMob > machPlayer);
     }
 
     @Test

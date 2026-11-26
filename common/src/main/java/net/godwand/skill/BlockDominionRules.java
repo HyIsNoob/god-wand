@@ -115,6 +115,8 @@ public final class BlockDominionRules {
     public static final double GLIDE_MAX_SPEED = 2.58;
     public static final double GLIDE_DIVE_MAX_SPEED = 2.85;
     public static final double GLIDE_BOOST_ACCEL = 0.23;
+    public static final double WING_SLASH_MIN_SPEED = 0.85;
+    public static final int WING_SLASH_HIT_COOLDOWN_TICKS = 10;
     public static final double STAIR_DESCEND_VY = -0.085;
     public static final double STAIR_ASCEND_VY = 0.165;
     public static final double STAIR_HOP_VY = 0.44;
@@ -222,6 +224,22 @@ public final class BlockDominionRules {
         int cost = parryBlockCost(damage);
         if (availableBlocks >= cost) return 0.0f;
         return Math.max(0.0f, damage - Math.max(0, availableBlocks) * PARRY_DAMAGE_PER_BLOCK);
+    }
+
+    /** Half-wingspan (blocks per side) of the high-speed wing-blade flyby hitbox, scaling with active block count. */
+    public static double wingSlashHalfSpan(int blockCount) {
+        if (blockCount < MIN_FLIGHT_BLOCKS) return 0.0;
+        return 2.6 + Math.min(3.4, (blockCount - MIN_FLIGHT_BLOCKS) * 0.085);
+    }
+
+    /** High-speed flyby slash damage dealt to targets clipped by the sculpted Block Wings. */
+    public static float wingSlashDamage(double speed, float configuredDamage, float damageMultiplier, boolean isMob) {
+        if (!Double.isFinite(speed) || speed < WING_SLASH_MIN_SPEED || configuredDamage <= 0.0f || damageMultiplier <= 0.0f) {
+            return 0.0f;
+        }
+        float speedFrac = Mth.clamp((float) ((speed - WING_SLASH_MIN_SPEED) / 1.50), 0.0f, 1.0f);
+        float base = configuredDamage * (0.28f + 0.44f * speedFrac) * damageMultiplier;
+        return base * (isMob ? 1.5f : 0.75f);
     }
 
     /** Determines how incoming damage should be handled by Block Dominion defense. */
